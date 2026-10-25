@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button, Spin, Tag, Descriptions, Switch, Empty, Space } from 'antd'
 import { ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons'
 import { paperTag, textSourceLabel } from '../status'
+import { aiFieldsOf, AiGuessTag } from './PaperLibrary'
 
 const noticeStyle = (kind: 'warn' | 'error'): React.CSSProperties => ({
   padding: 12, borderRadius: 4, marginTop: 8, fontSize: 13,
@@ -83,17 +84,21 @@ export default function PaperDetail() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>返回</Button>
         <h2 style={{ margin: 0, color: '#1e2952' }}>{paper.title || paper.file_name}</h2>
         <Tag color={tag.color}>{tag.label}</Tag>
+        {(paper.status === 'reviewing' || paper.status === 'done') && (
+          <Button type="primary" size="small" data-testid="goto-review" onClick={() => navigate(`/review/${paper.id}`)}>去审核</Button>
+        )}
       </div>
 
       <Descriptions size="small" column={4} style={{ marginBottom: 16 }}>
         <Descriptions.Item label="年级">
-          {paper.grade ? `${paper.grade}年级` : '-'}
+          {paper.grade ? `${paper.grade}年级` : '-'}{aiFieldsOf(paper).includes('grade') && <AiGuessTag />}
         </Descriptions.Item>
-        <Descriptions.Item label="学期">{paper.semester || '-'}</Descriptions.Item>
+        <Descriptions.Item label="学期">{paper.semester || '-'}{aiFieldsOf(paper).includes('semester') && <AiGuessTag />}</Descriptions.Item>
         <Descriptions.Item label="学年">
-          {paper.school_year_start ? `${paper.school_year_start}-${paper.school_year_start + 1}` : '-'}
+          {paper.school_year_start ? `${paper.school_year_start}-${paper.school_year_start + 1}` : '-'}{aiFieldsOf(paper).includes('school_year_start') && <AiGuessTag />}
         </Descriptions.Item>
-        <Descriptions.Item label="类型">{paper.exam_type || '-'}</Descriptions.Item>
+        <Descriptions.Item label="类型">{paper.exam_type || '-'}{aiFieldsOf(paper).includes('exam_type') && <AiGuessTag />}</Descriptions.Item>
+        {paper.prompt_version && <Descriptions.Item label="解析">{paper.ai_model} · 提示词 {paper.prompt_version}</Descriptions.Item>}
         <Descriptions.Item label="页数">{paper.page_count}</Descriptions.Item>
         <Descriptions.Item label="文件">{paper.file_name}</Descriptions.Item>
         <Descriptions.Item label="导入时间">{paper.created_at}</Descriptions.Item>
@@ -103,7 +108,7 @@ export default function PaperDetail() {
         <div data-testid="paper-warning" style={noticeStyle('warn')}>提示：{paper.warning}</div>
       )}
       {paper.status === 'failed' && paper.error && (
-        <div style={noticeStyle('error')}>提取失败：{paper.error}</div>
+        <div style={noticeStyle('error')}>{paper.error_stage === 'parse' ? 'AI 解析失败' : '提取失败'}：{paper.error}</div>
       )}
 
       {pages.length > 0 && (

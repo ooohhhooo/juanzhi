@@ -4,6 +4,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { getDb, getFilesDir } from '../db'
 import { registerImports, reprocessPaper, isQueued } from '../pipeline/queue'
+import { isParseActive } from '../parse/queue'
 import { notifyDataChanged } from '../events'
 import { PaperMetaSchema, PaperFilterSchema, ImportOptionsSchema } from '../types'
 import { allowPath } from '../allowedPaths'
@@ -75,8 +76,19 @@ export function registerPaperIpc(): void {
     }
 
     if (sets.length > 0) {
+      const before = db.prepare('SELECT * FROM papers WHERE id = ?').get(id) as Record<string, unknown> | undefined
       params.push(id)
       db.prepare(`UPDATE papers SET ${sets.join(', ')} WHERE id = ?`).run(...params)
+      // 用户亲手改过（值真的变了）的字段不再算「AI 猜测」。编辑表单一次提交全部字段，
+      // 所以不能按「提交了哪些字段」判断，只看哪些字段的值和之前不同
+      const changed = Object.entries(m).filter(([k, v]) => v !== undefined && (before?.[k] ?? null) !== v).map(([k]) => k)
+      const aiJson = before?.ai_meta_json as string | null | undefined
+      if (aiJson && changed.length) {
+        try {
+          const kept = (JSON.parse(aiJson) as string[]).filter(k => !changed.includes(k))
+          db.prepare('UPDATE papers SET ai_meta_json = ? WHERE id = ?').run(JSON.stringify(kept), id)
+        } catch { /* 忽略损坏的标记 */ }
+      }
       notifyDataChanged('papers')
     }
 
@@ -89,7 +101,7 @@ export function registerPaperIpc(): void {
 
     const paper = db.prepare('SELECT status FROM papers WHERE id = ?').get(id)
     if (!paper) return false
-    if (paper.status === 'extracting' || isQueued(id)) {
+    if (paper.status === 'extracting' || paper.status === 'parsing' || isQueued(id) || isParseActive(id)) {
       throw new Error('试卷正在处理中，请稍候再删除')
     }
 
@@ -104,7 +116,7 @@ export function registerPaperIpc(): void {
       console.warn(`[papers] 清理文件目录失败: ${(e as Error).message}`)
     }
 
-    notifyDataChanged('papers', 'pages')
+    notifyDataChanged('papers', 'pages', 'questions')
     return true
   })
 

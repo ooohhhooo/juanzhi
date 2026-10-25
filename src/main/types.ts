@@ -92,7 +92,7 @@ export interface ImportResult {
   error?: string
   /** 'duplicate'：内容与已有试卷相同，需要用户确认后带 allowDuplicates 重新导入 */
   code?: 'duplicate'
-  duplicateOf?: { id: string; title: string }
+  duplicateOf?: { id: string; title: string; /** 已有的那份是「AI 解析失败」，应去处理队列重试而不是重新导入 */ parseFailed?: boolean }
 }
 
 export interface PaperAsset {

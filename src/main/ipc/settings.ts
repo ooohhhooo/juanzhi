@@ -3,10 +3,9 @@ import { z } from 'zod'
 import { getDb, getDataDir } from '../db'
 import { getOcrStatus } from '../pipeline/ocr'
 
-const ALLOWED_KEYS = new Set([
-  'ai_provider', 'ai_api_key', 'ai_model', 'ai_base_url',
-  'data_dir_custom', 'ui_theme', 'ui_language'
-])
+// 通用设置接口的白名单（读和写都只认这些键）。AI 配置与密钥不在其中：
+// 它们只能通过 ai:* 接口读写，而且密钥没有任何读回的接口。
+const ALLOWED_KEYS = new Set(['data_dir_custom', 'ui_theme', 'ui_language'])
 
 const SettingsKeySchema = z.string().refine(
   k => ALLOWED_KEYS.has(k),
@@ -15,7 +14,7 @@ const SettingsKeySchema = z.string().refine(
 
 export function registerSettingsIpc(): void {
   ipcMain.handle('settings:get', async (_event, rawKey: unknown) => {
-    const key = z.string().min(1).parse(rawKey)
+    const key = SettingsKeySchema.parse(rawKey)
     const db = getDb()
     const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(key)
     return row ? JSON.parse(row.value_json) : null

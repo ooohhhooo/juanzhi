@@ -1,0 +1,24 @@
+【筛选条件】{{FILTER_DESC}}
+【样本】{{PAPER_COUNT}} 份卷子，{{QUESTION_COUNT}} 道题；覆盖学年：{{YEARS}}
+【样本提示】{{SAMPLE_WARNING}}
+
+【知识点分布】
+列：层级 | 代码 | 名称 | 出现份数/总份数 | 题数 | 分值占比 | 平均难度（AI估计）| AI估计易错题数
+{{KP_DIST}}
+
+【题型分布】
+列：题型 | 题数 | 分值合计 | 分值占比 | 平均难度
+{{QTYPE_DIST}}
+
+【难度分布】（AI估计）
+列：难度(1-5) | 题数 | 占比
+{{DIFF_DIST}}
+
+【AI估计的易错点（样本）】
+列：代码 | 名称 | 易错原因 | 样本题
+{{ERROR_PRONE}}
+
+【年度变化摘要】
+{{YEAR_DIFF}}
+
+请按 system 中的结构输出 Markdown 报告。

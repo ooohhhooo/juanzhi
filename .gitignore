@@ -3,3 +3,16 @@ out/
 dist/
 ._*
 .DS_Store
+tests/real-ai/raw/
+
+# 环境变量/密钥、日志、本地数据库与构建缓存
+.env
+.env.*
+*.log
+npm-debug.log*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.tsbuildinfo
+coverage/
+.claude/settings.local.json

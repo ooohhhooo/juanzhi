@@ -13,6 +13,7 @@
     "resolveJsonModule": true,
     "declaration": false,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "types": ["node"]
   },
   "include": ["src/main/**/*", "src/preload/**/*", "electron.vite.config.ts"]

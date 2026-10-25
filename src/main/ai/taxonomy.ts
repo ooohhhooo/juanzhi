@@ -1,0 +1,57 @@
+import { getDb } from '../db'
+
+export interface KpRecord {
+  code: string
+  parent_code: string | null
+  name: string
+  level: number
+  intro_grade: number | null
+  sort: number
+  deprecated: number
+  merged_into: string | null
+  note: string | null
+  builtin: number
+}
+
+export interface QtypeRecord {
+  code: string
+  name: string
+  group: string
+  note: string | null
+  sort: number
+}
+
+export function listKps(includeDeprecated = false): KpRecord[] {
+  return getDb().prepare(
+    `SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin FROM kps ${includeDeprecated ? '' : 'WHERE deprecated = 0'} ORDER BY sort, code`
+  ).all() as unknown as KpRecord[]
+}
+
+export function listQtypes(): QtypeRecord[] {
+  return getDb().prepare(`SELECT code, name, "group", note, sort FROM qtypes ORDER BY sort, code`).all() as unknown as QtypeRecord[]
+}
+
+export interface TaxonomyContext {
+  kps: Set<string>
+  qtypes: Set<string>
+  /** {{KNOWLEDGE_TREE}}：代码 | 路径名称 | 常见引入年级 | 说明 */
+  treeText: string
+  /** {{QUESTION_TYPES}}：代码 | 名称 | 说明 */
+  qtypeText: string
+}
+
+/** 运行时把当前的知识点树与题型表（含用户改过的）渲染成提示词里的文本；顺序固定，利于前缀缓存 */
+export function loadTaxonomy(): TaxonomyContext {
+  const kps = listKps()
+  const byCode = new Map(kps.map(k => [k.code, k]))
+  const pathName = (k: KpRecord): string => {
+    const names: string[] = [k.name]
+    let p = k.parent_code ? byCode.get(k.parent_code) : undefined
+    while (p) { names.unshift(p.name); p = p.parent_code ? byCode.get(p.parent_code) : undefined }
+    return names.join('/')
+  }
+  const treeText = kps.map(k => `${k.code} | ${pathName(k)} | ${k.intro_grade ?? '-'} | ${k.note ?? ''}`).join('\n')
+  const qts = listQtypes()
+  const qtypeText = qts.map(q => `${q.code} | ${q.name} | ${q.note ?? ''}`).join('\n')
+  return { kps: new Set(kps.map(k => k.code)), qtypes: new Set(qts.map(q => q.code)), treeText, qtypeText }
+}

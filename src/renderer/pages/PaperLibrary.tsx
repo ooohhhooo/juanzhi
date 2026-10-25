@@ -3,21 +3,29 @@ import {
   Button, Table, Tag, Space, Modal, Form, Select, InputNumber, Input,
   App, Popconfirm
 } from 'antd'
-import { PlusOutlined, InboxOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, InboxOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ReloadOutlined, ThunderboltOutlined, CheckSquareOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { paperTag } from '../status'
 import { useImportFlow } from '../hooks/useImportFlow'
+import { useDiscardGuard } from '../hooks/useDiscardGuard'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
 const examTypeOptions = ['单元测试', '期中', '期末', '月考', '其他'].map(v => ({ label: v, value: v }))
 
+/** 哪些字段是 AI 预填的（用户改过就不再算） */
+export function aiFieldsOf(p: Paper): string[] {
+  try { return p.ai_meta_json ? JSON.parse(p.ai_meta_json) : [] } catch { return [] }
+}
+export const AiGuessTag = () => <Tag color="purple" style={{ marginInlineStart: 4, fontSize: 11, lineHeight: '16px' }} data-testid="ai-guess">AI 猜测</Tag>
+
 export default function PaperLibrary() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { importPaths, pathsFromDrop } = useImportFlow()
+  const discardGuard = useDiscardGuard()
   const [importing, setImporting] = useState(false)
   const [editPaper, setEditPaper] = useState<Paper | null>(null)
   const [editForm] = Form.useForm()
@@ -109,6 +117,19 @@ export default function PaperLibrary() {
     queryClient.invalidateQueries({ queryKey: ['papers'] })
   }
 
+  const handleParse = async (id: string) => {
+    try {
+      await window.api.parse.start(id)
+      message.success('已加入 AI 解析队列')
+    } catch (err) {
+      message.error((err as Error).message.replace(/^Error invoking remote method '[^']+': Error: /, ''))
+    }
+  }
+
+  const confirmReprocess = async (p: Paper) => {
+    if (await discardGuard(p, 'extract')) await handleReprocess(p.id)
+  }
+
   const handleReprocess = async (id: string) => {
     try {
       await window.api.papers.reprocess(id)
@@ -125,7 +146,10 @@ export default function PaperLibrary() {
       key: 'title',
       ellipsis: true,
       render: (text: string, record: Paper) => (
-        <a onClick={() => navigate(`/paper/${record.id}`)}>{text || record.file_name}</a>
+        <span>
+          <a onClick={() => navigate(`/paper/${record.id}`)}>{text || record.file_name}</a>
+          {aiFieldsOf(record).includes('title') && <AiGuessTag />}
+        </span>
       )
     },
     {
@@ -133,28 +157,28 @@ export default function PaperLibrary() {
       dataIndex: 'grade',
       key: 'grade',
       width: 80,
-      render: (v: string | null) => v ? `${v}年级` : '-'
+      render: (v: string | null, r: Paper) => v ? <span>{v}年级{aiFieldsOf(r).includes('grade') && <AiGuessTag />}</span> : '-'
     },
     {
       title: '学期',
       dataIndex: 'semester',
       key: 'semester',
-      width: 80,
-      render: (v: string | null) => v || '-'
+      width: 110,
+      render: (v: string | null, r: Paper) => v ? <span>{v}{aiFieldsOf(r).includes('semester') && <AiGuessTag />}</span> : '-'
     },
     {
       title: '学年',
       dataIndex: 'school_year_start',
       key: 'school_year_start',
-      width: 100,
-      render: (v: number | null) => v ? `${v}-${v + 1}` : '-'
+      width: 150,
+      render: (v: number | null, r: Paper) => v ? <span>{v}-{v + 1}{aiFieldsOf(r).includes('school_year_start') && <AiGuessTag />}</span> : '-'
     },
     {
       title: '类型',
       dataIndex: 'exam_type',
       key: 'exam_type',
-      width: 100,
-      render: (v: string | null) => v || '-'
+      width: 130,
+      render: (v: string | null, r: Paper) => v ? <span>{v}{aiFieldsOf(r).includes('exam_type') && <AiGuessTag />}</span> : '-'
     },
     {
       title: '页数',
@@ -175,16 +199,24 @@ export default function PaperLibrary() {
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 230,
       render: (_: unknown, record: Paper) => (
         <Space size="small">
           <Button type="text" size="small" icon={<EyeOutlined />}
             onClick={() => navigate(`/paper/${record.id}`)} />
           <Button type="text" size="small" icon={<EditOutlined />}
             onClick={() => handleEdit(record)} />
-          {(record.status === 'failed' || record.status === 'extracted' || record.status === 'done') && (
-            <Button type="text" size="small" icon={<ReloadOutlined />} title="重新提取"
-              data-testid="reprocess" onClick={() => handleReprocess(record.id)} />
+          {record.status === 'extracted' && (
+            <Button type="text" size="small" icon={<ThunderboltOutlined />} title="AI 解析"
+              data-testid="parse-paper" onClick={() => handleParse(record.id)} />
+          )}
+          {(record.status === 'reviewing' || record.status === 'done') && (
+            <Button type="text" size="small" icon={<CheckSquareOutlined />} title="审核"
+              data-testid="open-review" onClick={() => navigate(`/review/${record.id}`)} />
+          )}
+          {(record.status === 'failed' || record.status === 'extracted' || record.status === 'done' || record.status === 'reviewing') && (
+            <Button type="text" size="small" icon={<ReloadOutlined />} title="重新提取（会清除已解析的题目）"
+              data-testid="reprocess" onClick={() => confirmReprocess(record)} />
           )}
           <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
@@ -244,24 +276,24 @@ export default function PaperLibrary() {
         cancelText="取消"
       >
         <Form form={editForm} layout="vertical" size="middle">
-          <Form.Item name="title" label="标题">
+          <Form.Item name="title" label={<span>标题{editPaper && aiFieldsOf(editPaper).includes('title') && <AiGuessTag />}</span>}>
             <Input />
           </Form.Item>
           <Space size={12} wrap>
-            <Form.Item name="grade" label="年级">
+            <Form.Item name="grade" label={<span>年级{editPaper && aiFieldsOf(editPaper).includes('grade') && <AiGuessTag />}</span>}>
               <Select options={gradeOptions} allowClear style={{ width: 120 }} />
             </Form.Item>
-            <Form.Item name="semester" label="学期">
+            <Form.Item name="semester" label={<span>学期{editPaper && aiFieldsOf(editPaper).includes('semester') && <AiGuessTag />}</span>}>
               <Select options={semesterOptions} allowClear style={{ width: 120 }} />
             </Form.Item>
-            <Form.Item name="school_year_start" label="学年起始">
+            <Form.Item name="school_year_start" label={<span>学年起始{editPaper && aiFieldsOf(editPaper).includes('school_year_start') && <AiGuessTag />}</span>}>
               <InputNumber min={2000} max={2100} placeholder="如 2025" />
             </Form.Item>
-            <Form.Item name="exam_type" label="考试类型">
+            <Form.Item name="exam_type" label={<span>考试类型{editPaper && aiFieldsOf(editPaper).includes('exam_type') && <AiGuessTag />}</span>}>
               <Select options={examTypeOptions} allowClear style={{ width: 120 }} />
             </Form.Item>
           </Space>
-          <Form.Item name="textbook" label="教材版本">
+          <Form.Item name="textbook" label={<span>教材版本{editPaper && aiFieldsOf(editPaper).includes('textbook') && <AiGuessTag />}</span>}>
             <Input placeholder="如 PEP 三年级起点" />
           </Form.Item>
           <Space size={12} wrap>
@@ -271,7 +303,7 @@ export default function PaperLibrary() {
             <Form.Item name="school" label="学校">
               <Input />
             </Form.Item>
-            <Form.Item name="total_score" label="总分">
+            <Form.Item name="total_score" label={<span>总分{editPaper && aiFieldsOf(editPaper).includes('total_score') && <AiGuessTag />}</span>}>
               <InputNumber min={0} max={200} precision={0} />
             </Form.Item>
           </Space>

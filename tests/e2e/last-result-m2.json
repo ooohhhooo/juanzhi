@@ -1,0 +1,932 @@
+[
+  {
+    "feature": "迁移 v5",
+    "name": "前提：用 git 里 7211fc1 的真实迁移代码建出了 v4 库（questions 还没有 M2 的列）",
+    "pass": true,
+    "detail": "id,paper_id,no,section,qtype,stem,options,answer,score,difficulty,error_prone,error_reason,page_idx,bbox_json,anchor,confidence,reviewed,kp_suggestion"
+  },
+  {
+    "feature": "迁移 v5",
+    "name": "带数据的真实 v4 库升级到 v5：版本号、新列、新表齐全",
+    "pass": true,
+    "detail": "v5"
+  },
+  {
+    "feature": "迁移 v5",
+    "name": "旧题目与它的知识点标注原样保留（没有因重建表被外键级联清空）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "迁移 v5",
+    "name": "老师自建的知识点保留；与种子同代码的节点不被覆盖（INSERT OR IGNORE）；其余种子补齐",
+    "pass": true,
+    "detail": "共 146 个节点"
+  },
+  {
+    "feature": "知识点树",
+    "name": "全新库 v5：种子树 145 个节点（80–150）、最多 3 层、父节点都存在、代码唯一",
+    "pass": true,
+    "detail": "145 个"
+  },
+  {
+    "feature": "知识点树",
+    "name": "每个节点都有名称与引入年级；题型表含 OTHER 兜底与 6 种听力题型",
+    "pass": true,
+    "detail": "22 种题型"
+  },
+  {
+    "feature": "AI 设置",
+    "name": "选 DeepSeek 预设：Base URL / 文本模型 / 视觉模型自动填入，默认不是已下线的 deepseek-chat",
+    "pass": true,
+    "detail": "https://api.deepseek.com deepseek-v4-pro deepseek-flash"
+  },
+  {
+    "feature": "AI 设置",
+    "name": "预设含 DeepSeek / 通义千问 / 豆包 / Kimi / 智谱 / 自定义，且无一以 deepseek-chat 为默认",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "AI 设置",
+    "name": "「测试连接」用界面当前值（尚未保存）连通 mock，提示成功",
+    "pass": true,
+    "detail": "文本模型：成功 连接成功（mock-text-model，42 毫秒）"
+  },
+  {
+    "feature": "AI 设置",
+    "name": "「测试视觉模型」发出带图片的请求",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "AI 设置",
+    "name": "视觉测试用的图是 128×128（1×1 的图会被部分服务商拒收，让人误以为配置错了）",
+    "pass": true,
+    "detail": "{\"type\":\"png\",\"w\":128,\"h\":128,\"bytes\":305}"
+  },
+  {
+    "feature": "提示词版本",
+    "name": "内置提示词版本号为 v1.1（示例代码换成树里真实代码后升了一版）",
+    "pass": true,
+    "detail": "v1.1"
+  },
+  {
+    "feature": "AI 设置",
+    "name": "密钥错误时给出明确中文原因（401 → API Key 无效）",
+    "pass": true,
+    "detail": "文本模型：失败 API Key 无效或没有权限（HTTP 401），请检查密钥与所选服务商是否匹配"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "getConfig 只返回 hasKey，整个返回值里没有密钥",
+    "pass": true,
+    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:63936/v1\",\"model\":\"mock-text-model\",\"vision_model\":\"mock-vision-model\",\"concurrency\":2,\"auto_parse\":true,\"batc"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "settings.get / set 通用接口读不到、写不进密钥与 AI 配置（白名单外全部拒绝）",
+    "pass": true,
+    "detail": "rejected,rejected,rejected,rejected | rejected,rejected"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "渲染端 API 面上没有任何读取密钥的方法；保存后输入框已清空，页面 DOM / localStorage 里没有密钥",
+    "pass": true,
+    "detail": "40 个 API"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "保存后密钥输入框为空（占位符提示「已保存」）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "密钥安全",
+    "name": "数据库文件（含 WAL）里搜不到明文密钥；密文由 safeStorage 加密落盘，配置里不含密钥",
+    "pass": true,
+    "detail": "扫描 3 个文件，密文 50 字符"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "页面脚本想把已存密钥「改发」到别的地址会被拒绝（保存要求同时重输密钥；测试新地址不借用已存密钥）",
+    "pass": true,
+    "detail": "址（或地址为空）后需要重新输入 API Key（已保存的密钥不会被发往新的地址）"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "没有 Base URL 时不能保存 API Key；已存密钥时把地址清空也被拒（要求重输密钥）",
+    "pass": true,
+    "detail": "ror: 请先填写 Base URL，再保存 API Key | 址（或地址为空）后需要重新输入 API Key（已保存的密钥不会被发往新的地址）"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "连接测试只接受 http(s) 地址（file:// 之类被拒，不会让主进程去请求任意 URL）",
+    "pass": true,
+    "detail": "Base URL 必须是以 http:// 或 https:// 开头的有效地址"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "地址是明文 http（非本机）时设置页提示「API Key 会明文传输」；本机地址不提示",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "密钥安全",
+    "name": "渲染端控制台没有出现密钥",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "处理队列",
+    "name": "暂停后拖入 3 份：都停在「排队中」，没有开始提取，也没有请求 AI",
+    "pass": true,
+    "detail": "imported,imported,imported"
+  },
+  {
+    "feature": "处理队列",
+    "name": "恢复后 3 份自动走完「提取 → AI 解析 → 待审核」",
+    "pass": true,
+    "detail": "37 秒"
+  },
+  {
+    "feature": "处理队列",
+    "name": "同时解析上限 2：请求最大并发 = 2、队列里同时运行的解析任务最多 2 份（第 3 份排队等待）",
+    "pass": true,
+    "detail": "mock 最大并发 2，队列最多 2 份在跑"
+  },
+  {
+    "feature": "处理队列",
+    "name": "队列页实时显示「AI 解析中」与进度",
+    "pass": true,
+    "detail": "AI 解析中 8% 调用 AI 拆题与标注…"
+  },
+  {
+    "feature": "处理队列",
+    "name": "暂停时页面有明确的「队列已暂停」提示与「继续处理」按钮",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "处理队列",
+    "name": "侧栏「处理队列」图标上有进行中数量徽标",
+    "pass": true,
+    "detail": "徽标=3"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2026.pdf：拆出 36 道题，知识点标注 50 条，全部在知识点树里，每题恰有 1 个主知识点，题型都在题型表里",
+    "pass": true,
+    "detail": "题=36 孤儿标注=0 无主知识点=0"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2026.pdf：36 道题全部定位成功（bbox 非空、来源 text-anchor、无 locate_failed）",
+    "pass": true,
+    "detail": "无 bbox=0 失败=0"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2026.pdf：词库与阅读短文作为材料入库（2 份），题目引用了它们",
+    "pass": true,
+    "detail": "材料=2"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2025.pdf：拆出 36 道题，知识点标注 52 条，全部在知识点树里，每题恰有 1 个主知识点，题型都在题型表里",
+    "pass": true,
+    "detail": "题=36 孤儿标注=0 无主知识点=0"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2025.pdf：36 道题全部定位成功（bbox 非空、来源 text-anchor、无 locate_failed）",
+    "pass": true,
+    "detail": "无 bbox=0 失败=0"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2025.pdf：词库与阅读短文作为材料入库（2 份），题目引用了它们",
+    "pass": true,
+    "detail": "材料=2"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2026-copy.pdf：拆出 36 道题，知识点标注 50 条，全部在知识点树里，每题恰有 1 个主知识点，题型都在题型表里",
+    "pass": true,
+    "detail": "题=36 孤儿标注=0 无主知识点=0"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2026-copy.pdf：36 道题全部定位成功（bbox 非空、来源 text-anchor、无 locate_failed）",
+    "pass": true,
+    "detail": "无 bbox=0 失败=0"
+  },
+  {
+    "feature": "入库",
+    "name": "g4-2026-copy.pdf：词库与阅读短文作为材料入库（2 份），题目引用了它们",
+    "pass": true,
+    "detail": "材料=2"
+  },
+  {
+    "feature": "入库",
+    "name": "页码正确：第 1–25 题在第 1 页，第 26–36 题在第 2 页",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "kp_suggestion",
+    "name": "AI 的新增知识点建议单独存放、状态 pending；知识点树节点数没变，也没有以建议命名的节点（不自动写树）",
+    "pass": true,
+    "detail": "kps 145 → 145"
+  },
+  {
+    "feature": "入库",
+    "name": "模型编造的知识点代码（RD.INFER.OPINION）不进库：退回最近的真实祖先 RD.INFER，记 kp_invalid，原代码留作「待归类」建议",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "元数据",
+    "name": "用户没填的元数据由 AI 预填（年级 4、下学期、2025 学年、期末、教材、满分），并记为「AI 猜测」",
+    "pass": true,
+    "detail": "4/下/2025/期末/人教PEP版; ai=[\"grade\",\"semester\",\"school_year_start\",\"exam_type\",\"textbook\",\"total_score\",\"title\"]"
+  },
+  {
+    "feature": "提示词版本",
+    "name": "每份试卷记录解析用的模型与提示词版本（内置 v1.1）",
+    "pass": true,
+    "detail": "mock-text-model / v1.1"
+  },
+  {
+    "feature": "token 用量",
+    "name": "每次调用的 token 用量写入 ai_usage（含缓存命中数）",
+    "pass": true,
+    "detail": "{\"n\":1,\"p\":13325,\"c\":10204,\"k\":0}"
+  },
+  {
+    "feature": "token 用量",
+    "name": "缓存命中数的记录链路：mock 按「同一 system 见过没」模拟 prompt_cache_hit_tokens，证明该字段被解析并落库（⚠️ 不代表真实服务商的命中率）",
+    "pass": true,
+    "detail": "cached=10242（mock 模拟值）"
+  },
+  {
+    "feature": "提示词",
+    "name": "system 部分与 docs/prompts 里 P1 文本版逐字一致（直接从 docs 取，不是资源文件），且所有 P1 请求的 system 彼此相同（利于前缀缓存）",
+    "pass": true,
+    "detail": "system 8193 字"
+  },
+  {
+    "feature": "提示词",
+    "name": "user 部分：行带 [页-行] 标签；康熙部首已归一（\"第二学期\"）；知识点树与题型表按运行时数据渲染；批次信息正确",
+    "pass": true,
+    "detail": "本批信息：第 1/1 批，本批为试卷第 1–2 页（全卷共 2 页）"
+  },
+  {
+    "feature": "提示词",
+    "name": "请求参数：response_format=json_object、纯文本无图片、max_tokens 已给足",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "bbox 位置",
+    "name": "把页面图按 bbox 裁出来再做真实 OCR：每题的框里有本题的文字、没有相邻题的文字（含同一行两道题、大题边界）",
+    "pass": true,
+    "detail": "Q9✓ Q10✓ Q15✓ Q16✓ Q17✓ Q18✓ Q19✓ Q32✓ Q30✓ Q36✓"
+  },
+  {
+    "feature": "bbox 位置",
+    "name": "数值核对（PDF 文本层真实坐标）：Q9 的框 y≈0.444、高≈1 行；Q17 的框从行中间开始，与 Q16 的框不重叠",
+    "pass": true,
+    "detail": "Q9=0.128,0.44,0.431,0.026 Q16=0.128,0.677,0.291,0.026 Q17=0.412,0.677,0.274,0.026"
+  },
+  {
+    "feature": "自动解析",
+    "name": "关闭「提取后自动解析」：提取完成后停在「已提取」，不会偷偷调用 AI",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "元数据",
+    "name": "只预填用户留空的字段：用户填过的学期「上」与教材不被 AI 覆盖，空着的年级由 AI 预填；标题仍是文件名时也预填",
+    "pass": true,
+    "detail": "reviewing 学期=上 教材=自填教材 年级=4 标题=2025-2026学年第二学期四年级英语期末试卷"
+  },
+  {
+    "feature": "元数据",
+    "name": "「AI 猜测」只标 AI 填的字段（年级等），不标用户填的学期与教材",
+    "pass": true,
+    "detail": "[\"grade\",\"school_year_start\",\"exam_type\",\"total_score\",\"title\"]"
+  },
+  {
+    "feature": "元数据",
+    "name": "详情页与编辑弹窗里 AI 预填的字段也带「AI 猜测」标记",
+    "pass": true,
+    "detail": "详情页 3 个，弹窗 5 个"
+  },
+  {
+    "feature": "元数据",
+    "name": "编辑表单一次提交全部字段时，只有值真正改变的字段才失去「AI 猜测」标记（只改学校 → 标记全留；改年级 → 仅年级的标记消失）",
+    "pass": true,
+    "detail": "[\"grade\",\"school_year_start\",\"exam_type\",\"total_score\",\"title\"] → [\"school_year_start\",\"exam_type\",\"total_score\",\"title\"]"
+  },
+  {
+    "feature": "元数据",
+    "name": "用户已填的元数据作为 {{KNOWN_META}} 发给模型（学期=上；教材=自填教材），没填的不出现",
+    "pass": true,
+    "detail": "用户已填元数据（可能为空，优先于卷面）：学期=上；教材=自填教材"
+  },
+  {
+    "feature": "元数据",
+    "name": "试卷库里 AI 预填的字段带「AI 猜测」标记",
+    "pass": true,
+    "detail": "23 个标记"
+  },
+  {
+    "feature": "故障：空内容",
+    "name": "模型连续返回空 content：先同参数重试、再对半拆小重试，仍不行 → failed，原因是中文提示",
+    "pass": true,
+    "detail": "第 1 页解析失败：模型返回了空内容（重试后仍为空）。可以点击「重试」，或换一个更强的模型（4 次请求）"
+  },
+  {
+    "feature": "故障：空内容",
+    "name": "队列页展示失败原因（含失败阶段）与「重试」入口",
+    "pass": true,
+    "detail": "AI 解析失败：第 1 页解析失败：模型返回了空内容（重试后仍为空）。可以点击「重试」，或换一个更强的模型"
+  },
+  {
+    "feature": "故障：空内容",
+    "name": "点「重试 AI 解析」（不重新提取）后成功，回到待审核",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "故障：空内容",
+    "name": "空 content 重试一次仍空 → 对半拆小（第 1、2 页各发一批）→ 成功，题目数不变",
+    "pass": true,
+    "detail": "请求 4 次：第 1/1 批，本批为试卷第 1–2 页 | 第 1/1 批，本批为试卷第 1–2 页 | 第 2 批（内容较多，已拆小），本批为试卷第 1 页 | 第 3 批（内容较多，已拆小），本批为试卷第 2 页"
+  },
+  {
+    "feature": "故障：非法 JSON",
+    "name": "模型连续返回非法 JSON → failed，提示「输出不是合法的 JSON」并指出哪一页",
+    "pass": true,
+    "detail": "第 1 页解析失败：输出不是合法的 JSON（可能被截断或带了多余内容）。可以点击「重试」，或换一个更强的模型"
+  },
+  {
+    "feature": "P1-1 再导入",
+    "name": "解析失败的试卷再导入同一文件：弹「内容相同」确认并提示去队列重试；原试卷、页面、旧题目都还在，没有被删掉重建",
+    "pass": true,
+    "detail": "1 条，36 题；「g4-2026-meta.pdf」与已有的「2025-2026学年第二学期四年级英语期末试卷」内容完全相同（那份 AI 解析失败了，请到「"
+  },
+  {
+    "feature": "N7 重新提取确认",
+    "name": "试卷库里对「AI 解析失败但保留着旧题」的试卷点「重新提取」：先弹确认，写明「36 道题、其中 1 道已审核」并提示旧题会丢；取消后什么都没变",
+    "pass": true,
+    "detail": "这份试卷现在有 36 道题，其中 1 道已审核确认。页面会重新生成，基于旧页面的题目和你在审核页做的修改（题干、知识点、框的位置、确认状态）都会被清掉。 这份试卷上次 AI 解析失"
+  },
+  {
+    "feature": "N7 重新提取确认",
+    "name": "处理队列的「从头重试」同样先确认；取消后试卷仍是 failed、旧题目还在",
+    "pass": true,
+    "detail": "这份试卷现在有 36 道题，其中 1 道已审核确认。页面会重新生成，基于旧页面的题目和你在审核页做的修改（题干、知识点、框的位置、确认状态）都会被清掉。 这份试卷上次 AI 解析失"
+  },
+  {
+    "feature": "故障：非法 JSON",
+    "name": "第一次非法 JSON → 带着错误信息让模型重来一次 → 成功（第二次请求的末尾是反馈消息，共 4 条消息）",
+    "pass": true,
+    "detail": "2 次；反馈=你上一次的输出不符合要求：\n输出不是合法的 JSON（可能被截断或带了多余内容）"
+  },
+  {
+    "feature": "故障：结构不符",
+    "name": "模型返回的 JSON 不符合 Schema（难度 9）→ failed，提示具体字段 questions[0].difficulty",
+    "pass": true,
+    "detail": "第 1 页解析失败：输出的结构不符合要求： questions[0].difficulty：不能大于 5。可以点击「重试」，或换一个更强的模型"
+  },
+  {
+    "feature": "故障：结构不符",
+    "name": "zod 校验失败时带着错误信息重试一次 → 成功",
+    "pass": true,
+    "detail": "2 次"
+  },
+  {
+    "feature": "故障：429",
+    "name": "遇到一次 429：按 Retry-After 退避后自动重试成功，用户无感",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "故障：429",
+    "name": "429 持续：重试 3 次（共 4 次请求）后 failed，提示「请求太频繁/额度不足（HTTP 429）」",
+    "pass": true,
+    "detail": "请求太频繁或额度不足（HTTP 429），稍后重试，或检查账户余额"
+  },
+  {
+    "feature": "故障：5xx",
+    "name": "服务端 503 一次：指数退避后重试成功",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "故障：超时",
+    "name": "一次请求挂起超过超时时间：自动重试，成功",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "故障：超时",
+    "name": "持续无响应：重试用尽（4 次）后 failed，提示「模型响应超时」",
+    "pass": true,
+    "detail": "模型响应超时（超过 2 秒没有返回）"
+  },
+  {
+    "feature": "故障：批次被截断",
+    "name": "输出被长度上限截断（finish_reason=length）：不硬解析残缺 JSON，把批次对半拆小重试 → 成功",
+    "pass": true,
+    "detail": "1-2 / 1 / 2"
+  },
+  {
+    "feature": "故障：批次被截断",
+    "name": "单页也被截断 → failed，提示「输出被长度上限截断」并指明页码",
+    "pass": true,
+    "detail": "第 1 页解析失败：模型输出被长度上限截断（内容太多），需要把这一批拆小。可以点击「重试」，或换一个更强的模型"
+  },
+  {
+    "feature": "故障：密钥失效",
+    "name": "服务商返回 401 → failed，提示「API Key 无效或没有权限」，不做无谓重试（只请求 1 次）",
+    "pass": true,
+    "detail": "API Key 无效或没有权限（HTTP 401），请检查密钥与所选服务商是否匹配"
+  },
+  {
+    "feature": "故障：密钥失效",
+    "name": "密钥恢复后点重试即成功",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "故障：参数不兼容",
+    "name": "服务商拒绝 response_format → 自动去掉该参数重试，成功",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "故障：围栏 JSON",
+    "name": "模型把 JSON 包在 ```json 围栏里（提示词已禁止，但真实模型偶尔会）：程序能容忍，一次请求即成功",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "密钥安全",
+    "name": "服务商 400 响应里回显了密钥：papers.error 与 parse_runs.error 里都已脱敏（审核 P2-2）",
+    "pass": true,
+    "detail": "请求被拒绝（HTTP 400）：{\"error\":{\"message\":\"Incorrect API key provided: ［密钥已隐藏］. You can find your API key at https://platform."
+  },
+  {
+    "feature": "跨批合并",
+    "name": "按页分批（每批 1 页）：第 1 批末尾的未完成题带入 PREV_CONTEXT，第 2 批续写，合并为完整的一条（36 题而非 37）",
+    "pass": true,
+    "detail": "请求 2 次；Q25=—What's the weather like? —____"
+  },
+  {
+    "feature": "跨批合并",
+    "name": "材料 id 前缀按批次区分（b1-、b2-），续写题沿用上一批的材料 id",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "跨批合并",
+    "name": "模型漏设 continued_from_prev：仍按续写合并（完整的后半不被丢弃），36 题、Q25 题干完整，并在 AI 备注里提示老师核对",
+    "pass": true,
+    "detail": "题数=36 Q25=—What's the weather like? —____ 备注=第 四 大题第 25 题跨批，模型没有标注续写，已按续写合并，请核对"
+  },
+  {
+    "feature": "跨批合并",
+    "name": "残缺的跨批题没被续上：即使它不是最后一题，也标 stem_incomplete 并降低置信度（审核页标黄），不再静默当作完整题",
+    "pass": true,
+    "detail": "Q25 flags=stem_incomplete 置信度=0.65"
+  },
+  {
+    "feature": "定位容错",
+    "name": "anchor 里夹了错字（模型照抄 OCR 错误/手滑）：模糊匹配仍定位成功，并标 locate_fuzzy 供老师抽查",
+    "pass": true,
+    "detail": "有框 36/36，模糊 36"
+  },
+  {
+    "feature": "定位容错",
+    "name": "模型把页码写错（超出本批范围）：仍能按 anchor 找到真实页码与位置（Q1 在第 1 页，Q36 在第 2 页，全部有框）",
+    "pass": true,
+    "detail": "有框 36/36"
+  },
+  {
+    "feature": "分阶段重试",
+    "name": "「仅重新定位」沿用上次 AI 结果：不再请求模型，题目重新生成，仍是 36 题",
+    "pass": true,
+    "detail": "请求 0 次"
+  },
+  {
+    "feature": "分阶段重试",
+    "name": "「仅重新定位」不改动被复用的那条解析记录：它仍是同一条、状态仍是 done，审核页顶栏的提示词版本不会因此丢失或错位（复审 N4）",
+    "pass": true,
+    "detail": "{\"id\":35,\"prompt_version\":\"v1.1\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-10-25 20:00:16\"}"
+  },
+  {
+    "feature": "分阶段重试",
+    "name": "「重新 AI 解析」重新请求模型（不重新提取）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "分阶段重试",
+    "name": "「从头重试」：重新提取时旧页面与旧题目一并清掉（不留指向旧页面的题目）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "分阶段重试",
+    "name": "「从头重试」即使关了自动解析也会在提取后接着解析，最终回到待审核且 extracted_at 更新",
+    "pass": true,
+    "detail": "2026-10-25 19:59:03 → 2026-10-25 20:00:17"
+  },
+  {
+    "feature": "取消",
+    "name": "解析中取消：回到开始前的状态（待审核，旧题目保留），不算失败",
+    "pass": true,
+    "detail": "reviewing"
+  },
+  {
+    "feature": "审核页",
+    "name": "取消/失败的运行不会成为审核页顶栏显示的「解析记录」：取最近一次成功的，提示词版本与试卷记录一致（审核 P2-8）",
+    "pass": true,
+    "detail": "{\"id\":37,\"prompt_version\":\"v1.1\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"fini"
+  },
+  {
+    "feature": "解析记录",
+    "name": "parse_runs 记录每次解析（done / failed / cancelled / superseded 等），可追溯",
+    "pass": true,
+    "detail": "cancelled×1 done×1 failed×8 superseded×25"
+  },
+  {
+    "feature": "视觉版",
+    "name": "OCR 失败的页面 + 没配视觉模型：failed，提示需要视觉模型并指明页码，没有请求 AI",
+    "pass": true,
+    "detail": "第 1 页没有可用的文字（OCR 未成功），需要视觉模型来读图。请在「设置 → AI 服务」填写视觉模型后点击重试"
+  },
+  {
+    "feature": "视觉版",
+    "name": "该页确实是 OCR 失败（text_source=ocr_failed），页面图片仍保存",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "视觉版",
+    "name": "补上视觉模型后点重试",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "视觉版",
+    "name": "请求走视觉模型：用视觉版 system 提示词、页面图片以 data URL 的 image_url 发送、user 里有「共 1 张图，依次为试卷第 1 页」",
+    "pass": true,
+    "detail": "reviewing mock-vision-model images=1"
+  },
+  {
+    "feature": "视觉版",
+    "name": "页面图过大时先缩小再发：g4-2025-page1.png 是 1190×1684，发给模型的是长边 1600 的 JPEG（体积小很多），归一化 bbox 不受影响",
+    "pass": true,
+    "detail": "{\"type\":\"jpeg\",\"h\":1600,\"w\":1131,\"bytes\":62787}"
+  },
+  {
+    "feature": "视觉版",
+    "name": "25 道题入库，bbox 全部来自视觉模型（bbox_source=vision），知识点都在树里",
+    "pass": true,
+    "detail": "25 题"
+  },
+  {
+    "feature": "提示词版本",
+    "name": "记录用的模型（仅视觉模型）与提示词版本",
+    "pass": true,
+    "detail": "mock-vision-model / v1.1"
+  },
+  {
+    "feature": "bbox 位置",
+    "name": "视觉版 bbox 同样经页面图裁剪 + 真实 OCR 验证：框里是本题、不含下一题",
+    "pass": true,
+    "detail": "Q2✓ Q6✓ Q12✓ Q13✓"
+  },
+  {
+    "feature": "提示词管理",
+    "name": "设置页能看到内置 P1 文本版 system 提示词，标记为「内置默认」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "提示词管理",
+    "name": "改写后的 system 提示词下次解析就用上，并记录版本为「<版本>+自定义·哈希」",
+    "pass": true,
+    "detail": "v1.1+自定义·b2a9a8"
+  },
+  {
+    "feature": "提示词管理",
+    "name": "「恢复默认」后文本回到内置版本",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "提示词管理",
+    "name": "恢复默认后再解析：system 回到内置文本，版本记回内置版本",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "提示词管理",
+    "name": "缺少必需占位符（{{OCR_TEXT}} 等）的 user 提示词被拒绝保存，并说明缺哪个",
+    "pass": true,
+    "detail": "缺少必需的占位符：{{KNOWLEDGE_TREE}}、{{QUESTION_TYPES}}、{{OCR_TEXT}}"
+  },
+  {
+    "feature": "提示词管理",
+    "name": "P1 的 system 提示词里去掉「JSON」字样的修改被拒绝（服务商的 JSON 模式要求提示词里提到 json）",
+    "pass": true,
+    "detail": "P1 的 system 提示词里必须出现「JSON」字样（服务商的 JSON 模式要求提示词里提到 json），请保留原"
+  },
+  {
+    "feature": "提示词管理",
+    "name": "提示词里拼错的 {{占位符}} 会被标出来",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "三栏布局：左侧列出 36 道题；低置信度/有待处理建议的题标黄（Q22 有新增知识点建议、Q30 知识点代码无效）",
+    "pass": true,
+    "detail": "题数 36，标黄 22,30"
+  },
+  {
+    "feature": "审核页",
+    "name": "标黄的题背景是黄色（rgb(255, 251, 230)），普通题不是",
+    "pass": true,
+    "detail": "rgb(240, 242, 255) | rgb(255, 251, 230)"
+  },
+  {
+    "feature": "审核页",
+    "name": "默认选中第一道待确认的题，右侧表单显示它的标注",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "中间栏：当前题的框叠在原卷页面上，位置/大小与库里的 bbox 一致（误差 < 0.6%）",
+    "pass": true,
+    "detail": "屏幕 0.128,0.176,0.232,0.026 库 0.128,0.176,0.232,0.026"
+  },
+  {
+    "feature": "审核页",
+    "name": "快捷键：J 下一题、K 上一题",
+    "pass": true,
+    "detail": "一、第 2 题 → 一、第 3 题 → 一、第 2 题"
+  },
+  {
+    "feature": "审核页",
+    "name": "Enter 确认当前题并跳到下一题；确认状态写入数据库",
+    "pass": true,
+    "detail": "一、第 2 题"
+  },
+  {
+    "feature": "审核页",
+    "name": "进入审核页后主侧栏自动收起（给原卷页面让位）",
+    "pass": true,
+    "detail": "80px"
+  },
+  {
+    "feature": "审核页",
+    "name": "左栏筛选：「需关注」只剩 2 题（Q22、Q30），「待确认」= 36 − 已确认 1 = 35，「全部」36",
+    "pass": true,
+    "detail": "需关注 2 / 待确认 35"
+  },
+  {
+    "feature": "审核页",
+    "name": "选中第 26 题：中栏自动翻到第 2 页；表单里可展开它引用的阅读短文",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "「显示其他题的框」：本页其他题的虚线框可显示/隐藏",
+    "pass": true,
+    "detail": "10 → 0"
+  },
+  {
+    "feature": "审核页",
+    "name": "选中靠页面底部的第 36 题：框被自动滚进中栏可视区域",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "缩放 150% / 200%：页面按比例放大，框仍按归一化坐标贴在原位",
+    "pass": true,
+    "detail": "445 → 668 → 890"
+  },
+  {
+    "feature": "审核页",
+    "name": "在输入框里敲 j / k 只是输入文字，不会切换题目",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "右侧编辑（题干、难度、题型、主知识点、易错原因）自动保存到数据库，并标记为已编辑",
+    "pass": true,
+    "detail": "5 FILL [{\"kp_code\":\"GR.TENSE.PAST.IRREG\",\"is_primary\":1}]"
+  },
+  {
+    "feature": "审核页",
+    "name": "难度旁标注「估计」（不是学生得分统计）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "拖动框：松手后新位置写入数据库（右移约 50px ≈ 图宽的比例），来源标为 manual",
+    "pass": true,
+    "detail": "0.128,0.44,0.431,0.026 → 0.24,0.457,0.431,0.026"
+  },
+  {
+    "feature": "审核页",
+    "name": "拖右下角手柄缩放：宽高增大且左上角不动",
+    "pass": true,
+    "detail": "0.24,0.457,0.431,0.026 → 0.24,0.457,0.476,0.043"
+  },
+  {
+    "feature": "审核页",
+    "name": "8 个缩放手柄（n/s/e/w/nw/ne/sw + 之前验证的 se）逐个真实拖动，方向与另一侧边不动均正确",
+    "pass": true,
+    "detail": "n✓ s✓ e✓ w✓ nw✓ ne✓ sw✓"
+  },
+  {
+    "feature": "审核页",
+    "name": "重启应用后重新打开审核页：题干、易错原因、拖动后的框、确认状态都还在",
+    "pass": true,
+    "detail": "{\"stem\":\"Tom ____ a big farm. (E2E 改过) jk\",\"reason\":\"E2E：has 的第三人称\",\"attr\":\"0.169,0.415,0.596,0.113\",\"reviewed1\":\"1\"}"
+  },
+  {
+    "feature": "审核页",
+    "name": "拆分：一题变两题（紧跟在原题之后），序号连续，新题沿用知识点",
+    "pass": true,
+    "detail": "{\"ord\":11,\"no_label\":\"11\",\"stem\":\"E2E 拆出来的新题干\"}"
+  },
+  {
+    "feature": "审核页",
+    "name": "合并（连点两下也只合并一次，复审 N8）：把拆开的两题合并回去 → 回到 36 题、序号连续，题干 = 原题干 + 换行 + 被合并题干，选项与原题一致，第 11 题没被动",
+    "pass": true,
+    "detail": "{\"stem\":\"Can I wear my new dress? —Yes, you ____. It's warm.\\nE2E 拆出来的新题干\",\"options\":\"[\\\"A. can\\\",\\\""
+  },
+  {
+    "feature": "P1-3 合并后表单",
+    "name": "合并后表单立即显示合并后的题干与选项；再改一个选项，库里只有这一项变，其余选项没有被旧草稿覆盖",
+    "pass": true,
+    "detail": "表单题干=Can I wear my new dress? —Yes,… 选项数=3"
+  },
+  {
+    "feature": "审核页",
+    "name": "有新增知识点建议的题：右侧显示「AI 建议新增知识点」和采纳/忽略，并说明不会自动改树",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "kp_suggestion",
+    "name": "采纳（老师点击）才在树里新建节点：挂在 FN.SHOP 下、builtin=0；本题主知识点换成新节点，原主知识点降为次知识点；建议状态变 approved",
+    "pass": true,
+    "detail": "FN.SHOP.U1 节点数 145→146"
+  },
+  {
+    "feature": "kp_suggestion",
+    "name": "忽略：状态变 rejected，知识点树不变",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "确认整份试卷：未逐题确认的题一并标为已确认，试卷状态变为 done（已完成）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "审核列表的「已完成」页签里能看到这份试卷",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "已完成（done）的试卷：只改「已确认」标记仍是 done；改了内容（难度）就回到「待审核」，状态与内容保持一致",
+    "pass": true,
+    "detail": "done → reviewing"
+  },
+  {
+    "feature": "审核页",
+    "name": "拆分时 kp_suggestion 只留在原题，新题不再复制一条待采纳建议；新题置信度压到 0.69 以下需要关注",
+    "pass": true,
+    "detail": "原题=pending 新题=\"\" 0.69"
+  },
+  {
+    "feature": "审核页",
+    "name": "合并不丢知识点：被合并题（Q24）的主/次知识点并入次知识点，本题主知识点不变；序号连续",
+    "pass": true,
+    "detail": "主=FN.SHOP.PRICE 次=FN.DIALOG,GR.SENT.YESNO.BE"
+  },
+  {
+    "feature": "审核页",
+    "name": "合并时 kp_suggestion 不丢：保留一条（本题有就用本题的）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审核页",
+    "name": "删除一题：序号连续（在同一事务里完成）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "P2-9 过期结果",
+    "name": "重新提取后旧的可复用解析结果作废（result_json 清空、done 的记录变 superseded，失败/取消的历史保留），「仅重新定位」不会拿旧文字的 anchor 去套新页面，而是明确提示没有可复用的结果",
+    "pass": true,
+    "detail": "superseded | 没有可复用的 AI 结果，请选择「重新 AI 解析」"
+  },
+  {
+    "feature": "崩溃恢复",
+    "name": "解析中被强杀（kill -9）后重启：不卡在「AI 解析中」——已有旧题目的回到待审核（旧题目完好），从未解析过的回到已提取，都可以再点解析",
+    "pass": true,
+    "detail": "reviewing/extracted"
+  },
+  {
+    "feature": "崩溃恢复",
+    "name": "被中断的解析记录标为 interrupted",
+    "pass": true,
+    "detail": "[{\"status\":\"interrupted\",\"n\":2}]"
+  },
+  {
+    "feature": "崩溃恢复",
+    "name": "恢复后可以正常重新解析",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "P1-2 没配 AI 的重试",
+    "name": "前提：AI 没配置（getConfig.hasKey=false），提取被强杀后试卷为 failed，error_stage=extract",
+    "pass": true,
+    "detail": "failed/extract"
+  },
+  {
+    "feature": "P1-2 没配 AI 的重试",
+    "name": "队列页点「重试（重新提取）」：不再被「尚未配置 AI 服务」挡住，提取成功，停在「已提取」，也没有去请求 AI",
+    "pass": true,
+    "detail": "extracted 已重新加入队列"
+  },
+  {
+    "feature": "P1-2 没配 AI 的重试",
+    "name": "真要调模型的阶段（重新 AI 解析）仍然检查配置，并给出明确提示",
+    "pass": true,
+    "detail": "尚未配置 AI 服务：请先到「设置 → AI 服务」填写 Base URL、模型和 API Key"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "服务端 307 重定向到别的主机：客户端不跟随，请求根本没到那台主机（Authorization 不会被带过去），用户看到连接失败",
+    "pass": true,
+    "detail": "无法连接到服务：Attempted to redirect, but redirect policy；对方收到 0 个请求"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "服务商 400 里回显了密钥：连接测试给用户看的文案已脱敏",
+    "pass": true,
+    "detail": "请求被拒绝（HTTP 400）：{\"error\":{\"message\":\"Incorrect API key provided: ［密钥已隐藏］. You can find your API key "
+  },
+  {
+    "feature": "密钥安全",
+    "name": "已存密钥而地址为空（老状态）：页面脚本不带密钥就把地址改到别的主机 → 保存被拒、测试被拒，对方主机没收到任何请求；连「保持为空」也要求重输密钥",
+    "pass": true,
+    "detail": "要重新输入 API Key（已保存的密钥不会被发往新的地址） | 要测试新的服务地址，请先在上面输入对应的 API Key | 对方 0"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "用户同时重新输入地址与密钥即可恢复正常",
+    "pass": true,
+    "detail": "http://127.0.0.1:63936/v1"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "库里有密文但当前解不开（hasKey 显示为否）：不带密钥把地址改到别的主机仍被拒（守卫看「库里有没有密文」，不看能不能解密）",
+    "pass": true,
+    "detail": "要重新输入 API Key（已保存的密钥不会被发往新的地址） | 对方 0"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "全程扫描：4 个数据目录的数据库文件与 papers / parse_runs / ai_usage / questions / materials / settings 各表内容里都没有明文密钥",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "密钥安全",
+    "name": "全程扫描：所有应用进程的 stdout/stderr（共 11 KB）里没有密钥",
+    "pass": true,
+    "detail": ""
+  }
+]

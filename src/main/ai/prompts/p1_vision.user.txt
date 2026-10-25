@@ -1,0 +1,20 @@
+【知识点树】（代码 | 名称 | 常见引入年级 | 说明）
+{{KNOWLEDGE_TREE}}
+
+【题型列表】（代码 | 名称 | 说明）
+{{QUESTION_TYPES}}
+
+【本卷信息】
+文件名：{{FILE_NAME}}
+用户已填元数据（可能为空，优先于卷面）：{{KNOWN_META}}
+本批信息：{{BATCH_INFO}}
+材料 id 前缀：{{BATCH_PREFIX}}（本批新材料依次为 {{BATCH_PREFIX}}-m1、{{BATCH_PREFIX}}-m2……）
+
+【上一批末尾状态】
+{{PREV_CONTEXT}}
+
+【页面图片】
+{{PAGE_LIST}}
+（图片紧随其后，按上述顺序排列。）
+
+请按 system 中的 Schema，只输出一个 JSON 对象。

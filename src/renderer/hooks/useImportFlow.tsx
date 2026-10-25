@@ -23,7 +23,7 @@ export function useImportFlow() {
           title: '发现内容相同的试卷',
           content: (
             <div data-testid="duplicate-confirm">
-              {dups.map(d => <div key={d.path}>「{d.fileName}」与已有的「{d.duplicateOf?.title}」内容完全相同</div>)}
+              {dups.map(d => <div key={d.path}>「{d.fileName}」与已有的「{d.duplicateOf?.title}」内容完全相同{d.duplicateOf?.parseFailed && <b>（那份 AI 解析失败了，请到「处理队列」重试，不必重新导入；仍然导入会再多出一份）</b>}</div>)}
               <div style={{ marginTop: 8 }}>是否仍然导入？重复导入会让这份卷子在统计里算两次。</div>
             </div>
           ),

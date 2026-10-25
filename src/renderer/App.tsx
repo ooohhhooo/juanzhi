@@ -7,6 +7,9 @@ import AppLayout from './components/AppLayout'
 import PaperLibrary from './pages/PaperLibrary'
 import PaperDetail from './pages/PaperDetail'
 import Settings from './pages/Settings'
+import QueuePage from './pages/QueuePage'
+import ReviewList from './pages/review/ReviewList'
+import ReviewPage from './pages/review/ReviewPage'
 import { useImportFlow } from './hooks/useImportFlow'
 
 const queryClient = new QueryClient({
@@ -85,8 +88,9 @@ export default function App() {
                 <Route path="/paper/:id" element={<PaperDetail />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/dashboard" element={<Placeholder title="分析看板" />} />
-                <Route path="/queue" element={<Placeholder title="处理队列" />} />
-                <Route path="/review" element={<Placeholder title="审核" />} />
+                <Route path="/queue" element={<QueuePage />} />
+                <Route path="/review" element={<ReviewList />} />
+                <Route path="/review/:id" element={<ReviewPage />} />
                 <Route path="/report" element={<Placeholder title="AI 报告" />} />
               </Route>
             </Routes>

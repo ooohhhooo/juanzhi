@@ -1,6 +1,7 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { app } from 'electron'
+import { buildKpRows, QTYPE_SEEDS_V1 } from './seed/taxonomy'
 
 const MIGRATIONS: Array<(db: any) => void> = [
   // v0 → v1: 初始 schema
@@ -149,6 +150,89 @@ const MIGRATIONS: Array<(db: any) => void> = [
       );
       CREATE INDEX IF NOT EXISTS idx_assets_paper ON paper_assets(paper_id);
     `)
+  },
+
+  // v4 → v5（M2）：AI 解析。题目表补列、材料/解析记录/用量表、知识点树与题型种子。
+  // 全部是增量操作（只加列、加表、INSERT OR IGNORE），已有数据原样保留。
+  // 不重建 questions：question_kps 对它有外键级联，DROP 会连带清空标注。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    addCol('papers', 'prompt_version', 'TEXT')
+    addCol('papers', 'ai_meta_json', 'TEXT')   // AI 预填过的字段名数组（界面标「AI 猜测」）
+    addCol('papers', 'parse_stage', 'TEXT')
+    addCol('papers', 'error_stage', 'TEXT')    // failed 时是哪个阶段失败：extract / parse
+    addCol('papers', 'parsed_at', 'TEXT')
+
+    addCol('kps', 'note', 'TEXT')
+    addCol('kps', 'builtin', 'INTEGER NOT NULL DEFAULT 0')
+    addCol('qtypes', 'note', 'TEXT')
+    addCol('qtypes', 'sort', 'INTEGER NOT NULL DEFAULT 0')
+    addCol('qtypes', 'builtin', 'INTEGER NOT NULL DEFAULT 0')
+
+    // 旧 questions.no 是 INTEGER 亲和性，装不下 "21(1)"、"~1" 这类题号，新增 no_label 作为权威题号
+    addCol('questions', 'ord', 'INTEGER NOT NULL DEFAULT 0')
+    addCol('questions', 'no_label', 'TEXT')
+    addCol('questions', 'section_title', 'TEXT')
+    addCol('questions', 'material_id', 'TEXT')
+    addCol('questions', 'bbox_source', 'TEXT')           // text-anchor / vision / manual / none
+    addCol('questions', 'anchor_ref', 'TEXT')
+    addCol('questions', 'kp_suggestion_status', 'TEXT')  // pending / approved / rejected
+    addCol('questions', 'flags_json', "TEXT NOT NULL DEFAULT '[]'")
+    addCol('questions', 'edited', 'INTEGER NOT NULL DEFAULT 0')
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_questions_paper_ord ON questions(paper_id, ord);
+
+      CREATE TABLE IF NOT EXISTS materials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paper_id TEXT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+        mid TEXT NOT NULL,
+        section TEXT,
+        kind TEXT,
+        text TEXT NOT NULL DEFAULT '',
+        page_idx INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_materials_paper ON materials(paper_id);
+
+      CREATE TABLE IF NOT EXISTS parse_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paper_id TEXT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+        prompt_version TEXT,
+        model TEXT,
+        vision_model TEXT,
+        status TEXT NOT NULL DEFAULT 'running',
+        error TEXT,
+        result_json TEXT,
+        usage_json TEXT,
+        started_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        finished_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_parse_runs_paper ON parse_runs(paper_id);
+
+      CREATE TABLE IF NOT EXISTS ai_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paper_id TEXT,
+        kind TEXT NOT NULL,
+        model TEXT,
+        prompt_tokens INTEGER NOT NULL DEFAULT 0,
+        completion_tokens INTEGER NOT NULL DEFAULT 0,
+        cached_tokens INTEGER NOT NULL DEFAULT 0,
+        ok INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+    `)
+
+    // 种子：INSERT OR IGNORE，重复执行或用户已改过同代码节点都不会被覆盖
+    const insKp = db.prepare(`
+      INSERT OR IGNORE INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin)
+      VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 1)
+    `)
+    for (const r of buildKpRows()) insKp.run(r.code, r.parent_code, r.name, r.level, r.intro_grade, r.sort, r.note)
+    const insQt = db.prepare(`INSERT OR IGNORE INTO qtypes (code, name, "group", note, sort, builtin) VALUES (?, ?, ?, ?, ?, 1)`)
+    QTYPE_SEEDS_V1.forEach(([code, name, group, note], i) => insQt.run(code, name, group, note, (i + 1) * 10))
   }
 ]
 

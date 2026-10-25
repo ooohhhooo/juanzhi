@@ -37,6 +37,43 @@ const api = {
     openDataDir: (): Promise<boolean> =>
       ipcRenderer.invoke('settings:openDataDir'),
   },
+  ai: {
+    presets: (): Promise<any[]> => ipcRenderer.invoke('ai:presets'),
+    // 只能拿到 hasKey，拿不到密钥本身；密钥只能写入（apiKey 省略 = 不改，null = 清除）
+    getConfig: (): Promise<any> => ipcRenderer.invoke('ai:getConfig'),
+    saveConfig: (cfg: Record<string, unknown>, apiKey?: string | null): Promise<any> =>
+      apiKey === undefined ? ipcRenderer.invoke('ai:saveConfig', cfg) : ipcRenderer.invoke('ai:saveConfig', cfg, apiKey),
+    test: (req: { kind: 'text' | 'vision'; cfg?: Record<string, unknown>; apiKey?: string }): Promise<any> => ipcRenderer.invoke('ai:test', req),
+    prompts: (): Promise<any> => ipcRenderer.invoke('ai:prompts'),
+    savePrompt: (id: string, part: string, text: string): Promise<boolean> => ipcRenderer.invoke('ai:savePrompt', id, part, text),
+    resetPrompt: (id: string, part: string): Promise<boolean> => ipcRenderer.invoke('ai:resetPrompt', id, part),
+    usage: (paperId?: string): Promise<any[]> => (paperId ? ipcRenderer.invoke('ai:usage', paperId) : ipcRenderer.invoke('ai:usage')),
+  },
+  parse: {
+    start: (paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean> => ipcRenderer.invoke('parse:start', paperId, stage),
+    cancel: (paperId: string): Promise<boolean> => ipcRenderer.invoke('parse:cancel', paperId),
+  },
+  queue: {
+    state: (): Promise<any> => ipcRenderer.invoke('queue:state'),
+    pause: (): Promise<boolean> => ipcRenderer.invoke('queue:pause'),
+    resume: (): Promise<boolean> => ipcRenderer.invoke('queue:resume'),
+  },
+  questions: {
+    list: (paperId: string): Promise<any> => ipcRenderer.invoke('questions:list', paperId),
+    summary: (): Promise<any[]> => ipcRenderer.invoke('questions:summary'),
+    update: (id: string, patch: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('questions:update', id, patch),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('questions:remove', id),
+    split: (id: string, body: Record<string, unknown>): Promise<string> => ipcRenderer.invoke('questions:split', id, body),
+    merge: (id: string): Promise<boolean> => ipcRenderer.invoke('questions:merge', id),
+    confirmPaper: (paperId: string, markAll: boolean): Promise<boolean> => ipcRenderer.invoke('questions:confirmPaper', paperId, markAll),
+    reopen: (paperId: string): Promise<boolean> => ipcRenderer.invoke('questions:reopen', paperId),
+  },
+  taxonomy: {
+    tree: (): Promise<any> => ipcRenderer.invoke('taxonomy:tree'),
+    approveSuggestion: (questionId: string, body: { parent_code: string | null; name: string }): Promise<string> =>
+      ipcRenderer.invoke('taxonomy:approveSuggestion', questionId, body),
+    rejectSuggestion: (questionId: string): Promise<boolean> => ipcRenderer.invoke('taxonomy:rejectSuggestion', questionId),
+  },
   ocr: {
     status: (): Promise<{ available: boolean; detail: string; lang?: string }> =>
       ipcRenderer.invoke('ocr:status'),

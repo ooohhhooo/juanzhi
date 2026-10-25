@@ -5,6 +5,9 @@ import { initDatabase, closeDatabase } from './db'
 import { registerProtocol } from './protocol'
 import { registerPaperIpc } from './ipc/papers'
 import { registerSettingsIpc } from './ipc/settings'
+import { registerAiIpc } from './ipc/ai'
+import { registerParseIpc } from './ipc/parse'
+import { registerQuestionIpc } from './ipc/questions'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
@@ -118,6 +121,9 @@ if (!app.requestSingleInstanceLock()) {
 
     registerPaperIpc()
     registerSettingsIpc()
+    registerAiIpc()
+    registerParseIpc()
+    registerQuestionIpc()
     createWindow()
 
     app.on('activate', () => {

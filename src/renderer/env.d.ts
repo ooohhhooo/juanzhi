@@ -16,6 +16,40 @@ interface ElectronAPI {
     getDataDir(): Promise<string>
     openDataDir(): Promise<boolean>
   }
+  ai: {
+    presets(): Promise<ProviderPreset[]>
+    getConfig(): Promise<AiConfigView>
+    saveConfig(cfg: AiConfig, apiKey?: string | null): Promise<AiConfigView>
+    test(req: { kind: 'text' | 'vision'; cfg?: Partial<AiConfig>; apiKey?: string }): Promise<{ ok: boolean; message: string; latencyMs: number; model: string }>
+    prompts(): Promise<{ defaultVersion: string; items: PromptView[] }>
+    savePrompt(id: string, part: string, text: string): Promise<boolean>
+    resetPrompt(id: string, part: string): Promise<boolean>
+    usage(paperId?: string): Promise<UsageRow[]>
+  }
+  parse: {
+    start(paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean>
+    cancel(paperId: string): Promise<boolean>
+  }
+  queue: {
+    state(): Promise<QueueState>
+    pause(): Promise<boolean>
+    resume(): Promise<boolean>
+  }
+  questions: {
+    list(paperId: string): Promise<QuestionList>
+    summary(): Promise<Array<{ paper_id: string; total: number; reviewed: number; attention: number }>>
+    update(id: string, patch: QuestionPatch): Promise<QuestionView | null>
+    remove(id: string): Promise<boolean>
+    split(id: string, body: { first: { stem: string; options: string[] }; second: { no_label: string; stem: string; options: string[] } }): Promise<string>
+    merge(id: string): Promise<boolean>
+    confirmPaper(paperId: string, markAll: boolean): Promise<boolean>
+    reopen(paperId: string): Promise<boolean>
+  }
+  taxonomy: {
+    tree(): Promise<{ kps: KpNode[]; qtypes: QtypeRow[] }>
+    approveSuggestion(questionId: string, body: { parent_code: string | null; name: string }): Promise<string>
+    rejectSuggestion(questionId: string): Promise<boolean>
+  }
   ocr: {
     status(): Promise<{ available: boolean; detail: string; lang?: string }>
   }
@@ -46,6 +80,11 @@ interface Paper {
   extracted_at: string | null
   warning: string | null
   duplicate_of: string | null
+  prompt_version: string | null
+  ai_meta_json: string | null
+  parse_stage: string | null
+  error_stage: string | null
+  parsed_at: string | null
 }
 
 interface PageRecord {
@@ -69,7 +108,7 @@ interface ImportResult {
   paperId?: string
   error?: string
   code?: 'duplicate'
-  duplicateOf?: { id: string; title: string }
+  duplicateOf?: { id: string; title: string; parseFailed?: boolean }
 }
 
 interface PaperAsset {
@@ -100,4 +139,137 @@ interface OcrLine {
 
 interface Window {
   api: ElectronAPI
+}
+
+
+interface AiConfig {
+  provider: string
+  base_url: string
+  model: string
+  vision_model: string
+  concurrency: number
+  auto_parse: boolean
+  batch_pages: number
+  timeout_sec: number
+  max_tokens: number
+}
+
+interface AiConfigView extends AiConfig {
+  hasKey: boolean
+  keyStorage: 'encrypted' | 'memory' | 'none'
+}
+
+interface ProviderPreset {
+  id: string
+  name: string
+  baseUrl: string
+  model: string
+  visionModel: string
+  keyHint: string
+  models: string[]
+}
+
+interface PromptView {
+  id: string
+  part: 'system' | 'user'
+  title: string
+  text: string
+  defaultText: string
+  isCustom: boolean
+  unknownPlaceholders: string[]
+  usedInM2: boolean
+}
+
+interface UsageRow {
+  model: string
+  calls: number
+  prompt: number
+  completion: number
+  cached: number
+  failed?: number
+}
+
+interface QueueState {
+  paused: boolean
+  concurrency: number
+  aiReady: boolean
+  extract: { waiting: string[]; running: string | null }
+  parse: {
+    waiting: Array<{ paperId: string; fromStage: string | null }>
+    running: Array<{ paperId: string; fromStage: string | null; stage: string; progress: number; message: string }>
+  }
+}
+
+interface QuestionView {
+  id: string
+  paper_id: string
+  ord: number
+  no: string
+  section: string
+  section_title: string
+  qtype: string
+  material_id: string | null
+  stem: string
+  options: string[]
+  answer: string
+  score: number | null
+  difficulty: number
+  error_prone: boolean
+  error_reason: string
+  page_idx: number | null
+  bbox: number[] | null
+  bbox_source: string
+  confidence: number
+  reviewed: boolean
+  kp_suggestion: string
+  kp_suggestion_status: string | null
+  flags: string[]
+  edited: boolean
+  kp_main: string | null
+  kp_secondary: string[]
+}
+
+interface QuestionPatch {
+  no_label?: string
+  section?: string
+  qtype?: string
+  stem?: string
+  options?: string[]
+  answer?: string
+  score?: number | null
+  difficulty?: number
+  error_prone?: boolean
+  error_reason?: string
+  bbox?: number[] | null
+  page_idx?: number
+  kp_main?: string | null
+  kp_secondary?: string[]
+  reviewed?: boolean
+}
+
+interface QuestionList {
+  questions: QuestionView[]
+  materials: Array<{ mid: string; section: string; kind: string; text: string; page_idx: number }>
+  notes: string[]
+  lowConfidence: number
+  run: { id: number; prompt_version: string | null; model: string | null; vision_model: string | null; status: string; finished_at: string | null } | null
+}
+
+interface KpNode {
+  code: string
+  parent_code: string | null
+  name: string
+  level: number
+  intro_grade: number | null
+  sort: number
+  deprecated: number
+  note: string | null
+  builtin: number
+}
+
+interface QtypeRow {
+  code: string
+  name: string
+  group: string
+  note: string | null
 }
