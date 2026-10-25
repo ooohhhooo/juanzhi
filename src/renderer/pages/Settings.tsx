@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, Descriptions, message, Card } from 'antd'
+import { Button, Descriptions, message, Card, Tag } from 'antd'
 import { FolderOpenOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 
@@ -7,6 +7,12 @@ export default function Settings() {
   const { data: dataDir = '' } = useQuery({
     queryKey: ['settings', 'dataDir'],
     queryFn: () => window.api.settings.getDataDir()
+  })
+
+  const { data: ocr, refetch: recheckOcr, isFetching: checkingOcr } = useQuery({
+    queryKey: ['ocr', 'status'],
+    queryFn: () => window.api.ocr.status(),
+    staleTime: 0
   })
 
   const handleOpenDir = async () => {
@@ -34,6 +40,18 @@ export default function Settings() {
             >
               打开
             </Button>
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+
+      <Card title="文字识别（OCR）" size="small" style={{ marginBottom: 16 }}>
+        <Descriptions column={1} size="small">
+          <Descriptions.Item label="状态">
+            {ocr
+              ? <Tag data-testid="ocr-status" color={ocr.available ? 'success' : 'error'}>{ocr.available ? '可用' : '不可用'}</Tag>
+              : '检测中…'}
+            {ocr && <span data-testid="ocr-detail">{ocr.detail}</span>}
+            <Button type="link" size="small" loading={checkingOcr} onClick={() => recheckOcr()}>重新检测</Button>
           </Descriptions.Item>
         </Descriptions>
       </Card>

@@ -3,10 +3,17 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 const ALLOWED_CHANNELS = ['data:changed', 'job:progress']
 
 const api = {
-  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
+  getPathForFile: (file: File): string => {
+    const p = webUtils.getPathForFile(file)
+    if (p) ipcRenderer.send('paths:register', p)
+    return p
+  },
   papers: {
-    import: (paths: string[]): Promise<Array<{ path: string; fileName: string; paperId?: string; error?: string }>> =>
-      ipcRenderer.invoke('papers:import', paths),
+    import: (paths: string[], opts?: { allowDuplicates?: string[] }): Promise<any[]> =>
+      ipcRenderer.invoke('papers:import', paths, opts),
+    assets: (paperId: string): Promise<any[]> =>
+      ipcRenderer.invoke('papers:assets', paperId),
     reprocess: (id: string): Promise<boolean> =>
       ipcRenderer.invoke('papers:reprocess', id),
     list: (filter?: Record<string, unknown>): Promise<any[]> =>
@@ -29,6 +36,10 @@ const api = {
       ipcRenderer.invoke('settings:getDataDir'),
     openDataDir: (): Promise<boolean> =>
       ipcRenderer.invoke('settings:openDataDir'),
+  },
+  ocr: {
+    status: (): Promise<{ available: boolean; detail: string; lang?: string }> =>
+      ipcRenderer.invoke('ocr:status'),
   },
   dialog: {
     openFiles: (): Promise<string[]> =>

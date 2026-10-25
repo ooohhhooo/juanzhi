@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, protocol, session } from 'electron'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { initDatabase, closeDatabase } from './db'
 import { registerProtocol } from './protocol'
 import { registerPaperIpc } from './ipc/papers'
@@ -15,6 +16,12 @@ const userDataDir = process.env.EWB_USER_DATA_DIR
 app.setName('english-exam-workbench')
 app.setPath('userData', userDataDir)
 
+// 自动化测试用：只打印解析出的数据目录就退出，不初始化数据库、不占单实例锁
+if (process.env.EWB_PRINT_USERDATA === '1') {
+  process.stdout.write(`EWB_USERDATA=${app.getPath('userData')}\n`)
+  app.exit(0)
+}
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'ewb',
@@ -29,6 +36,20 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 const devServerUrl = process.env.ELECTRON_RENDERER_URL
+const entryUrl = devServerUrl ?? pathToFileURL(path.join(__dirname, '../renderer/index.html')).href
+
+/** 只有应用自己的入口页（忽略 hash/query）才允许被导航到；其余一律拦截，包括任意 file:// */
+function isOwnEntry(target: string): boolean {
+  try {
+    const t = new URL(target)
+    const e = new URL(entryUrl)
+    if (t.origin !== e.origin) return false
+    const norm = (u: URL) => (u.pathname === '/' ? '/index.html' : u.pathname)
+    return devServerUrl ? norm(t) === norm(e) : t.pathname === e.pathname
+  } catch {
+    return false
+  }
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -49,8 +70,7 @@ function createWindow(): void {
 
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   win.webContents.on('will-navigate', (event, url) => {
-    const allowed = devServerUrl ? url.startsWith(devServerUrl) : url.startsWith('file://')
-    if (!allowed) event.preventDefault()
+    if (!isOwnEntry(url)) event.preventDefault()
   })
 
   if (devServerUrl) {
@@ -94,6 +114,7 @@ if (!app.requestSingleInstanceLock()) {
     recoverInterruptedPapers()
 
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
+    session.defaultSession.setPermissionCheckHandler(() => false)
 
     registerPaperIpc()
     registerSettingsIpc()

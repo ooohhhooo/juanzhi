@@ -1,205 +1,149 @@
-﻿# ewb-ocr Windows 版 — 调用 Windows.Media.Ocr
-# 用法: powershell -NoProfile -ExecutionPolicy Bypass -File ocr.ps1 <image.png>
-# 输出: JSON { lines: [{text, x, y, w, h, conf}], width, height }
-# 需要 Windows 10 1809+ 或 Windows 11
+﻿# ewb-ocr Windows 版：调用 Windows.Media.Ocr（Windows 10 1809+ / Windows 11，PowerShell 5.1）
+#
+# 用法:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File ocr.ps1 <image.png>   识别图片
+#   powershell -NoProfile -ExecutionPolicy Bypass -File ocr.ps1 -Check        只探测引擎与语言，输出 {"lang":"..."}
+#
+# stdout 只输出一段 JSON（识别时）：{ lines: [{text,x,y,w,h,conf}], width, height, lang }，坐标为 0-1 归一化、左上角原点。
+# 退出码：1 读图/识别失败/尺寸超限；2 WinRT 类型加载失败；3 没有可用的 OCR 语言包。
+# 本文件保存为带 BOM 的 UTF-8：PowerShell 5.1 对无 BOM 脚本按系统 ANSI（中文系统为 GBK）读取，会读坏中文。
 
 param(
-    [Parameter(Mandatory=$true, Position=0)]
-    [string]$ImagePath
+    [Parameter(Position = 0)]
+    [string]$ImagePath,
+    [switch]$Check
 )
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
-[Console]::Error.NewLine = "`n"
 
 function Write-Err([string]$msg) {
     [Console]::Error.WriteLine($msg)
 }
 
-# 验证文件
-if (-not (Test-Path $ImagePath)) {
-    Write-Err "无法读取图片: $ImagePath"
-    exit 1
-}
-
-$ImagePath = (Resolve-Path $ImagePath).Path
-
-# 加载 WinRT 类型
+# ---- 加载 WinRT 类型（结果类型要在调用 Await 时显式传入，不能靠运行时推断）----
 try {
     Add-Type -AssemblyName System.Runtime.WindowsRuntime
-
-    $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType=WindowsRuntime]
-    $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType=WindowsRuntime]
-    $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime]
-    $null = [Windows.Globalization.Language, Windows.Globalization, ContentType=WindowsRuntime]
+    $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+    $null = [Windows.Storage.FileAccessMode, Windows.Storage, ContentType = WindowsRuntime]
+    $null = [Windows.Storage.Streams.IRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+    $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics, ContentType = WindowsRuntime]
+    $null = [Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics, ContentType = WindowsRuntime]
+    $null = [Windows.Graphics.Imaging.BitmapPixelFormat, Windows.Graphics, ContentType = WindowsRuntime]
+    $null = [Windows.Graphics.Imaging.BitmapAlphaMode, Windows.Graphics, ContentType = WindowsRuntime]
+    $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
+    $null = [Windows.Media.Ocr.OcrResult, Windows.Foundation, ContentType = WindowsRuntime]
+    $null = [Windows.Globalization.Language, Windows.Globalization, ContentType = WindowsRuntime]
 } catch {
     Write-Err "无法加载 WinRT 组件: $_"
     exit 2
 }
 
-# 辅助函数：等待 IAsyncOperation 完成
-function Await-AsyncOp {
-    param([object]$AsyncOp)
+# AsTask<TResult>(IAsyncOperation<TResult>) 的泛型方法定义，只取一次
+$script:AsTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+        $_.Name -eq 'AsTask' -and
+        $_.GetParameters().Count -eq 1 -and
+        $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
+    })[0]
 
-    $asTaskMethod = [System.WindowsRuntimeSystemExtensions].GetMethods() |
-        Where-Object {
-            $_.Name -eq 'AsTask' -and
-            $_.GetParameters().Count -eq 1 -and
-            $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
-        } | Select-Object -First 1
-
-    if (-not $asTaskMethod) {
-        throw "无法找到 AsTask 方法"
-    }
-
-    $resultType = $AsyncOp.GetType().GetInterfaces() |
-        Where-Object { $_.IsGenericType -and $_.GetGenericTypeDefinition().Name -eq 'IAsyncOperation`1' } |
-        ForEach-Object { $_.GetGenericArguments()[0] } |
-        Select-Object -First 1
-
-    $genericMethod = $asTaskMethod.MakeGenericMethod($resultType)
-    $task = $genericMethod.Invoke($null, @($AsyncOp))
-    $task.Wait()
-
-    if ($task.IsFaulted) {
-        throw $task.Exception.InnerException
-    }
-
+# 等待 IAsyncOperation<T> 完成。$ResultType 必须由调用点显式给出。
+function Await([object]$AsyncOp, [Type]$ResultType) {
+    $task = $script:AsTaskGeneric.MakeGenericMethod($ResultType).Invoke($null, @($AsyncOp))
+    [void]$task.Wait(-1)
     return $task.Result
 }
 
-function Await-AsyncAction {
-    param([object]$AsyncAction)
-
-    $asTaskMethod = [System.WindowsRuntimeSystemExtensions].GetMethods() |
-        Where-Object {
-            $_.Name -eq 'AsTask' -and
-            $_.GetParameters().Count -eq 1 -and
-            $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction'
-        } | Select-Object -First 1
-
-    if (-not $asTaskMethod) {
-        throw "无法找到 AsTask(IAsyncAction) 方法"
+# 创建 OCR 引擎：优先简体中文，其次用户语言；都没有返回 $null
+function New-OcrEngine {
+    $engine = $null
+    try {
+        $zh = New-Object Windows.Globalization.Language 'zh-Hans-CN'
+        if ([Windows.Media.Ocr.OcrEngine]::IsLanguageSupported($zh)) {
+            $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($zh)
+        }
+    } catch { }
+    if (-not $engine) {
+        try { $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages() } catch { }
     }
-
-    $task = $asTaskMethod.Invoke($null, @($AsyncAction))
-    $task.Wait()
-
-    if ($task.IsFaulted) {
-        throw $task.Exception.InnerException
-    }
+    return $engine
 }
 
+$engine = New-OcrEngine
+if (-not $engine) {
+    Write-Err '无法创建 OCR 引擎：未安装任何 OCR 语言包'
+    exit 3
+}
+$langTag = $engine.RecognizerLanguage.LanguageTag
+
+if ($Check) {
+    [Console]::Out.Write((@{ lang = $langTag } | ConvertTo-Json -Compress))
+    exit 0
+}
+
+if (-not $ImagePath -or -not (Test-Path -LiteralPath $ImagePath -PathType Leaf)) {
+    Write-Err "无法读取图片: $ImagePath"
+    exit 1
+}
+$ImagePath = (Resolve-Path -LiteralPath $ImagePath).ProviderPath
+
+$stream = $null
 try {
-    # 打开文件
-    $fileOp = [Windows.Storage.StorageFile]::GetFileFromPathAsync($ImagePath)
-    $file = Await-AsyncOp $fileOp
-
-    # 打开文件流
-    $streamOp = $file.OpenAsync([Windows.Storage.FileAccessMode]::Read)
-    $stream = Await-AsyncOp $streamOp
-
-    # 解码图片
-    $decoderOp = [Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)
-    $decoder = Await-AsyncOp $decoderOp
+    $file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($ImagePath)) ([Windows.Storage.StorageFile])
+    $stream = Await ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+    $decoder = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
 
     $imgWidth = [int]$decoder.PixelWidth
     $imgHeight = [int]$decoder.PixelHeight
-
-    # 检查尺寸限制
     $maxDim = [Windows.Media.Ocr.OcrEngine]::MaxImageDimension
     if ($imgWidth -gt $maxDim -or $imgHeight -gt $maxDim) {
         Write-Err "图片尺寸 (${imgWidth}x${imgHeight}) 超过 OCR 最大限制 ($maxDim)"
         exit 1
     }
 
-    # 获取 SoftwareBitmap
-    $bitmapOp = $decoder.GetSoftwareBitmapAsync()
-    $bitmap = Await-AsyncOp $bitmapOp
+    # 统一成 Bgra8/Premultiplied，调色板、16 位 PNG 也能被 OCR 接受
+    $bitmap = Await ($decoder.GetSoftwareBitmapAsync(
+            [Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8,
+            [Windows.Graphics.Imaging.BitmapAlphaMode]::Premultiplied)) ([Windows.Graphics.Imaging.SoftwareBitmap])
 
-    # 创建 OCR 引擎：先尝试中文，再回退到用户语言
-    $engine = $null
+    $ocrResult = Await ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
 
-    try {
-        $zhLang = New-Object Windows.Globalization.Language "zh-Hans-CN"
-        if ([Windows.Media.Ocr.OcrEngine]::IsLanguageSupported($zhLang)) {
-            $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($zhLang)
-        }
-    } catch {
-        Write-Err "中文语言包不可用，尝试回退"
-    }
-
-    if (-not $engine) {
-        try {
-            $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
-        } catch {}
-    }
-
-    if (-not $engine) {
-        Write-Err "无法创建 OCR 引擎：未安装任何 OCR 语言包"
-        exit 3
-    }
-
-    # 执行识别
-    $ocrOp = $engine.RecognizeAsync($bitmap)
-    $ocrResult = Await-AsyncOp $ocrOp
-
-    # 构建结果
-    $lines = @()
-
+    $lines = New-Object System.Collections.ArrayList
     foreach ($ocrLine in $ocrResult.Lines) {
-        # 合并 Words 的 BoundingRect
-        $minX = [double]::MaxValue
-        $minY = [double]::MaxValue
-        $maxX = [double]::MinValue
-        $maxY = [double]::MinValue
-
+        $minX = [double]::MaxValue; $minY = [double]::MaxValue
+        $maxX = [double]::MinValue; $maxY = [double]::MinValue
+        $wordCount = 0
         foreach ($word in $ocrLine.Words) {
-            $rect = $word.BoundingRect
-
-            if ($rect.X -lt $minX) { $minX = $rect.X }
-            if ($rect.Y -lt $minY) { $minY = $rect.Y }
-            if (($rect.X + $rect.Width) -gt $maxX) { $maxX = $rect.X + $rect.Width }
-            if (($rect.Y + $rect.Height) -gt $maxY) { $maxY = $rect.Y + $rect.Height }
-
+            $r = $word.BoundingRect
+            if ($r.X -lt $minX) { $minX = $r.X }
+            if ($r.Y -lt $minY) { $minY = $r.Y }
+            if (($r.X + $r.Width) -gt $maxX) { $maxX = $r.X + $r.Width }
+            if (($r.Y + $r.Height) -gt $maxY) { $maxY = $r.Y + $r.Height }
+            $wordCount++
         }
+        if ($wordCount -eq 0) { continue }
 
-        # 用 OcrLine.Text（保留英文单词间空格），而不是拼接 Words
-        $lineText = $ocrLine.Text
+        # 用 OcrLine.Text（保留英文单词间空格），再去掉相邻汉字之间的空格。
+        # 必须用环视：普通的 ([CJK])\s+([CJK]) 不重叠匹配，会漏掉一半（"中 文 字" 只得到 "中文 字"）。
+        $text = $ocrLine.Text
+        $cjk = '[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]'
+        $text = [regex]::Replace($text, "(?<=$cjk)\s+(?=$cjk)", '')
 
-        # CJK 字符之间去除多余空格
-        $lineText = [regex]::Replace($lineText, '([\u4e00-\u9fff\u3000-\u303f\uff00-\uffef])\s+([\u4e00-\u9fff\u3000-\u303f\uff00-\uffef])', '$1$2')
-
-        # 归一化坐标
-        $nx = [Math]::Round($minX / $imgWidth, 6)
-        $ny = [Math]::Round($minY / $imgHeight, 6)
-        $nw = [Math]::Round(($maxX - $minX) / $imgWidth, 6)
-        $nh = [Math]::Round(($maxY - $minY) / $imgHeight, 6)
-
-        $lines += @{
-            text = $lineText
-            x = $nx
-            y = $ny
-            w = $nw
-            h = $nh
-            conf = 0.8  # Windows OCR 不提供置信度，使用固定值
-        }
+        [void]$lines.Add(@{
+                text = $text
+                x    = [Math]::Round($minX / $imgWidth, 6)
+                y    = [Math]::Round($minY / $imgHeight, 6)
+                w    = [Math]::Round(($maxX - $minX) / $imgWidth, 6)
+                h    = [Math]::Round(($maxY - $minY) / $imgHeight, 6)
+                conf = 0.8   # Windows OCR 不提供置信度，固定值
+            })
     }
 
-    # 清理
-    $stream.Dispose()
-
-    # 输出 JSON
-    $output = @{
-        lines = $lines
-        width = $imgWidth
-        height = $imgHeight
-    }
-
-    $json = $output | ConvertTo-Json -Depth 4 -Compress
-    [Console]::Out.Write($json)
-
+    $output = @{ lines = $lines; width = $imgWidth; height = $imgHeight; lang = $langTag }
+    [Console]::Out.Write(($output | ConvertTo-Json -Depth 4 -Compress))
 } catch {
     Write-Err "OCR 识别失败: $_"
     exit 1
+} finally {
+    if ($stream) { $stream.Dispose() }
 }

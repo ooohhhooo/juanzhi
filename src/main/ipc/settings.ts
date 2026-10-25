@@ -1,6 +1,7 @@
 import { ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import { getDb, getDataDir } from '../db'
+import { getOcrStatus } from '../pipeline/ocr'
 
 const ALLOWED_KEYS = new Set([
   'ai_provider', 'ai_api_key', 'ai_model', 'ai_base_url',
@@ -22,12 +23,14 @@ export function registerSettingsIpc(): void {
 
   ipcMain.handle('settings:set', async (_event, rawKey: unknown, value: unknown) => {
     const key = SettingsKeySchema.parse(rawKey)
-    const db = getDb()
-    db.prepare(
-      'INSERT OR REPLACE INTO settings (key, value_json) VALUES (?, ?)'
-    ).run(key, JSON.stringify(value))
+    const json = JSON.stringify(value)
+    if (json === undefined) throw new Error('设置值必须能序列化为 JSON')
+    if (json.length > 100_000) throw new Error('设置值过大')
+    getDb().prepare('INSERT OR REPLACE INTO settings (key, value_json) VALUES (?, ?)').run(key, json)
     return true
   })
+
+  ipcMain.handle('ocr:status', async () => getOcrStatus())
 
   ipcMain.handle('settings:getDataDir', async () => {
     return getDataDir()

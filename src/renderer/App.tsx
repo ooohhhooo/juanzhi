@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider, App as AntApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import PaperLibrary from './pages/PaperLibrary'
 import PaperDetail from './pages/PaperDetail'
 import Settings from './pages/Settings'
+import { useImportFlow } from './hooks/useImportFlow'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +31,36 @@ function DataChangeListener() {
   return null
 }
 
+/**
+ * 窗口级拖放：任何页面把文件拖进窗口都不能让浏览器去「打开」它（会把整个应用导航成该文件），
+ * 而是当作导入，并跳到试卷库看进度。试卷库自己的拖拽区会先处理并打上标记。
+ */
+function GlobalDrop() {
+  const { importPaths, pathsFromDrop } = useImportFlow()
+  const navigate = useNavigate()
+  const ref = useRef({ importPaths, pathsFromDrop, navigate })
+  ref.current = { importPaths, pathsFromDrop, navigate }
+
+  useEffect(() => {
+    const over = (e: DragEvent) => e.preventDefault()
+    const drop = async (e: DragEvent) => {
+      e.preventDefault()
+      if ((e as any).__ewbHandled || !e.dataTransfer || e.dataTransfer.files.length === 0) return
+      const paths = ref.current.pathsFromDrop(e.dataTransfer)
+      if (paths.length === 0) return
+      ref.current.navigate('/')
+      await ref.current.importPaths(paths)
+    }
+    window.addEventListener('dragover', over)
+    window.addEventListener('drop', drop)
+    return () => {
+      window.removeEventListener('dragover', over)
+      window.removeEventListener('drop', drop)
+    }
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -47,6 +78,7 @@ export default function App() {
         <AntApp>
           <HashRouter>
             <DataChangeListener />
+            <GlobalDrop />
             <Routes>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<PaperLibrary />} />

@@ -3,10 +3,11 @@ import { z } from 'zod'
 export const GradeEnum = z.enum(['1', '2', '3', '4', '5', '6'])
 export const SemesterEnum = z.enum(['上', '下'])
 export const ExamTypeEnum = z.enum(['单元测试', '期中', '期末', '月考', '其他'])
-export const PaperStatusEnum = z.enum(['imported', 'extracting', 'parsing', 'reviewing', 'done', 'failed'])
+// 状态流：imported → extracting → extracted → (M2) parsing → reviewing → done；任何阶段都可能 failed
+export const PaperStatusEnum = z.enum(['imported', 'extracting', 'extracted', 'parsing', 'reviewing', 'done', 'failed'])
 // pdf-text: PDF 文本层；ocr: 本机 OCR；docx: Word 文本；vision: 视觉模型（M2）；
-// needs_ocr: 当前平台没有 OCR 能力；none: 已尝试但没有取得文字
-export const TextSourceEnum = z.enum(['pdf-text', 'ocr', 'docx', 'vision', 'needs_ocr', 'none'])
+// needs_ocr: 当前平台没有 OCR 能力；ocr_failed: OCR 没跑成（原因见 pages.ocr_error）；none: OCR 正常跑完但页面确实没有文字
+export const TextSourceEnum = z.enum(['pdf-text', 'ocr', 'docx', 'vision', 'needs_ocr', 'ocr_failed', 'none'])
 
 export const PaperMetaSchema = z.object({
   grade: GradeEnum.nullable().optional(),
@@ -52,6 +53,8 @@ export interface Paper {
   ai_model: string | null
   created_at: string
   extracted_at: string | null
+  warning: string | null
+  duplicate_of: string | null
 }
 
 export interface PageRecord {
@@ -65,6 +68,8 @@ export interface PageRecord {
   lines_json: string
   text: string | null
   ocr_conf: number | null
+  ocr_error: string | null
+  text_layer_chars: number | null
 }
 
 export interface OcrLine {
@@ -76,11 +81,28 @@ export interface OcrLine {
   conf: number
 }
 
+export const ImportOptionsSchema = z.object({
+  allowDuplicates: z.array(z.string()).max(100).optional()
+}).optional()
+
 export interface ImportResult {
   path: string
   fileName: string
   paperId?: string
   error?: string
+  /** 'duplicate'：内容与已有试卷相同，需要用户确认后带 allowDuplicates 重新导入 */
+  code?: 'duplicate'
+  duplicateOf?: { id: string; title: string }
+}
+
+export interface PaperAsset {
+  id: number
+  paper_id: string
+  page_idx: number
+  seq: number
+  rel_path: string
+  mime: string
+  bytes: number
 }
 
 export interface OcrResult {

@@ -15,6 +15,7 @@ export interface RenderedPage {
 
 const PAGE_TIMEOUT_MS = 90_000
 const MAX_CANVAS_DIM = 8192
+const INIT_TIMEOUT_MS = 60_000
 
 let win: BrowserWindow | null = null
 let initPromise: Promise<BrowserWindow> | null = null
@@ -28,7 +29,7 @@ async function ensureWindow(): Promise<BrowserWindow> {
   if (win && !win.isDestroyed()) return win
   if (initPromise) return initPromise
 
-  initPromise = (async () => {
+  initPromise = withTimeout((async () => {
     const w = new BrowserWindow({
       show: false,
       width: 200,
@@ -37,31 +38,39 @@ async function ensureWindow(): Promise<BrowserWindow> {
       webPreferences: { offscreen: true, contextIsolation: true, sandbox: true }
     })
 
+    // 只清理「自己」：旧窗口的 closed 事件可能晚于新窗口创建
     w.on('closed', () => {
-      win = null
-      initPromise = null
+      if (win === w) { win = null; initPromise = null }
+    })
+    w.webContents.on('render-process-gone', () => {
+      if (!w.isDestroyed()) w.destroy()
     })
 
-    // 从 ewb://pdfjs 同源加载，pdf.js 才能取到 CMap / 标准字体
-    await w.loadURL('ewb://pdfjs/host.html')
+    try {
+      // 从 ewb://pdfjs 同源加载，pdf.js 才能取到 CMap / 标准字体
+      await w.loadURL('ewb://pdfjs/host.html')
 
-    const pdfjsDir = getPdfjsDir()
-    const pdfjsCode = fs.readFileSync(path.join(pdfjsDir, 'legacy/build/pdf.mjs'), 'utf-8')
-    const workerCode = fs.readFileSync(path.join(pdfjsDir, 'legacy/build/pdf.worker.mjs'), 'utf-8')
+      const pdfjsDir = getPdfjsDir()
+      const pdfjsCode = fs.readFileSync(path.join(pdfjsDir, 'legacy/build/pdf.mjs'), 'utf-8')
+      const workerCode = fs.readFileSync(path.join(pdfjsDir, 'legacy/build/pdf.worker.mjs'), 'utf-8')
 
-    await w.webContents.executeJavaScript(`
-      (async () => {
-        const pdfjsUrl = URL.createObjectURL(new Blob([${JSON.stringify(pdfjsCode)}], {type:'text/javascript'}));
-        const workerUrl = URL.createObjectURL(new Blob([${JSON.stringify(workerCode)}], {type:'text/javascript'}));
-        const mod = await import(pdfjsUrl);
-        mod.GlobalWorkerOptions.workerSrc = workerUrl;
-        window.__pdfjs = mod;
-      })()
-    `)
+      await w.webContents.executeJavaScript(`
+        (async () => {
+          const pdfjsUrl = URL.createObjectURL(new Blob([${JSON.stringify(pdfjsCode)}], {type:'text/javascript'}));
+          const workerUrl = URL.createObjectURL(new Blob([${JSON.stringify(workerCode)}], {type:'text/javascript'}));
+          const mod = await import(pdfjsUrl);
+          mod.GlobalWorkerOptions.workerSrc = workerUrl;
+          window.__pdfjs = mod;
+        })()
+      `)
+    } catch (e) {
+      if (!w.isDestroyed()) w.destroy()   // 初始化失败不能留下隐藏窗口，否则 Windows 上 window-all-closed 永不触发
+      throw e
+    }
 
     win = w
     return w
-  })()
+  })(), INIT_TIMEOUT_MS, 'PDF 渲染组件初始化超时', () => destroyPdfRenderer())
 
   initPromise.catch(() => { initPromise = null })
   return initPromise
@@ -104,7 +113,8 @@ export function renderPdfPages(pdfPath: string, outputDir: string): Promise<Rend
               cMapUrl: 'ewb://pdfjs/cmaps/',
               cMapPacked: true,
               standardFontDataUrl: 'ewb://pdfjs/standard_fonts/',
-              useSystemFonts: true
+              useSystemFonts: true,
+              isEvalSupported: false
             }).promise;
             return window.__doc.numPages;
           })()

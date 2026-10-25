@@ -121,6 +121,34 @@ const MIGRATIONS: Array<(db: any) => void> = [
     if (!cols.includes('extracted_at')) {
       db.exec('ALTER TABLE papers ADD COLUMN extracted_at TEXT')
     }
+  },
+
+  // v3 → v4：状态流加入 extracted；警告与错误分列；重复导入标记；OCR 失败原因；docx 附件表
+  (db) => {
+    const paperCols = db.prepare("PRAGMA table_info(papers)").all().map((c: any) => c.name)
+    if (!paperCols.includes('warning')) db.exec('ALTER TABLE papers ADD COLUMN warning TEXT')
+    if (!paperCols.includes('duplicate_of')) db.exec('ALTER TABLE papers ADD COLUMN duplicate_of TEXT')
+    const pageCols = db.prepare("PRAGMA table_info(pages)").all().map((c: any) => c.name)
+    if (!pageCols.includes('ocr_error')) db.exec('ALTER TABLE pages ADD COLUMN ocr_error TEXT')
+    if (!pageCols.includes('text_layer_chars')) db.exec('ALTER TABLE pages ADD COLUMN text_layer_chars INTEGER')
+
+    // M1 里所有 done 都只代表「提取完成」，映射无歧义；原先挂在 error 上的警告挪到 warning
+    db.exec(`
+      UPDATE papers SET warning = error, error = NULL WHERE status = 'done' AND error IS NOT NULL;
+      UPDATE papers SET status = 'extracted' WHERE status = 'done';
+      UPDATE pages SET text_source = 'ocr' WHERE text_source = 'pdf-text+ocr';
+
+      CREATE TABLE IF NOT EXISTS paper_assets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paper_id TEXT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+        page_idx INTEGER NOT NULL DEFAULT 1,
+        seq INTEGER NOT NULL,
+        rel_path TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        bytes INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_assets_paper ON paper_assets(paper_id);
+    `)
   }
 ]
 

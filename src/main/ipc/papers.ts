@@ -5,15 +5,26 @@ import { z } from 'zod'
 import { getDb, getFilesDir } from '../db'
 import { registerImports, reprocessPaper, isQueued } from '../pipeline/queue'
 import { notifyDataChanged } from '../events'
-import { PaperMetaSchema, PaperFilterSchema } from '../types'
+import { PaperMetaSchema, PaperFilterSchema, ImportOptionsSchema } from '../types'
+import { allowPath } from '../allowedPaths'
 import { getMainWindow } from '../window'
 
 const UuidSchema = z.string().uuid()
 const PathsSchema = z.array(z.string().min(1)).min(1).max(100)
 
 export function registerPaperIpc(): void {
-  ipcMain.handle('papers:import', async (_event, rawPaths: unknown) => {
-    return registerImports(PathsSchema.parse(rawPaths))
+  // 只有 preload 的 getPathForFile（对真实 File 对象取路径）会发这条消息，渲染端页面脚本调用不到
+  ipcMain.on('paths:register', (_event, p: unknown) => {
+    if (typeof p === 'string' && p.length < 4096) allowPath(p)
+  })
+
+  ipcMain.handle('papers:import', async (_event, rawPaths: unknown, rawOpts?: unknown) => {
+    return registerImports(PathsSchema.parse(rawPaths), ImportOptionsSchema.parse(rawOpts))
+  })
+
+  ipcMain.handle('papers:assets', async (_event, rawId: unknown) => {
+    const id = UuidSchema.parse(rawId)
+    return getDb().prepare('SELECT * FROM paper_assets WHERE paper_id = ? ORDER BY page_idx, seq').all(id)
   })
 
   ipcMain.handle('papers:reprocess', async (_event, rawId: unknown) => {
@@ -82,13 +93,12 @@ export function registerPaperIpc(): void {
       throw new Error('试卷正在处理中，请稍候再删除')
     }
 
-    db.prepare('DELETE FROM pages WHERE paper_id = ?').run(id)
-    db.prepare('DELETE FROM papers WHERE id = ?').run(id)
+    db.prepare('DELETE FROM papers WHERE id = ?').run(id)  // pages / paper_assets 由外键级联删除
 
     const paperDir = path.join(getFilesDir(), id)
     try {
       if (fs.existsSync(paperDir)) {
-        fs.rmSync(paperDir, { recursive: true, force: true })
+        fs.rmSync(paperDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
       }
     } catch (e) {
       console.warn(`[papers] 清理文件目录失败: ${(e as Error).message}`)
@@ -117,6 +127,8 @@ export function registerPaperIpc(): void {
       properties: ['openFile', 'multiSelections']
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
-    return result.canceled ? [] : result.filePaths
+    if (result.canceled) return []
+    result.filePaths.forEach(allowPath)
+    return result.filePaths
   })
 }

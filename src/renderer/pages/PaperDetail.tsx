@@ -2,7 +2,38 @@ import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Button, Spin, Tag, Descriptions, Switch, Empty, Space } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons'
+import { paperTag, textSourceLabel } from '../status'
+
+const noticeStyle = (kind: 'warn' | 'error'): React.CSSProperties => ({
+  padding: 12, borderRadius: 4, marginTop: 8, fontSize: 13,
+  background: kind === 'warn' ? '#fff7e6' : '#fff1f0',
+  border: `1px solid ${kind === 'warn' ? '#ffe58f' : '#ffa39e'}`
+})
+
+/** docx 页：按 [图n] 占位把提取出来的图片内联到文本里 */
+function DocxView({ paperId, text, assets }: { paperId: string; text: string; assets: PaperAsset[] }) {
+  const parts = text.split(/(\[图\d+\])/g)
+  return (
+    <div data-testid="docx-view" style={{
+      padding: 16, border: '1px solid #e8e8e8', borderRadius: 4, background: '#fafafa',
+      whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.8, maxHeight: 640, overflow: 'auto'
+    }}>
+      {parts.map((part, i) => {
+        const m = /^\[图(\d+)\]$/.exec(part)
+        if (!m) return <React.Fragment key={i}>{part}</React.Fragment>
+        const asset = assets.find(a => a.seq === Number(m[1]))
+        if (!asset) return <React.Fragment key={i}>{part}</React.Fragment>
+        const file = asset.rel_path.split('/').pop()
+        return (
+          <img key={i} data-testid="docx-image" alt={part}
+            src={`ewb://media/${paperId}/${file}`}
+            style={{ display: 'block', maxWidth: '100%', margin: '8px 0', border: '1px solid #e8e8e8', background: '#fff' }} />
+        )
+      })}
+    </div>
+  )
+}
 
 export default function PaperDetail() {
   const { id } = useParams<{ id: string }>()
@@ -22,7 +53,14 @@ export default function PaperDetail() {
     enabled: !!id
   })
 
+  const { data: assets = [] } = useQuery({
+    queryKey: ['assets', id],
+    queryFn: () => window.api.papers.assets(id!),
+    enabled: !!id
+  })
+
   const currentPage = pages[selectedPage]
+  const hasImage = !!currentPage?.image_rel
   const ocrLines: OcrLine[] = useMemo(() => {
     if (!currentPage) return []
     try { return JSON.parse(currentPage.lines_json) }
@@ -37,22 +75,14 @@ export default function PaperDetail() {
     return <Empty description="试卷未找到" style={{ marginTop: 80 }} />
   }
 
-  const statusMap: Record<string, { color: string; label: string }> = {
-    imported: { color: 'default', label: '排队中' },
-    extracting: { color: 'processing', label: '提取中' },
-    parsing: { color: 'processing', label: '解析中' },
-    reviewing: { color: 'warning', label: '待审核' },
-    done: { color: 'success', label: '已提取' },
-    failed: { color: 'error', label: '失败' }
-  }
-  const s = statusMap[paper.status] || { color: 'default', label: paper.status }
+  const tag = paperTag(paper)
 
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>返回</Button>
         <h2 style={{ margin: 0, color: '#1e2952' }}>{paper.title || paper.file_name}</h2>
-        <Tag color={s.color}>{s.label}</Tag>
+        <Tag color={tag.color}>{tag.label}</Tag>
       </div>
 
       <Descriptions size="small" column={4} style={{ marginBottom: 16 }}>
@@ -69,8 +99,15 @@ export default function PaperDetail() {
         <Descriptions.Item label="导入时间">{paper.created_at}</Descriptions.Item>
       </Descriptions>
 
+      {paper.warning && (
+        <div data-testid="paper-warning" style={noticeStyle('warn')}>提示：{paper.warning}</div>
+      )}
+      {paper.status === 'failed' && paper.error && (
+        <div style={noticeStyle('error')}>提取失败：{paper.error}</div>
+      )}
+
       {pages.length > 0 && (
-        <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
           <div style={{ width: 80, flexShrink: 0 }}>
             {pages.map((p, i) => (
               <div
@@ -88,32 +125,55 @@ export default function PaperDetail() {
                   background: i === selectedPage ? '#f0f2ff' : '#fff'
                 }}
               >
-                <img
-                  src={`ewb://page/${paper.id}/${p.image_rel}`}
-                  alt={`第${p.idx}页`}
-                  style={{ width: '100%', display: 'block' }}
-                />
+                {p.image_rel ? (
+                  <img
+                    src={`ewb://page/${paper.id}/${p.image_rel}`}
+                    alt={`第${p.idx}页`}
+                    style={{ width: '100%', display: 'block' }}
+                  />
+                ) : (
+                  <div style={{ padding: '12px 0', fontSize: 22, color: '#8c8c8c' }}><FileTextOutlined /></div>
+                )}
                 <span>第{p.idx}页</span>
               </div>
             ))}
           </div>
 
-          <div style={{ flex: 1, position: 'relative' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ marginBottom: 8 }}>
               <Space>
                 <span style={{ fontSize: 13, color: '#666' }}>
-                  文字来源: {currentPage?.text_source || '-'}
+                  文字来源: {textSourceLabel[currentPage?.text_source] ?? currentPage?.text_source ?? '-'}
                 </span>
-                <Switch
-                  checked={showOcr}
-                  onChange={setShowOcr}
-                  checkedChildren="OCR 叠加"
-                  unCheckedChildren="OCR 叠加"
-                  size="small"
-                />
+                {hasImage && (
+                  <Switch
+                    checked={showOcr}
+                    onChange={setShowOcr}
+                    checkedChildren="文字框叠加"
+                    unCheckedChildren="文字框叠加"
+                    size="small"
+                  />
+                )}
               </Space>
             </div>
-            {currentPage && currentPage.image_rel && (
+
+            {currentPage?.text_source === 'ocr_failed' && (
+              <div data-testid="ocr-failed" style={{ ...noticeStyle('error'), marginTop: 0, marginBottom: 8 }}>
+                这一页的 OCR 没有成功：{currentPage.ocr_error || '原因未知'}
+              </div>
+            )}
+            {currentPage?.text_source === 'needs_ocr' && (
+              <div style={{ ...noticeStyle('warn'), marginTop: 0, marginBottom: 8 }}>
+                当前平台暂不支持 OCR，这一页没有文字，只保存了页面图片。
+              </div>
+            )}
+            {currentPage?.text_source === 'none' && (
+              <div style={{ ...noticeStyle('warn'), marginTop: 0, marginBottom: 8 }}>
+                OCR 已正常运行，但这一页没有识别出文字（可能是空白页或纯图片）。
+              </div>
+            )}
+
+            {hasImage ? (
               <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
                 <img
                   src={`ewb://page/${paper.id}/${currentPage.image_rel}`}
@@ -122,68 +182,36 @@ export default function PaperDetail() {
                 />
                 {showOcr && ocrLines.length > 0 && (
                   <svg
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      pointerEvents: 'none'
-                    }}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
                     viewBox="0 0 1 1"
                     preserveAspectRatio="none"
                   >
                     {ocrLines.map((line, i) => (
-                      <g key={i}>
-                        <rect
-                          x={line.x}
-                          y={line.y}
-                          width={line.w}
-                          height={line.h}
-                          fill="rgba(30, 41, 82, 0.08)"
-                          stroke="rgba(30, 41, 82, 0.3)"
-                          strokeWidth={0.001}
-                        />
-                      </g>
+                      <rect
+                        key={i}
+                        x={line.x}
+                        y={line.y}
+                        width={line.w}
+                        height={line.h}
+                        fill="rgba(30, 41, 82, 0.08)"
+                        stroke="rgba(30, 41, 82, 0.3)"
+                        strokeWidth={0.001}
+                      />
                     ))}
                   </svg>
                 )}
               </div>
+            ) : currentPage?.text ? (
+              <DocxView paperId={paper.id} text={currentPage.text} assets={assets.filter(a => a.page_idx === currentPage.idx)} />
+            ) : (
+              <Empty description="这一页没有可显示的内容" />
             )}
           </div>
         </div>
       )}
 
-      {currentPage && !currentPage.image_rel && currentPage.text && (
-        <div style={{
-          flex: 1, padding: 16, border: '1px solid #e8e8e8', borderRadius: 4,
-          background: '#fafafa', whiteSpace: 'pre-wrap', fontSize: 14,
-          lineHeight: 1.8, maxHeight: 600, overflow: 'auto'
-        }}>
-          {currentPage.text}
-        </div>
-      )}
-
-      {currentPage?.text_source === 'needs_ocr' && (
-        <div style={{ padding: 16, background: '#fff7e6', border: '1px solid #ffe58f', borderRadius: 4, marginTop: 8 }}>
-          此页面缺少 OCR 识别结果（当前平台不支持 OCR），文字内容可能不完整。
-        </div>
-      )}
-
-      {pages.length === 0 && paper.status === 'done' && (
-        <Empty description="暂无页面数据" />
-      )}
-
-      {paper.status === 'done' && paper.error && (
-        <div style={{ padding: 16, background: '#fff7e6', border: '1px solid #ffe58f', borderRadius: 4, marginTop: 8 }}>
-          提示：{paper.error}
-        </div>
-      )}
-
-      {paper.status === 'failed' && paper.error && (
-        <div style={{ padding: 16, background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 4, marginTop: 8 }}>
-          提取失败：{paper.error}
-        </div>
+      {pages.length === 0 && paper.status !== 'failed' && (
+        <Empty description="暂无页面数据" style={{ marginTop: 24 }} />
       )}
     </div>
   )

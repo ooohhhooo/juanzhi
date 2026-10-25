@@ -1,31 +1,37 @@
 [
   {
     "feature": "迁移",
-    "name": "旧库(user_version=0)启动后升级到最新版本",
+    "name": "旧库(user_version=0)启动后升级到最新版本 v4",
     "pass": true,
-    "detail": "user_version=3"
+    "detail": "user_version=4"
   },
   {
     "feature": "迁移",
-    "name": "pages 增加 text/ocr_conf，papers 增加 extracted_at，旧数据保留",
+    "name": "新增列与附件表齐全，旧数据保留",
     "pass": true,
-    "detail": "pages 列=id,paper_id,idx,image_rel,width,height,text_source,lines_json,text,ocr_conf"
+    "detail": "pages 列=id,paper_id,idx,image_rel,width,height,text_source,lines_json,text,ocr_conf,ocr_error,text_layer_chars"
+  },
+  {
+    "feature": "迁移",
+    "name": "v4 把旧 done 映射为 extracted，原挂在 error 上的警告挪到 warning，pdf-text+ocr 改名为 ocr",
+    "pass": true,
+    "detail": "{\"id\":\"11111111-1111-4111-8111-111111111111\",\"status\":\"extracted\",\"error\":null,\"warning\":\"有 1 页没有识别出文字\"}"
   },
   {
     "feature": "崩溃恢复",
     "name": "启动时把遗留的 extracting 标成 failed 并提示重试",
     "pass": true,
-    "detail": "{\"id\":\"22222222-2222-4222-8222-222222222222\",\"status\":\"failed\",\"error\":\"上次提取被中断，请点击「重试」\"}"
+    "detail": "{\"id\":\"22222222-2222-4222-8222-222222222222\",\"status\":\"failed\",\"error\":\"上次提取被中断，请点击「重试」\",\"warning\":null}"
   },
   {
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-zGCwZg/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-rCCpsF/userData/workbench-data"
   },
   {
     "feature": "CSP",
-    "name": "页面带 CSP 且未被违反",
+    "name": "页面带 CSP（含 base-uri/form-action），整页重载全程无违规",
     "pass": true,
     "detail": ""
   },
@@ -43,21 +49,21 @@
   },
   {
     "feature": "拖拽导入",
-    "name": "3 份文件全部提取完成（status=done）",
+    "name": "3 份文件全部提取完成（status=extracted）",
     "pass": true,
-    "detail": "g4-2025.pdf:done, g4-2026.pdf:done, g4-2025-page1.png:done"
+    "detail": "g4-2025.pdf:extracted, g4-2026.pdf:extracted, g4-2025-page1.png:extracted"
   },
   {
     "feature": "事件刷新",
-    "name": "列表无需手动刷新，自动显示为「已提取」（data:changed → 重新查询）",
+    "name": "列表无需手动刷新，3 份试卷都自动显示为「已提取」（data:changed → 重新查询）",
     "pass": true,
     "detail": ""
   },
   {
     "feature": "事件刷新",
-    "name": "渲染端收到 job:progress，且包含 done 终态",
+    "name": "渲染端收到 job:progress，且包含 extracted 终态",
     "pass": true,
-    "detail": "4 条"
+    "detail": "5 条"
   },
   {
     "feature": "PDF 文本层",
@@ -67,7 +73,7 @@
   },
   {
     "feature": "PDF 文本层",
-    "name": "lines_json 是 PDF 自带的真实坐标（0-1，非伪造）",
+    "name": "lines_json 是 PDF 自带的真实坐标：范围合法，且 x、w 有多种取值（伪造的固定值过不了）",
     "pass": true,
     "detail": "29行,13行,29行,19行"
   },
@@ -90,6 +96,18 @@
     "detail": "29 个框"
   },
   {
+    "feature": "导航拦截",
+    "name": "在详情页拖入文件：窗口仍在应用入口页，被当作导入处理并跳到试卷库",
+    "pass": true,
+    "detail": "入口页未变 hash=#/"
+  },
+  {
+    "feature": "导航拦截",
+    "name": "页面脚本直接跳转到任意 file:// 被 will-navigate 拦截",
+    "pass": true,
+    "detail": "file:///Volumes/Elements/Claude/english-exam-workbench/out/renderer/index.html#/"
+  },
+  {
     "feature": "协议安全",
     "name": "page-N.png → 200；original.pdf / 穿越 / 非 UUID → 拒绝",
     "pass": true,
@@ -102,10 +120,34 @@
     "detail": ": \"custom\",\n    \"message\": \"不允许修改此设置项\",\n    \"path\": []\n  }\n]"
   },
   {
-    "feature": "重复导入",
-    "name": "再次拖入同一文件被提示「重复导入」",
+    "feature": "路径授权",
+    "name": "页面脚本直接传入从未登记的路径 → 被拒绝，且没有入库",
     "pass": true,
-    "detail": "g4-2025.pdf：重复导入：该文件已存在（g4-2025）"
+    "detail": "该文件未经授权：只能导入通过「导入试卷」对话框选择、或拖入窗口的文件"
+  },
+  {
+    "feature": "OCR 状态",
+    "name": "设置页显示「OCR 可用」及说明",
+    "pass": true,
+    "detail": "可用 / macOS Vision（简体中文 + 英文）"
+  },
+  {
+    "feature": "重复导入",
+    "name": "再次拖入同一文件：弹出「内容相同」确认框",
+    "pass": true,
+    "detail": "「g4-2025.pdf」与已有的「g4-2025」内容完全相同 是否仍然导入？重复导入会让这份卷子在统计里算两次。"
+  },
+  {
+    "feature": "重复导入",
+    "name": "选「跳过」不产生新记录",
+    "pass": true,
+    "detail": "1 条"
+  },
+  {
+    "feature": "重复导入",
+    "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
+    "pass": true,
+    "detail": "duplicate_of=d12f9b04"
   },
   {
     "feature": "失败处理",
@@ -144,10 +186,16 @@
     "detail": "{\"text\":\"测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测 toast=已加入处理队列：1 份"
   },
   {
-    "feature": "对话框导入",
-    "name": "点击「导入试卷」→ 对话框返回路径 → 进入队列",
+    "feature": "HEIC",
+    "name": "HEIC 夹具存在（macOS 上缺失即失败，不允许静默跳过）",
     "pass": true,
-    "detail": "对话框本身为替身，无法点击系统原生窗口"
+    "detail": ""
+  },
+  {
+    "feature": "对话框导入",
+    "name": "点击「导入试卷」→ 对话框返回 8 个路径 → 全部入库排队（对话框本身是替身）",
+    "pass": true,
+    "detail": ""
   },
   {
     "feature": "EXIF 方向",
@@ -156,22 +204,64 @@
     "detail": "1190x1684 46行"
   },
   {
-    "feature": "docx",
-    "name": "docx：text_source=docx，文本入库，无伪造坐标",
-    "pass": true,
-    "detail": "docx 89字"
-  },
-  {
     "feature": "HEIC",
     "name": "HEIC 导入成功且方向正确（竖图 + OCR>30 行）",
     "pass": true,
-    "detail": "done 1190x1684 45行 "
+    "detail": "extracted 1190x1684 45行 "
   },
   {
     "feature": "docx",
-    "name": "docx 详情页能看到文字内容",
+    "name": "docx：文本入库且 [图1] 占位在原位，图片落盘并登记到 paper_assets，不造坐标",
     "pass": true,
-    "detail": ""
+    "detail": "docx 125字 assets=1"
+  },
+  {
+    "feature": "协议安全",
+    "name": "ewb://media：图片 200；原件 / 穿越 / 非 UUID → 400",
+    "pass": true,
+    "detail": "200/400/400/400"
+  },
+  {
+    "feature": "docx",
+    "name": "纯图片 docx：[图1] 入库，并提示「主要是图片」而不是静默已提取",
+    "pass": true,
+    "detail": "文档主要是图片，文字内容需要视觉模型识别（M2）"
+  },
+  {
+    "feature": "docx",
+    "name": "带文本框的 docx：提示「文本框里的文字没有被提取」",
+    "pass": true,
+    "detail": "文档含文本框，其中的文字没有被提取"
+  },
+  {
+    "feature": "docx",
+    "name": "空 docx：text_source=none 且有警告",
+    "pass": true,
+    "detail": "有 1 页 OCR 已运行但没有识别出文字（可能是空白页或纯图）；Word 文档里没有可提取的文字或图片"
+  },
+  {
+    "feature": "OCR 失败原因",
+    "name": "OCR 正常运行但页面空白 → text_source=none，没有 ocr_error，提示「OCR 已运行」",
+    "pass": true,
+    "detail": "none / 有 1 页 OCR 已运行但没有识别出文字（可能是空白页或纯图）"
+  },
+  {
+    "feature": "文本层质量门",
+    "name": "文本层字数已过 50 字门槛、但全是私有区乱码 → 不当作 pdf-text（只有乱码占比检查能拒绝它），转 OCR，并记录 text_layer_chars",
+    "pass": true,
+    "detail": "none layer=82"
+  },
+  {
+    "feature": "docx",
+    "name": "详情页：文字可见、图片内联且加载成功、无页面缩略图请求（不再破图）、无叠加开关",
+    "pass": true,
+    "detail": "文字=1 图片ok=true 页图=0 开关=0"
+  },
+  {
+    "feature": "删除",
+    "name": "删除含图片的 docx：paper_assets 级联清空，media 目录一并删除",
+    "pass": true,
+    "detail": "残留附件行=0"
   },
   {
     "feature": "生命周期",
@@ -183,7 +273,7 @@
     "feature": "生命周期",
     "name": "macOS 关窗后从 Dock 激活：窗口重建且数据库 IPC 仍可用",
     "pass": true,
-    "detail": "list=9"
+    "detail": "list=14"
   },
   {
     "feature": "崩溃恢复",
@@ -198,8 +288,26 @@
     "detail": ""
   },
   {
+    "feature": "OCR 失败原因",
+    "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
+    "pass": true,
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-rCCpsF/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+  },
+  {
+    "feature": "OCR 失败原因",
+    "name": "详情页把失败原因直接展示给用户",
+    "pass": true,
+    "detail": "这一页的 OCR 没有成功：找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2"
+  },
+  {
+    "feature": "OCR 状态",
+    "name": "设置页显示「OCR 不可用」并说明原因",
+    "pass": true,
+    "detail": "不可用 / 找不到 OCR 组件（ewb-ocr），安装包可能不完整"
+  },
+  {
     "feature": "数据目录",
-    "name": "未设置环境变量时 userData = ~/Library/Application Support/english-exam-workbench（dev/打包一致）",
+    "name": "未设置环境变量时 userData = <appData>/english-exam-workbench（dev/打包一致；本项不初始化数据库）",
     "pass": true,
     "detail": "/Users/xiaoming-/Library/Application Support/english-exam-workbench"
   }

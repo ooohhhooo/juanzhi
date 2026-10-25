@@ -11,13 +11,15 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "preview": "electron-vite preview",
-    "test:e2e": "electron-vite build && node tests/e2e/run.cjs"
+    "test:e2e": "electron-vite build && node tests/e2e/run.cjs",
+    "test:unit": "node tests/unit/ocr-ps1.test.cjs && node --experimental-strip-types --no-warnings tests/unit/textquality.test.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
     "@tanstack/react-query": "^5.62.0",
     "antd": "^6.6.7",
     "dayjs": "^1.11.13",
+    "jszip": "^3.10.2",
     "mammoth": "^1.8.0",
     "pdfjs-dist": "^4.9.155",
     "react": "^19.0.0",

@@ -18,14 +18,61 @@ r = subprocess.run(['sips', '-s', 'format', 'heic', os.path.join(out, 'phone-exi
                    capture_output=True)
 if r.returncode != 0 and os.path.exists(heic): os.remove(heic)
 
-# 3. 最小 docx
-docx = os.path.join(out, 'unit-test.docx')
-with zipfile.ZipFile(docx, 'w', zipfile.ZIP_DEFLATED) as z:
-    z.writestr('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
-    z.writestr('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
-    paras = ['四年级英语期末测试卷', 'I. Listen and choose. 听录音，选择正确答案。', '1. How are you? —— I am fine, thank you.']
-    body = ''.join(f'<w:p><w:r><w:t>{p}</w:t></w:r></w:p>' for p in paras)
-    z.writestr('word/document.xml', f'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>{body}</w:body></w:document>')
+# 3. docx：文字 + 内嵌图片 / 纯图片 / 带文本框 / 空文档
+import io
+W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+NS = (f'xmlns:w="{W}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+      'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+      'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+      'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" '
+      'xmlns:v="urn:schemas-microsoft-com:vml"')
+
+def png_bytes(color):
+    b = io.BytesIO(); Image.new('RGB', (120, 120), color).save(b, 'PNG'); return b.getvalue()
+
+DRAWING = ('<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1905000" cy="1905000"/>'
+           '<wp:docPr id="1" name="Picture 1" descr="apple"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+           '<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="a.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId1"/>'
+           '<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1905000" cy="1905000"/></a:xfrm>'
+           '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>')
+
+def make_docx(path, body_xml, image_color=None):
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+        png_default = '<Default Extension="png" ContentType="image/png"/>' if image_color else ''
+        z.writestr('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' + png_default + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+        z.writestr('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+        if image_color:
+            z.writestr('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>')
+            z.writestr('word/media/image1.png', png_bytes(image_color))
+        z.writestr('word/document.xml', f'<?xml version="1.0" encoding="UTF-8"?><w:document {NS}><w:body>{body_xml}</w:body></w:document>')
+
+def para(t): return f'<w:p><w:r><w:t>{t}</w:t></w:r></w:p>'
+texts = ['四年级英语期末测试卷', 'I. Listen and choose. 听录音，选择正确答案。', '1. How are you? —— I am fine, thank you.']
+make_docx(os.path.join(out, 'unit-test.docx'), ''.join(para(t) for t in texts) + DRAWING + para('2. What is this? It is an apple.'), (220, 40, 40))
+make_docx(os.path.join(out, 'docx-image-only.docx'), DRAWING, (40, 40, 220))
+make_docx(os.path.join(out, 'docx-textbox.docx'), para('正文第一段，有足够多的文字内容用于提取。') + '<w:p><w:r><w:pict><v:shape><v:textbox><w:txbxContent><w:p><w:r><w:t>文本框里的文字</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>')
+make_docx(os.path.join(out, 'docx-empty.docx'), '<w:p/>')
+
+# 3b. 纯白空白页 PNG（OCR 正常运行但没有文字，用来区分「真没字」与「OCR 没跑成」）
+Image.new('RGB', (1190, 1684), 'white').save(os.path.join(out, 'blank-page.png'))
+
+# 3c. 文本层乱码的 PDF：字形名 uniE000.. → pdf.js 读出私有区字符，字数够但不可信
+def build_garbled_pdf(path):
+    names = ' '.join('/uniE0%02X' % i for i in range(26))
+    text = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' * 3
+    stream = ('BT /F1 14 Tf 20 250 Td (%s) Tj ET\nBT /F1 14 Tf 20 220 Td (%s) Tj ET' % (text, text)).encode()
+    objs = [b'<</Type/Catalog/Pages 2 0 R>>', b'<</Type/Pages/Kids[3 0 R]/Count 1>>',
+            b'<</Type/Page/Parent 2 0 R/MediaBox[0 0 400 300]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>',
+            b'<</Length %d>>\nstream\n' % len(stream) + stream + b'\nendstream',
+            ('<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding<</Type/Encoding/BaseEncoding/WinAnsiEncoding/Differences[65 %s]>>>>' % names).encode()]
+    data = b'%PDF-1.4\n'; offs = []
+    for i, o in enumerate(objs, 1):
+        offs.append(len(data)); data += b'%d 0 obj\n' % i + o + b'\nendobj\n'
+    x = len(data)
+    data += b'xref\n0 %d\n0000000000 65535 f \n' % (len(objs) + 1) + b''.join(b'%010d 00000 n \n' % o for o in offs)
+    data += b'trailer<</Size %d/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n' % (len(objs) + 1, x)
+    open(path, 'wb').write(data)
+build_garbled_pdf(os.path.join(out, 'garbled-textlayer.pdf'))
 
 # 4. 损坏 PDF、AppleDouble、.doc
 open(os.path.join(out, 'corrupt.pdf'), 'wb').write(b'%PDF-1.4\nthis is not a real pdf\n')

@@ -1,7 +1,8 @@
 interface ElectronAPI {
   getPathForFile(file: File): string
   papers: {
-    import(paths: string[]): Promise<Array<{ path: string; fileName: string; paperId?: string; error?: string }>>
+    import(paths: string[], opts?: { allowDuplicates?: string[] }): Promise<ImportResult[]>
+    assets(paperId: string): Promise<PaperAsset[]>
     reprocess(id: string): Promise<boolean>
     list(filter?: Record<string, unknown>): Promise<Paper[]>
     get(id: string): Promise<Paper | null>
@@ -14,6 +15,9 @@ interface ElectronAPI {
     set(key: string, value: unknown): Promise<boolean>
     getDataDir(): Promise<string>
     openDataDir(): Promise<boolean>
+  }
+  ocr: {
+    status(): Promise<{ available: boolean; detail: string; lang?: string }>
   }
   dialog: {
     openFiles(): Promise<string[]>
@@ -40,6 +44,8 @@ interface Paper {
   ai_model: string | null
   created_at: string
   extracted_at: string | null
+  warning: string | null
+  duplicate_of: string | null
 }
 
 interface PageRecord {
@@ -53,6 +59,27 @@ interface PageRecord {
   lines_json: string
   text: string | null
   ocr_conf: number | null
+  ocr_error: string | null
+  text_layer_chars: number | null
+}
+
+interface ImportResult {
+  path: string
+  fileName: string
+  paperId?: string
+  error?: string
+  code?: 'duplicate'
+  duplicateOf?: { id: string; title: string }
+}
+
+interface PaperAsset {
+  id: number
+  paper_id: string
+  page_idx: number
+  seq: number
+  rel_path: string
+  mime: string
+  bytes: number
 }
 
 interface JobProgress {

@@ -1,32 +1,28 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Button, Table, Tag, Space, Modal, Form, Select, InputNumber, Input,
-  message, Popconfirm, Typography
+  App, Popconfirm
 } from 'antd'
 import { PlusOutlined, InboxOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { paperTag } from '../status'
+import { useImportFlow } from '../hooks/useImportFlow'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
 const examTypeOptions = ['单元测试', '期中', '期末', '月考', '其他'].map(v => ({ label: v, value: v }))
 
-const statusMap: Record<string, { color: string; label: string }> = {
-  imported: { color: 'default', label: '排队中' },
-  extracting: { color: 'processing', label: '提取中' },
-  parsing: { color: 'processing', label: '解析中' },
-  reviewing: { color: 'warning', label: '待审核' },
-  done: { color: 'success', label: '已提取' },
-  failed: { color: 'error', label: '失败' }
-}
-
 export default function PaperLibrary() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { message } = App.useApp()
+  const { importPaths, pathsFromDrop } = useImportFlow()
   const [importing, setImporting] = useState(false)
   const [editPaper, setEditPaper] = useState<Paper | null>(null)
   const [editForm] = Form.useForm()
   const [progress, setProgress] = useState<Record<string, JobProgress>>({})
+  const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => {
     if (!window.api?.on) return
@@ -35,85 +31,40 @@ export default function PaperLibrary() {
     })
   }, [])
 
-  // 拖到拖拽区之外时不让浏览器把文件当页面打开
-  useEffect(() => {
-    const stop = (e: DragEvent) => e.preventDefault()
-    window.addEventListener('dragover', stop)
-    window.addEventListener('drop', stop)
-    return () => {
-      window.removeEventListener('dragover', stop)
-      window.removeEventListener('drop', stop)
-    }
-  }, [])
-
   const { data: papers = [], isLoading } = useQuery({
     queryKey: ['papers'],
     queryFn: () => window.api.papers.list()
   })
 
-  const handleImportFiles = useCallback(async () => {
-    const paths = await window.api.dialog.openFiles()
-    if (!paths.length) return
-    await doImport(paths)
-  }, [])
-
   const doImport = async (paths: string[]) => {
     setImporting(true)
-    try {
-      const results = await window.api.papers.import(paths)
-      const ok = results.filter(r => r.paperId)
-      if (ok.length) message.success(`已加入处理队列：${ok.length} 份`)
-      for (const f of results.filter(r => r.error)) {
-        message.warning(`${f.fileName}：${f.error}`)
-      }
-      queryClient.invalidateQueries({ queryKey: ['papers'] })
-    } catch (err) {
-      message.error(`导入失败: ${(err as Error).message}`)
-    } finally {
-      setImporting(false)
-    }
+    try { await importPaths(paths) } finally { setImporting(false) }
   }
 
-  const [dragOver, setDragOver] = useState(false)
+  const handleImportFiles = async () => {
+    const paths = await window.api.dialog.openFiles()
+    if (paths.length) await doImport(paths)
+  }
 
-  const handleNativeDrop = useCallback(async (e: React.DragEvent) => {
+  const handleNativeDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    ;(e.nativeEvent as any).__ewbHandled = true
     setDragOver(false)
+    const paths = pathsFromDrop(e.dataTransfer)
+    if (paths.length) await doImport(paths)
+  }
 
-    if (!window.api?.getPathForFile) {
-      message.error('拖拽导入不可用（请在 Electron 中运行）')
-      return
-    }
-
-    const files: string[] = []
-    const dt = e.dataTransfer
-    for (let i = 0; i < dt.files.length; i++) {
-      const f = dt.files[i]
-      try {
-        const p = window.api.getPathForFile(f)
-        if (p) files.push(p)
-      } catch {
-        // 无法获取路径
-      }
-    }
-    if (files.length === 0) {
-      message.warning('无法获取文件路径')
-      return
-    }
-    await doImport(files)
-  }, [])
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragOver(true)
-  }, [])
+  }
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-  }, [])
+  }
 
   const handleEdit = (paper: Paper) => {
     setEditPaper(paper)
@@ -138,10 +89,14 @@ export default function PaperLibrary() {
     for (const k of ['grade', 'semester', 'school_year_start', 'exam_type', 'textbook', 'region', 'school', 'total_score']) {
       if (meta[k] === undefined || meta[k] === '') meta[k] = null
     }
-    await window.api.papers.update(editPaper.id, meta)
-    message.success('已保存')
-    setEditPaper(null)
-    queryClient.invalidateQueries({ queryKey: ['papers'] })
+    try {
+      await window.api.papers.update(editPaper.id, meta)
+      message.success('已保存')
+      setEditPaper(null)
+      queryClient.invalidateQueries({ queryKey: ['papers'] })
+    } catch (err) {
+      message.error(`保存失败：${(err as Error).message.replace(/^Error invoking remote method '[^']+': /, '')}`)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -211,17 +166,10 @@ export default function PaperLibrary() {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 90,
-      render: (status: string, record: Paper) => {
-        const s = statusMap[status] || { color: 'default', label: status }
-        const p = progress[record.id]
-        const running = status === 'extracting' && p
-        const warn = status === 'done' && record.error
-        return (
-          <Tag color={warn ? 'warning' : s.color} title={record.error || undefined}>
-            {running ? `${s.label} ${p.progress}%` : warn ? '已提取·缺文字' : s.label}
-          </Tag>
-        )
+      width: 130,
+      render: (_: string, record: Paper) => {
+        const t = paperTag(record, progress[record.id])
+        return <Tag color={t.color} title={t.title}>{t.label}</Tag>
       }
     },
     {
@@ -234,7 +182,7 @@ export default function PaperLibrary() {
             onClick={() => navigate(`/paper/${record.id}`)} />
           <Button type="text" size="small" icon={<EditOutlined />}
             onClick={() => handleEdit(record)} />
-          {(record.status === 'failed' || record.status === 'done') && (
+          {(record.status === 'failed' || record.status === 'extracted' || record.status === 'done') && (
             <Button type="text" size="small" icon={<ReloadOutlined />} title="重新提取"
               data-testid="reprocess" onClick={() => handleReprocess(record.id)} />
           )}
@@ -324,7 +272,7 @@ export default function PaperLibrary() {
               <Input />
             </Form.Item>
             <Form.Item name="total_score" label="总分">
-              <InputNumber min={0} max={200} />
+              <InputNumber min={0} max={200} precision={0} />
             </Form.Item>
           </Space>
         </Form>
