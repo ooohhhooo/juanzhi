@@ -6,15 +6,18 @@ import {
   UnorderedListOutlined,
   CheckSquareOutlined,
   FileSearchOutlined,
-  SettingOutlined
+  SettingOutlined,
+  HomeOutlined
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Badge } from 'antd'
 import { useQuery } from '@tanstack/react-query'
+import FilterBar from '../stats/StatsFilter'
 
 const { Sider, Content } = Layout
 
 const menuItems = (active: number, reviewing: number) => [
+  { key: '/overview', icon: <HomeOutlined />, label: '总览' },
   { key: '/', icon: <FileTextOutlined />, label: '试卷库' },
   { key: '/queue', icon: <UnorderedListOutlined />, label: <span>处理队列 {active > 0 && <Badge count={active} size="small" color="#1677ff" data-testid="badge-queue" />}</span> },
   { key: '/review', icon: <CheckSquareOutlined />, label: <span>审核 {reviewing > 0 && <Badge count={reviewing} size="small" color="#faad14" data-testid="badge-review" />}</span> },
@@ -79,6 +82,7 @@ export default function AppLayout() {
         />
       </Sider>
       <Content style={{ overflow: 'auto', background: '#fff', height: '100vh' }}>
+        {(location.pathname === '/overview' || location.pathname === '/dashboard') && <FilterBar />}
         <Outlet />
       </Content>
     </Layout>

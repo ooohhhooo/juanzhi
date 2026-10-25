@@ -5,6 +5,8 @@
 // 用法：const mock = await startMock({ apiKey: 'sk-mock' }); mock.baseUrl; mock.script([{ type: 'empty', times: 2 }]); await mock.stop()
 const http = require('node:http')
 const { build } = require('./canned.cjs')
+const p2 = require('./p2.cjs')
+const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 /** 从 data URL 里读出图片尺寸（PNG 看 IHDR，JPEG 找 SOF 段），E2E 用它核对「发给模型的图已缩小」 */
 function imageDims(dataUrl) {
@@ -41,9 +43,10 @@ async function startMock(opts = {}) {
   }
   const sockets = new Set()
 
-  function takeDirective(fileName) {
+  // only: 'p1' | 'p2' 限定故障只作用于哪类请求（不写则都作用）
+  function takeDirective(fileName, kind) {
     for (const d of state.queue) {
-      if (d.times > 0 && (!d.file || fileName.includes(d.file))) { d.times--; return d }
+      if (d.times > 0 && (!d.file || fileName.includes(d.file)) && (!d.only || d.only === kind)) { d.times--; return d }
     }
     return null
   }
@@ -55,7 +58,7 @@ async function startMock(opts = {}) {
     return { prompt_tokens: promptTokens, completion_tokens: Math.ceil(completion.length / 1.6), total_tokens: promptTokens + Math.ceil(completion.length / 1.6), prompt_cache_hit_tokens: cached, prompt_cache_miss_tokens: promptTokens - cached }
   }
 
-  function reply(res, body, stream, finish = 'stop', status = 200, extraHeaders = {}) {
+  async function reply(res, body, stream, finish = 'stop', status = 200, extraHeaders = {}, opts = {}) {
     const content = body.content
     if (!stream) {
       res.writeHead(status, { 'Content-Type': 'application/json', ...extraHeaders })
@@ -66,10 +69,18 @@ async function startMock(opts = {}) {
       return
     }
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' })
-    const piece = Math.max(1, Math.ceil(content.length / 8))
+    const piece = opts.pieceChars ?? Math.max(1, Math.ceil(content.length / 8))
+    let sent = 0
     for (let i = 0; i < content.length; i += piece) {
+      if (opts.cutAfter !== undefined && sent >= opts.cutAfter) { await sleepMs(30); res.socket.destroy(); return }   // 中途断流
+      if (opts.eofAfter !== undefined && sent >= opts.eofAfter) { res.end(); return }   // 「干净」的提前收尾：正常关闭连接，但没有 finish_reason 也没有 [DONE]（网关/代理超时常见）
+      if (opts.stallAfter !== undefined && sent >= opts.stallAfter) { await sleepMs(opts.stallMs ?? 60000); return }  // 发了几段后不再有数据
       res.write(`data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta: { content: content.slice(i, i + piece) }, finish_reason: null }] })}\n\n`)
+      sent++
+      if (opts.chunkDelayMs) await sleepMs(opts.chunkDelayMs)
     }
+    // 最后一行没有结尾换行（网关/代理偶有）：内容照常发完，然后只发 `data: [DONE]`、不带换行就关连接
+    if (opts.noFinalNewline) { res.end('data: [DONE]'); return }
     res.write(`data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta: {}, finish_reason: finish }] })}\n\n`)
     res.write(`data: ${JSON.stringify({ model: body.model, choices: [], usage: body.usage })}\n\n`)
     res.end('data: [DONE]\n\n')
@@ -103,10 +114,11 @@ async function startMock(opts = {}) {
         const pages = range ? Array.from({ length: Number(range[2] ?? range[1]) - Number(range[1]) + 1 }, (_, i) => Number(range[1]) + i) : [1]
         const prefix = /材料 id 前缀：(b\d+)/.exec(user)?.[1] ?? 'b1'
         const isP1 = /JSON/.test(sys) && /知识点树/.test(user)
+        const isP2 = p2.isP2(sys, user)
         const rec = {
           at: Date.now(), auth, model: body.model, stream: !!body.stream, jsonMode: body.response_format?.type === 'json_object',
           maxTokens: body.max_tokens, system: sys, user, images, messageCount: body.messages.length, fileName, batchLine, pages, prefix,
-          isP1, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
+          isP1, isP2, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
           hasPrevUnfinished: /未完成的题/.test(user), imageDims: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => imageDims(p.image_url.url)) : [], imageUrls: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => p.image_url.url.slice(0, 30)) : [],
           body: raw.length,
           directive: null
@@ -119,7 +131,7 @@ async function startMock(opts = {}) {
           return
         }
 
-        const d = takeDirective(fileName)
+        const d = takeDirective(fileName, isP2 ? 'p2' : 'p1')
         if (d) rec.directive = d.type
         if (d && d.type === 'hang') { await new Promise(r => setTimeout(r, d.ms ?? 60000)); return }
         if (d && d.type === '429') { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(d.retryAfter ?? 1) }); res.end(JSON.stringify({ error: { message: 'rate limit' } })); return }
@@ -152,6 +164,18 @@ async function startMock(opts = {}) {
         if (d && d.type === 'truncated') {
           const c = '{"meta":{"title":"2025-2026学年第二学期四年级英语期末试卷","grade":4},"sections":[{"no":"一","title":"选出画线部分","qtype":"PH_DIFF"'
           return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream, 'length')
+        }
+
+        // P2 年度变化分析：按收到的提示词里的表格写一篇 Markdown，流式分段发出
+        if (isP2) {
+          const c = p2.build(user, { ...state.quirks.p2 })
+          const opts = { pieceChars: 24, chunkDelayMs: state.p2DelayMs || 0 }
+          if (d && d.type === 'p2_cut') opts.cutAfter = d.after ?? 3
+          if (d && d.type === 'p2_nonl') opts.noFinalNewline = true
+          if (d && d.type === 'p2_eof') opts.eofAfter = d.after ?? 3
+          if (d && d.type === 'p2_stall') { opts.stallAfter = d.after ?? 3; opts.stallMs = d.ms ?? 60000 }
+          if (d && d.type === 'p2_slow') opts.chunkDelayMs = d.delayMs ?? 120
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream, 'stop', 200, {}, opts)
         }
 
         // 正常响应
@@ -192,12 +216,15 @@ async function startMock(opts = {}) {
     set apiKey(v) { state.apiKey = v },
     set delayMs(v) { state.delayMs = v },
     set splitLast(v) { state.splitLast = v },
+    /** P2 正常应答每段之间的延迟（毫秒）；0 = 不延迟 */
+    set p2DelayMs(v) { state.p2DelayMs = v },
+    get p2Requests() { return state.requests.filter(r => r.isP2) },
     /** canned 响应的「真实模型会犯的错」：{ noFlag, dropContinued, typo, badPage } */
     set quirks(v) { state.quirks = v },
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },
-    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.seenSystems.clear() },
+    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.p2DelayMs = 0; state.seenSystems.clear() },
     resetStats() { state.requests.length = 0; state.maxInflight = 0 },
     async stop() {
       for (const s of sockets) s.destroy()

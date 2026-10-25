@@ -233,6 +233,93 @@ const MIGRATIONS: Array<(db: any) => void> = [
     for (const r of buildKpRows()) insKp.run(r.code, r.parent_code, r.name, r.level, r.intro_grade, r.sort, r.note)
     const insQt = db.prepare(`INSERT OR IGNORE INTO qtypes (code, name, "group", note, sort, builtin) VALUES (?, ?, ?, ?, ?, 1)`)
     QTYPE_SEEDS_V1.forEach(([code, name, group, note], i) => insQt.run(code, name, group, note, (i + 1) * 10))
+  },
+
+  // v5 → v6（M3）：分析看板。统计按知识点/学年聚合需要的索引；P2 同比分析的结果缓存表。只加索引、加表，不动已有数据。
+  (db) => {
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_question_kps_kp ON question_kps(kp_code);
+      CREATE INDEX IF NOT EXISTS idx_papers_stats ON papers(status, school_year_start);
+      CREATE INDEX IF NOT EXISTS idx_questions_paper_qtype ON questions(paper_id, qtype);
+
+      -- 每个「同比范围」（筛选条件 + 目标 + 基线 + 层级）一行，重新生成时覆盖。
+      -- cache_key = 范围 + 提示词版本 + 数据指纹 的哈希；与当前算出来的不同 = 已过期（界面提示「可重新生成」，不会自动重算）
+      CREATE TABLE IF NOT EXISTS ai_analyses (
+        scope_key TEXT PRIMARY KEY,
+        kind TEXT NOT NULL DEFAULT 'p2_yoy',
+        cache_key TEXT NOT NULL,
+        prompt_version TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        scope_json TEXT NOT NULL,
+        markdown TEXT NOT NULL,
+        refs_json TEXT NOT NULL DEFAULT '[]',
+        warnings_json TEXT NOT NULL DEFAULT '[]',
+        model TEXT,
+        usage_json TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+    `)
+  },
+
+  // v6 → v7（M3 审核返工）：P2 缓存状态不再每次重算整套统计。
+  //  - data_rev：一个单调递增的「数据修订号」，对 papers / questions / question_kps / kps / qtypes 的任何增删改都由触发器 +1
+  //    （比让每个写数据的地方记得去通知可靠，也能跨重启）；
+  //  - ai_analyses 记下上次核对时的修订号与提示词模板签名：两者都没变就直接用上次的核对结果，变了才重新算一遍并记下。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    addCol('ai_analyses', 'template_sig', 'TEXT')     // 生成时 P2 提示词模板（system + user，未填数据）的哈希
+    addCol('ai_analyses', 'checked_rev', 'INTEGER')   // 上次核对「是否过期」时的数据修订号
+    addCol('ai_analyses', 'checked_sig', 'TEXT')      // 上次核对时的提示词模板签名
+    addCol('ai_analyses', 'checked_json', 'TEXT')     // 上次核对的结论：{ fresh, reasons, promptError, empty }
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS data_rev (id INTEGER PRIMARY KEY CHECK (id = 1), rev INTEGER NOT NULL DEFAULT 0);
+      INSERT OR IGNORE INTO data_rev (id, rev) VALUES (1, 0);
+    `)
+    for (const t of ['papers', 'questions', 'question_kps', 'kps', 'qtypes']) {
+      for (const [suffix, ev] of [['i', 'INSERT'], ['u', 'UPDATE'], ['d', 'DELETE']]) {
+        db.exec(`CREATE TRIGGER IF NOT EXISTS trg_rev_${t}_${suffix} AFTER ${ev} ON ${t} BEGIN UPDATE data_rev SET rev = rev + 1 WHERE id = 1; END;`)
+      }
+    }
+  },
+
+  // v7 → v8（M3 复审返工）：修订号触发器太「宽」——导入、提取、解析阶段对 papers 的任何写入（含进度字段）都推高修订号，
+  // 打开着同比页时每 500ms 就会让 P2 缓存状态整套重算一遍。改成只有「会影响统计」的写入才推高：
+  //   · papers：新增/删除/改了统计会用到的列，且（改之前或改之后）状态是 done / reviewing；状态从计入变为不计入、或反过来，也推高；
+  //   · questions / question_kps：所属卷子当前是 done / reviewing；
+  //   · kps / qtypes：照旧（树与题型表一变，所有统计都变）。
+  // 前提：题和标注不会在卷子之间移动（应用里没有任何代码改 questions.paper_id；question_kps.question_id 同理）。
+  //   所以 questions / question_kps 的更新触发器只看 NEW 所属的卷子；真要做「把题挪到另一份卷子」，必须同时用新迁移把这两个触发器改成 OLD、NEW 都看。
+  // v7 的触发器 DROP 后重建（v7 本身不动）；顺手把修订号 +1，让升级后的第一次读状态重新核对一遍。
+  (db) => {
+    const counted = "('done','reviewing')"
+    for (const t of ['papers', 'questions', 'question_kps']) {
+      for (const suffix of ['i', 'u', 'd']) db.exec(`DROP TRIGGER IF EXISTS trg_rev_${t}_${suffix}`)
+    }
+    const bump = 'UPDATE data_rev SET rev = rev + 1 WHERE id = 1;'
+    db.exec(`
+      CREATE TRIGGER trg_rev_papers_i AFTER INSERT ON papers WHEN NEW.status IN ${counted} BEGIN ${bump} END;
+      CREATE TRIGGER trg_rev_papers_u AFTER UPDATE OF status, grade, semester, school_year_start, exam_type, textbook, region, file_hash, created_at, title ON papers
+        WHEN OLD.status IN ${counted} OR NEW.status IN ${counted} BEGIN ${bump} END;
+      CREATE TRIGGER trg_rev_papers_d AFTER DELETE ON papers WHEN OLD.status IN ${counted} BEGIN ${bump} END;
+
+      CREATE TRIGGER trg_rev_questions_i AFTER INSERT ON questions
+        WHEN EXISTS (SELECT 1 FROM papers p WHERE p.id = NEW.paper_id AND p.status IN ${counted}) BEGIN ${bump} END;
+      CREATE TRIGGER trg_rev_questions_u AFTER UPDATE ON questions
+        WHEN EXISTS (SELECT 1 FROM papers p WHERE p.id = NEW.paper_id AND p.status IN ${counted}) BEGIN ${bump} END;
+      CREATE TRIGGER trg_rev_questions_d AFTER DELETE ON questions
+        WHEN EXISTS (SELECT 1 FROM papers p WHERE p.id = OLD.paper_id AND p.status IN ${counted}) BEGIN ${bump} END;
+
+      CREATE TRIGGER trg_rev_question_kps_i AFTER INSERT ON question_kps
+        WHEN EXISTS (SELECT 1 FROM questions q JOIN papers p ON p.id = q.paper_id WHERE q.id = NEW.question_id AND p.status IN ${counted}) BEGIN ${bump} END;
+      CREATE TRIGGER trg_rev_question_kps_u AFTER UPDATE ON question_kps
+        WHEN EXISTS (SELECT 1 FROM questions q JOIN papers p ON p.id = q.paper_id WHERE q.id = NEW.question_id AND p.status IN ${counted}) BEGIN ${bump} END;
+      CREATE TRIGGER trg_rev_question_kps_d AFTER DELETE ON question_kps
+        WHEN EXISTS (SELECT 1 FROM questions q JOIN papers p ON p.id = q.paper_id WHERE q.id = OLD.question_id AND p.status IN ${counted}) BEGIN ${bump} END;
+      UPDATE data_rev SET rev = rev + 1 WHERE id = 1;
+    `)
   }
 ]
 

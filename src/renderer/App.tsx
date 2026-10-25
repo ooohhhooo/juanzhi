@@ -11,6 +11,10 @@ import QueuePage from './pages/QueuePage'
 import ReviewList from './pages/review/ReviewList'
 import ReviewPage from './pages/review/ReviewPage'
 import { useImportFlow } from './hooks/useImportFlow'
+import Overview from './pages/Overview'
+import Dashboard from './pages/dashboard/Dashboard'
+import { StatsFilterProvider } from './stats/StatsFilter'
+import { installChunkListener } from './stats/analysisStore'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +25,8 @@ const queryClient = new QueryClient({
   }
 })
 
+const STATS_SOURCES = new Set(['papers', 'questions', 'taxonomy', 'materials', 'pages', 'aiConfig', 'prompts'])
+
 function DataChangeListener() {
   useEffect(() => {
     if (!window.api?.on) return
@@ -28,8 +34,13 @@ function DataChangeListener() {
       for (const t of types) {
         queryClient.invalidateQueries({ queryKey: [t] })
       }
+      // 看板与总览的统计（含 AI 分析的缓存状态）：试卷状态、题目、知识点树任何一项变了都重新取数
+      if (types.some(t => STATS_SOURCES.has(t))) queryClient.invalidateQueries({ queryKey: ['stats'] })
+      // 只有 AI 分析的缓存变了（比如生成中被刷新过的页面，等后台生成完）：只刷新 AI 区，不重跑统计
+      else if (types.includes('analysis')) queryClient.invalidateQueries({ queryKey: ['stats', 'analysis'] })
     })
-    return unsub
+    const offChunk = installChunkListener(queryClient)
+    return () => { unsub(); offChunk() }
   }, [])
   return null
 }
@@ -79,6 +90,7 @@ export default function App() {
         }}
       >
         <AntApp>
+          <StatsFilterProvider>
           <HashRouter>
             <DataChangeListener />
             <GlobalDrop />
@@ -87,7 +99,8 @@ export default function App() {
                 <Route path="/" element={<PaperLibrary />} />
                 <Route path="/paper/:id" element={<PaperDetail />} />
                 <Route path="/settings" element={<Settings />} />
-                <Route path="/dashboard" element={<Placeholder title="分析看板" />} />
+                <Route path="/overview" element={<Overview />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/queue" element={<QueuePage />} />
                 <Route path="/review" element={<ReviewList />} />
                 <Route path="/review/:id" element={<ReviewPage />} />
@@ -95,6 +108,7 @@ export default function App() {
               </Route>
             </Routes>
           </HashRouter>
+          </StatsFilterProvider>
         </AntApp>
       </ConfigProvider>
     </QueryClientProvider>

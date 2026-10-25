@@ -8,6 +8,7 @@ import { registerSettingsIpc } from './ipc/settings'
 import { registerAiIpc } from './ipc/ai'
 import { registerParseIpc } from './ipc/parse'
 import { registerQuestionIpc } from './ipc/questions'
+import { registerStatsIpc } from './ipc/stats'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
@@ -124,6 +125,7 @@ if (!app.requestSingleInstanceLock()) {
     registerAiIpc()
     registerParseIpc()
     registerQuestionIpc()
+    registerStatsIpc()
     createWindow()
 
     app.on('activate', () => {

@@ -98,7 +98,7 @@ async function cropPage(app, pngPath, bbox, outPath, pad = 0) {
 function ocrText(png) {
   const bin = path.join(root, 'native/macos/bin/ewb-ocr')
   const out = execFileSync(bin, [png], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
-  const j = JSON.parse(out.replace(/^﻿/, ''))
+  const j = JSON.parse(out.replace(/^\uFEFF/, ''))
   return j.lines.map(l => l.text).join(' ')
 }
 

@@ -120,7 +120,7 @@ async function main() {
   dbm.close()
   const L1 = legacyRows.find(r => r.id.startsWith('1111'))
   const L2 = legacyRows.find(r => r.id.startsWith('2222'))
-  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v5（M2 新增了 v5）', uv === 5, `user_version=${uv}`)
+  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v8（M2 新增 v5、M3 新增 v6、v7、v8）', uv === 8, `user_version=${uv}`)
   check('迁移', '新增列与附件表齐全，旧数据保留',
     ['text', 'ocr_conf', 'ocr_error', 'text_layer_chars'].every(c => pageCols.includes(c)) &&
     ['extracted_at', 'warning', 'duplicate_of'].every(c => paperCols.includes(c)) && hasAssets && legacyPages.c === 1,

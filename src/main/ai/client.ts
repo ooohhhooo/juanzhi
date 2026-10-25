@@ -167,6 +167,26 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
     let finish = ''
     let usage: Usage = { promptTokens: 0, completionTokens: 0, cachedTokens: 0 }
     let model = req.model
+    let sawDone = false
+    // 一行 SSE：只认 data: 行；[DONE] 记下来；其余按 JSON 增量处理
+    const handleLine = (raw: string) => {
+      const line = raw.trim()
+      if (!line.startsWith('data:')) return
+      const data = line.slice(5).trim()
+      if (data === '[DONE]') { sawDone = true; return }
+      if (!data) return
+      let j: any
+      try { j = JSON.parse(data) } catch { return }
+      if (j.model) model = String(j.model)
+      if (j.usage) usage = parseUsage(j.usage)
+      const c = j.choices?.[0]
+      const delta = c?.delta?.content
+      if (typeof delta === 'string' && delta) {
+        content += delta
+        req.onDelta?.(delta)
+      }
+      if (c?.finish_reason) finish = String(c.finish_reason)
+    }
     try {
       for (;;) {
         const { done, value } = await reader.read()
@@ -175,28 +195,23 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
         buf += dec.decode(value, { stream: true })
         let nl: number
         while ((nl = buf.indexOf('\n')) >= 0) {
-          const line = buf.slice(0, nl).trim()
+          const line = buf.slice(0, nl)
           buf = buf.slice(nl + 1)
-          if (!line.startsWith('data:')) continue
-          const data = line.slice(5).trim()
-          if (!data || data === '[DONE]') continue
-          let j: any
-          try { j = JSON.parse(data) } catch { continue }
-          if (j.model) model = String(j.model)
-          if (j.usage) usage = parseUsage(j.usage)
-          const c = j.choices?.[0]
-          const delta = c?.delta?.content
-          if (typeof delta === 'string' && delta) {
-            content += delta
-            req.onDelta?.(delta)
-          }
-          if (c?.finish_reason) finish = String(c.finish_reason)
+          handleLine(line)
         }
       }
+      // 最后一行没有结尾换行（网关/代理偶有这样的）：残留在缓冲里的也要当一行处理，否则正常结束会被误判成中断
+      buf += dec.decode()
+      if (buf.trim()) handleLine(buf)
     } catch (e) {
       if (req.signal?.aborted) throw new AiError('aborted', '已取消')
       if (timedOut) throw new AiError('timeout', `模型响应超时（超过 ${Math.round(idleMs / 1000)} 秒没有新数据）`)
       throw new AiError('network', `数据流中断：${(e as Error).message}`, null, String(e))
+    }
+    // 连接被对端「正常关闭」但既没有 finish_reason 也没有 [DONE]：网关/代理超时、服务商中途掐断时常见。
+    // 此时内容是半截的，必须当作中断（可重试），不能当成完整结果交给调用方。
+    if (!finish && !sawDone) {
+      throw new AiError('network', `数据流意外结束（服务端提前关闭了连接，没有收到结束标记），已收到的 ${content.length} 字不完整`, null, 'eof-without-finish')
     }
     return { content, finishReason: finish, usage, model }
   } finally {

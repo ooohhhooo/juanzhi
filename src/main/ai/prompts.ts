@@ -47,7 +47,9 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
 /** 缺了这些占位符，P1 就拿不到关键输入，保存时拒绝 */
 const REQUIRED: Record<string, string[]> = {
   'p1_text.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'OCR_TEXT'],
-  'p1_vision.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'PAGE_LIST']
+  'p1_vision.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'PAGE_LIST'],
+  // P2：四张统计表缺了任何一张，模型就拿不到对应的数据（M3）
+  'p2_yoy.user': ['ADDED', 'REMOVED', 'CHANGED', 'HOT']
 }
 
 function overrides(): Record<string, string> {
@@ -74,7 +76,7 @@ export function promptViews(): PromptView[] {
       const text = o[k] ?? DEFAULTS[k]
       views.push({
         id, part, title: TITLES[id], text, defaultText: DEFAULTS[k], isCustom: o[k] !== undefined && o[k] !== DEFAULTS[k],
-        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: id === 'p1_text' || id === 'p1_vision'
+        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: id !== 'p3_report'   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）与 P2（M3），P3 要到 M4
       })
     }
   }

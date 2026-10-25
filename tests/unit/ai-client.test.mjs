@@ -64,6 +64,47 @@ assert.equal(chatUrl('https://x/v1/chat/completions'), 'https://x/v1/chat/comple
   assert.equal(calls[0].body.stream, true)
 }
 
+// 流式：连接被「正常关闭」但既没有 finish_reason 也没有 [DONE] = 半截内容，必须当作中断并重试，不能当成完整结果
+{
+  const ev = (o) => `data: ${JSON.stringify(o)}\n\n`
+  const part = ev({ choices: [{ delta: { content: '## 一、总体变化\n只写了一半' }, finish_reason: null }] })
+  const good = ev({ choices: [{ delta: { content: '完整内容' }, finish_reason: 'stop' }] }) + 'data: [DONE]\n\n'
+  const { fetchImpl, calls } = fakeFetch([{ sse: [part] }, { sse: [good] }])
+  const deltas = []
+  const r = await chat({ ...base, fetchImpl, stream: true, onDelta: d => deltas.push(d), maxRetries: 2 })
+  assert.equal(r.content, '完整内容', '第一次半截的结果被丢弃，重试后拿到完整内容')
+  assert.equal(calls.length, 2)
+  assert.equal(r.attempts, 2)
+  // 一直半截 → 用完重试次数报「数据流意外结束」，不返回半截内容
+  const f2 = fakeFetch(Array.from({ length: 5 }, () => ({ sse: [part] })))
+  const e = await fail(chat({ ...base, fetchImpl: f2.fetchImpl, stream: true, maxRetries: 1 }))
+  assert.ok(e instanceof AiError && e.code === 'network' && /意外结束/.test(e.message), String(e))
+  assert.equal(f2.calls.length, 2)
+  // 只有 [DONE] 没有 finish_reason（有的服务商这样）、或只有 finish_reason 没有 [DONE]：都算完整
+  const onlyDone = fakeFetch([{ sse: [ev({ choices: [{ delta: { content: 'ok1' } }] }) + 'data: [DONE]\n\n'] }])
+  assert.equal((await chat({ ...base, fetchImpl: onlyDone.fetchImpl, stream: true })).content, 'ok1')
+  const onlyFinish = fakeFetch([{ sse: [ev({ choices: [{ delta: { content: 'ok2' }, finish_reason: 'stop' }] })] }])
+  assert.equal((await chat({ ...base, fetchImpl: onlyFinish.fetchImpl, stream: true })).content, 'ok2')
+}
+
+// 流式：最后一行没有结尾换行（`data: [DONE]` 或带 finish_reason 的块）——正常结束，不能被当成中断（复审 P2-N1）
+{
+  const ev = (o) => `data: ${JSON.stringify(o)}\n\n`
+  const a1 = fakeFetch([{ sse: [ev({ choices: [{ delta: { content: '完整' } }] }), 'data: [DONE]'] }])
+  const r1 = await chat({ ...base, fetchImpl: a1.fetchImpl, stream: true })
+  assert.equal(r1.content, '完整'); assert.equal(a1.calls.length, 1, '没有重试')
+  const a2 = fakeFetch([{ sse: [ev({ choices: [{ delta: { content: '内容A' } }] }), `data: ${JSON.stringify({ choices: [{ delta: { content: 'B' }, finish_reason: 'stop' }] })}`] }])
+  const r2 = await chat({ ...base, fetchImpl: a2.fetchImpl, stream: true })
+  assert.equal(r2.content, '内容AB'); assert.equal(r2.finishReason, 'stop'); assert.equal(a2.calls.length, 1)
+  // 最后一行被切成两个网络包也行
+  const a3 = fakeFetch([{ sse: [ev({ choices: [{ delta: { content: 'x' } }] }), 'data: [DO', 'NE]'] }])
+  assert.equal((await chat({ ...base, fetchImpl: a3.fetchImpl, stream: true })).content, 'x')
+  // 残留的不是结束标记、而只是半截内容的 JSON 行：仍然按「没有结束标记」处理
+  const a4 = fakeFetch(Array.from({ length: 3 }, () => ({ sse: [ev({ choices: [{ delta: { content: 'y' } }] }), 'data: {"choices":[{"delta":{"content":"z"'] })))
+  const e4 = await fail(chat({ ...base, fetchImpl: a4.fetchImpl, stream: true, maxRetries: 1 }))
+  assert.ok(e4 instanceof AiError && /意外结束/.test(e4.message))
+}
+
 // 429 → 按 Retry-After 退避后成功；5xx 连续两次，指数退避后成功
 {
   const { fetchImpl, calls } = fakeFetch([{ status: 429, text: '{}', headers: { 'Retry-After': '0' } }])

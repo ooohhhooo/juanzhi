@@ -63,7 +63,7 @@ async function phaseMigration() {
     const nKps = d.prepare('SELECT COUNT(*) c FROM kps').get().c
     const tables = d.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name)
     const oth = d.prepare("SELECT 1 FROM qtypes WHERE code = 'OTHER'").get()
-    check('迁移 v5', '带数据的真实 v4 库升级到 v5：版本号、新列、新表齐全', uv === 5 && ['ord', 'no_label', 'flags_json', 'bbox_source'].every(c => qcols.includes(c)) && ['materials', 'parse_runs', 'ai_usage'].every(t => tables.includes(t)), `v${uv}`)
+    check('迁移 v5', '带数据的真实 v4 库升级到最新版本（现为 v8，M3 在 v5 之后新增了 v6、v7、v8）：版本号、v5 的新列、新表齐全', uv === 8 && ['ord', 'no_label', 'flags_json', 'bbox_source'].every(c => qcols.includes(c)) && ['materials', 'parse_runs', 'ai_usage'].every(t => tables.includes(t)), `v${uv}`)
     check('迁移 v5', '旧题目与它的知识点标注原样保留（没有因重建表被外键级联清空）', q?.stem === '旧题干' && q.no === 7 && kpLink === 1)
     check('迁移 v5', '老师自建的知识点保留；与种子同代码的节点不被覆盖（INSERT OR IGNORE）；其余种子补齐', mine?.name === '老师自己建的节点' && mine.builtin === 0 && renamed?.name === '我改过名的复数' && nKps >= 140 && !!oth, `共 ${nKps} 个节点`)
   })
@@ -81,7 +81,7 @@ async function phaseSetup() {
     const kps = d.prepare('SELECT * FROM kps').all()
     const bad = kps.filter(k => k.level > 3 || (k.parent_code && !kps.some(p => p.code === k.parent_code)))
     const qts = d.prepare('SELECT * FROM qtypes').all()
-    check('知识点树', `全新库 v${uv}：种子树 ${kps.length} 个节点（80–150）、最多 3 层、父节点都存在、代码唯一`, uv === 5 && kps.length >= 80 && kps.length <= 150 && bad.length === 0 && new Set(kps.map(k => k.code)).size === kps.length, `${kps.length} 个`)
+    check('知识点树', `全新库 v${uv}：种子树 ${kps.length} 个节点（80–150）、最多 3 层、父节点都存在、代码唯一`, uv === 8 && kps.length >= 80 && kps.length <= 150 && bad.length === 0 && new Set(kps.map(k => k.code)).size === kps.length, `${kps.length} 个`)
     check('知识点树', '每个节点都有名称与引入年级；题型表含 OTHER 兜底与 6 种听力题型', kps.every(k => k.name && k.intro_grade >= 3) && qts.some(q => q.code === 'OTHER') && qts.filter(q => q.group === 'listening').length === 6, `${qts.length} 种题型`)
     ctx.kpCount0 = kps.length
   })

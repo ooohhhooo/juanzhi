@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -48,6 +48,21 @@ const api = {
     savePrompt: (id: string, part: string, text: string): Promise<boolean> => ipcRenderer.invoke('ai:savePrompt', id, part, text),
     resetPrompt: (id: string, part: string): Promise<boolean> => ipcRenderer.invoke('ai:resetPrompt', id, part),
     usage: (paperId?: string): Promise<any[]> => (paperId ? ipcRenderer.invoke('ai:usage', paperId) : ipcRenderer.invoke('ai:usage')),
+    // P2 同比分析：compareAnalysis 只读缓存状态（不花钱）；analyzeCompare 流式生成，增量走 ai:chunk 事件（只发给发起请求的窗口）
+    compareAnalysis: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('ai:compareAnalysis', scope),
+    analyzeCompare: (scope: Record<string, unknown>, requestId: string): Promise<any> => ipcRenderer.invoke('ai:analyzeCompare', scope, requestId),
+    cancel: (requestId: string): Promise<boolean> => ipcRenderer.invoke('ai:cancel', requestId),
+  },
+  stats: {
+    overview: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('stats:overview', filter),
+    distribution: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('stats:distribution', filter),
+    matrix: (filter: Record<string, unknown> | undefined, level: number): Promise<any> => ipcRenderer.invoke('stats:matrix', filter, level),
+    hot: (filter: Record<string, unknown> | undefined, level: number): Promise<any> => ipcRenderer.invoke('stats:hot', filter, level),
+    compare: (filter: Record<string, unknown> | undefined, target: number, base: 'before' | number, level?: number, align?: boolean): Promise<any> => ipcRenderer.invoke('stats:compare', filter, target, base, level, align),
+    notes: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('stats:notes', filter),
+    questions: (filter: Record<string, unknown> | undefined, side: Record<string, unknown>, code: string, limit?: number): Promise<any[]> => ipcRenderer.invoke('stats:questions', filter, side, code, limit),
+    filterOptions: (filter?: Record<string, unknown>): Promise<any> => (filter === undefined ? ipcRenderer.invoke('stats:filterOptions') : ipcRenderer.invoke('stats:filterOptions', filter)),
+    exportMatrix: (filter: Record<string, unknown> | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('stats:exportMatrix', filter, level),
   },
   parse: {
     start: (paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean> => ipcRenderer.invoke('parse:start', paperId, stage),

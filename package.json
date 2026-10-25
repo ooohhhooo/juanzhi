@@ -11,11 +11,13 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "preview": "electron-vite preview",
-    "test:e2e": "electron-vite build && node tests/e2e/run.cjs && node tests/e2e/run-m2.cjs",
-    "test:unit": "node tests/unit/ocr-ps1.test.cjs && node --experimental-strip-types --no-warnings tests/unit/textquality.test.mjs && node --experimental-strip-types --no-warnings tests/unit/taxonomy.test.mjs && node --experimental-strip-types --no-warnings tests/unit/parse-pipeline.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-client.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-canned.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-guard.test.mjs && node --experimental-strip-types --no-warnings tests/unit/prompts-sync.test.mjs",
+    "test:e2e": "electron-vite build && node tests/e2e/run.cjs && node tests/e2e/run-m2.cjs && node tests/e2e/run-m3.cjs",
+    "test:unit": "node tests/unit/ocr-ps1.test.cjs && node --experimental-strip-types --no-warnings tests/unit/textquality.test.mjs && node --experimental-strip-types --no-warnings tests/unit/taxonomy.test.mjs && node --experimental-strip-types --no-warnings tests/unit/parse-pipeline.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-client.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-canned.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-guard.test.mjs && node --experimental-strip-types --no-warnings tests/unit/prompts-sync.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-core.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-compare-math.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-p2.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-csv.test.mjs && node --experimental-strip-types --no-warnings tests/unit/treemap.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-p2.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-fuzz.test.mjs",
     "test:e2e:m1": "electron-vite build && node tests/e2e/run.cjs",
     "test:e2e:m2": "electron-vite build && node tests/e2e/run-m2.cjs",
-    "test:real-ai": "electron-vite build && node --experimental-strip-types --no-warnings tests/real-ai/run.cjs"
+    "test:real-ai": "electron-vite build && node --experimental-strip-types --no-warnings tests/real-ai/run.cjs",
+    "test:e2e:m3": "electron-vite build && node tests/e2e/run-m3.cjs",
+    "test:perf": "electron-vite build && node --experimental-strip-types --no-warnings tests/e2e/perf-m3.cjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",

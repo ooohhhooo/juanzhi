@@ -25,6 +25,20 @@ interface ElectronAPI {
     savePrompt(id: string, part: string, text: string): Promise<boolean>
     resetPrompt(id: string, part: string): Promise<boolean>
     usage(paperId?: string): Promise<UsageRow[]>
+    compareAnalysis(scope: CompareScope): Promise<AnalysisState>
+    analyzeCompare(scope: CompareScope, requestId: string): Promise<AnalysisResult>
+    cancel(requestId: string): Promise<boolean>
+  }
+  stats: {
+    overview(filter?: StatsFilter): Promise<OverviewResult>
+    distribution(filter?: StatsFilter): Promise<Distribution>
+    matrix(filter: StatsFilter | undefined, level: number): Promise<MatrixResult>
+    hot(filter: StatsFilter | undefined, level: number): Promise<HotResult>
+    compare(filter: StatsFilter | undefined, target: number, base: 'before' | number, level?: number, align?: boolean): Promise<CompareResult>
+    notes(filter?: StatsFilter): Promise<ScopeNotes>
+    questions(filter: StatsFilter | undefined, side: QuestionSide, code: string, limit?: number): Promise<QuestionCard[]>
+    filterOptions(filter?: StatsFilter): Promise<{ years: number[]; textbooks: string[]; regions: string[] }>
+    exportMatrix(filter: StatsFilter | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }>
   }
   parse: {
     start(paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean>
@@ -273,3 +287,59 @@ interface QtypeRow {
   group: string
   note: string | null
 }
+
+// ── M3：统计 ──（类型直接取自主进程的统计模块，避免两边各写一份）
+type StatsFilter = import('../main/stats/filter').StatsFilter
+type Distribution = import('../main/stats/core').Distribution
+type DistNode = import('../main/stats/core').DistNode
+type MatrixResult = import('../main/stats/core').MatrixResult
+type HotResult = import('../main/stats/core').HotResult
+type HotRow = import('../main/stats/core').HotRow
+type CompareResult = import('../main/stats/core').CompareResult
+type CompareItem = import('../main/stats/core').CompareItem
+type OverviewResult = import('../main/stats/core').OverviewResult
+type QuestionCard = import('../main/stats/core').QuestionCard
+type ScopeNotes = import('../main/stats/core').ScopeNotes
+type CitationRef = import('../shared/citation').CitationRef
+type QuestionSide = { kind: 'year'; year: number } | { kind: 'base'; target: number; base: 'before' | number; align?: boolean } | { kind: 'filter' }
+
+interface CompareScope {
+  filter: StatsFilter
+  target: number
+  base: 'before' | number
+  level: number
+  /** 按学期对齐（基线只取目标学年出现过的学期），默认 true */
+  align?: boolean
+}
+
+interface AnalysisState {
+  status: 'none' | 'fresh' | 'stale'
+  markdown: string
+  refs: Array<CitationRef & { missing?: boolean }>
+  model: string | null
+  createdAt: string | null
+  staleReasons: Array<'data' | 'prompt' | 'model'>
+  warnings: string[]
+  blocked: string | null
+  aiReady: boolean
+  promptVersion: string
+}
+
+interface AnalysisResult {
+  ok: boolean
+  cancelled?: boolean
+  code?: string
+  message?: string
+  partial?: string
+  markdown?: string
+  refs?: CitationRef[]
+  warnings?: string[]
+}
+
+type ChunkEvent =
+  | { id: string; type: 'start'; scopeKey: string; refs: CitationRef[] }
+  | { id: string; type: 'delta'; text: string }
+  | { id: string; type: 'reset' }
+  | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[] }
+  | { id: string; type: 'error'; code: string; message: string; partial: string }
+  | { id: string; type: 'cancelled'; partial: string }
