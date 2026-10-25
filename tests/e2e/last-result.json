@@ -1,0 +1,206 @@
+[
+  {
+    "feature": "迁移",
+    "name": "旧库(user_version=0)启动后升级到最新版本",
+    "pass": true,
+    "detail": "user_version=3"
+  },
+  {
+    "feature": "迁移",
+    "name": "pages 增加 text/ocr_conf，papers 增加 extracted_at，旧数据保留",
+    "pass": true,
+    "detail": "pages 列=id,paper_id,idx,image_rel,width,height,text_source,lines_json,text,ocr_conf"
+  },
+  {
+    "feature": "崩溃恢复",
+    "name": "启动时把遗留的 extracting 标成 failed 并提示重试",
+    "pass": true,
+    "detail": "{\"id\":\"22222222-2222-4222-8222-222222222222\",\"status\":\"failed\",\"error\":\"上次提取被中断，请点击「重试」\"}"
+  },
+  {
+    "feature": "数据目录",
+    "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
+    "pass": true,
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-zGCwZg/userData/workbench-data"
+  },
+  {
+    "feature": "CSP",
+    "name": "页面带 CSP 且未被违反",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "拖拽导入",
+    "name": "拖入 5 个文件后，3 个有效文件进入队列（触发了 papers:import）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "拖拽导入",
+    "name": "无效文件有明确提示（AppleDouble、.doc）",
+    "pass": true,
+    "detail": "已加入处理队列：3 份 / ._junk.pdf：已跳过 AppleDouble 临时文件 / old-format.doc：不支持 .doc 格式，请先用 Word 另存为 .docx"
+  },
+  {
+    "feature": "拖拽导入",
+    "name": "3 份文件全部提取完成（status=done）",
+    "pass": true,
+    "detail": "g4-2025.pdf:done, g4-2026.pdf:done, g4-2025-page1.png:done"
+  },
+  {
+    "feature": "事件刷新",
+    "name": "列表无需手动刷新，自动显示为「已提取」（data:changed → 重新查询）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "事件刷新",
+    "name": "渲染端收到 job:progress，且包含 done 终态",
+    "pass": true,
+    "detail": "4 条"
+  },
+  {
+    "feature": "PDF 文本层",
+    "name": "PDF 页面 text_source=pdf-text 且 text 列保存了文本层全文",
+    "pass": true,
+    "detail": "g4-2025.pdf#1:pdf-text/1358字 g4-2025.pdf#2:pdf-text/655字 g4-2026.pdf#1:pdf-text/1421字 g4-2026.pdf#2:pdf-text/975字"
+  },
+  {
+    "feature": "PDF 文本层",
+    "name": "lines_json 是 PDF 自带的真实坐标（0-1，非伪造）",
+    "pass": true,
+    "detail": "29行,13行,29行,19行"
+  },
+  {
+    "feature": "OCR",
+    "name": "PNG 走 OCR（text_source=ocr，行数>30，有置信度）",
+    "pass": true,
+    "detail": "46行 conf=0.54"
+  },
+  {
+    "feature": "ewb:// 图片",
+    "name": "详情页缩略图与主图经 ewb:// 加载成功",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "OCR 叠加",
+    "name": "PDF 文本页打开叠加层，画出真实坐标行框",
+    "pass": true,
+    "detail": "29 个框"
+  },
+  {
+    "feature": "协议安全",
+    "name": "page-N.png → 200；original.pdf / 穿越 / 非 UUID → 拒绝",
+    "pass": true,
+    "detail": "200/400/400/400"
+  },
+  {
+    "feature": "IPC 校验",
+    "name": "settings 内部键不可写；papers.get 非 UUID 被拒",
+    "pass": true,
+    "detail": ": \"custom\",\n    \"message\": \"不允许修改此设置项\",\n    \"path\": []\n  }\n]"
+  },
+  {
+    "feature": "重复导入",
+    "name": "再次拖入同一文件被提示「重复导入」",
+    "pass": true,
+    "detail": "g4-2025.pdf：重复导入：该文件已存在（g4-2025）"
+  },
+  {
+    "feature": "失败处理",
+    "name": "损坏 PDF → failed，错误信息为中文",
+    "pass": true,
+    "detail": "不是有效的 PDF 文件，或文件已损坏"
+  },
+  {
+    "feature": "失败处理",
+    "name": "失败的文件可重新导入（旧失败记录被替换，不留重复）",
+    "pass": true,
+    "detail": "1 条"
+  },
+  {
+    "feature": "重新提取",
+    "name": "reprocess 后仍是 2 页（不产生重复页）",
+    "pass": true,
+    "detail": "2 页"
+  },
+  {
+    "feature": "元数据",
+    "name": "字段可以设置也可以置空（null）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "删除",
+    "name": "删除试卷同时清理磁盘上的原件与页面图",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "PDF 字体/CMap",
+    "name": "未内嵌中文字体（GBK-EUC-H）的 PDF 能读出文字「测试」",
+    "pass": true,
+    "detail": "{\"text\":\"测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测 toast=已加入处理队列：1 份"
+  },
+  {
+    "feature": "对话框导入",
+    "name": "点击「导入试卷」→ 对话框返回路径 → 进入队列",
+    "pass": true,
+    "detail": "对话框本身为替身，无法点击系统原生窗口"
+  },
+  {
+    "feature": "EXIF 方向",
+    "name": "竖拍照片（EXIF=6，像素横存）规范化为竖图，且 OCR 能识别（>30 行）",
+    "pass": true,
+    "detail": "1190x1684 46行"
+  },
+  {
+    "feature": "docx",
+    "name": "docx：text_source=docx，文本入库，无伪造坐标",
+    "pass": true,
+    "detail": "docx 89字"
+  },
+  {
+    "feature": "HEIC",
+    "name": "HEIC 导入成功且方向正确（竖图 + OCR>30 行）",
+    "pass": true,
+    "detail": "done 1190x1684 45行 "
+  },
+  {
+    "feature": "docx",
+    "name": "docx 详情页能看到文字内容",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "生命周期",
+    "name": "关闭主窗口后，隐藏的 PDF 渲染窗口一并销毁（0 个窗口残留）",
+    "pass": true,
+    "detail": "0 个窗口"
+  },
+  {
+    "feature": "生命周期",
+    "name": "macOS 关窗后从 Dock 激活：窗口重建且数据库 IPC 仍可用",
+    "pass": true,
+    "detail": "list=9"
+  },
+  {
+    "feature": "崩溃恢复",
+    "name": "提取中被强杀（kill -9，杀前状态=extracting）后重启，不再卡在「提取中」",
+    "pass": true,
+    "detail": "failed 上次提取被中断，请点击「重试」"
+  },
+  {
+    "feature": "崩溃恢复",
+    "name": "点「重试」后恢复为已提取",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据目录",
+    "name": "未设置环境变量时 userData = ~/Library/Application Support/english-exam-workbench（dev/打包一致）",
+    "pass": true,
+    "detail": "/Users/xiaoming-/Library/Application Support/english-exam-workbench"
+  }
+]
