@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import type { OcrLine } from '../types'
+import { ensureExecutable } from './exec-bit'
 
 export interface OcrPageResult {
   lines: OcrLine[]
@@ -36,6 +37,13 @@ function getMacOcrBinary(): string {
   return path.join(getNativePath(), 'macos', 'bin', 'ewb-ocr')
 }
 
+/** macOS：helper 必须可执行。不可执行时尝试 chmod 一次，失败给中文原因（missing_helper 走降级流程，而不是笼统的「OCR 失败」） */
+function checkMacExecutable(): OcrError | null {
+  if (process.platform !== 'darwin') return null
+  const r = ensureExecutable(getMacOcrBinary())
+  return r.ok ? null : new OcrError('missing_helper', r.reason)
+}
+
 function getWindowsOcrScript(): string {
   return path.join(getNativePath(), 'windows', 'ocr.ps1')
 }
@@ -61,6 +69,8 @@ export function ocrImage(imagePath: string): Promise<OcrPageResult> {
   if (!fs.existsSync(helperPath())) {
     return Promise.reject(new OcrError('missing_helper', `找不到 OCR 组件：${helperPath()}（安装包可能不完整）`))
   }
+  const notExec = checkMacExecutable()
+  if (notExec) return Promise.reject(notExec)
   return process.platform === 'darwin' ? runMacOcr(imagePath) : runWindowsOcr(imagePath)
 }
 
@@ -68,6 +78,7 @@ function classify(err: any, stderr: string): OcrError {
   if (err?.killed || err?.signal === 'SIGTERM') return new OcrError('timeout', `OCR 超时（超过 ${OCR_TIMEOUT_MS / 1000} 秒）`)
   if (err?.code === 3) return new OcrError('no_language_pack', 'Windows 未安装 OCR 语言包，请在「设置 → 时间和语言 → 语言」中添加中文（简体）')
   if (err?.code === 'ENOENT') return new OcrError('missing_helper', 'OCR 组件无法启动（文件不存在或被安全软件拦截）')
+  if (err?.code === 'EACCES') return new OcrError('missing_helper', 'OCR 组件没有执行权限（或被系统安全设置拦截），请重新安装本软件')
   return new OcrError('failed', `OCR 失败：${(stderr || err?.message || '未知错误').toString().trim().slice(0, 200)}`)
 }
 
@@ -99,6 +110,8 @@ function runWindowsOcr(imagePath: string): Promise<OcrPageResult> {
 /** macOS：用 ImageIO 解码（含 HEIC）并按 EXIF 方向旋转，输出 PNG */
 export function convertImageToPngMac(src: string, destPng: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
+    const notExec = checkMacExecutable()
+    if (notExec) { reject(new Error(`图片转换失败: ${notExec.message}`)); return }
     execFile(getMacOcrBinary(), ['--convert', src, destPng], { timeout: 60_000 }, (err, stdout, stderr) => {
       if (err) return reject(new Error(`图片转换失败: ${stderr || err.message}`))
       try { resolve(parseJson(stdout)) } catch { reject(new Error('图片转换输出解析失败')) }
@@ -119,6 +132,8 @@ export function getOcrStatus(): Promise<OcrStatus> {
     return Promise.resolve({ available: false, detail: `找不到 OCR 组件（${path.basename(helperPath())}），安装包可能不完整` })
   }
   if (process.platform === 'darwin') {
+    const notExec = checkMacExecutable()
+    if (notExec) return Promise.resolve({ available: false, detail: notExec.message })
     return Promise.resolve({ available: true, detail: 'macOS Vision（简体中文 + 英文）' })
   }
   return new Promise(resolve => {

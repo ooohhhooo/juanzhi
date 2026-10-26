@@ -12,6 +12,8 @@
  * 所有操作在一个事务里，一步失败整批回滚。修订号（data_rev）由 kps / question_kps 上的触发器自动推高，看板和 AI 缓存据此失效。
  */
 
+import { kpTextProblem, stripInvisible, KP_NAME_MAX, KP_NOTE_MAX } from '../pack/kp-rules.ts'
+
 export type TaxonomyOp =
   | { op: 'add'; parent_code: string | null; name: string; note?: string; intro_grade?: number | null }
   | { op: 'update'; code: string; name?: string; note?: string | null; intro_grade?: number | null }
@@ -71,9 +73,20 @@ function height(all: Map<string, KpRow>, code: string, depth = 0): number {
 }
 
 const cleanName = (n: unknown): string => {
-  const s = typeof n === 'string' ? n.trim() : ''
+  const s = typeof n === 'string' ? stripInvisible(n).trim() : ''   // 粘贴带来的零宽字符静默剔除
   if (!s) bad('名称不能为空')
-  if (s.length > 30) bad('名称不能超过 30 个字')
+  if (s.length > KP_NAME_MAX) bad(`名称不能超过 ${KP_NAME_MAX} 个字`)
+  const p = kpTextProblem(s)
+  if (p) bad(`名称${p}`)
+  return s
+}
+/** 说明：去首尾空白；超长、含换行 / 控制字符 / 竖线一律拒绝（不再悄悄截断）；空串视为没有说明 */
+const cleanNote = (n: unknown): string | null => {
+  const s = typeof n === 'string' ? stripInvisible(n).trim() : ''
+  if (!s) return null
+  if (s.length > KP_NOTE_MAX) bad(`说明不能超过 ${KP_NOTE_MAX} 个字`)
+  const p = kpTextProblem(s)
+  if (p) bad(`说明${p}`)
   return s
 }
 
@@ -108,7 +121,7 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
       const code = newCode(all, parent?.code ?? null)
       const sibs = [...all.values()].filter(k => (k.parent_code ?? null) === (parent?.code ?? null))
       const sort = (sibs.length ? Math.max(...sibs.map(s => s.sort)) : (parent?.sort ?? 0)) + 1
-      const row: KpRow = { code, parent_code: parent?.code ?? null, name, level, intro_grade: op.intro_grade ?? null, sort, deprecated: 0, merged_into: null, note: op.note?.trim() || null, builtin: 0 }
+      const row: KpRow = { code, parent_code: parent?.code ?? null, name, level, intro_grade: op.intro_grade ?? null, sort, deprecated: 0, merged_into: null, note: cleanNote(op.note), builtin: 0 }
       db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 0)`)
         .run(code, row.parent_code, name, level, row.intro_grade, sort, row.note)
       all.set(code, row)
@@ -122,7 +135,7 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
         db.prepare('UPDATE kps SET name = ? WHERE code = ?').run(name, n.code); n.name = name
       }
       if (op.note !== undefined) {
-        const note = op.note === null ? null : String(op.note).trim().slice(0, 500) || null
+        const note = op.note === null ? null : cleanNote(op.note)
         db.prepare('UPDATE kps SET note = ? WHERE code = ?').run(note, n.code); n.note = note
       }
       if (op.intro_grade !== undefined) {

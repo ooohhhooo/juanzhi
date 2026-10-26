@@ -91,6 +91,7 @@ const api = {
   app: {
     info: (): Promise<any> => ipcRenderer.invoke('app:info'),
     restart: (): Promise<boolean> => ipcRenderer.invoke('app:restart'),
+    takeStartupNotice: (): Promise<{ kind: 'recovered' | 'completed' | 'failed'; message: string } | null> => ipcRenderer.invoke('app:takeStartupNotice'),
   },
   parse: {
     start: (paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean> => ipcRenderer.invoke('parse:start', paperId, stage),

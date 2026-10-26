@@ -307,7 +307,7 @@ async function extractDocx(
     textSource = 'none'
     notes.push('Word 文档里没有可提取的文字或图片')
   } else if (plain.length < 10 && assets.length > 0) {
-    notes.push('文档主要是图片，文字内容需要视觉模型识别（M2）')
+    notes.push('文档主要是图片，文字内容需要视觉模型识别')
   }
 
   return {

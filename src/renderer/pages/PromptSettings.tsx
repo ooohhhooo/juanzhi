@@ -57,7 +57,7 @@ export default function PromptSettings() {
         const custom = items.some(i => i.isCustom)
         return {
           key: id,
-          label: <span>{items[0].title} {custom && <Tag color="orange">已自定义</Tag>} {!items[0].usedInM2 && <Tag>后续里程碑使用</Tag>}</span>,
+          label: <span>{items[0].title} {custom && <Tag color="orange">已自定义</Tag>} {!items[0].usedInM2 && <Tag>当前版本未使用</Tag>}</span>,
           children: items.map(i => <PromptEditor key={i.part} item={i} onSaved={refresh} />)
         }
       })} />

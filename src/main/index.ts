@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, protocol, session } from 'electron'
+import { app, BrowserWindow, dialog, Menu, protocol, session } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import fs from 'node:fs'
@@ -18,6 +18,8 @@ import { registerTaxonomyIpc } from './ipc/taxonomy'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
+import { APP_ID, PRODUCT_NAME } from './brand'
+import { buildMacMenuTemplate } from './menu-template'
 
 // 数据目录固定为 <appData>/english-exam-workbench，与启动方式、productName 无关。
 // EWB_USER_DATA_DIR 仅供自动化测试隔离数据，正常使用不要设置。
@@ -25,6 +27,10 @@ const userDataDir = process.env.EWB_USER_DATA_DIR
   || path.join(app.getPath('appData'), 'english-exam-workbench')
 app.setName('english-exam-workbench')
 app.setPath('userData', userDataDir)
+// Windows：任务栏分组标识要和安装器写进快捷方式里的 appId 一致，否则「固定到任务栏」后再启动会出现两个图标
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+// 老师看到的名字用 PRODUCT_NAME（app.name 是内部名 english-exam-workbench，只用来固定数据目录）
+if (process.platform === 'darwin') app.setAboutPanelOptions({ applicationName: PRODUCT_NAME, applicationVersion: app.getVersion() })
 
 // 自动化测试用：只打印解析出的数据目录就退出，不初始化数据库、不占单实例锁
 if (process.env.EWB_PRINT_USERDATA === '1') {
@@ -67,7 +73,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: '小学英语校考知识点分析工作台',
+    title: PRODUCT_NAME,
     backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -108,6 +114,8 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(async () => {
+    // macOS：中文应用菜单（关于 / 隐藏 / 退出 都用产品名）；Windows / Linux 沿用默认菜单
+    if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate(buildMacMenuTemplate({ dev: !app.isPackaged }) as Electron.MenuItemConstructorOptions[]))
     registerProtocol()
 
     // 指定的数据目录不可用（比如放在移动硬盘上、没插）：不能悄悄用默认位置建一个空库——让老师选

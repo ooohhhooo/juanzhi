@@ -51,7 +51,7 @@ interface ElectronAPI {
   data: {
     info(): Promise<DataInfo>
     exportPack(): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
-    pickPack(): Promise<{ picked: false } | { picked: true; token: string; fileName: string; manifest: PackManifest; info: { originalVersion: number; migrated: boolean; papers: number; questions: number; pages: number; samplePapers: number }; summary: PackSummary }>
+    pickPack(): Promise<{ picked: false } | { picked: true; token: string; fileName: string; manifest: PackManifest; info: { originalVersion: number; migrated: boolean; papers: number; questions: number; pages: number; samplePapers: number; kpTextFolded: number }; summary: PackSummary }>
     importPack(token: string, mode: 'merge' | 'overwrite'): Promise<ImportReport>
     discardPack(token: string): Promise<boolean>
     deleteBackup(name: string): Promise<boolean>
@@ -66,6 +66,8 @@ interface ElectronAPI {
   app: {
     info(): Promise<AppInfo>
     restart(): Promise<boolean>
+    /** 启动时数据库恢复的提示（上次导入中途崩溃）：只给一次，取走后主进程清掉；没有就是 null */
+    takeStartupNotice(): Promise<StartupNotice | null>
   }
   parse: {
     start(paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean>
@@ -471,6 +473,10 @@ interface AppInfo {
   restartPending: boolean
   restartTarget: string
   restartOldDir: string
-  /** 启动时数据库恢复的结果（上次导入中途崩溃）；没有就是 null */
-  startupNotice: { kind: 'recovered' | 'failed'; message: string } | null
+}
+interface StartupNotice { kind: 'recovered' | 'completed' | 'failed'; message: string }
+
+declare module '*?raw' {
+  const content: string
+  export default content
 }

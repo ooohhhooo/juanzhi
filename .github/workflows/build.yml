@@ -1,0 +1,130 @@
+# 构建 + 单测 + 打包 + 打包版冒烟（Windows / macOS）。
+#
+# ⚠️ 这个 workflow **从来没有真正运行过**：它是在没有 Windows 机器、也没有推送 GitHub 的情况下写的（M5 交付说明 §6）。
+#    第一次推送后请先看一遍运行结果，预期里最可能需要调整的是：Windows 上 Electron 的启动方式、OCR 语言包、字体检查。
+#    Mac 上的同一份冒烟脚本（tests/e2e/smoke-packaged.cjs）在本机跑通过，Windows 分支没有。
+#
+# 冒烟脚本在 Windows 上会：启动打包版 → 导入文本型 PDF（走文字层）/ 图片（走 Windows OCR；runner 没有中文语言包时验证「降级提示」而不是假装通过）/ docx
+# → mock AI 解析 → 看板有数据 → 导出 PDF 报告并检查中文字体 → 导出数据包 → 截图。失败时截图和结果 JSON 作为 artifact 上传。
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      install_zh_ocr:
+        description: 'Windows：先在 runner 上安装中文 OCR 语言包（验证「有中文 OCR」那一支；默认不装，验证降级提示）'
+        type: boolean
+        default: false
+
+# 只读令牌就够了（不用任何 secret，不往仓库写东西）
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            dist: dist:win
+          - os: macos-latest
+            name: macos
+            dist: dist:mac
+    env:
+      # 不依赖任何签名证书：Mac 走 ad-hoc 签名，Windows 不签名
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+      EWB_SMOKE_OUT: ${{ github.workspace }}/smoke-artifacts
+      EWB_SMOKE_PREFIX: 'ci-'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24          # Electron 45 内置 Node 24；单测用 node:sqlite 和 --experimental-strip-types
+          cache: npm
+
+      - name: 缓存 Electron / electron-builder 下载
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/electron
+            .cache/electron-builder
+          key: ${{ runner.os }}-eb-${{ hashFiles('package-lock.json') }}
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      # Windows 上的单测从未跑过（有的按 POSIX 路径写：符号链接、/etc、大小写折叠）：失败了也不能挡住后面的打包和冒烟——
+      # 那才是在 Windows 上第一次最想看到的信息。所以 Windows 作业里这一步 continue-on-error，日志照样上传。macOS 作业里仍然是硬失败。
+      - name: 单元测试
+        continue-on-error: ${{ runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          mkdir -p smoke-artifacts
+          npm run test:unit 2>&1 | tee smoke-artifacts/unit-tests.log
+
+      - name: 构建并打包
+        run: npm run ${{ matrix.dist }}
+
+      - name: 列出产物
+        shell: bash
+        run: ls -la release release/* | head -60
+
+      # ── Windows 专属：OCR 现场信息（诊断用，不让它挡住后面的冒烟）──
+      - name: Windows｜安装中文 OCR 语言包（仅手动触发且勾选时）
+        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch' && inputs.install_zh_ocr
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Add-WindowsCapability -Online -Name 'Language.OCR~~~zh-CN~~~0.0.1.0'
+          Get-WindowsCapability -Online | Where-Object Name -like 'Language.OCR*' | Format-Table Name, State -AutoSize
+
+      - name: Windows｜OCR 脚本现场检查（打包后的 resources/native/windows/ocr.ps1）
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force smoke-artifacts | Out-Null
+          Get-WindowsCapability -Online | Where-Object Name -like 'Language.OCR*' | Format-Table Name, State -AutoSize | Out-String | Tee-Object smoke-artifacts/ocr-capabilities.txt
+          $ps1 = "release/win-unpacked/resources/native/windows/ocr.ps1"
+          if (-not (Test-Path $ps1)) { throw "找不到 $ps1" }
+          powershell -NoProfile -ExecutionPolicy Bypass -File $ps1 -Check 2>&1 | Tee-Object smoke-artifacts/ocr-check.txt
+          powershell -NoProfile -ExecutionPolicy Bypass -File $ps1 samples/g4-2025-page1.png 2>&1 | Tee-Object smoke-artifacts/ocr-sample.json | Select-Object -First 3
+
+      - name: 打包版冒烟 E2E
+        run: node tests/e2e/smoke-packaged.cjs
+
+      - name: 上传冒烟截图 / 结果（失败时也上传）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.name }}
+          path: smoke-artifacts/
+          if-no-files-found: warn
+
+      - name: 上传安装包
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            release/*.exe
+            release/*.dmg
+          if-no-files-found: error

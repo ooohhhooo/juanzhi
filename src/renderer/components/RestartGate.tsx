@@ -5,13 +5,17 @@ import { requireRestart, useRestartState } from '../stats/restartStore'
 /** 数据目录已更改、需要重启才生效：重启前不让继续操作（继续改东西会写进旧目录，重启后就不见了） */
 export default function RestartGate() {
   const st = useRestartState()
-  const [notice, setNotice] = useState<{ kind: 'recovered' | 'failed'; message: string } | null>(null)
+  const [notice, setNotice] = useState<{ kind: 'recovered' | 'completed' | 'failed'; message: string } | null>(null)
   // 「需要重启」的状态在主进程里：页面重载、macOS 关窗再点 Dock 图标新建的窗口，启动时都问一次主进程，仍然要拦住
-  useEffect(() => { window.api.app.info().then(i => { if (i.restartPending) requireRestart(i.restartTarget, i.restartOldDir); if (i.startupNotice) setNotice(i.startupNotice) }).catch(() => undefined) }, [])
+  // 启动恢复的提示由主进程只给一次（takeStartupNotice 取走即清），所以和 app.info 分开取
+  useEffect(() => {
+    window.api.app.info().then(i => { if (i.restartPending) requireRestart(i.restartTarget, i.restartOldDir) }).catch(() => undefined)
+    window.api.app.takeStartupNotice().then(n => { if (n) setNotice(n) }).catch(() => undefined)
+  }, [])
   return (
     <>
     <Modal open={!!notice} destroyOnHidden closable={false} maskClosable={false} keyboard={false} centered zIndex={1900} data-testid="startup-notice"
-      title={notice?.kind === 'failed' ? '上次导入数据包没有恢复成功' : '上次导入数据包没有完成'}
+      title={notice?.kind === 'failed' ? '上次导入数据包没有恢复成功' : notice?.kind === 'completed' ? '上次导入数据包已经完成' : '上次导入数据包没有完成'}
       footer={<Button type="primary" data-testid="startup-notice-ok" onClick={() => setNotice(null)}>知道了</Button>}>
       <p data-testid="startup-notice-body" style={{ whiteSpace: 'pre-wrap' }}>{notice?.message}</p>
     </Modal>

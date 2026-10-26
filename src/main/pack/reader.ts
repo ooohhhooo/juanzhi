@@ -44,22 +44,31 @@ export interface ExtractResult {
   paperDirs: string[]
 }
 
+/** 流水线里出错时记下是哪一端（读数据包 / 写暂存目录）出的，好给出方向正确的提示 */
+const DIR = Symbol('ewb.ioDir')
+const tagDir = (s: NodeJS.EventEmitter, dir: 'read' | 'write') => { s.on('error', (e: unknown) => { if (e && typeof e === 'object' && !(DIR in e)) { try { (e as any)[DIR] = dir } catch { /* 冻结的对象就算了 */ } } }) }
+const dirOf = (e: unknown): boolean | undefined => { const d = e && typeof e === 'object' ? (e as any)[DIR] : undefined; return d === 'read' ? true : d === 'write' ? false : undefined }
+
 const mb = (n: number) => `${Math.round(n / 1024 / 1024)} MB`
 
 /**
  * 磁盘 / 权限类的系统错误翻成老师看得懂的话，不要一律说成「数据包已损坏」（M4 复审 P2-7）。
- * 认不出来的返回 null（调用方再按「包有问题」处理）。toRead 表示出错的是读数据包文件（否则是往暂存目录写）。
+ * 认不出来的返回 null（调用方再按「包有问题」处理）。toRead：true = 出错的是读数据包文件，false = 是往暂存目录写，
+ * undefined = 不知道方向（文案不去猜，只说「读写磁盘出错」）。
  */
-export function ioProblem(e: unknown, toRead = false): PackError | null {
+export function ioProblem(e: unknown, toRead?: boolean): PackError | null {
   const code = (e as NodeJS.ErrnoException | undefined)?.code
   switch (code) {
     case 'ENOSPC': case 'EDQUOT': return new PackError('io', '磁盘空间不足，数据包没能解开。请清理一些空间（或换一个有空间的数据目录）后再试')
     case 'EACCES': case 'EPERM': case 'EROFS':
-      return new PackError('io', toRead ? '没有权限读取这个数据包文件，请换一个位置，或检查文件权限后再试' : '没有权限写入数据目录（或磁盘是只读的），数据包没能解开。请检查数据目录的权限')
-    case 'EBUSY': case 'ETXTBSY': return new PackError('io', toRead ? '这个数据包文件正被其他程序占用，请关闭占用它的程序后再试' : '数据目录里的文件正被其他程序占用（可能是杀毒软件或同步盘），请稍后再试')
-    case 'ENOENT': return toRead ? new PackError('io', '找不到这个数据包文件，它可能已被移动或删除') : null
+      return new PackError('io', toRead === true ? '没有权限读取这个数据包文件，请换一个位置，或检查文件权限后再试' : '没有权限写入数据目录（或磁盘是只读的），数据包没能解开。请检查数据目录的权限')
+    case 'EBUSY': case 'ETXTBSY': return new PackError('io', toRead === true ? '这个数据包文件正被其他程序占用，请关闭占用它的程序后再试' : '数据目录里的文件正被其他程序占用（可能是杀毒软件或同步盘），请稍后再试')
+    case 'ENOENT': return toRead === true ? new PackError('io', '找不到这个数据包文件，它可能已被移动或删除') : null
     case 'EMFILE': case 'ENFILE': return new PackError('io', '系统打开的文件太多，请关闭一些程序后再试')
-    case 'EIO': return new PackError('io', toRead ? '读取数据包文件时磁盘出错（可能是移动硬盘或网络盘断开了），请把文件复制到本机再试' : '写入磁盘时出错，数据包没能解开')
+    case 'EIO':
+      if (toRead === true) return new PackError('io', '读取数据包文件时磁盘出错（可能是移动硬盘或网络盘断开了），请把数据包复制到本机再试')
+      if (toRead === false) return new PackError('io', '写入磁盘时出错（数据目录所在的磁盘可能有问题），数据包没能解开')
+      return new PackError('io', '读写磁盘时出错（磁盘可能有问题，或移动硬盘 / 网络盘断开了），数据包没能解开')
     default: return null
   }
 }
@@ -92,18 +101,49 @@ function limiter(limit: number, onBytes: (n: number) => void, tooBig: () => Pack
   })
 }
 
-export async function extractPack(zipPath: string, stagingDir: string, opts: { limits?: Partial<PackLimits>; onProgress?: (p: ExtractProgress) => void; signal?: AbortSignal } = {}): Promise<ExtractResult> {
+/** 解包前要留的余量（备份、数据库合并临时文件、文件系统的零头）：每次至少 256 MB */
+export const SPACE_MARGIN_BYTES = 256 * 1024 ** 2
+
+/** 只读 zip 的中央目录，把头部声明的解压后大小加起来（不解压任何内容；声明值可以撒谎，所以这只是「先看一眼够不够」，真正的上限仍按实际解出的字节数计） */
+export function declaredTotalBytes(zipPath: string): Promise<number> {
+  return new Promise(resolve => {
+    yauzl.open(zipPath, { lazyEntries: true, autoClose: true, decodeStrings: true, validateEntrySizes: false, strictFileNames: false }, (err, z) => {
+      // 先看一眼而已：任何错误（打不开、条目名不合规……）都当作「不知道」，交给后面真正的解包去给出准确的拒绝原因
+      if (err || !z) { resolve(0); return }
+      let n = 0
+      z.on('entry', (e: yauzl.Entry) => { n += e.uncompressedSize; z.readEntry() })
+      z.on('end', () => resolve(n))
+      z.on('error', () => resolve(0))
+      z.readEntry()
+    })
+  })
+}
+
+const human = (n: number) => n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1024 / 1024))} MB`
+
+/** 解包前检查磁盘剩余空间（M4 审核 P2-7）。statfs 可注入，单测用；读不到剩余空间时放行（不能因为检查本身失败拦住用户） */
+export function ensureFreeSpace(dir: string, needBytes: number, statfs: (p: string) => { bavail: number | bigint; bsize: number | bigint } = p => fs.statfsSync(p)): void {
+  let free: number
+  try { const st = statfs(dir); free = Number(st.bavail) * Number(st.bsize) } catch { return }
+  const need = needBytes + SPACE_MARGIN_BYTES
+  if (Number.isFinite(free) && free < need) {
+    throw new PackError('io', `磁盘剩余空间不足：解开这个数据包大约需要 ${human(needBytes)}（另需留出一些余量），数据目录所在的磁盘目前只剩 ${human(free)}。请清理磁盘空间，或先把数据目录换到空间更大的位置后再导入`)
+  }
+}
+
+export async function extractPack(zipPath: string, stagingDir: string, opts: { limits?: Partial<PackLimits>; onProgress?: (p: ExtractProgress) => void; signal?: AbortSignal; statfs?: Parameters<typeof ensureFreeSpace>[2] } = {}): Promise<ExtractResult> {
   const lim = { ...DEFAULT_LIMITS, ...opts.limits }
   const staging = path.resolve(stagingDir)
   const cleanup = () => { try { fs.rmSync(staging, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) } catch { /* 尽力而为 */ } }
   try {
     fs.rmSync(staging, { recursive: true, force: true })
     fs.mkdirSync(staging, { recursive: true })
+    ensureFreeSpace(staging, await declaredTotalBytes(zipPath), opts.statfs)
     return await doExtract(zipPath, staging, lim, opts)
   } catch (e) {
     cleanup()
     if (e instanceof PackError) throw e
-    throw ioProblem(e) ?? new PackError('io', `读取数据包失败：${(e as Error).message}`)
+    throw ioProblem(e, dirOf(e) ?? false) ?? new PackError('io', `读取数据包失败：${(e as Error).message}`)
   }
 }
 
@@ -162,10 +202,12 @@ async function doExtract(zipPath: string, staging: string, lim: PackLimits, opts
           fs.mkdirSync(path.dirname(resolved), { recursive: true })
 
           const rs = await openStream(z, entry)
+          const ws = fs.createWriteStream(resolved, { flags: 'wx' })
+          tagDir(rs, 'read'); tagDir(ws, 'write')
           await pipeline(
             rs as unknown as NodeJS.ReadableStream,
             limiter(cap, addBytes, () => new PackError('too_big', `数据包里的文件「${name}」解压后太大，已拒绝导入（可能是被恶意构造的压缩包）`)),
-            fs.createWriteStream(resolved, { flags: 'wx' })
+            ws
           )
           if (cls.kind === 'manifest') haveManifest = true
           if (cls.kind === 'db') haveDb = true
@@ -174,7 +216,7 @@ async function doExtract(zipPath: string, staging: string, lim: PackLimits, opts
           z.readEntry()
         } catch (e) {
           // 系统错误（磁盘满 / 没权限 / 被占用 / 读盘出错）和「包本身坏了」分开说；解压库（zlib / yauzl）的错才是包损坏
-          fail(e instanceof PackError ? e : (e as NodeJS.ErrnoException)?.code === 'EEXIST' ? new PackError('bad_entry', '数据包里有重复的条目，已拒绝导入') : ioProblem(e) ?? new PackError('bad_zip', '数据包已损坏，无法读取'))
+          fail(e instanceof PackError ? e : (e as NodeJS.ErrnoException)?.code === 'EEXIST' ? new PackError('bad_entry', '数据包里有重复的条目，已拒绝导入') : ioProblem(e, dirOf(e)) ?? new PackError('bad_zip', '数据包已损坏，无法读取'))
         }
       })()
     })

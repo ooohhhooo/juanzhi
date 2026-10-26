@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getDb } from '../db'
 import { listKps, listQtypes } from '../ai/taxonomy'
 import { notifyDataChanged } from '../events'
+import { cleanSuggestedName, flatKpText } from '../pack/kp-rules'
 import { LOW_CONFIDENCE } from '../parse/validate'
 
 const UuidSchema = z.string().uuid()
@@ -299,7 +300,9 @@ export function registerQuestionIpc(): void {
    */
   ipcMain.handle('taxonomy:approveSuggestion', async (_e, rawId: unknown, rawBody: unknown) => {
     const id = UuidSchema.parse(rawId)
-    const body = z.object({ parent_code: z.string().max(80).nullable(), name: z.string().trim().min(1).max(30) }).parse(rawBody)
+    const parsed = z.object({ parent_code: z.string().max(80).nullable(), name: z.string().trim().min(1).max(60) }).parse(rawBody)
+    // 名称来自 AI 的建议（老师可改但不强制）：和手工编辑 / 数据包导入同一套字符规则——折成一行，不让换行、竖线、零宽字符进树
+    const body = { parent_code: parsed.parent_code, name: cleanSuggestedName(parsed.name) }
     const q = getRow(id)
     const db = getDb()
     let parent = body.parent_code ? (db.prepare('SELECT code, parent_code, level, sort FROM kps WHERE code = ?').get(body.parent_code) as any) : null
@@ -318,7 +321,7 @@ export function registerQuestionIpc(): void {
         code = `${prefix}.U${n}`
         const sort = parent ? parent.sort + n : ((db.prepare('SELECT MAX(sort) m FROM kps').get() as any).m ?? 0) + 10
         db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, note, builtin) VALUES (?, ?, ?, ?, NULL, ?, 0, ?, 0)`)
-          .run(code, pcode, body.name, (parent?.level ?? 0) + 1, sort, `由老师采纳 AI 建议新增（题 ${q.no_label ?? ''}）`)
+          .run(code, pcode, body.name, (parent?.level ?? 0) + 1, sort, `由老师采纳 AI 建议新增（题 ${flatKpText(String(q.no_label ?? '')).slice(0, 20)}）`)
       }
       const oldMain = (db.prepare('SELECT kp_code FROM question_kps WHERE question_id = ? AND is_primary = 1').get(id) as any)?.kp_code as string | undefined
       const secondary = (db.prepare('SELECT kp_code FROM question_kps WHERE question_id = ? AND is_primary = 0').all(id) as Array<{ kp_code: string }>).map(r => r.kp_code)

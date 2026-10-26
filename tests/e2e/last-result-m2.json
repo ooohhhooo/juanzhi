@@ -51,7 +51,7 @@
     "feature": "AI 设置",
     "name": "「测试连接」用界面当前值（尚未保存）连通 mock，提示成功",
     "pass": true,
-    "detail": "文本模型：成功 连接成功（mock-text-model，38 毫秒）"
+    "detail": "文本模型：成功 连接成功（mock-text-model，103 毫秒）"
   },
   {
     "feature": "AI 设置",
@@ -81,7 +81,7 @@
     "feature": "密钥安全",
     "name": "getConfig 只返回 hasKey，整个返回值里没有密钥",
     "pass": true,
-    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:52614/v1\",\"model\":\"mock-text-model\",\"vision_model\":\"mock-vision-model\",\"concurrency\":2,\"auto_parse\":true,\"batc"
+    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:59714/v1\",\"model\":\"mock-text-model\",\"vision_model\":\"mock-vision-model\",\"concurrency\":2,\"auto_parse\":true,\"batc"
   },
   {
     "feature": "密钥安全",
@@ -93,7 +93,7 @@
     "feature": "密钥安全",
     "name": "渲染端 API 面上没有任何读取密钥的方法；保存后输入框已清空，页面 DOM / localStorage 里没有密钥",
     "pass": true,
-    "detail": "74 个 API"
+    "detail": "75 个 API"
   },
   {
     "feature": "密钥安全",
@@ -525,7 +525,7 @@
     "feature": "分阶段重试",
     "name": "「仅重新定位」不改动被复用的那条解析记录：它仍是同一条、状态仍是 done，审核页顶栏的提示词版本不会因此丢失或错位（复审 N4）",
     "pass": true,
-    "detail": "{\"id\":35,\"prompt_version\":\"v1.1\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-10-26 11:45:41\"}"
+    "detail": "{\"id\":35,\"prompt_version\":\"v1.1\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-10-26 14:48:56\"}"
   },
   {
     "feature": "分阶段重试",
@@ -543,7 +543,7 @@
     "feature": "分阶段重试",
     "name": "「从头重试」即使关了自动解析也会在提取后接着解析，最终回到待审核且 extracted_at 更新",
     "pass": true,
-    "detail": "2026-10-26 11:44:29 → 2026-10-26 11:45:43"
+    "detail": "2026-10-26 14:47:42 → 2026-10-26 14:48:58"
   },
   {
     "feature": "取消",
@@ -909,7 +909,7 @@
     "feature": "密钥安全",
     "name": "用户同时重新输入地址与密钥即可恢复正常",
     "pass": true,
-    "detail": "http://127.0.0.1:52614/v1"
+    "detail": "http://127.0.0.1:59714/v1"
   },
   {
     "feature": "密钥安全",
@@ -925,7 +925,7 @@
   },
   {
     "feature": "密钥安全",
-    "name": "全程扫描：所有应用进程的 stdout/stderr（共 12 KB）里没有密钥",
+    "name": "全程扫描：所有应用进程的 stdout/stderr（共 13 KB）里没有密钥",
     "pass": true,
     "detail": ""
   }

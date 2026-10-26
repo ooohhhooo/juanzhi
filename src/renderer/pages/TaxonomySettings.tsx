@@ -141,7 +141,7 @@ export default function TaxonomySettings() {
         {dlg && (dlg.kind === 'add' || dlg.kind === 'edit') && (
           <Space direction="vertical" style={{ width: '100%' }}>
             <Input data-testid="kp-modal-name" placeholder="名称（不超过 30 个字）" maxLength={30} value={name} onChange={e => setName(e.target.value)} onPressEnter={submit} />
-            <Input.TextArea data-testid="kp-modal-note" placeholder="说明 / 例词（会写进给 AI 的知识点树里）" rows={2} maxLength={500} value={note} onChange={e => setNote(e.target.value)} />
+            <Input.TextArea data-testid="kp-modal-note" placeholder="说明 / 例词（一行，会写进给 AI 的知识点树里；不要用竖线「|」）" rows={2} maxLength={500} value={note} onChange={e => setNote(e.target.value.replace(/[\r\n]+/g, ' '))} />
             <Select data-testid="kp-modal-grade" allowClear placeholder="常见引入年级（可不选）" style={{ width: 200 }} value={grade ?? undefined} onChange={v => setGrade(v ?? null)} options={[1, 2, 3, 4, 5, 6].map(g => ({ value: g, label: `${g} 年级` }))} />
             {dlg.kind === 'edit' && dlg.node?.builtin ? <Alert type="info" showIcon message="内置节点改名后，代码不变，已有标注和统计不受影响。" /> : null}
           </Space>

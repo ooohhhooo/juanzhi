@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import { app } from 'electron'
 import { buildKpRows, QTYPE_SEEDS_V1 } from './seed/taxonomy'
 import { configuredDataDir, defaultDataDir } from './datadir'
-import { recoverImportJournal } from './pack/journal'
+import { recoverImportJournalDetailed, startupNoticeOf } from './pack/journal'
+import type { StartupNotice } from './pack/journal'
 
 export const MIGRATIONS: Array<(db: any) => void> = [
   // v0 → v1: 初始 schema
@@ -450,23 +451,24 @@ export async function initDatabase(): Promise<void> {
   // 结果记进 startupNotice，渲染端启动时通过 app:info 取走并弹窗——恢复失败不能只写一行控制台日志（M4 复审 P2-4）
   startupNotice = null
   try {
-    const r = recoverImportJournal(db, dataDir)
-    if (r) {
-      console.log(`[db] 覆盖导入恢复：${r}`)
-      startupNotice = /保持现状/.test(r)
-        ? { kind: 'failed', message: `上次导入数据包时程序中途退出：${r}。文件和数据库可能对不上，请检查「设置 → 数据」里的备份，必要时重新导入数据包。` }
-        : /已提交/.test(r) ? null : { kind: 'recovered', message: `上次导入数据包时程序中途退出，没有完成：${r}。你的数据保持在导入之前的状态。` }
-    }
+    const r = recoverImportJournalDetailed(db, dataDir)
+    if (r) console.log(`[db] 覆盖导入恢复：${r.message}`)
+    startupNotice = startupNoticeOf(r)
   } catch (e) {
     console.warn(`[db] 覆盖导入恢复失败: ${(e as Error).message}`)
-    startupNotice = { kind: 'failed', message: `上次导入数据包时程序中途退出，自动恢复没有成功：${(e as Error).message}。文件和数据库可能对不上；导入前的备份在数据目录的 backups 文件夹里，可以在「设置 → 数据」里查看位置。` }
+    startupNotice = startupNoticeOf(null, e as Error)
   }
 }
 
-export interface StartupNotice { kind: 'recovered' | 'failed'; message: string }
 let startupNotice: StartupNotice | null = null
 /** 启动时数据库恢复的结果（没有就是 null）：渲染端用它给老师一个明确的提示 */
 export const getStartupNotice = (): StartupNotice | null => startupNotice
+/** 取走启动提示：只给一次，取走后在主进程里清掉——页面重载 / macOS 关窗后从 Dock 重开窗口都不会再弹 */
+export function takeStartupNotice(): StartupNotice | null {
+  const n = startupNotice
+  startupNotice = null
+  return n
+}
 
 /** 从 from 版本升级到最新（每一步一个事务）。数据包导入时对旧版本的数据包副本也用它 */
 export function runMigrations(target: any, from: number): void {

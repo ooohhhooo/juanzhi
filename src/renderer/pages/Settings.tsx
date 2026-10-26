@@ -47,7 +47,6 @@ export default function Settings() {
           <Descriptions.Item label="数据目录"><code style={{ fontSize: 12 }}>{about?.dataDir}</code></Descriptions.Item>
           <Descriptions.Item label="安装指南">
             <Button type="link" size="small" icon={<BookOutlined />} data-testid="open-guide" style={{ padding: 0 }} onClick={() => nav('/guide')}>查看安装指南</Button>
-            <span style={{ fontSize: 12, color: '#999', marginLeft: 8 }}>（完整正文在 M5 随安装包提供）</span>
           </Descriptions.Item>
         </Descriptions>
       </Card>

@@ -5,8 +5,9 @@
  */
 /**
  * 写进库 / 文件目录的请求（需要重启时一律拦截）。
- * 全部通道逐个核对过（M4 复审 P2-3）：其余不在表里的通道要么只读（*:get/list/state/tree/info/…、stats:*、report:preview/export 只写用户选的文件），
- * 要么只改内存状态（ai:cancel、parse:cancel、queue:pause），要么是界面动作（dialog:openFiles、settings:openDataDir、data:openBackup、app:restart）。
+ * 全部通道逐个核对过（M4 复审 P2-3、M5 小项）：其余不在表里的通道要么只读（*:get/list/state/tree/info/…、stats:*、report:preview/export 只写用户选的文件），
+ * 要么只改内存状态（ai:cancel、parse:cancel、queue:pause、app:takeStartupNotice），要么是界面动作（dialog:openFiles、settings:openDataDir、data:openBackup、app:restart）。
+ * 注意 ai:test 不是只读：它会发一次连通测试请求，**并往 ai_usage 表写一行用量记录**（成功失败都记），所以归写入类——重启待定时不能再往旧数据目录写。
  * tests/unit/ipc-guard-audit 会列出 ipcMain.handle 的全部通道，要求每个通道要么在 WRITE_CHANNELS，要么在 READONLY_CHANNELS 里。
  */
 export const WRITE_CHANNELS = new Set([
@@ -14,7 +15,8 @@ export const WRITE_CHANNELS = new Set([
   'parse:start', 'queue:resume',
   'questions:update', 'questions:remove', 'questions:split', 'questions:merge', 'questions:confirmPaper', 'questions:reopen',
   'taxonomy:save', 'taxonomy:approveSuggestion', 'taxonomy:rejectSuggestion',
-  'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'report:generate', 'report:delete',
+  'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:test',   // ai:test 会写 ai_usage（见上）
+   'report:generate', 'report:delete',
   'settings:set',   // 写 settings 表（默认教材、界面状态、引导完成……）
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
   'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup'
@@ -25,8 +27,8 @@ export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'pap
 
 /** 只读 / 只改内存状态 / 纯界面动作的通道：重启待定时不拦 */
 export const READONLY_CHANNELS = new Set([
-  'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:prompts', 'ai:test', 'ai:usage',
-  'app:info', 'app:restart', 'dialog:openFiles', 'ocr:status',
+  'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:prompts', 'ai:usage',
+  'app:info', 'app:restart', 'app:takeStartupNotice', 'dialog:openFiles', 'ocr:status',
   'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',
   'questions:list', 'questions:summary', 'queue:pause', 'queue:state',

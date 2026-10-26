@@ -16,3 +16,6 @@ npm-debug.log*
 *.tsbuildinfo
 coverage/
 .claude/settings.local.json
+
+# 打包产物
+release/

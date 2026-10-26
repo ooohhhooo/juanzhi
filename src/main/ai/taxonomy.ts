@@ -1,4 +1,5 @@
 import { getDb } from '../db'
+import { flatKpText } from '../pack/kp-rules.ts'
 
 export interface KpRecord {
   code: string
@@ -44,13 +45,15 @@ export interface TaxonomyContext {
 export function loadTaxonomy(): TaxonomyContext {
   const kps = listKps()
   const byCode = new Map(kps.map(k => [k.code, k]))
+  // 一行一个节点：名称 / 说明里的换行、竖线（旧版本允许输入、或来自旧数据）折成空格，不能把一行拆成几行
+  const flat = flatKpText
   const pathName = (k: KpRecord): string => {
-    const names: string[] = [k.name]
+    const names: string[] = [flat(k.name)]
     let p = k.parent_code ? byCode.get(k.parent_code) : undefined
-    while (p) { names.unshift(p.name); p = p.parent_code ? byCode.get(p.parent_code) : undefined }
+    while (p) { names.unshift(flat(p.name)); p = p.parent_code ? byCode.get(p.parent_code) : undefined }
     return names.join('/')
   }
-  const treeText = kps.map(k => `${k.code} | ${pathName(k)} | ${k.intro_grade ?? '-'} | ${k.note ?? ''}`).join('\n')
+  const treeText = kps.map(k => `${k.code} | ${pathName(k)} | ${k.intro_grade ?? '-'} | ${flat(k.note ?? '')}`).join('\n')
   const qts = listQtypes()
   const qtypeText = qts.map(q => `${q.code} | ${q.name} | ${q.note ?? ''}`).join('\n')
   return { kps: new Set(kps.map(k => k.code)), qtypes: new Set(qts.map(q => q.code)), treeText, qtypeText }

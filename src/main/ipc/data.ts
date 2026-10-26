@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
-import { LATEST_SCHEMA, configuredDir, defaultDir, getDataDir, getDb, getFilesDir, getStartupNotice, openSqlite, runMigrations } from '../db'
+import { LATEST_SCHEMA, configuredDir, defaultDir, getDataDir, getDb, getFilesDir, takeStartupNotice, openSqlite, runMigrations } from '../db'
 import { getMainWindow } from '../window'
 import { notifyDataChanged } from '../events'
 import { busyReason } from '../busy'
@@ -68,9 +68,10 @@ export function registerDataIpc(): void {
     version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
     platform: process.platform, arch: process.arch, schema: LATEST_SCHEMA, dataDir: getDataDir(),
     // 状态在主进程里：渲染端启动 / 窗口重建时据此重新显示「需要重启」的拦截
-    restartPending: !!getRestartPending(), restartTarget: getRestartPending()?.target ?? '', restartOldDir: getRestartPending()?.oldDir ?? '',
-    startupNotice: getStartupNotice()
+    restartPending: !!getRestartPending(), restartTarget: getRestartPending()?.target ?? '', restartOldDir: getRestartPending()?.oldDir ?? ''
   }))
+  // 启动时恢复的提示只给一次：取走就在主进程里清掉（页面重载 / 关窗后从 Dock 重开窗口都不会再弹）
+  ipcMain.handle('app:takeStartupNotice', async () => takeStartupNotice())
   ipcMain.handle('app:restart', async () => { app.relaunch(); app.exit(0); return true })
 
   ipcMain.handle('data:info', async () => {

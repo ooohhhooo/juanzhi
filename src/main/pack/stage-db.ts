@@ -9,7 +9,7 @@
  * 纯函数模块：数据库类通过 openDb 参数传入，迁移通过 migrate 参数传入，单测直接加载。
  */
 import { PackError } from './errors.ts'
-import { validateKpRows } from './kp-rules.ts'
+import { flatKpText, validateKpRows } from './kp-rules.ts'
 import { UUID_RE } from './names.ts'
 
 export type OpenDb = (file: string, opts?: { readOnly?: boolean }) => any
@@ -42,6 +42,8 @@ export interface StagedInfo {
   questions: number
   pages: number
   samplePapers: number
+  /** 旧版本的包里有名称 / 说明含换行、竖线、看不见字符的知识点：导入时已折成一行（不拒绝），这里是被整理的个数 */
+  kpTextFolded: number
 }
 
 export function userVersionOf(db: any): number {
@@ -110,6 +112,18 @@ export function prepareStagedDb(dbPath: string, deps: { openDb: OpenDb; migrate:
     for (const r of db.prepare('SELECT DISTINCT rel_path v FROM paper_assets').all() as any[]) {
       if (!ASSET_REL_RE.test(String(r.v))) throw new PackError('bad_content', '数据包里有附件图的路径格式不对，已拒绝导入')
     }
+    // 知识点名称 / 说明：旧版本（M5 之前）允许输入换行和竖线，用户自己导出的旧包里可能有。对「这类字符」宽容——折成一行（和提示词里的处理一致，不降低防护）；
+    // 其余问题（超长、层级、环、代码字符集……）仍然整包拒绝
+    let kpTextFolded = 0
+    {
+      const upd = db.prepare('UPDATE kps SET name = ?, note = ? WHERE code = ?')
+      for (const k of db.prepare('SELECT code, name, note FROM kps').all() as any[]) {
+        if (typeof k.name !== 'string' || (k.note != null && typeof k.note !== 'string')) continue   // 类型不对的交给下面的严格校验去拒绝
+        const name = flatKpText(k.name)
+        const note = k.note == null ? null : flatKpText(k.note)
+        if (name !== k.name || (note ?? null) !== (k.note ?? null)) { upd.run(name, note, k.code); kpTextFolded++ }
+      }
+    }
     validateKpRows(db.prepare('SELECT code, parent_code, name, level, intro_grade, note FROM kps').all() as any[])
     const fk = db.prepare('PRAGMA foreign_key_check').all() as any[]
     if (fk.length) throw new PackError('bad_content', `数据包里的数据有 ${fk.length} 处引用不存在的记录（例如题目指向不存在的试卷），已拒绝导入`)
@@ -117,7 +131,7 @@ export function prepareStagedDb(dbPath: string, deps: { openDb: OpenDb; migrate:
     const cols = (db.prepare('PRAGMA table_info("papers")').all() as any[]).map(c => c.name)
     const samplePapers = cols.includes('is_sample') ? count('SELECT COUNT(*) c FROM papers WHERE is_sample = 1') : 0
     db.exec('PRAGMA wal_checkpoint(TRUNCATE)')
-    return { originalVersion: ver, migrated: ver < deps.latest, papers, questions, pages, samplePapers }
+    return { originalVersion: ver, migrated: ver < deps.latest, papers, questions, pages, samplePapers, kpTextFolded }
   } catch (e) {
     if (e instanceof PackError) throw e
     throw new PackError('corrupt_db', `数据包里的数据库无法读取或升级（${(e as Error).message.slice(0, 120)}），已拒绝导入`)

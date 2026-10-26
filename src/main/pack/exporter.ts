@@ -16,7 +16,9 @@ import path from 'node:path'
 import yazl from 'yazl'
 import yauzl from 'yauzl'
 import { PackError } from './errors.ts'
+import { withRetry } from './fsretry.ts'
 import { classifyEntry } from './names.ts'
+import { flatKpText } from './kp-rules.ts'
 import { PACK_FORMAT, PACK_FORMAT_VERSION, PACK_SETTING_KEYS } from './manifest.ts'
 import type { Manifest } from './manifest.ts'
 import type { OpenDb } from './stage-db.ts'
@@ -55,6 +57,13 @@ export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpD
     s.exec(`DELETE FROM ai_analyses WHERE COALESCE(scope_json, '') LIKE '%"sample":true%'`)
     const keep = PACK_SETTING_KEYS.map(k => `'${k}'`).join(',')
     s.exec(`DELETE FROM settings WHERE key NOT IN (${keep})`)
+    // 知识点名称 / 说明折成一行：旧版本允许输入换行和竖线，导入端对它们是严格的——导出的包必须永远能被导回来（名称折完是空的就用代码顶上）
+    const upd = s.prepare('UPDATE kps SET name = ?, note = ? WHERE code = ?')
+    for (const k of s.prepare('SELECT code, name, note FROM kps').all() as Array<{ code: string; name: string | null; note: string | null }>) {
+      const name = flatKpText(String(k.name ?? '')).slice(0, 30) || k.code
+      const note = k.note == null ? null : (flatKpText(String(k.note)).slice(0, 500) || null)
+      if (name !== k.name || note !== k.note) upd.run(name, note, k.code)
+    }
     s.exec('UPDATE ai_analyses SET checked_rev = NULL, checked_sig = NULL, checked_json = NULL')
     s.exec('UPDATE reports SET checked_rev = NULL, checked_sig = NULL, checked_json = NULL')
     const c = (sql: string) => (s.prepare(sql).get() as any).c as number
@@ -71,7 +80,7 @@ export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpD
   return { file: final, ...info }
 }
 
-interface FileItem { abs: string; name: string; size: number }
+interface FileItem { abs: string; name: string; size: number; mtime: Date }
 
 /** 某份试卷的文件（只收白名单里的：原件、页面图、docx 附件） */
 function listPaperFiles(filesDir: string, paperId: string): FileItem[] {
@@ -81,7 +90,7 @@ function listPaperFiles(filesDir: string, paperId: string): FileItem[] {
     const name = `files/${paperId}/${rel}`
     if (!classifyEntry(name)) return
     const abs = path.join(base, ...rel.split('/'))
-    try { const st = fs.statSync(abs); if (st.isFile()) out.push({ abs, name, size: st.size }) } catch { /* 刚被删掉 */ }
+    try { const st = fs.statSync(abs); if (st.isFile()) out.push({ abs, name, size: st.size, mtime: st.mtime }) } catch { /* 刚被删掉 */ }
   }
   let top: string[] = []
   try { top = fs.readdirSync(base) } catch { return out }
@@ -105,36 +114,57 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
   const total = dbSize + files.reduce((n, f) => n + f.size, 0)
   const part = `${deps.outPath}.part`
   fs.mkdirSync(path.dirname(deps.outPath), { recursive: true })
+  // 我们自己持有每个读句柄（yazl 的 addFile 不暴露它）：出错时必须显式销毁并等它们真正 close，不能等 GC 回收
+  const readers = new Set<fs.ReadStream>()
   try {
     const zip = new yazl.ZipFile()
     zip.addBuffer(Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'), 'manifest.json')
-    zip.addFile(snap.file, 'db.sqlite', { compress: true })
+    const addLazy = (abs: string, name: string, size: number, mtime: Date, compress: boolean) => {
+      zip.addReadStreamLazy(name, { compress, size, mtime, mode: 0o100644 }, cb => {
+        const rs = fs.createReadStream(abs)
+        readers.add(rs)
+        rs.once('close', () => readers.delete(rs))
+        rs.on('error', e => zip.emit('error', e))
+        cb(null, rs)
+      })
+    }
+    addLazy(snap.file, 'db.sqlite', dbSize, new Date(), true)
     // 原件 / 页面图本身已经是压缩格式（pdf、png、jpg、docx、heic），再压一遍没收益只费时间
-    for (const f of files) zip.addFile(f.abs, f.name, { compress: false })
+    for (const f of files) addLazy(f.abs, f.name, f.size, f.mtime, false)
     zip.end()
     let written = 0
     await new Promise<void>((resolve, reject) => {
-      const out = fs.createWriteStream(part)
+      const w = fs.createWriteStream(part)
       let failed = false
-      // 任何一路出错都要：只 reject 一次、拆掉管道、销毁写出流（否则 .part 的句柄不释放，Windows 上删不掉）
+      // 任何一路出错都要：只 reject 一次、拆掉管道、销毁写出流和所有读句柄，并等它们真正 close 之后才 reject
+      // （destroy 是异步的：不等的话紧接着删 .part，Windows 上会因为句柄还没放而 EBUSY，.part 残留）
       const fail = (e: unknown) => {
         if (failed) return
         failed = true
-        try { zip.outputStream.unpipe(out) } catch { /* 忽略 */ }
-        out.destroy()
-        reject(e)
+        try { zip.outputStream.unpipe(w) } catch { /* 忽略 */ }
+        const pending: Promise<void>[] = []
+        const closeOf = (s: NodeJS.ReadableStream & { closed?: boolean; destroy(): unknown } | fs.WriteStream) => {
+          if (!s.closed) pending.push(new Promise<void>(r => (s as NodeJS.EventEmitter).once('close', () => r())))
+          s.destroy()
+        }
+        closeOf(w)
+        for (const rs of [...readers]) closeOf(rs)
+        // 句柄迟迟不关也不能让导出卡死：最多再等 3 秒
+        let t: NodeJS.Timeout
+        const timer = new Promise<void>(r => { t = setTimeout(r, 3000); t.unref?.() })
+        void Promise.race([Promise.all(pending).then(() => undefined), timer]).then(() => { clearTimeout(t); reject(e) })
       }
       // 读文件失败（被占用 / 刚被删 / 权限）是发在 ZipFile 上的 'error'，不在 outputStream 上；漏掉它会变成主进程未捕获异常 + 这个 Promise 永不结束
       zip.on('error', fail)
       zip.outputStream.on('data', (c: Buffer) => { written += c.length; deps.onProgress?.({ phase: 'zip', bytes: Math.min(written, total), total }) })
       zip.outputStream.on('error', fail)
-      out.on('error', fail)
-      out.on('close', () => { if (!failed) resolve() })
-      zip.outputStream.pipe(out)
+      w.on('error', fail)
+      w.on('close', () => { if (!failed) resolve() })
+      zip.outputStream.pipe(w)
     })
     fs.renameSync(part, deps.outPath)
   } catch (e) {
-    try { fs.rmSync(part, { force: true }) } catch { /* 忽略 */ }
+    try { withRetry(() => fs.rmSync(part, { force: true }), 5, 100) } catch { /* 忽略 */ }
     rmAll(snap.file)
     const code = (e as NodeJS.ErrnoException).code
     throw new PackError('io', code === 'ENOSPC' ? '磁盘空间不足，数据包没有导出' : code === 'EACCES' || code === 'EPERM' || code === 'EBUSY' ? '没有写入权限，或文件正被其他程序占用，数据包没有导出' : `导出失败：${(e as Error).message}`)

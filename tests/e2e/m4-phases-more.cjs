@@ -281,9 +281,21 @@ async function phaseOnboarding() {
     const shown2 = await waitFor(async () => (await T('startup-notice-body').count()) > 0, 15000)
     const body2 = shown2 ? await txt('startup-notice-body') : ''
     check('启动恢复', '启动时自动恢复中断的导入：files 目录换回导入之前的（内容在、journal 已清），弹窗告知「没有完成 / 保持在导入之前的状态」', shown2 && /没有完成/.test(body2) && /导入之前/.test(body2) && fs.readFileSync(path.join(jd, 'files', 'keep-me', 'a.txt'), 'utf8') === 'old-files' && !fs.existsSync(path.join(jd, 'import-journal.json')), body2)
-    await T('startup-notice-ok').click()
+    // M5 P2-C：提示由主进程只给一次——页面重载（Ctrl+R / 窗口重建）后不再弹，不用点「知道了」
+    await ctx.page.reload()
+    await waitFor(async () => (await T('dropzone').count()) > 0 || (await T('onboarding').count()) > 0, 15000)
+    check('启动恢复', '提示只显示一次：页面重载后不再弹出（主进程取走即清）', !(await waitFor(async () => (await T('startup-notice-body').count()) > 0, 3000)) && (await ctx.page.evaluate(() => window.api.app.takeStartupNotice())) === null)
     await closeApp(); await open(J)
     check('启动恢复', '再次启动不再弹（恢复只做一次）', !(await waitFor(async () => (await T('startup-notice-body').count()) > 0, 3000)))
+    await closeApp()
+    // ③ M5 P2-C：journal 合规、files 还没被动过（备份里没有 files）→ 数据完整，如实说「还没有改动文件」，不能吓人说「可能对不上」
+    fs.writeFileSync(path.join(jd, 'import-journal.json'), JSON.stringify({ id: 'e2e-j3', filesRel: 'files', backupFilesRel: 'backups/pre-import-20261026-000003-e2e3/files', startedAt: 'x' }))
+    fs.mkdirSync(path.join(jd, 'files'), { recursive: true })
+    await open(J)
+    const shown3 = await waitFor(async () => (await T('startup-notice-body').count()) > 0, 15000)
+    const body3 = shown3 ? await txt('startup-notice-body') : ''
+    check('启动恢复', '导入崩溃时文件还没被改动：提示「还没有开始改动你的文件，数据完整」，不再说「可能对不上」，标题也不是「没有恢复成功」', shown3 && /还没有开始改动你的文件/.test(body3) && !/对不上|没有成功/.test(body3) && !/没有恢复成功/.test(await txt('startup-notice')) && !fs.existsSync(path.join(jd, 'import-journal.json')), body3)
+    await T('startup-notice-ok').click()
   }
 }
 

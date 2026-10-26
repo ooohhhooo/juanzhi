@@ -188,6 +188,7 @@ export default function DataSettings() {
               <Descriptions.Item label="内容">{s.papersInPack} 份试卷、{s.questionsInPack} 道题、{s.pagesInPack} 页{s.customKps ? `、${s.customKps} 个自建知识点` : ''}</Descriptions.Item>
               <Descriptions.Item label="和本机比较">本机现有 {s.livePapers} 份真实试卷；数据包里有 <b>{s.papersExisting}</b> 份本机已经有了（同一条记录），<b>{s.papersNew}</b> 份是新的{s.sameFileAsExisting ? `（其中 ${s.sameFileAsExisting} 份和本机另一份是同一个文件，统计时只算一份）` : ''}</Descriptions.Item>
             </Descriptions>
+            {pick.info.kpTextFolded > 0 && <Alert type="info" showIcon data-testid="pack-kp-folded" message={`有 ${pick.info.kpTextFolded} 个知识点的名称或说明里含换行、竖线或看不见的字符（旧版本允许输入），导入时已自动整理成一行`} />}
             {s.samplesIgnored > 0 && <Alert type="info" showIcon message={`数据包里有 ${s.samplesIgnored} 份示例试卷，会被忽略`} />}
             {s.missingPageImages > 0 && <Alert type="warning" showIcon message={`有 ${s.missingPageImages} 页的页面图在数据包里找不到，对应的截图会显示为空`} />}
             <Radio.Group value={mode} onChange={e => { setMode(e.target.value); setAck(false) }} data-testid="pack-mode">

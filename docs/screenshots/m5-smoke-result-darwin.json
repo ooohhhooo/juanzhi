@@ -1,0 +1,175 @@
+{
+  "platform": "darwin",
+  "arch": "arm64",
+  "version": "1.0.0",
+  "results": [
+    {
+      "feature": "打包事实",
+      "name": "app.isPackaged 为真，应用代码在 app.asar 里",
+      "pass": true,
+      "detail": "/Users/xiaoming-/.ewb-build/mac-arm64/英语校考分析工作台.app/Contents/Resources/app.asar"
+    },
+    {
+      "feature": "打包事实",
+      "name": "版本号 = package.json（1.0.0），应用名固定为 english-exam-workbench（与 productName 无关，userData 路径不随打包版名字变）",
+      "pass": true,
+      "detail": "1.0.0 english-exam-workbench"
+    },
+    {
+      "feature": "打包事实",
+      "name": "userData 就是测试指定的临时目录（EWB_USER_DATA_DIR 生效，没碰真实数据目录）",
+      "pass": true,
+      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/userData"
+    },
+    {
+      "feature": "打包事实",
+      "name": "OCR 组件在 resources/native 里（ewb-ocr），不在 asar 里",
+      "pass": true,
+      "detail": "/Users/xiaoming-/.ewb-build/mac-arm64/英语校考分析工作台.app/Contents/Resources/native/macos/bin/ewb-ocr"
+    },
+    {
+      "feature": "打包事实",
+      "name": "OCR helper 带执行位（Mac 上没有它图片 OCR 全坏）",
+      "pass": true,
+      "detail": "755"
+    },
+    {
+      "feature": "打包事实",
+      "name": "asar 里有 pdf.js 需要的文件（legacy/build 两个 .mjs、cmaps、standard_fonts），没有多余的原生模块 @napi-rs，也没有只给渲染端用的 antd",
+      "pass": true,
+      "detail": "{\"dir\":\"/Users/xiaoming-/.ewb-build/mac-arm64/英语校考分析工作台.app/Contents/Resources/app.asar/node_modules/pdfjs-dist\",\"missing\":[],\"pkg\":true,\"canvas\":false,\"antd\":false}"
+    },
+    {
+      "feature": "产品名",
+      "name": "窗口标题和页面标题都是「英语校考分析工作台」（不是内部名 english-exam-workbench，也不是第三个名字）",
+      "pass": true,
+      "detail": "英语校考分析工作台 / 英语校考分析工作台"
+    },
+    {
+      "feature": "产品名",
+      "name": "macOS 应用菜单：第一项和「关于 / 隐藏 / 退出」都用产品名，菜单里没有 english-exam-workbench；有编辑菜单（Cmd+C / V）",
+      "pass": true,
+      "detail": "[{\"label\":\"英语校考分析工作台\",\"items\":[\"关于英语校考分析工作台\",\"—\",\"隐藏英语校考分析工作台\",\"隐藏其他\",\"全部显示\",\"—\",\"退出英语校考分析工作台\"]},{\"label\":\"编辑\",\"items\":[\"撤销\",\"重做\",\"—\",\"剪切\",\"复制\",\"粘贴\",\"全选\"]},{\"label\":\"窗口\",\"items\":[\"最小化\",\"缩放\",\"—\",\"前置全部窗口\",\"关闭窗口\"]}]"
+    },
+    {
+      "feature": "产品名",
+      "name": "Info.plist 的 CFBundleName / CFBundleDisplayName（Dock 和「强制退出」列表里的名字）是产品名",
+      "pass": true,
+      "detail": "  \"CFBundleDisplayName\" => \"英语校考分析工作台\"   \"CFBundleName\" => \"英语校考分析工作台\""
+    },
+    {
+      "feature": "OCR",
+      "name": "OCR 状态可读：可用 — macOS Vision（简体中文 + 英文）",
+      "pass": true,
+      "detail": "{\"available\":true,\"detail\":\"macOS Vision（简体中文 + 英文）\"}"
+    },
+    {
+      "feature": "OCR",
+      "name": "macOS：Vision 组件在打包版里可用",
+      "pass": true,
+      "detail": "{\"available\":true,\"detail\":\"macOS Vision（简体中文 + 英文）\"}"
+    },
+    {
+      "feature": "图片 OCR",
+      "name": "图片走本机 OCR：text_source=ocr，识别出 46 行（>30）",
+      "pass": true,
+      "detail": "ocr 46 行 "
+    },
+    {
+      "feature": "图片 OCR",
+      "name": "图片页面图落盘（files/<id>/page-1.png）并能通过 ewb:// 协议加载",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "feature": "docx",
+      "name": "docx 提取成功：中文文本、[图1] 占位、图片落盘（asar 里的 mammoth / jszip 能加载）",
+      "pass": true,
+      "detail": "extracted  1"
+    },
+    {
+      "feature": "AI（mock）",
+      "name": "连接测试通过（打包版里的网络请求通往本机 mock，没有走真实 AI）",
+      "pass": true,
+      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，57 毫秒）\",\"latencyMs\":57,\"model\":\"mock-text-model\"}"
+    },
+    {
+      "feature": "PDF 提取 + AI 解析",
+      "name": "两份文本型 PDF 都走完提取 → AI 解析（mock），进入「待审核」",
+      "pass": true,
+      "detail": "g4-2025.pdf:reviewing g4-2026.pdf:reviewing"
+    },
+    {
+      "feature": "PDF 提取",
+      "name": "文本型 PDF 走文字层（text_source=pdf-text，没有触发 OCR），坐标是真实的",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "feature": "审核",
+      "name": "两份卷子共 72 道题（>30），确认后进入「已完成」",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "feature": "看板",
+      "name": "总览「试卷」卡片 = 2，题数与数据库一致，知识点分布有数据",
+      "pass": true,
+      "detail": "{\"papers\":2,\"questions\":72,\"kps\":39,\"pending\":0} nodes=64"
+    },
+    {
+      "feature": "报告",
+      "name": "用 mock 生成报告成功并进入历史",
+      "pass": true,
+      "detail": "{\"ok\":true,\"markdown\":\"# 全部年级 考情分析报告\\n> 说明：难度与易错点为 AI 估计，非学生成绩统计。样本偏小：当前范围内只有 2 份卷子（不足 5 份），出现率等比例可能只是一两份卷子的差别；年度变化的样本偏小：目标学年只有 1 份，基线学年只有 1 份（不足 5 份）。结论仅供参考。\\n\\n## 样本概览\\n卷子 2 份，题目 72 道；覆盖学年：2024-2025"
+    },
+    {
+      "feature": "报告 导出",
+      "name": "Markdown 导出成功，文件存在且含中文标题",
+      "pass": true,
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/report/报告\",\"images\":10,\"m"
+    },
+    {
+      "feature": "报告 导出",
+      "name": "PDF 导出成功：%PDF 头，体积合理（>5 KB）",
+      "pass": true,
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/report/报告.pdf\",\"bytes\":598261,\"images\":10} %PDF-"
+    },
+    {
+      "feature": "报告 导出",
+      "name": "PDF 里有中文文字（共 4 页）",
+      "pass": true,
+      "detail": "全部年级 考情分析报告说明：难度与易错点为 AI 估计，⾮学⽣成绩统计。样本偏⼩：当前范围内只有 2 份卷⼦（不⾜ 5份），出现率等⽐例可能只是⼀两份卷⼦的差别"
+    },
+    {
+      "feature": "报告 导出",
+      "name": "PDF 嵌入了能画中文的字体：AAAAAA+PingFangSC-Semibold, BAAAAA+PingFangSC-Regular, CAAAAA+HiraginoSansGB-W3, DAAAAA+Helvetica",
+      "pass": true,
+      "detail": "AAAAAA+PingFangSC-Semibold, BAAAAA+PingFangSC-Regular, CAAAAA+HiraginoSansGB-W3, DAAAAA+Helvetica"
+    },
+    {
+      "feature": "数据包导出",
+      "name": "导出成功：manifest 写明应用版本和 4 份卷子，zip 里有 db.sqlite 和 files/<uuid>/…，没有 API 密钥",
+      "pass": true,
+      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":9,\"appVersion\":\"1.0.0\",\"exportedAt\":\"2026-10-26T06:59:51.230Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
+    },
+    {
+      "feature": "安装指南",
+      "name": "打包版里的 /guide 页显示完整正文（docs/安装指南.md 的每个二级标题都在）",
+      "pass": true,
+      "detail": "9 个标题；正文 4739 字；缺少：无"
+    },
+    {
+      "feature": "运行期",
+      "name": "渲染进程没有控制台错误（含 CSP 违规）",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "feature": "运行期",
+      "name": "应用里配置的 AI 服务地址是本机回环地址（127.0.0.1），并且本机 mock 收到了 4 个请求（含 P1 解析和 P3 报告）",
+      "pass": true,
+      "detail": "{\"host\":\"127.0.0.1\",\"total\":4,\"p1\":2,\"p3\":1}"
+    }
+  ]
+}

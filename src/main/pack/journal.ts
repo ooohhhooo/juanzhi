@@ -75,41 +75,100 @@ export function clearJournal(dataDir: string): void {
 
 /** 把换进来的新 files 目录挪开、把备份里的旧目录换回去。新目录挪到 moveNewTo（让调用方还能重试）；没给就改名成 files.rejected-<id> 后删除 */
 export function revertSwap(j: ImportJournal, moveNewTo?: string): string {
+  return revertSwapDetailed(j, moveNewTo).message
+}
+
+/** 目录换回去的结果：untouched = 备份里没有 files（改名从未发生，files 原样）；reverted = 换回来了；missing = 两边都找不到 files */
+export type SwapResult = { kind: 'untouched' | 'reverted' | 'missing'; message: string }
+
+export function revertSwapDetailed(j: ImportJournal, moveNewTo?: string): SwapResult {
   const rejected = moveNewTo ?? `${j.filesDir}.rejected-${j.id}`
   const haveBackup = fs.existsSync(j.backupFilesDir)
-  if (!haveBackup) return '备份目录已不存在，保持现状'
+  if (!haveBackup) {
+    // 旧 files 是通过「改名进备份」离开原位的：备份里没有，说明这一步从来没发生过。files 还在 = 什么都没动；files 也不在 = 出了别的问题
+    return fs.existsSync(j.filesDir)
+      ? { kind: 'untouched', message: '文件还没有被改动，保持现状' }
+      : { kind: 'missing', message: 'files 目录和备份里的旧目录都找不到，保持现状' }
+  }
   if (fs.existsSync(j.filesDir)) {
     if (moveNewTo) fs.rmSync(moveNewTo, { recursive: true, force: true })
     renameRetry(j.filesDir, rejected)
   }
   renameRetry(j.backupFilesDir, j.filesDir)
   if (!moveNewTo) { try { fs.rmSync(rejected, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }) } catch { /* 留着也无妨 */ } }
-  return '已把 files 目录换回导入之前的'
+  return { kind: 'reverted', message: '已把 files 目录换回导入之前的' }
+}
+
+/** 启动时恢复的结果。committed = 导入已提交、记录已清；committed_cleanup_failed = 已提交，只是清理记录时出错（数据没问题） */
+export type RecoverOutcome =
+  | { kind: 'committed' | 'committed_cleanup_failed' | 'untouched' | 'reverted' | 'missing'; message: string }
+
+/** .invalid-* 的坏记录只留最近这么多份（够排查线索用），更老的清掉，免得数据目录越攒越多 */
+export const KEEP_INVALID_JOURNALS = 3
+export function pruneInvalidJournals(dataDir: string, keep = KEEP_INVALID_JOURNALS): number {
+  let removed = 0
+  const prefix = `${JOURNAL_FILE}.invalid-`
+  let names: string[] = []
+  try { names = fs.readdirSync(dataDir).filter(n => n.startsWith(prefix)) } catch { return 0 }
+  const stampOf = (n: string) => Number(n.slice(prefix.length)) || 0
+  names.sort((a, b) => stampOf(b) - stampOf(a) || (a < b ? 1 : -1))   // 新的在前
+  for (const n of names.slice(keep)) { try { fs.rmSync(path.join(dataDir, n), { force: true }); removed++ } catch { /* 留着也无妨 */ } }
+  return removed
 }
 
 /**
  * 启动时调用（数据库已打开且迁移完成）。返回做了什么（没有未完成的导入时返回 null）。
- * journal 在但不认（内容不合规）→ 改名成 import-journal.invalid-<时间>.json 留作线索，然后抛错让启动流程提示用户；
- * 恢复动作本身失败（文件被占用等）→ 同样抛错，journal 原样留着，下次启动再试。
+ * journal 在但不认（内容不合规）→ 改名成 import-journal.json.invalid-<时间> 留作线索，然后抛错让启动流程提示用户；
+ * 恢复动作本身失败（文件被占用等）→ 同样抛错，journal 原样留着，下次启动再试；
+ * 已提交、只是清 journal 失败 → 不抛错（数据完全没问题），返回 committed_cleanup_failed。
  */
-export function recoverImportJournal(db: any, dataDir: string): string | null {
+export function recoverImportJournalDetailed(db: any, dataDir: string): RecoverOutcome | null {
   const st = inspectJournal(dataDir)
   if (st.state === 'none') return null
   if (st.state === 'invalid') {
     const kept = `${journalPath(dataDir)}.invalid-${Date.now()}`
     try { fs.renameSync(journalPath(dataDir), kept) } catch { /* 留在原处 */ }
+    pruneInvalidJournals(dataDir)
     throw new Error(`上次导入留下的恢复记录（import-journal.json）无法识别（${st.reason}），没有做任何自动恢复`)
   }
   const j = st.journal
   const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(MARKER_KEY) as { value_json: string } | undefined
   let committed = false
   try { committed = !!row && JSON.parse(row.value_json) === j.id } catch { /* 当作没提交 */ }
-  let msg: string
   if (committed) {
-    msg = '上次导入已提交，清理记录'
-  } else {
-    msg = `上次导入没有完成（数据库已回滚），${revertSwap(j)}`
+    try { clearJournal(dataDir) } catch (e) {
+      return { kind: 'committed_cleanup_failed', message: `上次导入数据包已经成功完成，只是清理导入记录时出错（${(e as Error).message}）` }
+    }
+    pruneInvalidJournals(dataDir)
+    return { kind: 'committed', message: '上次导入已提交，清理记录' }
   }
+  const r = revertSwapDetailed(j)
   clearJournal(dataDir)
-  return msg
+  pruneInvalidJournals(dataDir)
+  return { kind: r.kind, message: `上次导入没有完成（数据库已回滚），${r.message}` }
+}
+
+export function recoverImportJournal(db: any, dataDir: string): string | null {
+  return recoverImportJournalDetailed(db, dataDir)?.message ?? null
+}
+
+export interface StartupNotice { kind: 'recovered' | 'completed' | 'failed'; message: string }
+
+/** 把恢复结果（或抛出的错）变成启动时给老师看的提示；没有必要提示的返回 null。纯函数，单测直接测 */
+export function startupNoticeOf(outcome: RecoverOutcome | null, error?: Error): StartupNotice | null {
+  if (error) {
+    return { kind: 'failed', message: `上次导入数据包时程序中途退出，自动恢复没有成功：${error.message}。文件和数据库可能对不上；导入前的备份在数据目录的 backups 文件夹里，可以在「设置 → 数据包（换电脑 / 备份）」里查看位置。` }
+  }
+  if (!outcome) return null
+  switch (outcome.kind) {
+    case 'committed': return null
+    case 'committed_cleanup_failed':
+      return { kind: 'completed', message: `${outcome.message}。你的数据已经是导入之后的新数据，不需要做任何事；数据目录里残留的 import-journal.json 可以忽略（也可以手动删除）。` }
+    case 'untouched':
+      return { kind: 'recovered', message: '上次导入数据包时程序中途退出，导入还没有开始改动你的文件，数据完整地保持在导入之前的状态，不需要做任何事。' }
+    case 'reverted':
+      return { kind: 'recovered', message: `上次导入数据包时程序中途退出，没有完成：${outcome.message}。你的数据保持在导入之前的状态。` }
+    case 'missing':
+      return { kind: 'failed', message: `上次导入数据包时程序中途退出：${outcome.message}。文件和数据库可能对不上，请检查「设置 → 数据包（换电脑 / 备份）」里的备份，必要时重新导入数据包。` }
+  }
 }

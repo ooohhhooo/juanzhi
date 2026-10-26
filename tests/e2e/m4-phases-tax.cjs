@@ -3,7 +3,7 @@ const M = require('./m4-lib.cjs')
 const naive = require('./naive.cjs')
 const { SPEC } = require('./fixtures-m3.cjs')
 const D = require('./m4-phases-data.cjs')
-const { check, sleep, waitFor, withDb, fs, path, work, SECRET, ctx, T, txt, stat, goto, shot, setFilter, api, cfgFor, saveCfg, waitStat, L } = M
+const { root, check, sleep, waitFor, withDb, fs, path, work, SECRET, ctx, T, txt, stat, goto, shot, setFilter, api, cfgFor, saveCfg, waitStat, L } = M
 
 const rev = () => withDb(ctx.ud, d => d.prepare('SELECT rev FROM data_rev').get().rev)
 const kpRow = code => withDb(ctx.ud, d => d.prepare('SELECT * FROM kps WHERE code = ?').get(code))
@@ -172,12 +172,18 @@ async function phaseMisc() {
   // 关于页 / 安装指南入口
   await goto('#/settings')
   await T('about-card').waitFor()
-  await waitFor(async () => /0\.4\.0/.test(await txt('about-version')), 8000)
+  await waitFor(async () => (await txt('about-version')).includes(require('../../package.json').version), 8000)
   const ver = await txt('about-card')
-  check('设置 关于', '关于卡片：版本 0.4.0（读自 package.json）、数据库版本 v9、运行环境（系统 / Electron / Chromium / Node）、数据目录', /版本\s*0\.4\.0/.test(ver) && /数据库版本 v9/.test(ver) && /Electron 45/.test(await txt('about-env')) && /darwin|win32|linux/.test(await txt('about-env')))
+  check('设置 关于', '关于卡片：版本号读自 package.json、数据库版本 v9、运行环境（系统 / Electron / Chromium / Node）、数据目录', new RegExp('版本\\s*' + require('../../package.json').version.replace(/\./g, '\\.')).test(ver) && /数据库版本 v9/.test(ver) && !/M[1-5]|里程碑/.test(ver) && /Electron 45/.test(await txt('about-env')) && /darwin|win32|linux/.test(await txt('about-env')))
   await shot('20-settings-about')
   await T('open-guide').click()
-  check('设置 安装指南入口', '「查看安装指南」→ 打开安装指南页（占位，写明正文在 M5）', await waitFor(async () => (await T('guide-page').count()) > 0, 5000) && /M5/.test(await txt('guide-page')))
+  // M5：安装指南页换成完整正文（和 docs/安装指南.md 是同一份文件，构建时内联）
+  const guideSrc = fs.readFileSync(path.join(root, 'docs/安装指南.md'), 'utf8')
+  const guideOpened = await waitFor(async () => (await T('guide-page').count()) > 0, 5000)
+  const guideText = guideOpened ? await txt('guide-body') : ''
+  const heads = [...guideSrc.matchAll(/^## (.+)$/gm)].map(m => m[1])
+  check('设置 安装指南入口', '「查看安装指南」→ 安装指南页显示完整正文：和 docs/安装指南.md 的每个二级标题、几个关键句一一对上（不再是占位）', guideOpened && heads.length >= 9 && heads.every(h => guideText.includes(h)) && /仍要运行/.test(guideText) && /仍要打开/.test(guideText) && /光学字符识别/.test(guideText) && /DeepSeek/.test(guideText) && !/M5/.test(guideText) && !/\*\*|```/.test(guideText), `${heads.length} 个标题；${guideText.length} 字`)
+  await shot('20b-guide')
   // 设置页各卡片都在
   await goto('#/settings')
   await T('about-card').waitFor()

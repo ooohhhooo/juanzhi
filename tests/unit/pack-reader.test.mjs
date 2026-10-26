@@ -6,7 +6,9 @@ import os from 'node:os'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import { makeZip } from './helpers/zip.mjs'
-import { extractPack } from '../../src/main/pack/reader.ts'
+import { Readable } from 'node:stream'
+import yauzl from 'yauzl'
+import { extractPack, ioProblem, ensureFreeSpace, declaredTotalBytes, SPACE_MARGIN_BYTES } from '../../src/main/pack/reader.ts'
 import { PackError } from '../../src/main/pack/errors.ts'
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-reader-'))
@@ -91,12 +93,29 @@ await rejects([], 'bad_zip', undefined, undefined, makeZip(base()).subarray(0, 6
   const realMk = fs.mkdirSync
   const injectWrite = code => { fs.createWriteStream = (f, o) => { const ws = realWs.call(fs, f, o); if (String(f).endsWith('db.sqlite')) { ws.write = () => { const e = new Error(`${code}: simulated`); e.code = code; setImmediate(() => ws.destroy(e)); return false } } return ws } }
   try {
-    for (const [code, re] of [['ENOSPC', /磁盘空间不足/], ['EACCES', /没有权限写入/], ['EPERM', /没有权限写入/], ['EBUSY', /占用/], ['EIO', /写入磁盘时出错/]]) {
+    for (const [code, re] of [['ENOSPC', /磁盘空间不足/], ['EACCES', /没有权限写入/], ['EPERM', /没有权限写入/], ['EBUSY', /占用/], ['EIO', /写入磁盘时出错/]]) {   // 写端的 EIO：说「写入」
       injectWrite(code)
       await rejects(base(), 'io', re)
       assert.doesNotMatch(String(re), /损坏/)
     }
     fs.createWriteStream = realWs
+    // M5 小项：读数据包文件时出 EIO（移动硬盘断开）不能说成「写入磁盘出错」——方向要对
+    const realOpen = yauzl.ZipFile.prototype.openReadStream
+    yauzl.ZipFile.prototype.openReadStream = function (entry, opts, cb) {
+      const callback = typeof opts === 'function' ? opts : cb
+      return realOpen.call(this, entry, typeof opts === 'function' ? {} : opts, (err, rs) => {
+        if (err || !rs || entry.fileName !== 'db.sqlite') return callback(err, rs)
+        const bad = new Readable({ read() {} })
+        setImmediate(() => { const e = new Error('EIO: simulated'); e.code = 'EIO'; bad.destroy(e) })
+        rs.destroy()
+        callback(null, bad)
+      })
+    }
+    try {
+      await rejects(base(), 'io', /读取数据包文件时磁盘出错/)
+      assert.doesNotMatch((await extractPack(write(base()), stage()).then(() => '', e => e.message)), /写入磁盘/, '读端出错的提示里不能出现「写入磁盘」')
+    } finally { yauzl.ZipFile.prototype.openReadStream = realOpen }
+    assert.equal(ioProblem(Object.assign(new Error('x'), { code: 'EIO' }))?.message.includes('读写磁盘'), true, '不知道方向时用中性的「读写磁盘」')
     // 创建暂存目录就失败（磁盘满 / 只读）
     fs.mkdirSync = (p, o) => { if (String(p).includes('stage')) { const e = new Error('ENOSPC: simulated'); e.code = 'ENOSPC'; throw e } return realMk.call(fs, p, o) }
     await rejects(base(), 'io', /磁盘空间不足/)
@@ -106,6 +125,27 @@ await rejects([], 'bad_zip', undefined, undefined, makeZip(base()).subarray(0, 6
   const at = bad.indexOf(Buffer.from('db.sqlite')) + 9
   for (let i = at; i < at + 6; i++) bad[i] = bad[i] ^ 0xff
   await rejects([], 'bad_zip', /损坏/, undefined, bad)
+}
+
+// ── M5 小项（M4 审核 P2-7）：解包前检查磁盘剩余空间 ──
+{
+  const entries = [...base().slice(0, 2), { name: `files/${ID}/page-1.png`, data: Buffer.alloc(3_000_000, 7), method: 8 }]
+  const f = write(entries)
+  assert.ok((await declaredTotalBytes(f)) >= 3_000_000, '先读中央目录，把声明的解压后大小加起来')
+  // 剩余空间不够 → 一个字节都不解，给出中文原因（含需要多少、还剩多少），暂存目录不留
+  const dir = stage()
+  const tiny = () => ({ bavail: 1000, bsize: 4096 })   // ≈ 4 MB，远小于 余量 256 MB
+  await assert.rejects(() => extractPack(f, dir, { statfs: tiny }), e => e instanceof PackError && e.code === 'io' && /磁盘剩余空间不足/.test(e.message) && /只剩/.test(e.message))
+  assert.ok(!fs.existsSync(dir), '空间不够：暂存目录不留')
+  // 恰好够（需要 + 余量）→ 放行；差一点 → 拒绝
+  const need = await declaredTotalBytes(f)
+  assert.doesNotThrow(() => ensureFreeSpace(tmp, need, () => ({ bavail: need + SPACE_MARGIN_BYTES, bsize: 1 })))
+  assert.throws(() => ensureFreeSpace(tmp, need, () => ({ bavail: need + SPACE_MARGIN_BYTES - 1, bsize: 1 })), /磁盘剩余空间不足/)
+  // 读不到剩余空间（statfs 抛错）→ 放行，不能因为检查本身失败拦住用户
+  assert.doesNotThrow(() => ensureFreeSpace(tmp, 1e15, () => { throw new Error('no statfs') }))
+  // 空间足够时正常解开
+  const ok = await extractPack(write(entries), stage(), { statfs: () => ({ bavail: 1e9, bsize: 4096 }) })
+  assert.ok(fs.existsSync(ok.dbPath))
 }
 
 fs.rmSync(tmp, { recursive: true, force: true })
