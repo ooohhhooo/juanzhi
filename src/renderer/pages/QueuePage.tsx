@@ -5,6 +5,7 @@ import { App, Alert, Button, Dropdown, Progress, Segmented, Space, Table, Tag, T
 import { PauseCircleOutlined, PlayCircleOutlined, ReloadOutlined, DownOutlined, StopOutlined, ThunderboltOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { PIPELINE_STEPS, pipelineStep, statusMap } from '../status'
 import { useDiscardGuard } from '../hooks/useDiscardGuard'
+import RetryActions from '../components/RetryActions'
 
 type View = 'active' | 'attention' | 'all'
 
@@ -127,15 +128,7 @@ export default function QueuePage() {
         const active = parseWaiting.has(p.id) || running.has(p.id)
         if (active) return <Button size="small" icon={<StopOutlined />} data-testid="cancel-parse" onClick={() => act(() => window.api.parse.cancel(p.id), '已取消')}>取消</Button>
         if (p.status === 'extracted') return <Button size="small" type="primary" icon={<ThunderboltOutlined />} data-testid="start-parse" onClick={() => start(p.id)}>开始 AI 解析</Button>
-        if (p.status === 'failed' && p.error_stage === 'parse') {
-          return (
-            <Space.Compact size="small">
-              <Button size="small" icon={<ReloadOutlined />} data-testid="retry-parse" onClick={() => start(p.id, 'ai')}>重试 AI 解析</Button>
-              <Dropdown menu={stageMenu(p)} trigger={['click']}><Button size="small" data-testid="retry-menu" icon={<DownOutlined />} /></Dropdown>
-            </Space.Compact>
-          )
-        }
-        if (p.status === 'failed') return <Button size="small" icon={<ReloadOutlined />} data-testid="retry-extract" onClick={() => start(p.id, 'extract', '已重新加入队列')}>重试（重新提取）</Button>
+        if (p.status === 'failed') return <RetryActions paper={p} />   // 与试卷库同一个组件
         if (p.status === 'reviewing' || p.status === 'done') {
           return (
             <Space.Compact size="small">

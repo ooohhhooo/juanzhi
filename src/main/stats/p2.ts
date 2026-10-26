@@ -18,12 +18,13 @@ const GRADE = ['', '一', '二', '三', '四', '五', '六']
 /** 筛选条件的白话描述（{{FILTER_DESC}}） */
 export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResult): string {
   const parts: string[] = []
+  if (f.sample) parts.push('示例数据（合成的演示卷，不是真实考情）')
   parts.push(f.grade ? `${GRADE[Number(f.grade)]}年级` : '全部年级')
   if (f.semester) parts.push(`${f.semester}学期`)
   if (f.exam_type) parts.push(f.exam_type)
   if (f.textbook) parts.push(f.textbook)
   if (f.region) parts.push(f.region)
-  parts.push(`按${['', '一', '二', '三'][level]}级知识点统计`)
+  if (level > 0) parts.push(`按${['', '一', '二', '三'][level]}级知识点统计`)
   if (f.includeReviewing) parts.push('含未确认的 AI 结果')
   if (f.includeDuplicates) parts.push('重复导入的试卷重复计数')
   if (cmp) {

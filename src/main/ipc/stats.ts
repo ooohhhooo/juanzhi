@@ -8,6 +8,7 @@ import { getDb } from '../db'
 import { StatsFilterSchema, LevelSchema, paperScope } from '../stats/filter'
 import * as S from '../stats/core'
 import { analysisState, cancelAnalysis, generateAnalysis } from '../stats/analysis'
+import { cancelReport } from '../report/service'
 import type { AnalysisScope } from '../stats/analysis'
 
 const yearNum = z.number().int().min(2000).max(2100)
@@ -83,5 +84,8 @@ export function registerStatsIpc(): void {
       ev => { if (!sender.isDestroyed()) sender.send('ai:chunk', ev) },
       cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } })
   })
-  ipcMain.handle('ai:cancel', async (_e, rawRequestId: unknown) => cancelAnalysis(z.string().uuid().parse(rawRequestId)))
+  ipcMain.handle('ai:cancel', async (_e, rawRequestId: unknown) => {
+    const id = z.string().uuid().parse(rawRequestId)
+    return cancelAnalysis(id) || cancelReport(id)   // P2 分析和 P3 报告共用同一个取消入口
+  })
 }

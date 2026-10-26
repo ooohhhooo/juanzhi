@@ -18,7 +18,9 @@ export const StatsFilterSchema = z.object({
   textbook: z.string().min(1).max(100).optional(),
   region: z.string().min(1).max(100).optional(),
   includeReviewing: z.boolean().optional(),
-  includeDuplicates: z.boolean().optional()
+  includeDuplicates: z.boolean().optional(),
+  /** true = 只看示例数据；不写 = 只看真实数据（示例数据永远不混进真实数据的统计） */
+  sample: z.boolean().optional()
 }).strict()
 export type StatsFilter = z.infer<typeof StatsFilterSchema>
 
@@ -51,6 +53,8 @@ export function paperScope(f: StatsFilter, year?: YearSpec | 'ignore', statuses?
   const build = (a: string): PaperScope => {
     const parts: string[] = []
     const params: Array<string | number> = []
+    // 示例数据与真实数据分开统计：默认只看真实数据，f.sample 时只看示例（0/1 是固定常量，直接写进 SQL）
+    parts.push(`${a}.is_sample = ${f.sample ? 1 : 0}`)
     if (statuses) {
       // 内部固定的状态名（不来自用户输入），直接拼进 SQL
       parts.push(`${a}.status IN (${statuses.map(s => `'${s.replace(/'/g, '')}'`).join(',')})`)

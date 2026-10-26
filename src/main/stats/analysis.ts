@@ -167,7 +167,7 @@ export type ChunkEvent =
   | { id: string; type: 'start'; scopeKey: string; refs: CitationRef[] }
   | { id: string; type: 'delta'; text: string }
   | { id: string; type: 'reset' }
-  | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[] }
+  | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string }
   | { id: string; type: 'error'; code: string; message: string; partial: string }
   | { id: string; type: 'cancelled'; partial: string }
 
@@ -184,6 +184,8 @@ export interface GenerateResult {
 
 const inflight = new Map<string, AbortController>()      // requestId → 控制器
 const busyScopes = new Set<string>()                     // 正在生成的范围，避免重复点击烧两份钱
+
+export const analysisBusy = (): boolean => inflight.size > 0
 
 export function cancelAnalysis(requestId: string): boolean {
   const c = inflight.get(requestId)

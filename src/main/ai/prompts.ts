@@ -5,6 +5,7 @@
 import crypto from 'node:crypto'
 import { getDb } from '../db'
 import { unknownPlaceholders } from '../parse/batch'
+import { promptProblem, sanitizeOverrides } from './prompt-rules'
 import type { PromptId, PromptPart, PromptView } from './types'
 import { PROMPT_IDS } from './types'
 import p1TextSystem from './prompts/p1_text.system.txt?raw'
@@ -44,18 +45,11 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p2_yoy: ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT'],
   p3_report: ['FILTER_DESC', 'PAPER_COUNT', 'QUESTION_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_DIST', 'QTYPE_DIST', 'DIFF_DIST', 'ERROR_PRONE', 'YEAR_DIFF']
 }
-/** 缺了这些占位符，P1 就拿不到关键输入，保存时拒绝 */
-const REQUIRED: Record<string, string[]> = {
-  'p1_text.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'OCR_TEXT'],
-  'p1_vision.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'PAGE_LIST'],
-  // P2：四张统计表缺了任何一张，模型就拿不到对应的数据（M3）
-  'p2_yoy.user': ['ADDED', 'REMOVED', 'CHANGED', 'HOT']
-}
-
 function overrides(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(SETTINGS_KEY) as { value_json: string } | undefined
   if (!row) return {}
-  try { return JSON.parse(row.value_json) } catch { return {} }
+  // 读到的可能是坏数据（手工改库、被破坏的数据包）：不是纯对象 / 值不是文本的一律当没有，回退内置默认，不让提示词读写报错
+  try { return sanitizeOverrides(JSON.parse(row.value_json)) } catch { return {} }
 }
 
 function writeOverrides(o: Record<string, string>): void {
@@ -76,7 +70,7 @@ export function promptViews(): PromptView[] {
       const text = o[k] ?? DEFAULTS[k]
       views.push({
         id, part, title: TITLES[id], text, defaultText: DEFAULTS[k], isCustom: o[k] !== undefined && o[k] !== DEFAULTS[k],
-        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: id !== 'p3_report'   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）与 P2（M3），P3 要到 M4
+        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: true   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）、P2（M3）、P3（M4）现在都用
       })
     }
   }
@@ -85,14 +79,8 @@ export function promptViews(): PromptView[] {
 
 export function savePrompt(id: PromptId, part: PromptPart, text: string): void {
   const k = `${id}.${part}`
-  if (!text.trim()) throw new Error('提示词不能为空；想恢复内置版本请点「恢复默认」')
-  if (text.length > 60_000) throw new Error('提示词过长（上限 6 万字）')
-  // DeepSeek 等服务商在 json_object 模式下要求提示词里出现 json 字样；P1 的 system 必须保留
-  if ((id === 'p1_text' || id === 'p1_vision') && part === 'system' && !/json/i.test(text)) {
-    throw new Error('P1 的 system 提示词里必须出现「JSON」字样（服务商的 JSON 模式要求提示词里提到 json），请保留原有的输出格式说明')
-  }
-  const missing = (REQUIRED[k] ?? []).filter(p => !text.includes(`{{${p}}}`))
-  if (missing.length) throw new Error(`缺少必需的占位符：${missing.map(m => `{{${m}}}`).join('、')}`)
+  const bad = promptProblem(k, text)
+  if (bad) throw new Error(bad === '提示词不能为空' ? '提示词不能为空；想恢复内置版本请点「恢复默认」' : bad.startsWith('P1 的 system') ? 'P1 的 system 提示词里必须出现「JSON」字样（服务商的 JSON 模式要求提示词里提到 json），请保留原有的输出格式说明' : bad)
   const o = overrides()
   if (text === DEFAULTS[k]) delete o[k]
   else o[k] = text

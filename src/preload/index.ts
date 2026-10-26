@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -64,6 +64,34 @@ const api = {
     filterOptions: (filter?: Record<string, unknown>): Promise<any> => (filter === undefined ? ipcRenderer.invoke('stats:filterOptions') : ipcRenderer.invoke('stats:filterOptions', filter)),
     exportMatrix: (filter: Record<string, unknown> | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('stats:exportMatrix', filter, level),
   },
+  report: {
+    list: (): Promise<any[]> => ipcRenderer.invoke('report:list'),
+    get: (id: string): Promise<any> => ipcRenderer.invoke('report:get', id),
+    preview: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('report:preview', filter),
+    // 流式增量走 ai:chunk（只发给发起请求的窗口）；取消用 ai.cancel(requestId)
+    generate: (filter: Record<string, unknown> | undefined, requestId: string): Promise<any> => ipcRenderer.invoke('report:generate', filter, requestId),
+    delete: (id: string): Promise<boolean> => ipcRenderer.invoke('report:delete', id),
+    export: (id: string, fmt: 'md' | 'pdf'): Promise<any> => ipcRenderer.invoke('report:export', id, fmt),
+  },
+  data: {
+    info: (): Promise<any> => ipcRenderer.invoke('data:info'),
+    exportPack: (): Promise<any> => ipcRenderer.invoke('data:exportPack'),
+    pickPack: (): Promise<any> => ipcRenderer.invoke('data:pickPack'),
+    importPack: (token: string, mode: 'merge' | 'overwrite'): Promise<any> => ipcRenderer.invoke('data:importPack', token, mode),
+    discardPack: (token: string): Promise<boolean> => ipcRenderer.invoke('data:discardPack', token),
+    deleteBackup: (name: string): Promise<boolean> => ipcRenderer.invoke('data:deleteBackup', name),
+    openBackup: (name: string): Promise<boolean> => ipcRenderer.invoke('data:openBackup', name),
+    chooseDir: (): Promise<any> => ipcRenderer.invoke('data:chooseDir'),
+    changeDir: (token: string, mode: 'move' | 'use'): Promise<any> => ipcRenderer.invoke('data:changeDir', token, mode),
+    resetDir: (): Promise<any> => ipcRenderer.invoke('data:resetDir'),
+    sampleStatus: (): Promise<{ loaded: boolean; papers: number; questions: number }> => ipcRenderer.invoke('data:sampleStatus'),
+    loadSample: (): Promise<any> => ipcRenderer.invoke('data:loadSample'),
+    clearSample: (): Promise<any> => ipcRenderer.invoke('data:clearSample'),
+  },
+  app: {
+    info: (): Promise<any> => ipcRenderer.invoke('app:info'),
+    restart: (): Promise<boolean> => ipcRenderer.invoke('app:restart'),
+  },
   parse: {
     start: (paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean> => ipcRenderer.invoke('parse:start', paperId, stage),
     cancel: (paperId: string): Promise<boolean> => ipcRenderer.invoke('parse:cancel', paperId),
@@ -84,7 +112,8 @@ const api = {
     reopen: (paperId: string): Promise<boolean> => ipcRenderer.invoke('questions:reopen', paperId),
   },
   taxonomy: {
-    tree: (): Promise<any> => ipcRenderer.invoke('taxonomy:tree'),
+    tree: (opts?: { includeDeprecated?: boolean }): Promise<any> => (opts ? ipcRenderer.invoke('taxonomy:tree', opts) : ipcRenderer.invoke('taxonomy:tree')),
+    save: (ops: Array<Record<string, unknown>>): Promise<{ ops: number; touched: string[] }> => ipcRenderer.invoke('taxonomy:save', ops),
     approveSuggestion: (questionId: string, body: { parent_code: string | null; name: string }): Promise<string> =>
       ipcRenderer.invoke('taxonomy:approveSuggestion', questionId, body),
     rejectSuggestion: (questionId: string): Promise<boolean> => ipcRenderer.invoke('taxonomy:rejectSuggestion', questionId),

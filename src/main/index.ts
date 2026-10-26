@@ -1,7 +1,9 @@
 import { app, BrowserWindow, dialog, protocol, session } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { initDatabase, closeDatabase } from './db'
+import fs from 'node:fs'
+import { initDatabase, closeDatabase, configuredDir, defaultDir, setDataDir } from './db'
+import { writeConfig } from './datadir'
 import { registerProtocol } from './protocol'
 import { registerPaperIpc } from './ipc/papers'
 import { registerSettingsIpc } from './ipc/settings'
@@ -9,6 +11,10 @@ import { registerAiIpc } from './ipc/ai'
 import { registerParseIpc } from './ipc/parse'
 import { registerQuestionIpc } from './ipc/questions'
 import { registerStatsIpc } from './ipc/stats'
+import { registerReportIpc } from './ipc/report'
+import { registerDataIpc } from './ipc/data'
+import { installIpcGuards } from './restart'
+import { registerTaxonomyIpc } from './ipc/taxonomy'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
@@ -104,6 +110,21 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     registerProtocol()
 
+    // 指定的数据目录不可用（比如放在移动硬盘上、没插）：不能悄悄用默认位置建一个空库——让老师选
+    const custom = configuredDir()
+    if (custom && !fs.existsSync(path.join(custom, 'db.sqlite'))) {
+      for (;;) {
+        const r = dialog.showMessageBoxSync({
+          type: 'warning', title: '找不到数据目录', buttons: ['重试', '改用默认位置', '退出'], defaultId: 0, cancelId: 2,
+          message: '找不到之前设置的数据目录',
+          detail: `${custom}\n\n如果它在移动硬盘或网络位置上，请先连接好再点「重试」。\n选「改用默认位置」会改用应用自己的默认目录（${defaultDir()}）——那里可能是一个空的库；原来目录里的数据不会被删除。`
+        })
+        if (r === 2) { app.quit(); return }
+        if (r === 1) { writeConfig(app.getPath('userData'), {}); setDataDir(defaultDir()); break }
+        if (fs.existsSync(path.join(custom, 'db.sqlite'))) break
+      }
+    }
+
     try {
       await initDatabase()
     } catch (err) {
@@ -120,12 +141,16 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false))
     session.defaultSession.setPermissionCheckHandler(() => false)
 
+    installIpcGuards()   // 必须在注册任何 IPC 之前：写入类请求在「需要重启」/「导出中」时由主进程直接拒绝
     registerPaperIpc()
     registerSettingsIpc()
     registerAiIpc()
     registerParseIpc()
     registerQuestionIpc()
     registerStatsIpc()
+    registerReportIpc()
+    registerDataIpc()
+    registerTaxonomyIpc()
     createWindow()
 
     app.on('activate', () => {

@@ -287,7 +287,11 @@ export function registerQuestionIpc(): void {
 
   // ───── 知识点树 / 题型 / kp_suggestion ─────
 
-  ipcMain.handle('taxonomy:tree', async () => ({ kps: listKps(), qtypes: listQtypes() }))
+  // includeDeprecated：设置页的编辑器要看到停用的节点；审核页的选择器默认不含（停用的节点不再提供给 AI 和选择器，已有标注不受影响）
+  ipcMain.handle('taxonomy:tree', async (_e, rawOpts?: unknown) => {
+    const opts = z.object({ includeDeprecated: z.boolean().optional() }).strict().optional().parse(rawOpts)
+    return { kps: listKps(!!opts?.includeDeprecated), qtypes: listQtypes() }
+  })
 
   /**
    * 老师采纳 AI 的新增知识点建议：这才会在树里新建节点（AI 解析本身从不写树）。

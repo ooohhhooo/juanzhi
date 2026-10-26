@@ -1,9 +1,9 @@
 [
   {
     "feature": "迁移",
-    "name": "旧库(user_version=0)启动后升级到最新版本 v8（M2 新增 v5、M3 新增 v6、v7、v8）",
+    "name": "旧库(user_version=0)启动后升级到最新版本 v9（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9）",
     "pass": true,
-    "detail": "user_version=8"
+    "detail": "user_version=9"
   },
   {
     "feature": "迁移",
@@ -27,7 +27,7 @@
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-i1t2zU/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-xrsYxI/userData/workbench-data"
   },
   {
     "feature": "CSP",
@@ -147,7 +147,7 @@
     "feature": "重复导入",
     "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
     "pass": true,
-    "detail": "duplicate_of=c9a0311f"
+    "detail": "duplicate_of=edbe43f7"
   },
   {
     "feature": "失败处理",
@@ -291,7 +291,7 @@
     "feature": "OCR 失败原因",
     "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
     "pass": true,
-    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-i1t2zU/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-xrsYxI/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
   },
   {
     "feature": "OCR 失败原因",

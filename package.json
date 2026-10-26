@@ -1,7 +1,7 @@
 {
   "name": "english-exam-workbench",
   "productName": "英语校考分析工作台",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "小学英语校考知识点分析工作台",
   "main": "./out/main/index.js",
   "scripts": {
@@ -11,13 +11,14 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "preview": "electron-vite preview",
-    "test:e2e": "electron-vite build && node tests/e2e/run.cjs && node tests/e2e/run-m2.cjs && node tests/e2e/run-m3.cjs",
-    "test:unit": "node tests/unit/ocr-ps1.test.cjs && node --experimental-strip-types --no-warnings tests/unit/textquality.test.mjs && node --experimental-strip-types --no-warnings tests/unit/taxonomy.test.mjs && node --experimental-strip-types --no-warnings tests/unit/parse-pipeline.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-client.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-canned.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-guard.test.mjs && node --experimental-strip-types --no-warnings tests/unit/prompts-sync.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-core.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-compare-math.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-p2.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-csv.test.mjs && node --experimental-strip-types --no-warnings tests/unit/treemap.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-p2.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-fuzz.test.mjs",
+    "test:e2e": "electron-vite build && node tests/e2e/run.cjs && node tests/e2e/run-m2.cjs && node tests/e2e/run-m3.cjs && node tests/e2e/run-m4.cjs",
+    "test:unit": "node tests/unit/ocr-ps1.test.cjs && node --experimental-strip-types --no-warnings tests/unit/textquality.test.mjs && node --experimental-strip-types --no-warnings tests/unit/taxonomy.test.mjs && node --experimental-strip-types --no-warnings tests/unit/parse-pipeline.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-client.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-canned.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ai-guard.test.mjs && node --experimental-strip-types --no-warnings tests/unit/prompts-sync.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-core.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-compare-math.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-p2.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-csv.test.mjs && node --experimental-strip-types --no-warnings tests/unit/treemap.test.mjs && node --experimental-strip-types --no-warnings tests/unit/mock-p2.test.mjs && node --experimental-strip-types --no-warnings tests/unit/stats-fuzz.test.mjs && node --experimental-strip-types --no-warnings tests/unit/pack-names.test.mjs && node --experimental-strip-types --no-warnings tests/unit/pack-reader.test.mjs && node --experimental-strip-types --no-warnings tests/unit/pack-db.test.mjs && node --experimental-strip-types --no-warnings tests/unit/report-p3.test.mjs && node --experimental-strip-types --no-warnings tests/unit/taxonomy-edit.test.mjs && node --experimental-strip-types --no-warnings tests/unit/sample-data.test.mjs && node --experimental-strip-types --no-warnings tests/unit/datadir.test.mjs && node --experimental-strip-types --no-warnings tests/unit/settings-rules.test.mjs && node --experimental-strip-types --no-warnings tests/unit/ipc-guard-audit.test.mjs",
     "test:e2e:m1": "electron-vite build && node tests/e2e/run.cjs",
     "test:e2e:m2": "electron-vite build && node tests/e2e/run-m2.cjs",
     "test:real-ai": "electron-vite build && node --experimental-strip-types --no-warnings tests/real-ai/run.cjs",
     "test:e2e:m3": "electron-vite build && node tests/e2e/run-m3.cjs",
-    "test:perf": "electron-vite build && node --experimental-strip-types --no-warnings tests/e2e/perf-m3.cjs"
+    "test:perf": "electron-vite build && node --experimental-strip-types --no-warnings tests/e2e/perf-m3.cjs",
+    "test:e2e:m4": "electron-vite build && node tests/e2e/run-m4.cjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
@@ -30,11 +31,15 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0",
+    "yauzl": "^3.4.0",
+    "yazl": "^3.3.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/yauzl": "^3.4.0",
+    "@types/yazl": "^3.3.1",
     "electron": "45.0.0",
     "electron-vite": "^6.0.0",
     "playwright-core": "^1.64.1",

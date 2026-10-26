@@ -15,6 +15,10 @@ import Overview from './pages/Overview'
 import Dashboard from './pages/dashboard/Dashboard'
 import { StatsFilterProvider } from './stats/StatsFilter'
 import { installChunkListener } from './stats/analysisStore'
+import { installReportChunkListener } from './stats/reportStore'
+import Report from './pages/Report'
+import Guide from './pages/Guide'
+import RestartGate from './components/RestartGate'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +30,8 @@ const queryClient = new QueryClient({
 })
 
 const STATS_SOURCES = new Set(['papers', 'questions', 'taxonomy', 'materials', 'pages', 'aiConfig', 'prompts'])
+// 报告的「是否过期」随这些变化重新核对（报告列表和单份报告的查询键都以 'reports' 开头）
+const REPORT_SOURCES = new Set([...STATS_SOURCES, 'reports'])
 
 function DataChangeListener() {
   useEffect(() => {
@@ -36,11 +42,15 @@ function DataChangeListener() {
       }
       // 看板与总览的统计（含 AI 分析的缓存状态）：试卷状态、题目、知识点树任何一项变了都重新取数
       if (types.some(t => STATS_SOURCES.has(t))) queryClient.invalidateQueries({ queryKey: ['stats'] })
+      if (types.some(t => REPORT_SOURCES.has(t))) queryClient.invalidateQueries({ queryKey: ['reports'] })
+      // 示例数据加载 / 清除、数据包导入会改变"有没有示例数据"
+      if (types.includes('papers')) queryClient.invalidateQueries({ queryKey: ['data'] })
       // 只有 AI 分析的缓存变了（比如生成中被刷新过的页面，等后台生成完）：只刷新 AI 区，不重跑统计
       else if (types.includes('analysis')) queryClient.invalidateQueries({ queryKey: ['stats', 'analysis'] })
     })
     const offChunk = installChunkListener(queryClient)
-    return () => { unsub(); offChunk() }
+    const offReport = installReportChunkListener(queryClient)
+    return () => { unsub(); offChunk(); offReport() }
   }, [])
   return null
 }
@@ -94,6 +104,7 @@ export default function App() {
           <HashRouter>
             <DataChangeListener />
             <GlobalDrop />
+            <RestartGate />
             <Routes>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<PaperLibrary />} />
@@ -104,7 +115,8 @@ export default function App() {
                 <Route path="/queue" element={<QueuePage />} />
                 <Route path="/review" element={<ReviewList />} />
                 <Route path="/review/:id" element={<ReviewPage />} />
-                <Route path="/report" element={<Placeholder title="AI 报告" />} />
+                <Route path="/report" element={<Report />} />
+                <Route path="/guide" element={<Guide />} />
               </Route>
             </Routes>
           </HashRouter>
@@ -112,14 +124,5 @@ export default function App() {
         </AntApp>
       </ConfigProvider>
     </QueryClientProvider>
-  )
-}
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-      <h2>{title}</h2>
-      <p style={{ marginTop: 12 }}>此功能将在后续版本中实现</p>
-    </div>
   )
 }

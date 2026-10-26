@@ -1,9 +1,9 @@
 [
   {
     "feature": "迁移 v8",
-    "name": "全新库升到 v8：v6 的 3 个统计索引与 ai_analyses 缓存表；v7 的数据修订号表与缓存核对列；v8 把 papers / questions / question_kps 的触发器重建成带 WHEN 条件的（共 15 个触发器）",
+    "name": "全新库升到 v9：v6 的 3 个统计索引与 ai_analyses 缓存表；v7 的数据修订号表与缓存核对列；v8 把 papers / questions / question_kps 的触发器重建成带 WHEN 条件的（共 15 个触发器）",
     "pass": true,
-    "detail": "v8"
+    "detail": "v9"
   },
   {
     "feature": "夹具",
@@ -741,19 +741,19 @@
     "feature": "P2 故障",
     "name": "429：遵守 Retry-After（两次间隔约 1 秒，总耗时 ≥ 2 秒），共 3 次请求",
     "pass": true,
-    "detail": "2913 毫秒"
+    "detail": "2942 毫秒"
   },
   {
     "feature": "P2 故障",
     "name": "服务无响应（超时 2 秒）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "生成失败 模型响应超时（超过 2 秒没有返回）（3 次请求，9.7 秒；缓存未变 true，附加条件 true，partial 元素 0，entry 长度 0；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0)）"
+    "detail": "生成失败 模型响应超时（超过 2 秒没有返回）（3 次请求，10 秒；缓存未变 true，附加条件 true，partial 元素 0，entry 长度 0；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0)）"
   },
   {
     "feature": "P2 故障",
     "name": "流到一半不再有数据（空闲超时）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "生成失败 模型响应超时（超过 2 秒没有新数据）（3 次请求，9.6 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 72；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0),start,delta,reset,delta,reset,delta,reset,error(72)）"
+    "detail": "生成失败 模型响应超时（超过 2 秒没有新数据）（3 次请求，9.9 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 72；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0),start,delta,reset,delta,reset,delta,reset,error(72)）"
   },
   {
     "feature": "P2 校验",
@@ -771,13 +771,13 @@
     "feature": "P2 过期",
     "name": "数据变了（C2 回到待审核，目标学年只剩 4 份）：界面自动刷新，缓存标「已过期，可重新生成」并说明原因",
     "pass": true,
-    "detail": "已过期，可重新生成（统计数据或样本题有变化）。下面是 2026-10-26 00:31:11 生成的旧结果。"
+    "detail": "已过期，可重新生成（统计数据或样本题有变化）。下面是 2026-10-26 11:50:51 生成的旧结果。"
   },
   {
     "feature": "P2 过期",
     "name": "核对结果按数据修订号缓存：缓存行记着核对时的修订号 = 当前修订号，结论是「过期（数据）」，之后再读状态不用重算整套统计",
     "pass": true,
-    "detail": "{\"checked_rev\":155,\"checked_sig\":\"905d6a70300e94d184c9906b5e4fe2aec631b99269545e1e88b1b9e3902a6254\",\"checked_json\":\"{\\\"fresh\\\":false,\\\"reasons\\\":[\\\"data\\\"],\\\"pr"
+    "detail": "{\"checked_rev\":156,\"checked_sig\":\"905d6a70300e94d184c9906b5e4fe2aec631b99269545e1e88b1b9e3902a6254\",\"checked_json\":\"{\\\"fresh\\\":false,\\\"reasons\\\":[\\\"data\\\"],\\\"pr"
   },
   {
     "feature": "同比",
@@ -807,7 +807,7 @@
     "feature": "P2 过期",
     "name": "改了 P2 提示词：缓存标「已过期」，原因是「提示词变了」，同样不自动重算",
     "pass": true,
-    "detail": "已过期，可重新生成（提示词变了）。下面是 2026-10-26 00:31:16 生成的旧结果。"
+    "detail": "已过期，可重新生成（提示词变了）。下面是 2026-10-26 11:50:56 生成的旧结果。"
   },
   {
     "feature": "P2 过期",
@@ -831,7 +831,7 @@
     "feature": "P2 过期",
     "name": "换了模型：缓存仍有效（输出是旧模型写的，界面写着模型名），并提示「当前设置的模型已换」；不自动重算",
     "pass": true,
-    "detail": "已缓存 · 2026-10-26 00:31:16 · mock-text-model（当前设置的模型已换，想用新模型请重新生成）"
+    "detail": "已缓存 · 2026-10-26 11:50:56 · mock-text-model（当前设置的模型已换，想用新模型请重新生成）"
   },
   {
     "feature": "重难点",

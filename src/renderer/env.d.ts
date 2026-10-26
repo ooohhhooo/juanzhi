@@ -40,6 +40,33 @@ interface ElectronAPI {
     filterOptions(filter?: StatsFilter): Promise<{ years: number[]; textbooks: string[]; regions: string[] }>
     exportMatrix(filter: StatsFilter | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }>
   }
+  report: {
+    list(): Promise<ReportItem[]>
+    get(id: string): Promise<ReportDetail | null>
+    preview(filter?: StatsFilter): Promise<ReportPreview>
+    generate(filter: StatsFilter | undefined, requestId: string): Promise<AnalysisResult & { reportId?: string }>
+    delete(id: string): Promise<boolean>
+    export(id: string, fmt: 'md' | 'pdf'): Promise<{ saved: boolean; path?: string; dir?: string | null; images?: number; missingImages?: number; bytes?: number }>
+  }
+  data: {
+    info(): Promise<DataInfo>
+    exportPack(): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
+    pickPack(): Promise<{ picked: false } | { picked: true; token: string; fileName: string; manifest: PackManifest; info: { originalVersion: number; migrated: boolean; papers: number; questions: number; pages: number; samplePapers: number }; summary: PackSummary }>
+    importPack(token: string, mode: 'merge' | 'overwrite'): Promise<ImportReport>
+    discardPack(token: string): Promise<boolean>
+    deleteBackup(name: string): Promise<boolean>
+    openBackup(name: string): Promise<boolean>
+    chooseDir(): Promise<{ picked: false } | { picked: true; token?: string; path: string; ok: boolean; kind?: 'empty' | 'existing-data'; reason?: string; existing?: { papers: number; version: number } }>
+    changeDir(token: string, mode: 'move' | 'use'): Promise<{ restartRequired: boolean; mode: string; target: string; oldDir: string; files?: number; bytes?: number; backupFiles?: number; backupBytes?: number }>
+    resetDir(): Promise<{ restartRequired: boolean; target: string; hasData: boolean }>
+    sampleStatus(): Promise<{ loaded: boolean; papers: number; questions: number }>
+    loadSample(): Promise<{ papers: number; questions: number; alreadyLoaded: boolean }>
+    clearSample(): Promise<{ papers: number; reports: number }>
+  }
+  app: {
+    info(): Promise<AppInfo>
+    restart(): Promise<boolean>
+  }
   parse: {
     start(paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean>
     cancel(paperId: string): Promise<boolean>
@@ -60,7 +87,8 @@ interface ElectronAPI {
     reopen(paperId: string): Promise<boolean>
   }
   taxonomy: {
-    tree(): Promise<{ kps: KpNode[]; qtypes: QtypeRow[] }>
+    tree(opts?: { includeDeprecated?: boolean }): Promise<{ kps: KpNode[]; qtypes: QtypeRow[] }>
+    save(ops: TaxonomyOpInput[]): Promise<{ ops: number; touched: string[] }>
     approveSuggestion(questionId: string, body: { parent_code: string | null; name: string }): Promise<string>
     rejectSuggestion(questionId: string): Promise<boolean>
   }
@@ -99,6 +127,8 @@ interface Paper {
   parse_stage: string | null
   error_stage: string | null
   parsed_at: string | null
+  /** 示例数据（M4）：1 = 内置的合成示例卷，不参与真实数据的统计 */
+  is_sample?: number
 }
 
 interface PageRecord {
@@ -277,9 +307,18 @@ interface KpNode {
   intro_grade: number | null
   sort: number
   deprecated: number
+  merged_into?: string | null
   note: string | null
   builtin: number
 }
+
+type TaxonomyOpInput =
+  | { op: 'add'; parent_code: string | null; name: string; note?: string; intro_grade?: number | null }
+  | { op: 'update'; code: string; name?: string; note?: string | null; intro_grade?: number | null }
+  | { op: 'move'; code: string; parent_code: string | null }
+  | { op: 'merge'; code: string; into: string }
+  | { op: 'deprecate'; code: string; deprecated: boolean }
+  | { op: 'delete'; code: string }
 
 interface QtypeRow {
   code: string
@@ -340,6 +379,98 @@ type ChunkEvent =
   | { id: string; type: 'start'; scopeKey: string; refs: CitationRef[] }
   | { id: string; type: 'delta'; text: string }
   | { id: string; type: 'reset' }
-  | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[] }
+  | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string }
   | { id: string; type: 'error'; code: string; message: string; partial: string }
   | { id: string; type: 'cancelled'; partial: string }
+
+// ── M4：报告与数据 ──
+interface ReportItem {
+  id: string
+  title: string
+  createdAt: string
+  model: string | null
+  filter: StatsFilter
+  filterDesc: string
+  status: 'fresh' | 'stale'
+  staleReasons: Array<'data' | 'prompt' | 'model'>
+  warnings: string[]
+  sampleWarning: string | null
+  promptVersion: string | null
+  chars: number
+}
+interface ReportDetail extends ReportItem {
+  markdown: string
+  refs: Array<CitationRef & { missing?: boolean }>
+}
+interface ReportPreview {
+  filterDesc: string
+  papers: number
+  questions: number
+  blocked: string | null
+  aiReady: boolean
+  busy: boolean
+}
+interface PackManifest {
+  format: string
+  formatVersion: number
+  schemaVersion: number
+  appVersion: string
+  exportedAt: string
+  paperCount: number
+  questionCount: number
+  pageCount?: number
+  fileCount?: number
+  platform?: string
+}
+interface PackSummary {
+  papersInPack: number
+  questionsInPack: number
+  pagesInPack: number
+  papersNew: number
+  papersExisting: number
+  sameFileAsExisting: number
+  customKps: number
+  samplesIgnored: number
+  missingPageImages: number
+  livePapers: number
+}
+interface ImportReport {
+  mode: 'merge' | 'overwrite'
+  papersAdded: number
+  papersSkipped: number
+  sameFileAsExisting: number
+  questionsAdded: number
+  kpsAdded: number
+  kpsRemapped: number
+  reportsAdded: number
+  missingPageImages: number
+  promptsImported: number
+  promptsKeptLocal: number
+  warnings: string[]
+  backup?: { dir: string; dbFile: string; filesDir: string; bytes: number }
+}
+interface DataInfo {
+  dataDir: string
+  defaultDir: string
+  custom: boolean
+  restartPending: boolean
+  dbBytes: number
+  filesBytes: number
+  papers: number
+  backups: Array<{ name: string; dir: string; createdAt: string; bytes: number }>
+}
+interface AppInfo {
+  version: string
+  electron: string
+  chrome: string
+  node: string
+  platform: string
+  arch: string
+  schema: number
+  dataDir: string
+  restartPending: boolean
+  restartTarget: string
+  restartOldDir: string
+  /** 启动时数据库恢复的结果（上次导入中途崩溃）；没有就是 null */
+  startupNotice: { kind: 'recovered' | 'failed'; message: string } | null
+}

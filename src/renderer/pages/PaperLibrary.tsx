@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom'
 import { paperTag } from '../status'
 import { useImportFlow } from '../hooks/useImportFlow'
 import { useDiscardGuard } from '../hooks/useDiscardGuard'
+import RetryActions from '../components/RetryActions'
+import Onboarding from '../components/Onboarding'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
@@ -149,6 +151,7 @@ export default function PaperLibrary() {
         <span>
           <a onClick={() => navigate(`/paper/${record.id}`)}>{text || record.file_name}</a>
           {aiFieldsOf(record).includes('title') && <AiGuessTag />}
+          {record.is_sample === 1 && <Tag color="geekblue" style={{ marginInlineStart: 6 }} data-testid="sample-tag">示例</Tag>}
         </span>
       )
     },
@@ -199,9 +202,9 @@ export default function PaperLibrary() {
     {
       title: '操作',
       key: 'action',
-      width: 230,
+      width: 340,
       render: (_: unknown, record: Paper) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button type="text" size="small" icon={<EyeOutlined />}
             onClick={() => navigate(`/paper/${record.id}`)} />
           <Button type="text" size="small" icon={<EditOutlined />}
@@ -214,7 +217,8 @@ export default function PaperLibrary() {
             <Button type="text" size="small" icon={<CheckSquareOutlined />} title="审核"
               data-testid="open-review" onClick={() => navigate(`/review/${record.id}`)} />
           )}
-          {(record.status === 'failed' || record.status === 'extracted' || record.status === 'done' || record.status === 'reviewing') && (
+          {record.status === 'failed' && <RetryActions paper={record} />}
+          {(record.status === 'extracted' || record.status === 'done' || record.status === 'reviewing') && (
             <Button type="text" size="small" icon={<ReloadOutlined />} title="重新提取（会清除已解析的题目）"
               data-testid="reprocess" onClick={() => confirmReprocess(record)} />
           )}
@@ -239,6 +243,8 @@ export default function PaperLibrary() {
           导入试卷
         </Button>
       </div>
+
+      <Onboarding />
 
       <div
         data-testid="dropzone"

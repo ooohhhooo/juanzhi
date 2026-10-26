@@ -1,33 +1,58 @@
 /**
- * 极简 Markdown 解析（只覆盖 P2/P3 输出会用到的：标题、列表、引用块、粗体、段落、分隔线），纯函数，单测直接跑。
+ * 极简 Markdown 解析（只覆盖 P2/P3 输出会用到的：标题、列表、引用块、表格、代码围栏、粗体、段落、分隔线），纯函数，单测直接跑。
  * 不执行任何 HTML：所有文字都按纯文本交给 React 渲染，所以模型输出里的 <script> 之类只是字面文字。
  */
 import { splitCitations } from './citation.ts'
 
 export type Inline = { type: 'text'; text: string } | { type: 'bold'; text: string } | { type: 'cite'; token: string }
+export type Align = 'left' | 'center' | 'right' | null
 export type Block =
   | { type: 'heading'; level: number; text: string }
+  | { type: 'table'; header: Inline[][]; align: Align[]; rows: Inline[][][] }
+  | { type: 'code'; lang: string; text: string }
   | { type: 'ul'; items: Inline[][] }
   | { type: 'ol'; items: Inline[][] }
   | { type: 'quote'; lines: Inline[][] }
   | { type: 'p'; inline: Inline[] }
   | { type: 'hr' }
 
+/** 普通文字里切出引用 */
+function plain(text: string, out: Inline[]): void {
+  for (const piece of splitCitations(text)) out.push(piece.type === 'cite' ? piece : { type: 'text', text: piece.text })
+}
+
 export function parseInline(text: string): Inline[] {
   const out: Inline[] = []
-  for (const piece of splitCitations(text)) {
-    if (piece.type === 'cite') { out.push(piece); continue }
-    let last = 0
-    for (const m of piece.text.matchAll(/\*\*([^*\n]+?)\*\*/g)) {
-      const i = m.index ?? 0
-      if (i > last) out.push({ type: 'text', text: piece.text.slice(last, i) })
-      out.push({ type: 'bold', text: m[1] })
-      last = i + m[0].length
-    }
-    if (last < piece.text.length) out.push({ type: 'text', text: piece.text.slice(last) })
+  let last = 0
+  // 先按 **粗体** 切，再在每一段里切引用：模型常把引用包进粗体（**[卷名 · 3]**），不能让引用把粗体切断、露出字面的 **
+  for (const m of text.matchAll(/\*\*(.+?)\*\*/g)) {
+    const i = m.index ?? 0
+    if (i > last) plain(text.slice(last, i), out)
+    for (const piece of splitCitations(m[1])) out.push(piece.type === 'cite' ? piece : { type: 'bold', text: piece.text })
+    last = i + m[0].length
   }
+  if (last < text.length) plain(text.slice(last), out)
   return out
 }
+
+/** 按竖线切表格的一行（去掉首尾的竖线；\| 是转义的竖线） */
+export function splitRow(line: string): string[] {
+  let t = line.trim()
+  if (t.startsWith('|')) t = t.slice(1)
+  if (t.endsWith('|') && !t.endsWith('\\|')) t = t.slice(0, -1)
+  const cells: string[] = []
+  let cur = ''
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === '\\' && t[i + 1] === '|') { cur += '|'; i++; continue }
+    if (t[i] === '|') { cells.push(cur.trim()); cur = ''; continue }
+    cur += t[i]
+  }
+  cells.push(cur.trim())
+  return cells
+}
+
+const SEP_RE = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/
+const alignOf = (c: string): Align => (/^:-+:$/.test(c) ? 'center' : /^-+:$/.test(c) ? 'right' : /^:-+$/.test(c) ? 'left' : null)
 
 export function parseBlocks(md: string): Block[] {
   const lines = md.replace(/\r\n/g, '\n').split('\n')
@@ -38,6 +63,29 @@ export function parseBlocks(md: string): Block[] {
     const line = lines[i]
     const trimmed = line.trim()
     if (!trimmed) { flush(); continue }
+    // 代码围栏：模型偶尔会用 ``` 包住整段输出或表格；按等宽文字原样显示，里面的内容不再解析
+    const fence = /^```+\s*([\w-]*)\s*$/.exec(trimmed)
+    if (fence) {
+      flush()
+      const body: string[] = []
+      let j = i + 1
+      while (j < lines.length && !/^```+\s*$/.test(lines[j].trim())) body.push(lines[j++])
+      blocks.push({ type: 'code', lang: fence[1], text: body.join('\n') })
+      i = j
+      continue
+    }
+    // 表格：一行带竖线 + 下一行是 |---|---| 分隔行
+    if (trimmed.includes('|') && i + 1 < lines.length && SEP_RE.test(lines[i + 1]) && lines[i + 1].includes('-') && lines[i + 1].includes('|')) {
+      flush()
+      const head = splitRow(trimmed)
+      const aligns = splitRow(lines[i + 1]).map(alignOf)
+      const rows: Inline[][][] = []
+      let j = i + 2
+      while (j < lines.length && lines[j].trim() && lines[j].includes('|')) { rows.push(splitRow(lines[j]).map(c => parseInline(c))); j++ }
+      blocks.push({ type: 'table', header: head.map(c => parseInline(c)), align: head.map((_, k) => aligns[k] ?? null), rows })
+      i = j - 1
+      continue
+    }
     const h = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(trimmed)
     if (h) { flush(); blocks.push({ type: 'heading', level: h[1].length, text: h[2] }); continue }
     if (/^([-*_])\1{2,}$/.test(trimmed)) { flush(); blocks.push({ type: 'hr' }); continue }
@@ -68,7 +116,8 @@ export function parseBlocks(md: string): Block[] {
         continue
       }
     }
-    para.push(trimmed)
+    // 每个非空行单独成段：提示词要求「每章固定三行：**结论** / **依据** / **建议**」，按标准 Markdown 把相邻行并成一段会让三行挤在一起
+    blocks.push({ type: 'p', inline: parseInline(trimmed) })
   }
   flush()
   return blocks

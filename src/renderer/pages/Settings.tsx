@@ -1,50 +1,27 @@
 import React from 'react'
-import { Button, Descriptions, message, Card, Tag } from 'antd'
-import { FolderOpenOutlined } from '@ant-design/icons'
+import { Button, Descriptions, Card, Tag } from 'antd'
+import { BookOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import AiSettings from './AiSettings'
 import PromptSettings from './PromptSettings'
+import DataSettings from './DataSettings'
+import TaxonomySettings from './TaxonomySettings'
 
 export default function Settings() {
-  const { data: dataDir = '' } = useQuery({
-    queryKey: ['settings', 'dataDir'],
-    queryFn: () => window.api.settings.getDataDir()
-  })
-
+  const nav = useNavigate()
   const { data: ocr, refetch: recheckOcr, isFetching: checkingOcr } = useQuery({
     queryKey: ['ocr', 'status'],
     queryFn: () => window.api.ocr.status(),
     staleTime: 0
   })
-
-  const handleOpenDir = async () => {
-    try {
-      await window.api.settings.openDataDir()
-    } catch {
-      message.error('无法打开数据目录')
-    }
-  }
+  const { data: about } = useQuery({ queryKey: ['app', 'info'], queryFn: () => window.api.app.info(), staleTime: Infinity })
 
   return (
     <div style={{ padding: 24, maxWidth: 900 }}>
       <h2 style={{ margin: '0 0 24px', color: '#1e2952' }}>设置</h2>
 
-      <Card title="数据存储" size="small" style={{ marginBottom: 16 }}>
-        <Descriptions column={1} size="small">
-          <Descriptions.Item label="数据目录">
-            <code style={{ fontSize: 12 }}>{dataDir}</code>
-            <Button
-              type="link"
-              size="small"
-              icon={<FolderOpenOutlined />}
-              onClick={handleOpenDir}
-              style={{ marginLeft: 8 }}
-            >
-              打开
-            </Button>
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+      <DataSettings />
 
       <Card title="文字识别（OCR）" size="small" style={{ marginBottom: 16 }}>
         <Descriptions column={1} size="small">
@@ -60,12 +37,17 @@ export default function Settings() {
 
       <AiSettings />
       <PromptSettings />
+      <TaxonomySettings />
 
-      <Card title="关于" size="small">
+      <Card title="关于" size="small" data-testid="about-card">
         <Descriptions column={1} size="small">
-          <Descriptions.Item label="版本">0.2.0 (M2)</Descriptions.Item>
-          <Descriptions.Item label="说明">
-            小学英语校考知识点分析工作台 — 帮助教师分析试卷中的知识点分布和考频趋势
+          <Descriptions.Item label="软件">英语校考分析工作台 —— 帮助教师分析试卷中的知识点分布和考频趋势（离线桌面软件，数据只存在这台电脑上，没有服务器、不用登录）</Descriptions.Item>
+          <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）</Descriptions.Item>
+          <Descriptions.Item label="运行环境"><span data-testid="about-env">{about ? `${about.platform} ${about.arch} · Electron ${about.electron} · Chromium ${about.chrome} · Node ${about.node}` : '…'}</span></Descriptions.Item>
+          <Descriptions.Item label="数据目录"><code style={{ fontSize: 12 }}>{about?.dataDir}</code></Descriptions.Item>
+          <Descriptions.Item label="安装指南">
+            <Button type="link" size="small" icon={<BookOutlined />} data-testid="open-guide" style={{ padding: 0 }} onClick={() => nav('/guide')}>查看安装指南</Button>
+            <span style={{ fontSize: 12, color: '#999', marginLeft: 8 }}>（完整正文在 M5 随安装包提供）</span>
           </Descriptions.Item>
         </Descriptions>
       </Card>

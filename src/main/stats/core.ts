@@ -691,6 +691,7 @@ export function overview(db: Db, f: StatsFilter): OverviewResult {
 export function filterOptions(db: Db, f?: StatsFilter): { years: number[]; textbooks: string[]; regions: string[] } {
   // 候选值只来自「会被计入统计」的状态：没打开「含待审核」时，只在待审核卷子里才有的教材/地区/学年不出现，免得选了就是空结果
   const st = f?.includeReviewing ? "('done','reviewing')" : "('done')"
-  const col = (c: string) => (db.prepare(`SELECT DISTINCT ${c} v FROM papers WHERE status IN ${st} AND ${c} IS NOT NULL AND ${c} <> '' ORDER BY ${c}`).all() as any[]).map(r => r.v)
+  const smp = f?.sample ? 1 : 0   // 示例数据与真实数据的候选值分开
+  const col = (c: string) => (db.prepare(`SELECT DISTINCT ${c} v FROM papers WHERE status IN ${st} AND is_sample = ${smp} AND ${c} IS NOT NULL AND ${c} <> '' ORDER BY ${c}`).all() as any[]).map(r => r.v)
   return { years: f ? availableYears(db, f) : col('school_year_start') as number[], textbooks: col('textbook') as string[], regions: col('region') as string[] }
 }

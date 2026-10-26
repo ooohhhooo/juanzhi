@@ -82,7 +82,7 @@ export default function AppLayout() {
         />
       </Sider>
       <Content style={{ overflow: 'auto', background: '#fff', height: '100vh' }}>
-        {(location.pathname === '/overview' || location.pathname === '/dashboard') && <FilterBar />}
+        {(location.pathname === '/overview' || location.pathname === '/dashboard' || location.pathname === '/report') && <FilterBar />}
         <Outlet />
       </Content>
     </Layout>

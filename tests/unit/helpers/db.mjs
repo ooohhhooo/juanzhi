@@ -9,15 +9,28 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const seed = await import(pathToFileURL(path.join(root, 'src/main/seed/taxonomy.ts')).href)
 
-export function newDb() {
+function loadMigrations() {
   const src = fs.readFileSync(path.join(root, 'src/main/db.ts'), 'utf8')
   const m = /const MIGRATIONS: Array<\(db: any\) => void> = (\[[\s\S]*?\n\])\r?\n\r?\nlet db: any/.exec(src)
   if (!m) throw new Error('db.ts 里找不到 MIGRATIONS')
   const js = module.stripTypeScriptTypes(`const MIGRATIONS = ${m[1]}`)
-  const migrations = new Function('buildKpRows', 'QTYPE_SEEDS_V1', `${js}\nreturn MIGRATIONS`)(seed.buildKpRows, seed.QTYPE_SEEDS_V1)
-  const db = new DatabaseSync(':memory:')
+  return new Function('buildKpRows', 'QTYPE_SEEDS_V1', `${js}\nreturn MIGRATIONS`)(seed.buildKpRows, seed.QTYPE_SEEDS_V1)
+}
+
+/** 取出真实的迁移数组（v1–最新），数据包导入 / 升级的单测用它当 migrate */
+export function migrations() { return loadMigrations() }
+export function migrate(db, from) {
+  const ms = loadMigrations()
+  for (let v = from; v < ms.length; v++) { db.exec('BEGIN'); ms[v](db); db.exec(`PRAGMA user_version = ${v + 1}`); db.exec('COMMIT') }
+}
+
+/** upTo：只升到这个版本（造「旧版本数据包」用）；file：文件库（默认内存库） */
+export function newDb(file = ':memory:', upTo) {
+  const migrations = loadMigrations()
+  const db = new DatabaseSync(file)
   db.exec('PRAGMA foreign_keys=ON')
-  migrations.forEach((fn, i) => { db.exec('BEGIN'); fn(db); db.exec(`PRAGMA user_version = ${i + 1}`); db.exec('COMMIT') })
+  const n = upTo ?? migrations.length
+  migrations.slice(0, n).forEach((fn, i) => { db.exec('BEGIN'); fn(db); db.exec(`PRAGMA user_version = ${i + 1}`); db.exec('COMMIT') })
   return { db, version: migrations.length }
 }
 

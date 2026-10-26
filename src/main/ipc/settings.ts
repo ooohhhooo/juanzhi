@@ -6,7 +6,9 @@ import { StatsFilterSchema } from '../stats/filter'
 
 // 通用设置接口的白名单（读和写都只认这些键）。AI 配置与密钥不在其中：
 // 它们只能通过 ai:* 接口读写，而且密钥没有任何读回的接口。
-const ALLOWED_KEYS = new Set(['data_dir_custom', 'ui_theme', 'ui_language', 'ui_stats_filter'])
+// （数据目录的位置不在这里：它决定数据库放在哪，不能存在数据库里——见 datadir.ts / ewb-config.json）
+// M4：onboarding_done = 首次启动引导是否已关闭；default_textbook = 引导里选的教材版本（AI 没读出教材时作默认值）
+const ALLOWED_KEYS = new Set(['ui_theme', 'ui_language', 'ui_stats_filter', 'onboarding_done', 'default_textbook'])
 
 const SettingsKeySchema = z.string().refine(
   k => ALLOWED_KEYS.has(k),
@@ -28,6 +30,8 @@ export function registerSettingsIpc(): void {
       const r = StatsFilterSchema.safeParse(value)
       if (!r.success) throw new Error('筛选条件格式不正确')
     }
+    if (key === 'onboarding_done' && typeof value !== 'boolean') throw new Error('设置值必须是布尔值')
+    if (key === 'default_textbook' && !(value === null || (typeof value === 'string' && value.length <= 100))) throw new Error('教材版本必须是不超过 100 字的文字')
     const json = JSON.stringify(value)
     if (json === undefined) throw new Error('设置值必须能序列化为 JSON')
     if (json.length > 100_000) throw new Error('设置值过大')

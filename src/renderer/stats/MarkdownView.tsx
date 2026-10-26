@@ -35,6 +35,14 @@ export default function MarkdownView({ markdown, refs, onView }: { markdown: str
           case 'ol': return <ol key={i} style={{ paddingInlineStart: 22, margin: '4px 0' }}>{b.items.map((it, j) => <li key={j}>{inl(it)}</li>)}</ol>
           case 'quote': return <blockquote key={i} style={{ margin: '8px 0', padding: '4px 12px', borderLeft: '3px solid #faad14', background: '#fffbe6', color: '#614700' }}>{b.lines.map((l, j) => <div key={j}>{inl(l)}</div>)}</blockquote>
           case 'hr': return <hr key={i} style={{ border: 0, borderTop: '1px solid #eee' }} />
+          case 'code': return <pre key={i} style={{ background: '#f6f6f6', padding: 8, fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: '6px 0' }}>{b.text}</pre>
+          case 'table': return (
+            <div key={i} style={{ overflowX: 'auto', margin: '6px 0' }}>
+              <table data-testid="md-table" style={{ borderCollapse: 'collapse', fontSize: 12.5, minWidth: '60%' }}>
+                <thead><tr>{b.header.map((c, k) => <th key={k} style={{ border: '1px solid #d9d9d9', background: '#f5f7fb', padding: '3px 8px', textAlign: b.align[k] ?? 'left' }}>{inl(c)}</th>)}</tr></thead>
+                <tbody>{b.rows.map((r, j) => <tr key={j}>{b.header.map((_, k) => <td key={k} style={{ border: '1px solid #e5e5e5', padding: '3px 8px', verticalAlign: 'top', textAlign: b.align[k] ?? 'left' }}>{inl(r[k] ?? [])}</td>)}</tr>)}</tbody>
+              </table>
+            </div>)
           default: return <p key={i} style={{ margin: '6px 0' }}>{inl(b.inline)}</p>
         }
       })}

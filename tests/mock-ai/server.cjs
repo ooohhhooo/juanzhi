@@ -6,6 +6,7 @@
 const http = require('node:http')
 const { build } = require('./canned.cjs')
 const p2 = require('./p2.cjs')
+const p3 = require('./p3.cjs')
 const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 /** 从 data URL 里读出图片尺寸（PNG 看 IHDR，JPEG 找 SOF 段），E2E 用它核对「发给模型的图已缩小」 */
@@ -43,7 +44,7 @@ async function startMock(opts = {}) {
   }
   const sockets = new Set()
 
-  // only: 'p1' | 'p2' 限定故障只作用于哪类请求（不写则都作用）
+  // only: 'p1' | 'p2' | 'p3' 限定故障只作用于哪类请求（不写则都作用）
   function takeDirective(fileName, kind) {
     for (const d of state.queue) {
       if (d.times > 0 && (!d.file || fileName.includes(d.file)) && (!d.only || d.only === kind)) { d.times--; return d }
@@ -115,10 +116,11 @@ async function startMock(opts = {}) {
         const prefix = /材料 id 前缀：(b\d+)/.exec(user)?.[1] ?? 'b1'
         const isP1 = /JSON/.test(sys) && /知识点树/.test(user)
         const isP2 = p2.isP2(sys, user)
+        const isP3 = p3.isP3(sys, user)
         const rec = {
           at: Date.now(), auth, model: body.model, stream: !!body.stream, jsonMode: body.response_format?.type === 'json_object',
           maxTokens: body.max_tokens, system: sys, user, images, messageCount: body.messages.length, fileName, batchLine, pages, prefix,
-          isP1, isP2, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
+          isP1, isP2, isP3, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
           hasPrevUnfinished: /未完成的题/.test(user), imageDims: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => imageDims(p.image_url.url)) : [], imageUrls: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => p.image_url.url.slice(0, 30)) : [],
           body: raw.length,
           directive: null
@@ -131,7 +133,7 @@ async function startMock(opts = {}) {
           return
         }
 
-        const d = takeDirective(fileName, isP2 ? 'p2' : 'p1')
+        const d = takeDirective(fileName, isP3 ? 'p3' : isP2 ? 'p2' : 'p1')
         if (d) rec.directive = d.type
         if (d && d.type === 'hang') { await new Promise(r => setTimeout(r, d.ms ?? 60000)); return }
         if (d && d.type === '429') { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(d.retryAfter ?? 1) }); res.end(JSON.stringify({ error: { message: 'rate limit' } })); return }
@@ -170,6 +172,18 @@ async function startMock(opts = {}) {
         if (isP2) {
           const c = p2.build(user, { ...state.quirks.p2 })
           const opts = { pieceChars: 24, chunkDelayMs: state.p2DelayMs || 0 }
+          if (d && d.type === 'p2_cut') opts.cutAfter = d.after ?? 3
+          if (d && d.type === 'p2_nonl') opts.noFinalNewline = true
+          if (d && d.type === 'p2_eof') opts.eofAfter = d.after ?? 3
+          if (d && d.type === 'p2_stall') { opts.stallAfter = d.after ?? 3; opts.stallMs = d.ms ?? 60000 }
+          if (d && d.type === 'p2_slow') opts.chunkDelayMs = d.delayMs ?? 120
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream, 'stop', 200, {}, opts)
+        }
+
+        // P3 考情分析报告：流式分段发出；故障指令沿用 p2_* 这组名字（对任何流式分析都生效：p2_cut / p2_eof / p2_nonl / p2_stall / p2_slow）
+        if (isP3) {
+          const c = p3.build(user, { ...state.quirks.p3 })
+          const opts = { pieceChars: 24, chunkDelayMs: state.p3DelayMs || 0 }
           if (d && d.type === 'p2_cut') opts.cutAfter = d.after ?? 3
           if (d && d.type === 'p2_nonl') opts.noFinalNewline = true
           if (d && d.type === 'p2_eof') opts.eofAfter = d.after ?? 3
@@ -218,13 +232,16 @@ async function startMock(opts = {}) {
     set splitLast(v) { state.splitLast = v },
     /** P2 正常应答每段之间的延迟（毫秒）；0 = 不延迟 */
     set p2DelayMs(v) { state.p2DelayMs = v },
+    /** P3 正常应答每段之间的延迟（毫秒） */
+    set p3DelayMs(v) { state.p3DelayMs = v },
     get p2Requests() { return state.requests.filter(r => r.isP2) },
+    get p3Requests() { return state.requests.filter(r => r.isP3) },
     /** canned 响应的「真实模型会犯的错」：{ noFlag, dropContinued, typo, badPage } */
     set quirks(v) { state.quirks = v },
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },
-    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.p2DelayMs = 0; state.seenSystems.clear() },
+    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.p2DelayMs = 0; state.p3DelayMs = 0; state.seenSystems.clear() },
     resetStats() { state.requests.length = 0; state.maxInflight = 0 },
     async stop() {
       for (const s of sockets) s.destroy()

@@ -512,7 +512,7 @@ function cmpDb() {
 // 迁移 v6：新增的索引与缓存表；v7：数据修订号与触发器；v8：触发器加 WHEN 条件
 {
   const { db, version } = newDb()
-  assert.equal(version, 8)
+  assert.equal(version, 9)
   const idx = db.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map(r => r.name)
   for (const n of ['idx_question_kps_kp', 'idx_papers_stats', 'idx_questions_paper_qtype']) assert.ok(idx.includes(n), `缺索引 ${n}`)
   const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT * FROM question_kps WHERE kp_code = 'A'`).all().map(r => r.detail).join(' ')

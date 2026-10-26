@@ -346,6 +346,11 @@ function saveResults(
     try { prevAi = JSON.parse(paper.ai_meta_json || '[]') } catch { /* 忽略 */ }
     const guess = metaToPaperFields(state.meta)
     const { fields, aiFields } = pickPrefill(paper, guess, prevAi)
+    // 首次启动引导里选的教材版本（M4）：AI 没从卷头读出教材、老师也没填时，用它作默认值；AI 读到了就以 AI 为准（仍标「AI 猜测」）
+    if (fields.textbook === undefined && !paper.textbook) {
+      const row = db.prepare("SELECT value_json FROM settings WHERE key = 'default_textbook'").get() as { value_json: string } | undefined
+      try { const t = row ? JSON.parse(row.value_json) : null; if (typeof t === 'string' && t.trim()) fields.textbook = t.trim().slice(0, 100) } catch { /* 忽略损坏的设置 */ }
+    }
     const sets = Object.keys(fields).map(k => `${k} = ?`)
     db.prepare(`
       UPDATE papers SET status = 'reviewing', error = NULL, error_stage = NULL, parse_stage = 'done', ai_model = ?, prompt_version = ?,
@@ -393,7 +398,9 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
   if (fromStage === 'locate') {
     const last = db.prepare("SELECT id, result_json, usage_json, model, vision_model, prompt_version FROM parse_runs WHERE paper_id = ? AND result_json IS NOT NULL ORDER BY id DESC LIMIT 1").get(paperId) as any
     if (!last) throw new ParseError('locate', '没有可复用的 AI 结果，请选择「重新 AI 解析」')
-    const saved = JSON.parse(last.result_json)
+    let saved: any
+    try { saved = JSON.parse(last.result_json) } catch { saved = null }   // 数据包里带来的 / 被破坏的库里，这一列可能是垃圾
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved) || !Array.isArray(saved.questions)) throw new ParseError('locate', '上次的 AI 结果已损坏，无法复用，请选择「重新 AI 解析」')
     state = { ...newMergeState(), ...saved }
     usedModel = last.model || cfg.model
     version = last.prompt_version || ''

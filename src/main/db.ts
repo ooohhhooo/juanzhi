@@ -2,8 +2,10 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { app } from 'electron'
 import { buildKpRows, QTYPE_SEEDS_V1 } from './seed/taxonomy'
+import { configuredDataDir, defaultDataDir } from './datadir'
+import { recoverImportJournal } from './pack/journal'
 
-const MIGRATIONS: Array<(db: any) => void> = [
+export const MIGRATIONS: Array<(db: any) => void> = [
   // v0 → v1: 初始 schema
   (db) => {
     db.exec(`
@@ -320,14 +322,63 @@ const MIGRATIONS: Array<(db: any) => void> = [
         WHEN EXISTS (SELECT 1 FROM questions q JOIN papers p ON p.id = q.paper_id WHERE q.id = OLD.question_id AND p.status IN ${counted}) BEGIN ${bump} END;
       UPDATE data_rev SET rev = rev + 1 WHERE id = 1;
     `)
+  },
+
+  // v8 → v9（M4）：报告与数据。
+  //  - papers.is_sample：示例数据的标记（统计默认只看真实数据，示例数据要单独切换才看得到；清除示例数据按它删）；
+  //  - reports（v1 就有的表）补列：P3 报告的引用索引、警示、样本提示、数据指纹/缓存键/提示词模板签名，以及和 ai_analyses 一样的「上次核对结论」，
+  //    用来判断「已过期」而不必每次整套重算；
+  //  - papers 的修订号更新触发器把 is_sample 也列进去（v8 里的触发器 DROP 后重建；v8 本身不动）。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    addCol('papers', 'is_sample', 'INTEGER NOT NULL DEFAULT 0')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_papers_sample ON papers(is_sample)')
+    addCol('reports', 'title', 'TEXT')
+    addCol('reports', 'refs_json', "TEXT NOT NULL DEFAULT '[]'")
+    addCol('reports', 'warnings_json', "TEXT NOT NULL DEFAULT '[]'")
+    addCol('reports', 'sample_warning', 'TEXT')
+    addCol('reports', 'fingerprint', 'TEXT')
+    addCol('reports', 'cache_key', 'TEXT')
+    addCol('reports', 'template_sig', 'TEXT')
+    addCol('reports', 'prompt_version', 'TEXT')
+    addCol('reports', 'usage_json', 'TEXT')
+    addCol('reports', 'checked_rev', 'INTEGER')
+    addCol('reports', 'checked_sig', 'TEXT')
+    addCol('reports', 'checked_json', 'TEXT')
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at);
+      DROP TRIGGER IF EXISTS trg_rev_papers_u;
+      CREATE TRIGGER trg_rev_papers_u AFTER UPDATE OF status, grade, semester, school_year_start, exam_type, textbook, region, file_hash, created_at, title, is_sample ON papers
+        WHEN OLD.status IN ('done','reviewing') OR NEW.status IN ('done','reviewing') BEGIN UPDATE data_rev SET rev = rev + 1 WHERE id = 1; END;
+      UPDATE data_rev SET rev = rev + 1 WHERE id = 1;
+    `)
   }
 ]
 
 let db: any = null
+/** 本次运行用的数据目录：启动时定下来，之后不变（更改数据目录要重启才生效，见 datadir.ts） */
+let dataDirResolved: string | null = null
+
+/** 配置里指定的数据目录（没配置 = null，用默认位置）；不检查它是否存在 */
+export function configuredDir(): string | null {
+  return configuredDataDir(app.getPath('userData'))
+}
+
+export function defaultDir(): string {
+  return defaultDataDir(app.getPath('userData'))
+}
 
 export function getDataDir(): string {
-  const base = app.getPath('userData')
-  return path.join(base, 'workbench-data')
+  if (!dataDirResolved) dataDirResolved = configuredDir() ?? defaultDir()
+  return dataDirResolved
+}
+
+/** 启动时让主进程用指定的目录（index.ts 在目录不可用、用户做了选择之后才调用） */
+export function setDataDir(dir: string): void {
+  dataDirResolved = dir
 }
 
 export function getFilesDir(): string {
@@ -336,6 +387,12 @@ export function getFilesDir(): string {
 
 function getDbPath(): string {
   return path.join(getDataDir(), 'db.sqlite')
+}
+
+/** 打开别的 SQLite 文件（数据包里的库、导出的快照）；不是正在使用的那一个 */
+export function openSqlite(file: string, opts?: { readOnly?: boolean }): any {
+  const { DatabaseSync } = require('node:sqlite')
+  return opts ? new DatabaseSync(file, opts) : new DatabaseSync(file)
 }
 
 export function getDb(): any {
@@ -383,23 +440,51 @@ export async function initDatabase(): Promise<void> {
     )
   }
 
-  for (let v = currentVersion; v < targetVersion; v++) {
-    console.log(`[db] 执行迁移 v${v} → v${v + 1}`)
-    db.exec('BEGIN')
-    try {
-      MIGRATIONS[v](db)
-      db.exec(`PRAGMA user_version = ${v + 1}`)
-      db.exec('COMMIT')
-    } catch (e) {
-      db.exec('ROLLBACK')
-      throw new Error(`迁移 v${v}→v${v + 1} 失败: ${(e as Error).message}`)
-    }
-  }
+  runMigrations(db, currentVersion)
 
   if (currentVersion < targetVersion) {
     console.log(`[db] schema 已升级到 v${targetVersion}`)
   }
+
+  // 上次覆盖导入如果在「换文件」和「提交」之间崩溃，这里把文件目录和数据库对齐（见 pack/journal.ts）
+  // 结果记进 startupNotice，渲染端启动时通过 app:info 取走并弹窗——恢复失败不能只写一行控制台日志（M4 复审 P2-4）
+  startupNotice = null
+  try {
+    const r = recoverImportJournal(db, dataDir)
+    if (r) {
+      console.log(`[db] 覆盖导入恢复：${r}`)
+      startupNotice = /保持现状/.test(r)
+        ? { kind: 'failed', message: `上次导入数据包时程序中途退出：${r}。文件和数据库可能对不上，请检查「设置 → 数据」里的备份，必要时重新导入数据包。` }
+        : /已提交/.test(r) ? null : { kind: 'recovered', message: `上次导入数据包时程序中途退出，没有完成：${r}。你的数据保持在导入之前的状态。` }
+    }
+  } catch (e) {
+    console.warn(`[db] 覆盖导入恢复失败: ${(e as Error).message}`)
+    startupNotice = { kind: 'failed', message: `上次导入数据包时程序中途退出，自动恢复没有成功：${(e as Error).message}。文件和数据库可能对不上；导入前的备份在数据目录的 backups 文件夹里，可以在「设置 → 数据」里查看位置。` }
+  }
 }
+
+export interface StartupNotice { kind: 'recovered' | 'failed'; message: string }
+let startupNotice: StartupNotice | null = null
+/** 启动时数据库恢复的结果（没有就是 null）：渲染端用它给老师一个明确的提示 */
+export const getStartupNotice = (): StartupNotice | null => startupNotice
+
+/** 从 from 版本升级到最新（每一步一个事务）。数据包导入时对旧版本的数据包副本也用它 */
+export function runMigrations(target: any, from: number): void {
+  for (let v = from; v < MIGRATIONS.length; v++) {
+    console.log(`[db] 执行迁移 v${v} → v${v + 1}`)
+    target.exec('BEGIN')
+    try {
+      MIGRATIONS[v](target)
+      target.exec(`PRAGMA user_version = ${v + 1}`)
+      target.exec('COMMIT')
+    } catch (e) {
+      target.exec('ROLLBACK')
+      throw new Error(`迁移 v${v}→v${v + 1} 失败: ${(e as Error).message}`)
+    }
+  }
+}
+
+export const LATEST_SCHEMA = MIGRATIONS.length
 
 export function closeDatabase(): void {
   if (db) {

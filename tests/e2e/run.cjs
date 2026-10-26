@@ -120,7 +120,7 @@ async function main() {
   dbm.close()
   const L1 = legacyRows.find(r => r.id.startsWith('1111'))
   const L2 = legacyRows.find(r => r.id.startsWith('2222'))
-  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v8（M2 新增 v5、M3 新增 v6、v7、v8）', uv === 8, `user_version=${uv}`)
+  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v9（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9）', uv === 9, `user_version=${uv}`)
   check('迁移', '新增列与附件表齐全，旧数据保留',
     ['text', 'ocr_conf', 'ocr_error', 'text_layer_chars'].every(c => pageCols.includes(c)) &&
     ['extracted_at', 'warning', 'duplicate_of'].every(c => paperCols.includes(c)) && hasAssets && legacyPages.c === 1,
@@ -435,7 +435,7 @@ async function main() {
   check('崩溃恢复', `提取中被强杀（kill -9，杀前状态=${statusBeforeKill}）后重启，不再卡在「提取中」`,
     !!inFlight && afterKill?.status === 'failed' && /中断/.test(afterKill.error || ''), `${afterKill?.status} ${afterKill?.error || ''}`)
   if (afterKill?.status === 'failed') {
-    await page.locator('tr', { hasText: 'kill-me' }).locator('[data-testid=reprocess]').click()
+    await page.locator('tr', { hasText: 'kill-me' }).locator('[data-testid=retry-extract]').click()   // M4 N10：失败卷的重试入口与处理队列统一
     const re = await waitFor(async () => (await listPapers(page)).find(p => p.file_name === 'kill-me.pdf')?.status === 'extracted', 90000)
     check('崩溃恢复', '点「重试」后恢复为已提取', !!re)
   }

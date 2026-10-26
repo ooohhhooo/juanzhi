@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Select, Space, Switch, Tooltip } from 'antd'
-import { useQuery } from '@tanstack/react-query'
+import { Alert, Button, Popconfirm, Segmented, Select, Space, Switch, Tooltip } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 /** 全局筛选条件（总览与分析看板共用）。存在设置里（ui_stats_filter），重启后记住。 */
 const SETTING_KEY = 'ui_stats_filter'
@@ -21,6 +21,7 @@ export function sanitizeFilter(raw: unknown): StatsFilter {
   if (typeof r.region === 'string' && r.region && r.region.length <= 100) f.region = r.region
   if (r.includeReviewing === true) f.includeReviewing = true
   if (r.includeDuplicates === true) f.includeDuplicates = true
+  if (r.sample === true) f.sample = true   // 只看示例数据（M4）
   return f
 }
 
@@ -44,7 +45,7 @@ export function StatsFilterProvider({ children }: { children: React.ReactNode })
     // 免得重启后忘了自己上次打开过它们、看着不对的数字。维度筛选（年级等）照常记住。
     window.api.settings.get(SETTING_KEY).then(v => {
       if (!alive) return
-      const { includeReviewing: _a, includeDuplicates: _b, ...dims } = sanitizeFilter(v)
+      const { includeReviewing: _a, includeDuplicates: _b, ...dims } = sanitizeFilter(v)   // sample 随维度一起记住：重启后仍停在示例数据（它不会改变任何真实数据的统计）
       setFilter(dims); latest.current = dims; setReady(true)
     }, () => { if (alive) setReady(true) })
     return () => { alive = false }
@@ -61,7 +62,8 @@ export function StatsFilterProvider({ children }: { children: React.ReactNode })
   }, [persist])
   const reset = useCallback(() => {
     // 清除维度筛选，但保留两个「计入范围」开关——它们不是筛选条件，不该被「清除筛选」悄悄关掉
-    const keep = sanitizeFilter({ includeReviewing: latest.current.includeReviewing, includeDuplicates: latest.current.includeDuplicates })
+    // 「示例数据 / 真实数据」也是范围开关，不是筛选条件，同样不该被「清除筛选」悄悄切换
+    const keep = sanitizeFilter({ includeReviewing: latest.current.includeReviewing, includeDuplicates: latest.current.includeDuplicates, sample: latest.current.sample })
     latest.current = keep; setFilter(keep); persist(keep)
   }, [persist])
 
@@ -88,13 +90,18 @@ export const filterLabel = (f: StatsFilter): string => {
 
 export default function FilterBar() {
   const { filter, set, reset } = useStatsFilter()
-  const { data: opts } = useQuery({ queryKey: ['stats', 'filterOptions', !!filter.includeReviewing], queryFn: () => window.api.stats.filterOptions({ includeReviewing: filter.includeReviewing }), staleTime: 10_000 })
+  const qc = useQueryClient()
+  const { data: sampleSt, isFetching: sampleFetching } = useQuery({ queryKey: ['data', 'sample'], queryFn: () => window.api.data.sampleStatus(), staleTime: 5_000 })
+  // 示例数据被清除了，筛选里却还停在"示例数据"：自动切回真实数据，免得看到一个空看板还不知道为什么
+  // （正在重新取数时不判断：刚加载完示例数据、缓存里还是旧的"没有示例数据"，不能据此把筛选切回去）
+  useEffect(() => { if (sampleSt && !sampleFetching && !sampleSt.loaded && filter.sample) set({ sample: false }) }, [sampleSt?.loaded, sampleFetching, filter.sample])
+  const { data: opts } = useQuery({ queryKey: ['stats', 'filterOptions', !!filter.includeReviewing, !!filter.sample], queryFn: () => window.api.stats.filterOptions({ includeReviewing: filter.includeReviewing, sample: filter.sample }), staleTime: 10_000 })
   const { data: notes } = useQuery({ queryKey: ['stats', 'notes', filter], queryFn: () => window.api.stats.notes(filter) })
   const w = 108
   const sel = (testid: string, placeholder: string, value: unknown, options: Array<{ value: any; label: string }>, key: keyof StatsFilter, width = w) => (
     <Select data-testid={testid} placeholder={placeholder} allowClear value={value as any} style={{ width }} options={options} onChange={v => set({ [key]: v })} popupMatchSelectWidth={false} />
   )
-  const any = Object.keys(filter).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates')
+  const any = Object.keys(filter).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample')
   const pending = notes?.reviewing ?? 0
   const counted = notes?.reviewingCounted ?? 0
   const superseded = notes?.reviewingSuperseded ?? 0
@@ -109,6 +116,12 @@ export default function FilterBar() {
         {sel('filter-textbook', '教材', filter.textbook, (opts?.textbooks ?? []).map(t => ({ value: t, label: t })), 'textbook', 130)}
         {sel('filter-region', '地区', filter.region, (opts?.regions ?? []).map(t => ({ value: t, label: t })), 'region', 110)}
         <Button size="small" data-testid="filter-reset" disabled={!any} onClick={reset}>清除筛选</Button>
+        {sampleSt?.loaded && (
+          <Tooltip title="示例数据是内置的合成演示卷，和你的真实数据分开统计、互不混淆。">
+            <Segmented size="small" data-testid="filter-dataset" value={filter.sample ? 'sample' : 'real'} onChange={v => set({ sample: v === 'sample' })}
+              options={[{ label: '真实数据', value: 'real' }, { label: '示例数据', value: 'sample' }]} />
+          </Tooltip>
+        )}
         <span style={{ borderLeft: '1px solid #eee', height: 20 }} />
         <Tooltip title="默认只统计老师已确认（已完成）的试卷。打开后，AI 解析完但还没确认的试卷也会计入，数字可能随审核变化。">
           <span><Switch size="small" data-testid="filter-reviewing" checked={!!filter.includeReviewing} onChange={v => set({ includeReviewing: v })} /> <span style={{ fontSize: 12 }}>含待审核{pending > 0 ? `（${pending} 份）` : ''}</span></span>
@@ -117,6 +130,15 @@ export default function FilterBar() {
           <span><Switch size="small" data-testid="filter-dup" checked={!!filter.includeDuplicates} onChange={v => set({ includeDuplicates: v })} /> <span style={{ fontSize: 12 }}>包含重复导入（会重复计数）</span></span>
         </Tooltip>
       </Space>
+      {filter.sample && (
+        <Alert data-testid="sample-banner" type="info" showIcon style={{ marginTop: 8, padding: '4px 12px' }}
+          message={<span><b>当前看的是示例数据</b>（内置的合成演示卷，不是任何真实考情）。它不会混进你的真实数据的统计。
+            <a style={{ marginLeft: 8 }} data-testid="sample-back" onClick={() => set({ sample: false })}>切回真实数据</a>
+            <Popconfirm title="清除全部示例数据？" description="示例卷、它们的页面图，以及基于示例数据生成的报告都会删除；你的真实数据不受影响。" okText="清除" cancelText="取消"
+              onConfirm={async () => { await window.api.data.clearSample(); qc.setQueryData(['data', 'sample'], { loaded: false, papers: 0, questions: 0 }); set({ sample: false }); qc.invalidateQueries({ queryKey: ['data'] }) }}>
+              <a style={{ marginLeft: 12 }} data-testid="sample-clear">清除示例数据</a>
+            </Popconfirm></span>} />
+      )}
       {filter.includeReviewing && (
         <Alert data-testid="reviewing-banner" type="warning" showIcon style={{ marginTop: 8, padding: '4px 12px' }}
           message={<span><b>当前统计包含尚未确认的 AI 结果</b>（{counted} 份待审核的试卷已计入{superseded > 0 ? `；另有 ${superseded} 份待审核的卷子因同一文件已有别的代表卷（比如已确认的副本）而没有重复计入` : ''}）。这些数字可能随审核修改而变化，定稿前请先把试卷审核确认。</span>} />

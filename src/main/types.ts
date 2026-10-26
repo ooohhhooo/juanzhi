@@ -55,6 +55,8 @@ export interface Paper {
   extracted_at: string | null
   warning: string | null
   duplicate_of: string | null
+  /** 示例数据（M4）：不参与真实数据的统计 */
+  is_sample?: number
 }
 
 export interface PageRecord {
