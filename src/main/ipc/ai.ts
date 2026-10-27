@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { z } from 'zod'
 import { getDb } from '../db'
-import { PROVIDER_PRESETS } from '../ai/providers'
+import { PROVIDER_PRESETS, modelProfile } from '../ai/providers'
 import { AiConfigSchema, PROMPT_IDS } from '../ai/types'
 import { configView, saveConfig, testConnection } from '../ai/config'
 import { promptViews, savePrompt, resetPrompt, PROMPT_DEFAULT_VERSION } from '../ai/prompts'
@@ -11,7 +11,9 @@ const PromptIdSchema = z.enum(PROMPT_IDS)
 const PartSchema = z.enum(['system', 'user'])
 
 export function registerAiIpc(): void {
-  ipcMain.handle('ai:presets', async () => PROVIDER_PRESETS)
+  // 每个预设带上各模型的档案（是不是推理模型、默认输出上限、天花板），设置页「自动」模式据此说明
+  ipcMain.handle('ai:presets', async () => PROVIDER_PRESETS.map(p => ({ ...p, profiles: Object.fromEntries([...new Set([p.model, p.visionModel, ...p.models].filter(Boolean))].map(m => [m, modelProfile(m)])) })))
+  ipcMain.handle('ai:modelProfile', async (_e, raw: unknown) => modelProfile(z.string().max(120).parse(raw)))
 
   // 渲染端只能拿到 hasKey，拿不到密钥本身
   ipcMain.handle('ai:getConfig', async () => configView())

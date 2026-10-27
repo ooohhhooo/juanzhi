@@ -9,7 +9,8 @@
  * 纯函数模块：数据库类通过 openDb 参数传入，迁移通过 migrate 参数传入，单测直接加载。
  */
 import { PackError } from './errors.ts'
-import { flatKpText, validateKpRows } from './kp-rules.ts'
+import { flatKpText, validateKpRows, KP_PLAIN_FIELDS } from './kp-rules.ts'
+import { looksLikeCode, UNNAMED_KP } from '../../shared/code-guard.ts'
 import { UUID_RE } from './names.ts'
 
 export type OpenDb = (file: string, opts?: { readOnly?: boolean }) => any
@@ -119,12 +120,25 @@ export function prepareStagedDb(dbPath: string, deps: { openDb: OpenDb; migrate:
       const upd = db.prepare('UPDATE kps SET name = ?, note = ? WHERE code = ?')
       for (const k of db.prepare('SELECT code, name, note FROM kps').all() as any[]) {
         if (typeof k.name !== 'string' || (k.note != null && typeof k.note !== 'string')) continue   // 类型不对的交给下面的严格校验去拒绝
-        const name = flatKpText(k.name)
+        const flatName = flatKpText(k.name)
+        const name = looksLikeCode(flatName) ? UNNAMED_KP : flatName   // 只改「名称就是代码」的；空名称仍由校验拒绝。 旧数据包里名称可能就是代码（旧版本的 bug）：换成「待命名的考点」
         const note = k.note == null ? null : flatKpText(k.note)
         if (name !== k.name || (note ?? null) !== (k.note ?? null)) { upd.run(name, note, k.code); kpTextFolded++ }
       }
     }
-    validateKpRows(db.prepare('SELECT code, parent_code, name, level, intro_grade, note FROM kps').all() as any[])
+    // 白话释义 / 例句 / 例词（M6 新增的列；旧版本的包升级后这四列是空的）：同样折成一行、超长截断，不合格的字符不进库
+    {
+      const sel = db.prepare(`SELECT code, ${KP_PLAIN_FIELDS.map(f => f[0]).join(', ')} FROM kps`).all() as any[]
+      for (const k of sel) {
+        for (const [f, max] of KP_PLAIN_FIELDS) {
+          const v = k[f]
+          if (v == null || typeof v !== 'string') { if (v != null) db.prepare(`UPDATE kps SET ${f} = NULL WHERE code = ?`).run(k.code); continue }
+          const t = flatKpText(v).slice(0, max)
+          if (t !== v) db.prepare(`UPDATE kps SET ${f} = ? WHERE code = ?`).run(t || null, k.code)
+        }
+      }
+    }
+    validateKpRows(db.prepare(`SELECT code, parent_code, name, level, intro_grade, note, ${KP_PLAIN_FIELDS.map(f => f[0]).join(', ')} FROM kps`).all() as any[])
     const fk = db.prepare('PRAGMA foreign_key_check').all() as any[]
     if (fk.length) throw new PackError('bad_content', `数据包里的数据有 ${fk.length} 处引用不存在的记录（例如题目指向不存在的试卷），已拒绝导入`)
     const pages = count('SELECT COUNT(*) c FROM pages')

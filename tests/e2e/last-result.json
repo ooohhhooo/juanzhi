@@ -1,9 +1,9 @@
 [
   {
     "feature": "迁移",
-    "name": "旧库(user_version=0)启动后升级到最新版本 v9（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9）",
+    "name": "旧库(user_version=0)启动后升级到最新版本 v10（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10）",
     "pass": true,
-    "detail": "user_version=9"
+    "detail": "user_version=10"
   },
   {
     "feature": "迁移",
@@ -27,7 +27,7 @@
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-zdmvtC/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-9NRFMV/userData/workbench-data"
   },
   {
     "feature": "CSP",
@@ -93,7 +93,7 @@
     "feature": "OCR 叠加",
     "name": "PDF 文本页打开叠加层，画出真实坐标行框",
     "pass": true,
-    "detail": "29 个框"
+    "detail": "31 个框"
   },
   {
     "feature": "导航拦截",
@@ -147,7 +147,7 @@
     "feature": "重复导入",
     "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
     "pass": true,
-    "detail": "duplicate_of=9d3703e7"
+    "detail": "duplicate_of=354e2995"
   },
   {
     "feature": "失败处理",
@@ -291,13 +291,13 @@
     "feature": "OCR 失败原因",
     "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
     "pass": true,
-    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-zdmvtC/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-9NRFMV/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
   },
   {
     "feature": "OCR 失败原因",
     "name": "详情页把失败原因直接展示给用户",
     "pass": true,
-    "detail": "这一页的 OCR 没有成功：找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2"
+    "detail": "易错\n这一页的 OCR 没有成功：找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb"
   },
   {
     "feature": "OCR 状态",

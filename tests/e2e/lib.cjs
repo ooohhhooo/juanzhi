@@ -35,7 +35,7 @@ function withDb(ud, fn) {
   try { return fn(db) } finally { db.close() }
 }
 
-async function launch({ appDir = root, userDataDir, extraEnv = {} }) {
+async function launch({ appDir = root, userDataDir, extraEnv = {}, adminOpen = true }) {
   const env = { ...process.env, EWB_USER_DATA_DIR: userDataDir, ...extraEnv }
   for (const k of ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'all_proxy']) delete env[k]
   const app = await electron.launch({ executablePath: require('electron'), args: [appDir], cwd: appDir, env })
@@ -48,12 +48,17 @@ async function launch({ appDir = root, userDataDir, extraEnv = {} }) {
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
   page.on('pageerror', e => consoleErrors.push(String(e)))
   await page.waitForSelector('[data-testid=dropzone]', { timeout: 30000 })
+  // 设置页的「管理员设置」默认收起；这套测试要操作里面的技术设置（AI 服务、提示词、数据包……），启动后先把它展开。
+  // 默认收起的行为由 run-m6.cjs 单独验证（launch 时传 adminOpen: false）
+  if (adminOpen) await page.evaluate(() => window.api.settings.set('admin_open', true)).catch(() => {})
   return { app, page, consoleErrors }
 }
 
 async function dropFiles(page, paths) {
   await page.evaluate(() => { location.hash = '#/' })
   await page.waitForSelector('[data-testid=dropzone]')
+  // 新外壳里页面在白色画布里滚动：先前的点击可能把拖放区滚出了视口，拖拽事件必须落在可见位置
+  await page.locator('[data-testid=dropzone]').scrollIntoViewIfNeeded()
   await page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 15000 }).catch(() => {})
   const box = await page.locator('[data-testid=dropzone]').boundingBox()
   const cdp = await page.context().newCDPSession(page)
@@ -133,10 +138,10 @@ function buildRealV4Db(dbPath) {
   return db
 }
 
-/** 直接从 docs/prompts/v1-sonnet改写.md 取提示词正文（不经过资源文件），用来证明应用发出的就是文档里的那份 */
+/** 直接从 docs/prompts/v2-分读者与事实核对.md 取提示词正文（不经过资源文件），用来证明应用发出的就是文档里的那份 */
 function docsPrompt(id, part) {
-  const IDS = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report' }
-  const lines = fs.readFileSync(path.join(root, 'docs/prompts/v1-sonnet改写.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
+  const IDS = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }
+  const lines = fs.readFileSync(path.join(root, 'docs/prompts/v2-分读者与事实核对.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
   let cur = null, p = null, inFence = false, buf = []
   for (const line of lines) {
     if (!inFence) {

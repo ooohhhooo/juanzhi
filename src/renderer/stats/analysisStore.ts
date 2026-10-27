@@ -11,7 +11,15 @@ export interface Entry {
   text: string
   refs: CitationRef[]
   message?: string
+  /** 技术详情（给管理员看，收在「查看详情」里） */
+  detail?: string
   code?: string
+  /** 请求开始的时间（界面据此显示「已用 N 秒」） */
+  startedAt: number
+  /** 推理模型正在思考（收到过 thinking 事件、还没开始写正文）*/
+  thinking?: boolean
+  /** 写不完，已自动加大上限重试过（界面提示一句，不需要用户操作） */
+  retried?: boolean
 }
 
 const entries = new Map<string, Entry>()
@@ -20,9 +28,12 @@ const listeners = new Set<() => void>()
 const emit = () => { for (const l of listeners) l() }
 const set = (key: string, e: Entry | null) => { if (e) entries.set(key, e); else entries.delete(key); emit() }
 
-export const scopeKeyOf = (s: CompareScope) => JSON.stringify([s.filter, s.target, s.base, s.level])
+/** 同比分析（CompareScope）和单个考点分析（KpScope，带 code）共用这套进行中状态；key 不会重叠 */
+export type AiScope = CompareScope | KpScope
+const isKp = (s: AiScope): s is KpScope => 'code' in s
+export const scopeKeyOf = (s: AiScope) => isKp(s) ? JSON.stringify(['kp', s.filter, s.code, s.target ?? null, s.base ?? null]) : JSON.stringify([s.filter, s.target, s.base, s.level])
 
-export function useAnalysisEntry(scope: CompareScope): Entry | undefined {
+export function useAnalysisEntry(scope: AiScope): Entry | undefined {
   const key = scopeKeyOf(scope)
   return useSyncExternalStore(cb => { listeners.add(cb); return () => { listeners.delete(cb) } }, () => entries.get(key))
 }
@@ -48,30 +59,32 @@ export function installChunkListener(queryClient: QueryClient): () => void {
     if (ev.type === 'start') set(key, { ...cur, refs: ev.refs })
     else if (ev.type === 'delta') set(key, { ...cur, text: cur.text + ev.text })
     else if (ev.type === 'reset') set(key, { ...cur, text: '' })
+    else if (ev.type === 'thinking') set(key, { ...cur, thinking: true })
+    else if (ev.type === 'retry') set(key, { ...cur, retried: true })
     else if (ev.type === 'cancelled') { byId.delete(ev.id); set(key, { ...cur, status: 'cancelled', text: ev.partial }) }
-    else if (ev.type === 'error') { byId.delete(ev.id); set(key, { ...cur, status: 'error', text: ev.partial, message: ev.message, code: ev.code }) }
+    else if (ev.type === 'error') { byId.delete(ev.id); set(key, { ...cur, status: 'error', text: ev.partial, message: ev.message, detail: ev.detail, code: ev.code }) }
     else if (ev.type === 'done') finishOk(key, ev.id)
   })
   return () => { unsub?.(); unsub = null }
 }
 
-export async function startAnalysis(scope: CompareScope): Promise<void> {
+export async function startAnalysis(scope: AiScope): Promise<void> {
   const key = scopeKeyOf(scope)
   if (entries.get(key)?.status === 'running') return
   const requestId = crypto.randomUUID()
   byId.set(requestId, key)
-  set(key, { requestId, status: 'running', text: '', refs: [] })
+  set(key, { requestId, status: 'running', text: '', refs: [], startedAt: Date.now() })
   try {
     // 流式事件（ai:chunk）与这次调用的返回值走的是两条通道，谁先到不一定：两边都能把状态收尾，而且收尾是幂等的
     // （最终失败/取消时的「已收到的部分内容」也带在返回值里，不会因为事件晚到而丢）
-    const r = await window.api.ai.analyzeCompare(scope, requestId)
+    const r = isKp(scope) ? await window.api.ai.analyzeKp(scope, requestId) : await window.api.ai.analyzeCompare(scope, requestId)
     const cur = entries.get(key)
     if (!cur || cur.requestId !== requestId) return
     if (r.ok) { finishOk(key, requestId); return }
     byId.delete(requestId)
     if (cur.status !== 'running') return          // 事件已经先到并处理过了
     if (r.cancelled) set(key, { ...cur, status: 'cancelled', text: r.partial ?? cur.text })
-    else set(key, { ...cur, status: 'error', text: r.partial ?? cur.text, message: r.message ?? '生成失败', code: r.code })
+    else set(key, { ...cur, status: 'error', text: r.partial ?? cur.text, message: r.message ?? '生成失败', detail: r.detail, code: r.code })
   } catch (e) {
     const cur = entries.get(key)
     byId.delete(requestId)
@@ -79,12 +92,12 @@ export async function startAnalysis(scope: CompareScope): Promise<void> {
   }
 }
 
-export function cancelAnalysis(scope: CompareScope): void {
+export function cancelAnalysis(scope: AiScope): void {
   const cur = entries.get(scopeKeyOf(scope))
   if (cur?.status === 'running') window.api.ai.cancel(cur.requestId).catch(() => { /* 已结束 */ })
 }
 
-export function dismissAnalysis(scope: CompareScope): void {
+export function dismissAnalysis(scope: AiScope): void {
   const key = scopeKeyOf(scope)
   if (entries.get(key)?.status !== 'running') set(key, null)
 }

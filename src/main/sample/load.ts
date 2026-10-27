@@ -106,6 +106,7 @@ export function clearSample(db: any, filesDir: string): { papers: number; report
     db.prepare('DELETE FROM papers WHERE is_sample = 1').run()
     reports = Number(db.prepare(`DELETE FROM reports WHERE filter_json LIKE '%"sample":true%'`).run().changes)
     db.prepare(`DELETE FROM ai_analyses WHERE scope_json LIKE '%"sample":true%'`).run()
+    db.prepare('DELETE FROM ai_drafts').run()   // 未完成草稿的键是范围的哈希，认不出哪些是示例的：草稿本来就是临时的，一起清掉
     db.exec('COMMIT')
   } catch (e) {
     db.exec('ROLLBACK')

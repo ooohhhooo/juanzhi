@@ -1,37 +1,54 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { App, Alert, Button, Dropdown, Progress, Segmented, Space, Table, Tag, Tooltip } from 'antd'
-import { PauseCircleOutlined, PlayCircleOutlined, ReloadOutlined, DownOutlined, StopOutlined, ThunderboltOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { App, Collapse, Dropdown, Segmented, Tooltip } from 'antd'
+import { Ban, Check, ChevronDown, Pause, Play, Upload, X, Zap } from 'lucide-react'
 import { PIPELINE_STEPS, pipelineStep, statusMap } from '../status'
+import { Btn, EmptyState, Icon, IndexTable, Page, StatusLabel, UsageNote, type StatusKind } from '../design'
+import '../design/page-library.css'
 import { useDiscardGuard } from '../hooks/useDiscardGuard'
 import RetryActions from '../components/RetryActions'
+import SimilarNotice from '../components/SimilarNotice'
+import { useAdminOpen } from '../hooks/useUiPrefs'
 
 type View = 'active' | 'attention' | 'all'
 
-/** 四阶段步骤条：已完成 ✓，当前阶段高亮（失败为红 ✕），后面的灰色 */
+/** 四阶段步骤条：已完成 ✓，当前阶段高亮（失败为玫红 ✕），后面的灰色；颜色之外一定有文字 */
 function PipelineSteps({ index, state }: { index: number; state: 'wait' | 'process' | 'finish' | 'error' }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} data-testid="pipeline-steps" data-step={index} data-state={state}>
+    <div className="ewb-lib-stepper" data-testid="pipeline-steps" data-step={index} data-state={state}>
       {PIPELINE_STEPS.map((label, i) => {
         const done = state === 'finish' || i < index
         const cur = !done && i === index
-        const color = cur ? (state === 'error' ? '#cf1322' : state === 'wait' ? '#8c8c8c' : '#1677ff') : done ? '#52c41a' : '#bfbfbf'
+        const s = done ? 'done' : cur ? (state === 'error' ? 'err' : state === 'wait' ? 'wait' : 'cur') : 'todo'
         return (
           <React.Fragment key={label}>
-            {i > 0 && <div style={{ width: 10, height: 1, background: done || cur ? color : '#e0e0e0' }} />}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color, fontSize: 12, whiteSpace: 'nowrap', fontWeight: cur ? 600 : 400 }}>
-              <span style={{ width: 16, height: 16, borderRadius: 8, border: `1px solid ${color}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, background: cur && state !== 'wait' ? color : '#fff', color: cur && state !== 'wait' ? '#fff' : color }}>
-                {done ? <CheckOutlined /> : cur && state === 'error' ? <CloseOutlined /> : i + 1}
+            {i > 0 && <span className="ewb-lib-stepper__bar" aria-hidden />}
+            <span className="ewb-lib-stepper__item" data-s={s}>
+              <span className="ewb-lib-stepper__dot" aria-hidden>
+                {done ? <Icon as={Check} size={11} /> : cur && state === 'error' ? <Icon as={X} size={11} /> : i + 1}
               </span>
               {label}
-            </div>
+            </span>
           </React.Fragment>
         )
       })}
     </div>
   )
 }
+
+/** 运行中的进度：AI 思考时按「已用 / 通常上限」走细条（从不假装完成），其它阶段按百分比 */
+function RunProgress({ message, percent }: { message: string; percent: number }) {
+  const m = /已用 (\d+) 秒/.exec(message)
+  const pct = m ? Math.min(95, (Number(m[1]) / 180) * 100) : Math.min(100, Math.max(0, percent))
+  return (
+    <div className="ewb-lib-progress">
+      <div className="ewb-lib-progress__text">{message}</div>
+      <div className="ewb-thinking__rail" aria-hidden><div className="ewb-thinking__fill" style={{ transform: `scaleX(${pct / 100})` }} /></div>
+    </div>
+  )
+}
+
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 export default function QueuePage() {
@@ -39,6 +56,7 @@ export default function QueuePage() {
   const { message } = App.useApp()
   const discardGuard = useDiscardGuard()
   const queryClient = useQueryClient()
+  const [adminOpen] = useAdminOpen()
   const [view, setView] = useState<View>('active')
   const [extractProg, setExtractProg] = useState<Record<string, JobProgress>>({})
 
@@ -71,33 +89,27 @@ export default function QueuePage() {
 
   const stageMenu = (p: Paper) => ({
     items: [
-      { key: 'ai', label: '重新 AI 解析（沿用已提取的文字）' },
-      { key: 'locate', label: '仅重新定位（沿用上次 AI 结果，不再调用模型）' },
-      { key: 'extract', label: '从头重试（重新提取文字再解析）' }
+      { key: 'ai', label: '重新让 AI 读一遍（沿用已读出的文字）' },
+      { key: 'locate', label: '只重新找题目位置（不再调用 AI）' },
+      { key: 'extract', label: '从头来（重新读取文件，再让 AI 整理）' }
     ],
     onClick: ({ key }: { key: string }) => restart(p, key as 'extract' | 'ai' | 'locate')
   })
 
   const columns = [
     {
-      title: '试卷', dataIndex: 'title', width: 190, ellipsis: true,
+      title: '试卷', dataIndex: 'title', width: 220,
       render: (t: string, p: Paper) => (
-        <div>
-          <a onClick={() => navigate(`/paper/${p.id}`)}>{t || p.file_name}</a>
-          <div style={{ fontSize: 12, color: '#999' }}>{p.file_name}</div>
+        <div className="ewb-lib-papercell">
+          <div className="ewb-lib-papertitle"><a onClick={() => navigate(`/paper/${p.id}`)}>{t || p.file_name}</a><SimilarNotice paper={p} compact /></div>
+          <div className="ewb-lib-file">{p.file_name}</div>
         </div>
       )
     },
     {
-      title: '阶段', width: 370,
+      title: '进度',
       render: (_: unknown, p: Paper) => {
         const s = pipelineStep(p, running.get(p.id)?.stage)
-        return <PipelineSteps index={s.index} state={s.state} />
-      }
-    },
-    {
-      title: '状态', width: 210,
-      render: (_: unknown, p: Paper) => {
         const run = running.get(p.id)
         const ex = extractProg[p.id]
         const tag = statusMap[p.status] ?? { color: 'default', label: p.status }
@@ -105,36 +117,50 @@ export default function QueuePage() {
         if (p.status === 'imported') label = extractWaiting.has(p.id) ? '排队提取' : '排队中'
         if (p.status === 'extracted' && parseWaiting.has(p.id)) label = '排队解析'
         if (p.status === 'extracted' && !parseWaiting.has(p.id)) label = '待解析'
+        const kind: StatusKind = parseWaiting.has(p.id) || p.status === 'imported' ? 'queued'
+          : p.status === 'extracting' || p.status === 'parsing' ? 'working'
+          : p.status === 'extracted' || p.status === 'reviewing' ? 'pending'
+          : p.status === 'done' ? 'done' : p.status === 'failed' ? 'failed' : 'queued'
         return (
-          <div data-testid={`qstate-${p.file_name}`}>
-            <Tag color={parseWaiting.has(p.id) ? 'default' : tag.color}>{label}</Tag>
-            {run && <div style={{ marginTop: 4 }}><Progress size="small" percent={run.progress} status="active" /><div style={{ fontSize: 12, color: '#666' }}>{run.message}</div></div>}
-            {!run && p.status === 'extracting' && ex && <div style={{ marginTop: 4 }}><Progress size="small" percent={ex.progress} status="active" /><div style={{ fontSize: 12, color: '#666' }}>{ex.message}</div></div>}
-            {p.status === 'failed' && p.error && (
-              <Tooltip title={p.error}>
-                <div data-testid="paper-error" style={{ color: '#cf1322', fontSize: 12, marginTop: 4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {p.error_stage === 'parse' ? 'AI 解析失败：' : '提取失败：'}{p.error}
+          <div>
+            <PipelineSteps index={s.index} state={s.state} />
+            <div className="ewb-lib-state" data-testid={`qstate-${p.file_name}`}>
+              <StatusLabel kind={kind}>{label}</StatusLabel>
+              {run && <RunProgress message={run.message} percent={run.progress} />}
+              {!run && p.status === 'extracting' && ex && <RunProgress message={ex.message} percent={ex.progress} />}
+              {p.status === 'failed' && p.error && (
+                <div className="ewb-lib-error">
+                  <UsageNote kind="mistake" title="这份卷子没有处理成功">
+                    <div data-testid="paper-error" className="ewb-lib-error__what">
+                      {p.error_stage === 'parse' ? '' : '读取文件失败：'}{p.error}
+                    </div>
+                    {p.error_stage !== 'parse' && !/重试/.test(p.error) && <p className="ewb-lib-error__next">可以点右边的「重试」重新读取；还不行就换一份更清楚的文件，或请管理员看看。</p>}
+                    {p.error_detail && (
+                      <Collapse ghost size="small" style={{ marginInlineStart: -12 }} items={[{ key: 'd', label: <span className="ewb-lib-sub">查看详情（给管理员看）</span>, children: <div data-testid="paper-error-detail" className="ewb-lib-detail">{p.error_detail}</div> }]} />
+                    )}
+                  </UsageNote>
                 </div>
-              </Tooltip>
-            )}
-            {p.status === 'extracted' && p.warning && <Tooltip title={p.warning}><Tag color="warning" style={{ marginTop: 4 }}>有提取提示</Tag></Tooltip>}
+              )}
+              {(p.status === 'reviewing' || p.status === 'done') && <SimilarNotice paper={p} />}
+              {p.status === 'extracted' && p.warning && <Tooltip title={p.warning}><span className="ewb-lib-tag" tabIndex={0}>有提取提示</span></Tooltip>}
+            </div>
           </div>
         )
       }
     },
     {
-      title: '操作', width: 190,
+      title: '操作', width: 200,
       render: (_: unknown, p: Paper) => {
         const active = parseWaiting.has(p.id) || running.has(p.id)
-        if (active) return <Button size="small" icon={<StopOutlined />} data-testid="cancel-parse" onClick={() => act(() => window.api.parse.cancel(p.id), '已取消')}>取消</Button>
-        if (p.status === 'extracted') return <Button size="small" type="primary" icon={<ThunderboltOutlined />} data-testid="start-parse" onClick={() => start(p.id)}>开始 AI 解析</Button>
+        if (active) return <Btn tone="secondary" size="small" icon={Ban} data-testid="cancel-parse" onClick={() => act(() => window.api.parse.cancel(p.id), '已取消')}>取消</Btn>
+        if (p.status === 'extracted') return <Btn tone="secondary" size="small" icon={Zap} data-testid="start-parse" onClick={() => start(p.id)}>开始 AI 解析</Btn>
         if (p.status === 'failed') return <RetryActions paper={p} />   // 与试卷库同一个组件
         if (p.status === 'reviewing' || p.status === 'done') {
           return (
-            <Space.Compact size="small">
-              <Button size="small" onClick={() => navigate(`/review/${p.id}`)}>{p.status === 'done' ? '查看' : '去审核'}</Button>
-              <Dropdown menu={stageMenu(p)} trigger={['click']}><Button size="small" icon={<DownOutlined />} title="重新解析" /></Dropdown>
-            </Space.Compact>
+            <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+              <Btn tone="secondary" size="small" onClick={() => navigate(`/review/${p.id}`)}>{p.status === 'done' ? '查看' : '去审核'}</Btn>
+              <Dropdown menu={stageMenu(p)} trigger={['click']}><Btn tone="quiet" size="small" icon={ChevronDown} title="重新解析">重新解析</Btn></Dropdown>
+            </span>
           )
         }
         return null
@@ -145,36 +171,44 @@ export default function QueuePage() {
   const totalTokens = usage.reduce((s, u) => s + (u.prompt ?? 0) + (u.completion ?? 0), 0)
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, color: '#1e2952' }}>处理队列</h2>
+    <Page>
+      <div className="ewb-lib-head">
+        <h1 className="ewb-lib-title">处理队列</h1>
         <Segmented value={view} onChange={v => setView(v as View)} options={[
           { label: `进行中 ${nActive}`, value: 'active' }, { label: `需处理 ${nAttention}`, value: 'attention' }, { label: `全部 ${papers.length}`, value: 'all' }
         ]} />
-        <span style={{ color: '#666', fontSize: 13 }}>同时解析 {q?.concurrency ?? 2} 份</span>
-        {usage.length > 0 && <Tooltip title={usage.map(u => `${u.model}：${u.calls} 次，输入 ${u.prompt}（缓存命中 ${u.cached}），输出 ${u.completion}`).join('\n')}><Tag data-testid="usage-total">累计 {totalTokens.toLocaleString()} tokens</Tag></Tooltip>}
-        <div style={{ marginLeft: 'auto' }}>
+        {adminOpen && <span className="ewb-lib-sub">同时解析 {q?.concurrency ?? 2} 份</span>}
+        {adminOpen && usage.length > 0 && <Tooltip title={usage.map(u => `${u.model}：${u.calls} 次，输入 ${u.prompt}（缓存命中 ${u.cached}），输出 ${u.completion}`).join('\n')}><span className="ewb-lib-tag" tabIndex={0} data-testid="usage-total">累计 {totalTokens.toLocaleString()} tokens</span></Tooltip>}
+        <div className="ewb-lib-actions">
           {q?.paused
-            ? <Button type="primary" icon={<PlayCircleOutlined />} data-testid="resume-queue" onClick={() => act(() => window.api.queue.resume(), '已继续')}>继续处理</Button>
-            : <Button icon={<PauseCircleOutlined />} data-testid="pause-queue" onClick={() => act(() => window.api.queue.pause(), '已暂停：正在处理的试卷会做完当前这一步，不再开始新的')}>暂停队列</Button>}
+            ? <Btn tone="primary" icon={Play} data-testid="resume-queue" onClick={() => act(() => window.api.queue.resume(), '已继续')}>继续处理</Btn>
+            : <Btn tone="secondary" icon={Pause} data-testid="pause-queue" onClick={() => act(() => window.api.queue.pause(), '已暂停：正在处理的试卷会做完当前这一步，不再开始新的')}>暂停队列</Btn>}
         </div>
       </div>
-      {q?.paused && <Alert data-testid="paused-banner" type="warning" showIcon style={{ marginBottom: 12 }} message="队列已暂停" description="不会开始新的提取和解析；已经在跑的试卷会继续做完。点右上角「继续处理」恢复。" />}
-      {q && !q.aiReady && <Alert type="info" showIcon style={{ marginBottom: 12 }} message="还没有配置 AI 服务" description={<span>提取完成的试卷会停在「待解析」。到 <a onClick={() => navigate('/settings')}>设置 → AI 服务</a> 填好 Base URL、模型和 API Key 后即可开始解析。</span>} />}
-      <Table dataSource={rows} columns={columns} rowKey="id" loading={isLoading} size="middle" pagination={{ pageSize: 20, showSizeChanger: false }} scroll={{ x: 'max-content' }}
+      {q?.paused && <UsageNote kind="caution" title="队列已暂停" data-testid="paused-banner">不会开始新的提取和解析；已经在跑的试卷会继续做完。点右上角「继续处理」恢复。</UsageNote>}
+      {q && !q.aiReady && <UsageNote kind="tip" title="还没有配置 AI 服务">提取完成的试卷会停在「待解析」。请管理员到 <a onClick={() => navigate('/settings?admin=1')}>设置 → 管理员设置 → AI 服务</a> 连接好 AI 后，就能开始解析了。</UsageNote>}
+      {rows.length === 0 && !isLoading ? (
+        <div data-testid="queue-empty">
+          {view === 'active'
+            ? <EmptyState title="现在没有在处理的试卷" description="导入的试卷会先读出文字，再让 AI 拆题、标上知识点，进度都显示在这一页，不用盯着。" action={<Btn tone="primary" icon={Upload} onClick={() => navigate('/')}>去导入试卷</Btn>} />
+            : <EmptyState title="没有符合条件的试卷" description="换一个上面的分类看看。" />}
+        </div>
+      ) : (
+      <IndexTable dataSource={rows} columns={columns} rowKey="id" loading={isLoading} pagination={{ pageSize: 20, showSizeChanger: false }}
         expandable={{
           showExpandColumn: false, expandRowByClick: true,
           rowExpandable: p => !!(p.prompt_version || p.ai_model || p.error),
           expandedRowRender: p => (
-            <div style={{ fontSize: 12, color: '#666' }}>
-              {p.ai_model && <div>模型：{p.ai_model}</div>}
-              {p.prompt_version && <div>提示词版本：{p.prompt_version}</div>}
+            <div className="ewb-lib-expand">
+              {p.ai_model && <div>AI 模型：{p.ai_model}</div>}
+              {p.prompt_version && <div>AI 整理版本：{p.prompt_version}</div>}
               {p.parsed_at && <div>解析完成：{p.parsed_at}</div>}
-              {p.error && <div style={{ color: '#cf1322', whiteSpace: 'pre-wrap' }}>错误详情：{p.error}</div>}
+              {p.error && <div style={{ color: 'var(--ewb-red-ink)', whiteSpace: 'pre-wrap' }}>失败原因：{p.error}{p.error_detail ? `\n详情：${p.error_detail}` : ''}</div>}
             </div>
           )
         }}
-        locale={{ emptyText: view === 'active' ? '队列是空的。在试卷库导入试卷后会自动出现在这里。' : '没有符合条件的试卷' }} />
-    </div>
+        />
+      )}
+    </Page>
   )
 }

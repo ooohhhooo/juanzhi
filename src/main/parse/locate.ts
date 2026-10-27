@@ -38,6 +38,11 @@ export interface LocateResult {
 }
 
 const PAD = 0.004
+/**
+ * 同一行里挤着两道题时，前一题的右边要比后一题的起点再往回缩一点：后一题自己的框有 PAD 的左留白，
+ * 导出 / 显示截图时每个框四周还会加留白——不缩的话前一题的截图会带出后一题的题号（「16. … 17」）。
+ */
+export const NEIGHBOR_GAP = 0.012
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
 function parseRef(ref: string): { page: number; row: number } | null {
@@ -198,13 +203,13 @@ export function boxFromStart(
 
   if (end && end.row === s.row) {
     // 同一行里挤着多道题：只取起点到下一题起点之间
-    addRow(rows[s.row], s.x, Math.max(end.x, s.x + 0.02))
+    addRow(rows[s.row], s.x, Math.max(end.x - NEIGHBOR_GAP, s.x + 0.02))
   } else {
     addRow(rows[s.row], s.x, right(rows[s.row]))
     const last = end ? (end.offset > 6 ? end.row : end.row - 1) : rows.length - 1
     for (let i = s.row + 1; i <= last && i < rows.length; i++) {
       if (!rows[i].hasCoords) continue
-      if (end && i === end.row) addRow(rows[i], rows[i].x, Math.max(end.x, rows[i].x + 0.02))
+      if (end && i === end.row) addRow(rows[i], rows[i].x, Math.max(end.x - NEIGHBOR_GAP, rows[i].x + 0.02))
       else addRow(rows[i], rows[i].x, right(rows[i]))
     }
   }
@@ -230,7 +235,7 @@ export function boxFromVision(qi: number, questions: MergedQuestion[]): Bbox | n
     const [nx, ny, , nh] = n.anchor
     if (Math.abs(ny - ay) < Math.max(ah, nh) * 0.6 && nx > ax) {
       // 同一行里的下一题：只取到它的左边
-      right = Math.max(ax + 0.03, nx - 0.005)
+      right = Math.max(ax + 0.03, nx - 0.018)   // 后一题的框自己从 nx - 0.01 开始，再留 0.008 的缝
       bottom = Math.min(bottom, ay + Math.max(ah, nh) + PAD)
     } else if (ny > ay) {
       bottom = ny - PAD

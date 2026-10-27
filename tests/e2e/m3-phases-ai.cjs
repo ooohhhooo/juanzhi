@@ -27,7 +27,7 @@ async function runAi(scope = CARD) {
 const waitAi = (status, ms = 40000) => waitFor(async () => (await aiStatus().catch(() => null)) === status, ms)
 const mdText = () => ctx.page.locator(`${CARD} [data-testid=ai-text]`).innerText()
 
-/** 把收到的 user 提示词按 docs 里的模板拆回 12 个占位符的值（拆不回去 = 模板骨架被改了） */
+/** 把收到的 user 提示词按 docs 里的模板拆回 13 个占位符的值（M6 起多一个 EVIDENCE）（拆不回去 = 模板骨架被改了） */
 function parseUser(user) {
   const tpl = docsPrompt('p2_yoy', 'user')
   const names = [...tpl.matchAll(/\{\{([A-Z_]+)\}\}/g)].map(m => m[1])
@@ -54,7 +54,7 @@ async function phaseP2Basic() {
   check('P2 无 AI', '没配 AI：统计照常显示（四栏有数据），AI 区给出引导而不是报错', guide && (await T('col-added').getAttribute('data-count')) === '1' && /还没有配置 AI 服务/.test(await txt('ai-guide')) && (await aiBtn('ai-run').count()) === 0, await txt('ai-guide'))
   await shot('13-ai-guide')
   await T('ai-guide-link').click()
-  check('P2 无 AI', '引导里的链接直接去「设置」', await waitFor(async () => (await page.evaluate(() => location.hash)) === '#/settings', 5000))
+  check('P2 无 AI', '引导里的链接直接去「设置」', await waitFor(async () => (await page.evaluate(() => location.hash)) === '#/settings?admin=1', 5000))
   // 配好 AI（同时验证：在设置里保存后回到看板，不用重载就能看到「生成」按钮）
   await goto('#/dashboard')
   await page.getByRole('tab', { name: '同比' }).click()   // 回到看板默认是「分布」页签
@@ -81,16 +81,16 @@ async function phaseP2Basic() {
   // ── 发给模型的提示词：占位符都由本地统计填入 ──
   const req = mockReqs()[0]
   check('P2 提示词', '只发了 1 次请求，流式（stream=true），模型名与配置一致，带正确的鉴权', mockReqs().length === 1 && req.stream === true && req.model === 'mock-text-model' && req.auth === `Bearer ${SECRET}`, `${mockReqs().length} 次`)
-  check('P2 提示词', 'system 提示词与 docs/prompts/v1-sonnet改写.md 里的 P2 system 逐字一致', req.system === docsPrompt('p2_yoy', 'system'))
+  check('P2 提示词', 'system 提示词与 docs/prompts/v2-分读者与事实核对.md 里的 P2 system 逐字一致', req.system === docsPrompt('p2_yoy', 'system'))
   const v = parseUser(req.user)
-  check('P2 提示词', 'user 提示词的骨架与 docs 里的 P2 user 模板逐字一致，12 个占位符一个不缺（拆得回去）', !!v && Object.keys(v).length === 12, v ? Object.keys(v).join(',') : '拆不回去')
+  check('P2 提示词', 'user 提示词的骨架与 docs 里的 P2 user 模板逐字一致，13 个占位符一个不缺（M6 新增 EVIDENCE，拆得回去）', !!v && Object.keys(v).length === 13, v ? Object.keys(v).join(',') : '拆不回去')
   check('P2 提示词', '没有残留的 {{ }} 占位符', !req.user.includes('{{') && !req.user.includes('}}') && !req.system.includes('{{'))
   const db = withDb(ctx.ud, d => ({ intro: Object.fromEntries(d.prepare('SELECT code, intro_grade FROM kps').all().map(k => [k.code, String(k.intro_grade)])) }))
   const cols = line => line.split(' | ')
   // 手算（见 fixtures-m3.cjs 头部）：目标 2025 四年级 5 份（总分 10+9+7+9+9=44），基线 2023+2024 四年级 6 份
-  check('P2 提示词', '头部占位符 = 手算：四年级 · 按二级知识点统计，并写明学期范围（目标上、下学期，基线已按学期对齐）；目标 2025-2026学年 5 份；基线 2023-2024学年、2024-2025学年 6 份', v && v.FILTER_DESC === '四年级 · 按二级知识点统计 · 学期范围：目标学年 上学期、下学期；基线已按学期对齐，只取 上学期、下学期' && v.TARGET_YEAR === '2025-2026学年' && v.TARGET_PAPERS === '5' && v.BASE_YEARS === '2023-2024学年、2024-2025学年' && v.BASE_PAPERS === '6', v && [v.FILTER_DESC, v.TARGET_YEAR, v.TARGET_PAPERS, v.BASE_YEARS, v.BASE_PAPERS].join(' / '))
+  check('P2 提示词', '头部占位符 = 手算：四年级 · 按二级知识点统计，并写明学期范围（目标上、下学期，基线已按学期对齐）；目标 2025-2026学年 5 份；基线 2023-2024学年、2024-2025学年 6 份', v && v.FILTER_DESC === '四年级 · 按二级知识点统计 · 学期范围：今年 上学期、下学期；去年及以前已按学期对齐，只取 上学期、下学期' && v.TARGET_YEAR === '2025-2026学年' && v.TARGET_PAPERS === '5' && v.BASE_YEARS === '2023-2024学年、2024-2025学年' && v.BASE_PAPERS === '6', v && [v.FILTER_DESC, v.TARGET_YEAR, v.TARGET_PAPERS, v.BASE_YEARS, v.BASE_PAPERS].join(' / '))
   check('P2 提示词', '教材版本分布 = 手算：目标 人教PEP 3 份、外研版 2 份；基线 人教PEP 6 份', v && v.TARGET_TEXTBOOKS === '人教PEP 3 份、外研版 2 份' && v.BASE_TEXTBOOKS === '人教PEP 6 份', v && `${v.TARGET_TEXTBOOKS} | ${v.BASE_TEXTBOOKS}`)
-  check('P2 提示词', '样本提示由程序判定（两侧都 ≥5 份，但基线混入了期中和期末）→ 只提示口径不一致，不是「样本偏小」', v && v.SAMPLE_WARNING === '两侧混入了不同考试类型的试卷，对比时请注意口径不一致；学期范围：目标学年 上学期、下学期；基线已按学期对齐，只取 上学期、下学期。', v && v.SAMPLE_WARNING)
+  check('P2 提示词', '样本提示由程序判定（两侧都 ≥5 份，但基线混入了期中和期末）→ 只提示口径不一致，不是「样本偏小」', v && v.SAMPLE_WARNING === '两侧混入了不同考试类型的试卷，对比时请注意口径不一致；学期范围：今年 上学期、下学期；去年及以前已按学期对齐，只取 上学期、下学期。', v && v.SAMPLE_WARNING)
   const added = v ? cols(v.ADDED.split('\n')[0]) : []
   check('P2 提示词', '新增表 = 手算：一般将来时 | 目标 2/5 份 | 2 题 | 分值占比 9.1%（4 分 ÷ 目标总分 44）；样本题 token 带题型和题干摘要', v && v.ADDED.split('\n').length === 1 && added[0] === 'GR.TENSE.FUT' && added[1] === '一般将来时' && added[2] === db.intro['GR.TENSE.FUT'] && added[3] === '2/5' && added[4] === '2' && added[5] === '9.1%' && /^\[2025学年四年级下期末卷C2 · 1\]（单项选择：3\. A\. skirt B\. dress C\. cold）；\[2025学年四年级上期中卷C5 · 1\]（用所给词的适当形式填空：C5-1 题干）$/.test(added[6]), added.join(' | '))
   const removed = v ? cols(v.REMOVED.split('\n')[0]) : []
@@ -109,7 +109,7 @@ async function phaseP2Basic() {
   const cards = await page.locator(`${CARD} [data-testid=cite-card]`).evaluateAll(els => els.map(e => ({ token: e.dataset.token, qid: e.dataset.qid })))
   check('P2 引用', '输出里的 [试卷标题 · 题号] 引用被渲染成可点击的截图卡片，且每一个都来自提示词里给出的样本题', cards.length >= 1 && cards.every(c => tokens.has(c.token)), `${cards.length} 张`)
   const md = await mdText()
-  check('P2 输出', '输出的数字就是本地统计：新增小节写着「2/5 份卷子出现，2 题，分值占比 9.1%」，且结构是 一～五 五个固定章节', /GR\.TENSE\.FUT｜一般将来时/.test(md) && /2\/5 份卷子出现，2 题，分值占比 9\.1%/.test(md) && ['一、总体变化', '二、新增知识点', '三、消失与下降的知识点', '四、高频考点与易错预警', '五、下学期教学与复习建议'].every(h => md.includes(h)) && !/\[不存在/.test(md), md.slice(0, 80).replace(/\n/g, ' '))
+  check('P2 输出', '输出的数字就是本地统计：新增小节写着「2/5 份卷子出现，2 题，分值占比 9.1%」，标题只写中文名（程序去掉了内部代码），结构是 一～五 五个固定章节', /一般将来时/.test(md) && /2\/5 份卷子出现，2 题，分值占比 9\.1%/.test(md) && ['一、总体变化', '二、新增知识点', '三、消失与下降的知识点', '四、高频考点与易错预警', '五、下学期教学与复习建议'].every(h => md.includes(h)) && !/GR\.TENSE\.FUT/.test(md) && !/\[不存在/.test(md), md.slice(0, 80).replace(/\n/g, ' '))
   // 点引用卡片 → 整页原卷 + 高亮对应的题
   const c2card = page.locator(`${CARD} [data-testid=cite-card][data-qid="${ctx.qids.C2Q1}"]`).first()
   check('P2 引用', '样本题 C2 第 1 题的引用卡片里是按 bbox 裁出的截图', (await c2card.count()) === 1 && (await c2card.locator('[data-mode=crop]').count()) === 1)
@@ -123,7 +123,7 @@ async function phaseP2Basic() {
   // 入库
   const rows = dbAnalyses()
   const usage = withDb(ctx.ud, d => d.prepare("SELECT * FROM ai_usage WHERE kind = 'p2_yoy'").all())
-  check('P2 缓存', 'ai_analyses 里有 1 行：提示词版本 v1.1、数据指纹（64 位）、缓存键、Markdown 与界面一致；ai_usage 记了这次调用', rows.length === 1 && rows[0].prompt_version === 'v1.1' && /^[0-9a-f]{64}$/.test(rows[0].fingerprint) && /^[0-9a-f]{64}$/.test(rows[0].cache_key) && rows[0].markdown.includes('## 五、下学期教学与复习建议') && usage.length === 1 && usage[0].ok === 1 && usage[0].prompt_tokens > 0, `${rows.length} 行 / 用量 ${usage.length}`)
+  check('P2 缓存', 'ai_analyses 里有 1 行：提示词版本 v2.0、数据指纹（64 位）、缓存键、Markdown 与界面一致；ai_usage 记了这次调用', rows.length === 1 && rows[0].prompt_version === 'v2.0' && /^[0-9a-f]{64}$/.test(rows[0].fingerprint) && /^[0-9a-f]{64}$/.test(rows[0].cache_key) && rows[0].markdown.includes('## 五、下学期教学与复习建议') && usage.length === 1 && usage[0].ok === 1 && usage[0].prompt_tokens > 0, `${rows.length} 行 / 用量 ${usage.length}`)
   ctx.cached = rows[0]
 }
 
@@ -134,13 +134,13 @@ async function phaseP2Cache() {
   await page.reload()
   await openCompare()
   const cached = await waitFor(async () => (await aiBtn('ai-cached').count()) > 0, 10000)
-  check('P2 缓存', '重载页面后直接显示已缓存的分析，没有再请求模型', cached && mockReqs().length === before && /GR\.TENSE\.FUT｜一般将来时/.test(await mdText()), `${mockReqs().length} 次`)
+  check('P2 缓存', '重载页面后直接显示已缓存的分析，没有再请求模型', cached && mockReqs().length === before && /一般将来时/.test(await mdText()), `${mockReqs().length} 次`)
   // 抽屉：只显示本知识点的小节
   await T('item-GR.TENSE.FUT').click()
   const dr = T('kp-drawer')
   await dr.locator('[data-testid=ai-text]').waitFor()
   const t1 = await dr.locator('[data-testid=ai-text]').innerText()
-  check('P2 抽屉', '抽屉里的 AI 分析只显示「一般将来时」这一小节（含数据、原因判断、教学建议），不是整篇', /GR\.TENSE\.FUT｜一般将来时/.test(t1) && /数据/.test(t1) && /教学建议/.test(t1) && !/五、下学期教学与复习建议/.test(t1), t1.slice(0, 60).replace(/\n/g, ' '))
+  check('P2 抽屉', '抽屉里的 AI 分析只显示「一般将来时」这一小节（含数据、原因判断、教学建议），不是整篇', /一般将来时/.test(t1) && /数据/.test(t1) && /教学建议/.test(t1) && !/五、下学期教学与复习建议/.test(t1), t1.slice(0, 60).replace(/\n/g, ' '))
   check('P2 抽屉', '抽屉里的引用也是可点的截图卡片', (await dr.locator('[data-testid=cite-card]').count()) >= 1)
   await dr.locator('[data-testid=ai-toggle-full]').click()
   check('P2 抽屉', '点「查看完整分析」展开整篇', /五、下学期教学与复习建议/.test(await dr.locator('[data-testid=ai-text]').innerText()))
@@ -158,14 +158,14 @@ async function phaseP2Cache() {
   await pickOpt('filter-year', '2024-2025')
   await T('compare-year-ignored').waitFor()
   await sleep(1500)
-  check('P2 缓存', '在筛选栏里换学年（同比页不生效）：AI 分析仍是「已缓存」同一份，没有掉回「还没有分析」，也没有新请求', (await aiStatus()) === 'fresh' && /GR\.TENSE\.FUT｜一般将来时/.test(await mdText()) && mockReqs().length === nReq)
+  check('P2 缓存', '在筛选栏里换学年（同比页不生效）：AI 分析仍是「已缓存」同一份，没有掉回「还没有分析」，也没有新请求', (await aiStatus()) === 'fresh' && /一般将来时/.test(await mdText()) && mockReqs().length === nReq)
   await clearSel('filter-year')
   await T('compare-year-ignored').waitFor({ state: 'detached', timeout: 8000 })
   // 另一个范围（基线只看 2024）：没有缓存，不会拿别的范围的结果充数
-  await pickOpt('compare-base', '只看 2024-2025学年')
+  await pickOpt('compare-base', '只和 2024-2025学年 比')
   const none = await waitFor(async () => (await aiStatus()) === 'none', 10000)
   check('P2 缓存', '缓存按范围区分：基线改成只看 2024 学年 → 这个范围还没有分析，显示「生成 AI 分析」', none && /生成 AI 分析/.test(await aiBtn('ai-run').innerText()))
-  await pickOpt('compare-base', '之前的全部学年')
+  await pickOpt('compare-base', '去年及以前的全部学年')
   check('P2 缓存', '切回默认范围，原来的缓存还在', await waitFor(async () => (await aiStatus()) === 'fresh', 10000))
 }
 
@@ -220,7 +220,9 @@ async function phaseP2Faults() {
     if (await dismiss.count()) await dismiss.first().click()
     await runAi()
     const err = await waitFor(async () => (await T('ai-error').count()) > 0, 60000)
-    const text = err ? await txt('ai-error') : ''
+    // 界面上是白话报错，技术原因（「数据流中断」「空内容」……）收在「查看详情」折叠里：连详情一起匹配 want
+    if (err) { await T('ai-error').locator('.ant-collapse-header').first().click().catch(() => undefined); await sleep(300) }
+    const text = err ? `${await txt('ai-error')} ${(await T('ai-error-detail').count()) ? await txt('ai-error-detail') : ''}` : ''
     await sleep(300)
     const ex = await extra()
     const evTypes = await page.evaluate(() => window.__ev.slice(-30).join(','))
@@ -315,7 +317,7 @@ async function phaseP2Stale() {
   // 读状态时的「核对结果」记在缓存行里：数据修订号变了才重新核对，核对完记下新的修订号（之后再读就不用重算）
   const chk = withDb(ctx.ud, d => d.prepare('SELECT a.checked_rev, a.checked_sig, a.checked_json, r.rev FROM ai_analyses a, data_rev r WHERE r.id = 1').get())
   check('P2 过期', '核对结果按数据修订号缓存：缓存行记着核对时的修订号 = 当前修订号，结论是「过期（数据）」，之后再读状态不用重算整套统计', chk.checked_rev === chk.rev && JSON.parse(chk.checked_json).fresh === false && JSON.parse(chk.checked_json).reasons.includes('data') && !!chk.checked_sig, JSON.stringify(chk).slice(0, 160))
-  const w4 = await waitFor(async () => (await T('sample-warning').count()) > 0 && /目标学年只有 4 份/.test(await txt('sample-warning')), 10000)
+  const w4 = await waitFor(async () => (await T('sample-warning').count()) > 0 && /今年只有 4 份/.test(await txt('sample-warning')), 10000)
   check('同比', '目标学年恰好 4 份（C2 离开后）→ 立刻出现「样本有限」；边界：4 份有限、5 份不限', w4 && (await T('col-added').getAttribute('data-count')) === '1', w4 ? await txt('sample-warning') : '')
   await shot('19-ai-stale')
   await sleep(2500)
@@ -332,7 +334,7 @@ async function phaseP2Stale() {
   const sys = (await page.evaluate(() => window.api.ai.prompts())).items.find(p => p.id === 'p2_yoy' && p.part === 'system').text
   await page.evaluate(t => window.api.ai.savePrompt('p2_yoy', 'system', t), sys + '\n（E2E：追加一行）')
   const staleP = await waitFor(async () => (await T('ai-stale').count()) > 0, 15000)
-  check('P2 过期', '改了 P2 提示词：缓存标「已过期」，原因是「提示词变了」，同样不自动重算', staleP && /提示词变了/.test(await txt('ai-stale')) && !/统计数据/.test(await txt('ai-stale')) && mockReqs().length === n0 + 1, staleP ? await txt('ai-stale') : '')
+  check('P2 过期', '改了 P2 提示词：缓存标「已过期」，原因是「AI 的写作要求有更新」，同样不自动重算', staleP && /写作要求有更新/.test(await txt('ai-stale')) && !/统计数据/.test(await txt('ai-stale')) && mockReqs().length === n0 + 1, staleP ? await txt('ai-stale') : '')
   await page.evaluate(() => window.api.ai.resetPrompt('p2_yoy', 'system'))
   check('P2 过期', '恢复默认提示词后，缓存键与已存的一致，又变回「已缓存」', await waitFor(async () => (await aiBtn('ai-cached').count()) > 0 && (await T('ai-stale').count()) === 0, 15000))
   // P2 提示词被改坏（占位符拼错）：不把 {{XXX}} 原样发给模型；界面说明原因，统计和旧缓存照常显示
@@ -374,12 +376,15 @@ async function phaseHot() {
   const past = got.find(x => x[0] === 'GR.TENSE.PAST')
   // 手算：出现率 7/11，分值占比 14/97（7 道主知识点题×2 分；C1 第 4 题的次知识点不加分值），易错率 2/8（题数 8 含那道次知识点题）→ 7/11 × 14/97 × (1 + 2/8)
   check('重难点', '手算校验「一般过去时」综合得分 = 7/11 × 14/97 × (1+2/8) ≈ 0.1148（次知识点题只增加题数，不增加分值）', Math.abs(past[1] - (7 / 11) * (14 / 97) * (1 + 2 / 8)) < 1e-9, String(past[1]))
-  check('重难点', '页面写明排序公式；难度、易错标「估计」', /综合得分 = 出现率 × 分值占比 × \(1 \+ 1\.0 × 易错率\)/.test(await txt('hot-formula')) && (await T('hot-table').locator('[data-testid=est-tag]').count()) >= 2)
+  await T('hot-how').locator('.ant-collapse-header').first().click()   // 公式折叠在「怎么算的」里：先展开再读
+  await sleep(400)
+  check('重难点', '页面写明排序公式（折叠在「怎么算的」里）；难度、易错标「估计」', /综合得分 = 出现率 × 分值占比 × \(1 \+ 1\.0 × 易错率\)/.test(await txt('hot-formula')) && (await T('hot-table').locator('[data-testid=est-tag]').count()) >= 2)
   await T('hot-row-GR.TENSE.PAST').locator('.ant-table-row-expand-icon').click()
   await T('hot-detail-GR.TENSE.PAST').waitFor()
   const detail = await txt('hot-detail-GR.TENSE.PAST')
-  check('重难点', '展开：易错原因「规则变化加-ed ×2」（手算 A1Q3、C1Q1）与 3 道典型题（易错优先）', /规则变化加-ed ×2/.test(detail) && (await T('hot-detail-GR.TENSE.PAST').locator('[data-testid=question-card]').count()) === 3 && /易错原因（估计）：规则变化加-ed/.test(detail), detail.slice(0, 80))
-  const row = await txt('hot-row-GR.TENSE.PAST')
+  check('重难点', '展开：易错原因「规则变化加-ed ×2」（手算 A1Q3、C1Q1）与 3 道典型题（易错优先）', /规则变化加-ed ×2/.test(detail) && (await T('hot-detail-GR.TENSE.PAST').locator('[data-testid=question-card]').count()) === 3 && /为什么容易错（估计）：规则变化加-ed/.test(detail), detail.slice(0, 80))
+  // 行里写白话（「十一份卷子里有七份考了」），原始数字放在悬停说明里：连悬停说明一起读
+  const row = await T('hot-row-GR.TENSE.PAST').evaluate(e => e.innerText.replace(/\s+/g, ' ') + ' ' + [...e.querySelectorAll('[title]')].map(x => x.title).join(' '))
   check('重难点', '「一般过去时」行：出现率 7/11 份 · 63.6%，易错率 2/8 · 25%', /7\/11 份 · 63\.6%/.test(row) && /2\/8 · 25%/.test(row), row)
   await shot('20-hot')
   await T('hot-level').getByText('三级知识点').click()

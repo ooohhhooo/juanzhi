@@ -1,0 +1,98 @@
+/* 试卷库 / 处理队列 / 试卷详情 / 帮助 / 指南 / 引导 的页面样式（类名前缀 ewb-lib-）。颜色只用 --ewb-* 变量。 */
+
+/* 页头：标题 + 右侧操作 */
+.ewb-lib-head { display: flex; align-items: center; gap: var(--ewb-sp-4); flex-wrap: wrap; margin-bottom: var(--ewb-sp-5); }
+.ewb-lib-title { margin: 0; font-size: var(--ewb-fs-h2); line-height: 1.25; font-weight: 700; color: var(--ewb-ink); }
+.ewb-lib-actions { margin-left: auto; display: flex; align-items: center; gap: var(--ewb-sp-2); flex-wrap: wrap; }
+.ewb-lib-sub { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+
+/* 小胶囊：示例标记、AI 猜的 */
+.ewb-lib-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border: 1px solid var(--ewb-line-strong); border-radius: var(--ewb-r-pill); font-size: var(--ewb-fs-xs); font-weight: 600; line-height: 1; color: var(--ewb-ink-2); white-space: nowrap; vertical-align: middle; }
+.ewb-lib-guess { display: inline; height: auto; padding: 0; margin-inline-start: 6px; border: 0; border-bottom: 1px dashed var(--ewb-line-strong); border-radius: 0; background: none; color: var(--ewb-ink-2); font-size: var(--ewb-fs-xs); font-weight: 500; line-height: 1.4; white-space: nowrap; vertical-align: baseline; cursor: help; }
+
+/* 索引表里的试卷格：标题加粗 + 一行次要信息 */
+.ewb-lib-papercell { min-width: 0; }
+.ewb-lib-papertitle { font-weight: 700; font-size: var(--ewb-fs-md); line-height: 1.45; }
+.ewb-lib-papertitle a { color: var(--ewb-primary); cursor: pointer; }
+.ewb-lib-papertitle a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ewb-lib-meta { display: flex; flex-wrap: wrap; gap: 2px var(--ewb-sp-3); margin-top: 4px; font-size: var(--ewb-fs-sm); font-weight: 400; color: var(--ewb-ink-2); font-variant-numeric: tabular-nums; }
+.ewb-lib-meta span { white-space: nowrap; }
+.ewb-lib-file { margin-top: 2px; font-size: var(--ewb-fs-xs); font-weight: 400; color: var(--ewb-ink-2); overflow-wrap: anywhere; }
+.ewb-lib-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ewb-lib-danger.ant-btn { color: var(--ewb-red-ink) !important; }
+
+/* 拖放区 */
+.ewb-lib-drop { margin-bottom: var(--ewb-sp-5); padding: var(--ewb-sp-5) var(--ewb-sp-4); text-align: center; border: 1px dashed var(--ewb-line-strong); border-radius: var(--ewb-r-lg); background: var(--ewb-page); cursor: pointer; transition: border-color var(--ewb-t-base) var(--ewb-ease), background-color var(--ewb-t-base) var(--ewb-ease); }
+.ewb-lib-drop:hover, .ewb-lib-drop[data-over="true"] { border-color: var(--ewb-primary); background: var(--ewb-primary-soft); }
+.ewb-lib-drop:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }
+.ewb-lib-drop__icon { color: var(--ewb-primary); line-height: 0; margin-bottom: var(--ewb-sp-2); }
+.ewb-lib-drop__main { margin: 0; font-size: var(--ewb-fs-lg); font-weight: 600; color: var(--ewb-ink); }
+.ewb-lib-drop__sub { margin: 4px 0 0; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+
+/* 步骤面板（角色引导、首次使用）：一个面板里一列步骤 */
+.ewb-lib-guide { margin-bottom: var(--ewb-sp-5); background: var(--ewb-page); border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-lg); }
+.ewb-lib-guide__head { display: flex; align-items: center; gap: var(--ewb-sp-3); flex-wrap: wrap; padding: var(--ewb-sp-2) var(--ewb-sp-4); }
+.ewb-lib-guide__title { margin: 0; font-size: var(--ewb-fs-lg); font-weight: 700; }
+.ewb-lib-guide__tools { margin-left: auto; display: flex; gap: var(--ewb-sp-1); }
+.ewb-lib-guide__intro { margin: 0; padding: 0 var(--ewb-sp-4) var(--ewb-sp-2); font-size: var(--ewb-fs-md); color: var(--ewb-ink-2); }
+.ewb-lib-guide__foot { padding: var(--ewb-sp-3) var(--ewb-sp-5); border-top: 1px solid var(--ewb-line); font-size: var(--ewb-fs-md); color: var(--ewb-ink-2); display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--ewb-sp-1); }
+.ewb-lib-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ewb-lib-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: var(--ewb-sp-2) var(--ewb-sp-3); align-items: start; padding: var(--ewb-sp-3) var(--ewb-sp-4); border-top: 1px solid var(--ewb-line); }
+.ewb-lib-step + .ewb-lib-step { border-left: 1px solid var(--ewb-line); }
+.ewb-lib-step .ewb-lib-step__side { grid-column: 2; justify-content: flex-start; align-self: start; }
+@container ewb-page (max-width: 980px) { .ewb-lib-steps { grid-template-columns: minmax(0, 1fr); } .ewb-lib-step + .ewb-lib-step { border-left: 0; } }
+.ewb-lib-stepn { display: grid; place-items: center; width: 28px; height: 28px; margin-top: 1px; border: 1px solid var(--ewb-primary); border-radius: 50%; font-size: var(--ewb-fs-sm); font-weight: 700; color: var(--ewb-primary); font-variant-numeric: tabular-nums; }
+.ewb-lib-step[data-done="1"] .ewb-lib-stepn { background: var(--ewb-primary); color: var(--ewb-on-primary); }
+.ewb-lib-step__title { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--ewb-sp-2); font-size: var(--ewb-fs-md); font-weight: 700; }
+.ewb-lib-step__text { margin: 4px 0 0; font-size: var(--ewb-fs-md); line-height: 1.6; color: var(--ewb-ink-2); }
+.ewb-lib-step__hint { margin: 4px 0 0; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-lib-step__side { display: flex; gap: var(--ewb-sp-2); flex-wrap: wrap; justify-content: flex-end; align-self: center; }
+.ewb-lib-step__body { margin-top: var(--ewb-sp-2); display: flex; flex-direction: column; align-items: flex-start; gap: var(--ewb-sp-2); }
+
+/* 处理队列：四阶段步骤条 */
+.ewb-lib-stepper { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 4px; }
+.ewb-lib-stepper__item { display: inline-flex; align-items: center; gap: 4px; font-size: var(--ewb-fs-xs); line-height: 1.3; white-space: nowrap; color: var(--ewb-ink-2); }
+.ewb-lib-stepper__dot { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid currentColor; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--ewb-page); color: inherit; }
+.ewb-lib-stepper__bar { width: 10px; height: 1px; background: var(--ewb-line-strong); }
+.ewb-lib-stepper__item[data-s="done"] { color: var(--ewb-ink); }
+.ewb-lib-stepper__item[data-s="done"] .ewb-lib-stepper__dot { background: var(--ewb-ink-2); border-color: var(--ewb-ink-2); color: var(--ewb-page); }
+.ewb-lib-stepper__item[data-s="cur"] { color: var(--ewb-primary); font-weight: 700; }
+.ewb-lib-stepper__item[data-s="cur"] .ewb-lib-stepper__dot { background: var(--ewb-primary); border-color: var(--ewb-primary); color: var(--ewb-on-primary); }
+.ewb-lib-stepper__item[data-s="wait"] { color: var(--ewb-ink-2); font-weight: 600; }
+.ewb-lib-stepper__item[data-s="err"] { color: var(--ewb-red-ink); font-weight: 700; }
+.ewb-lib-stepper__item[data-s="err"] .ewb-lib-stepper__dot { background: var(--ewb-red); border-color: var(--ewb-red); color: var(--ewb-on-red); }
+.ewb-lib-state { margin-top: var(--ewb-sp-2); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.ewb-lib-state .ewb-lib-progress { width: 100%; max-width: 360px; }
+.ewb-lib-progress__text { font-size: var(--ewb-fs-sm); color: var(--ewb-ink); font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+.ewb-lib-error { width: 100%; max-width: 420px; }
+.ewb-lib-error .ewb-note { margin: 14px 0 0; padding: var(--ewb-sp-3) var(--ewb-sp-4); font-size: var(--ewb-fs-sm); }
+.ewb-lib-error__what { margin: 0; font-weight: 600; color: var(--ewb-ink); }
+.ewb-lib-error__next { margin: 4px 0 0; color: var(--ewb-ink-2); }
+.ewb-lib-detail { font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); white-space: pre-wrap; word-break: break-all; }
+.ewb-lib-expand { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+
+/* 试卷详情 */
+.ewb-lib-meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--ewb-sp-3) var(--ewb-sp-5); margin: 0 0 var(--ewb-sp-4); padding: var(--ewb-sp-4) var(--ewb-sp-5); background: var(--ewb-page); border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-lg); }
+.ewb-lib-meta-grid dt { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-lib-meta-grid dd { margin: 2px 0 0; font-size: var(--ewb-fs-md); font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ewb-lib-pages { display: flex; gap: var(--ewb-sp-4); margin-top: var(--ewb-sp-4); align-items: flex-start; }
+.ewb-lib-thumbs { width: 84px; flex: none; display: flex; flex-direction: column; gap: var(--ewb-sp-2); }
+.ewb-lib-thumb { all: unset; box-sizing: border-box; cursor: pointer; display: block; padding: 4px; border: 1px solid var(--ewb-line-strong); border-radius: var(--ewb-r-sm); text-align: center; font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); background: var(--ewb-page); }
+.ewb-lib-thumb:hover { border-color: var(--ewb-primary); }
+.ewb-lib-thumb:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }
+.ewb-lib-thumb[aria-current="true"] { border: 2px solid var(--ewb-primary); padding: 3px; background: var(--ewb-primary-soft); color: var(--ewb-ink); font-weight: 700; }
+.ewb-lib-thumb img { display: block; width: 100%; background: var(--ewb-sheet); }
+.ewb-lib-thumb__ph { padding: 12px 0; color: var(--ewb-ink-2); line-height: 0; }
+.ewb-lib-viewer { flex: 1; min-width: 0; }
+.ewb-lib-viewerbar { display: flex; align-items: center; gap: var(--ewb-sp-3); flex-wrap: wrap; margin-bottom: var(--ewb-sp-2); font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-lib-pageimg { position: relative; display: inline-block; max-width: 100%; }
+.ewb-lib-docx { padding: var(--ewb-sp-4); white-space: pre-wrap; font-size: var(--ewb-fs-md); line-height: 1.8; max-height: 640px; overflow: auto; }
+.ewb-lib-docx img { display: block; max-width: 100%; margin: 8px 0; border: 1px solid var(--ewb-line); background: var(--ewb-sheet); }
+.ewb-lib-notes { display: grid; gap: var(--ewb-sp-1); margin-bottom: var(--ewb-sp-2); }
+
+/* 帮助 / 指南 */
+.ewb-lib-doc { padding-bottom: var(--ewb-sp-6); }
+.ewb-lib-doc__foot { margin-top: var(--ewb-sp-5); display: flex; gap: var(--ewb-sp-2); flex-wrap: wrap; }
+.ewb-lib-formrow { display: flex; flex-wrap: wrap; gap: 0 var(--ewb-sp-3); }
+
+.ewb-lib-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ewb-ink); }

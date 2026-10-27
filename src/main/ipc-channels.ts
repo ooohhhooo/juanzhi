@@ -11,12 +11,12 @@
  * tests/unit/ipc-guard-audit 会列出 ipcMain.handle 的全部通道，要求每个通道要么在 WRITE_CHANNELS，要么在 READONLY_CHANNELS 里。
  */
 export const WRITE_CHANNELS = new Set([
-  'papers:import', 'papers:update', 'papers:remove', 'papers:reprocess',
+  'papers:import', 'papers:update', 'papers:remove', 'papers:reprocess', 'papers:acceptSimilar', 'papers:scanSimilar',
   'parse:start', 'queue:resume',
   'questions:update', 'questions:remove', 'questions:split', 'questions:merge', 'questions:confirmPaper', 'questions:reopen',
   'taxonomy:save', 'taxonomy:approveSuggestion', 'taxonomy:rejectSuggestion',
-  'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:test',   // ai:test 会写 ai_usage（见上）
-   'report:generate', 'report:delete',
+  'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:analyzeKp', 'ai:test',   // ai:test 会写 ai_usage（见上）
+   'report:generate', 'report:delete', 'report:confirm', 'report:removeSentence',   // report:confirm 写 reports.confirmed_at
   'settings:set',   // 写 settings 表（默认教材、界面状态、引导完成……）
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
   'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup'
@@ -27,12 +27,12 @@ export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'pap
 
 /** 只读 / 只改内存状态 / 纯界面动作的通道：重启待定时不拦 */
 export const READONLY_CHANNELS = new Set([
-  'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:prompts', 'ai:usage',
+  'papers:scanSimilarStatus', 'ai:kpAnalysis', 'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:modelProfile', 'ai:prompts', 'ai:usage',
   'app:info', 'app:restart', 'app:takeStartupNotice', 'dialog:openFiles', 'ocr:status',
   'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',
   'questions:list', 'questions:summary', 'queue:pause', 'queue:state',
-  'report:export', 'report:get', 'report:list', 'report:preview',
+  'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:reveal',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示
   'settings:get', 'settings:getDataDir', 'settings:openDataDir',
   'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
   'taxonomy:tree'

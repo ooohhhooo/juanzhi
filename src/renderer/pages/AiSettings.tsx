@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { App, AutoComplete, Alert, Button, Card, Collapse, Form, Input, InputNumber, Select, Space, Switch, Table, Tag, Tooltip } from 'antd'
+import { App, AutoComplete, Collapse, Form, Input, InputNumber, Select, Space, Switch, Table, Tooltip } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Btn, Panel, UsageNote } from '../design'
+import '../design/page-report.css'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
@@ -57,18 +59,17 @@ export default function AiSettings() {
   }
 
   return (
-    <Card title="AI 服务" size="small" style={{ marginBottom: 16 }} data-testid="ai-settings">
-      <Alert type="info" showIcon style={{ marginBottom: 12 }}
-        message="拆题与标注需要一个 OpenAI 兼容的大模型服务。API Key 只保存在本机并加密，界面和日志里都不会再显示它。" />
+    <div className="ewb-set-panel"><Panel title="AI 服务" data-testid="ai-settings">
+      <UsageNote kind="tip">拆题与标注需要一个大模型服务（OpenAI 兼容接口）。API Key 只保存在本机并加密，界面和日志里都不会再显示它。</UsageNote>
       <Form layout="vertical" size="small">
         <Form.Item label="服务商">
           <Select data-testid="ai-provider" value={cfg.provider} onChange={pickProvider} options={presets.map(p => ({ label: p.name, value: p.id }))} />
-          {preset?.keyHint && <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>申请密钥：{preset.keyHint}</div>}
+          {preset?.keyHint && <div className="ewb-set-form-note">申请密钥：{preset.keyHint}</div>}
         </Form.Item>
         <Form.Item label="Base URL" extra="例如 https://api.deepseek.com ；程序会自动补上 /chat/completions">
           <Input data-testid="ai-base-url" value={cfg.base_url} onChange={e => set({ base_url: e.target.value, ...(preset && preset.id !== 'custom' && e.target.value !== preset.baseUrl ? { provider: 'custom' } : {}) })} placeholder="https://…" />
         </Form.Item>
-        {plainHttp && <Alert data-testid="ai-http-warning" type="warning" showIcon style={{ marginBottom: 12 }} message="这个地址用的是不加密的 http：API Key 会在网络上明文传输，建议改用 https（本机/局域网自建服务除外）。" />}
+        {plainHttp && <UsageNote kind="caution" data-testid="ai-http-warning">这个地址用的是不加密的 http：API Key 会在网络上明文传输，建议改用 https（本机/局域网自建服务除外）。</UsageNote>}
         <Space style={{ width: '100%' }} align="start" wrap>
           <Form.Item label="文本模型（拆题、标注）" style={{ width: 280 }}>
             <AutoComplete data-testid="ai-model" style={{ width: '100%' }} value={cfg.model} onChange={v => set({ model: v })} options={(preset?.models ?? []).map(m => ({ value: m }))} placeholder="模型名称" />
@@ -82,7 +83,7 @@ export default function AiSettings() {
           : '还没有设置。'}>
           <Space.Compact style={{ width: '100%' }}>
             <Input.Password data-testid="ai-key" autoComplete="off" value={key} onChange={e => setKey(e.target.value)} placeholder={saved.hasKey ? '●●●●●●●●（已保存，输入新值可替换）' : 'sk-…'} visibilityToggle={false} />
-            {saved.hasKey && <Button danger onClick={() => save(true)}>清除</Button>}
+            {saved.hasKey && <Btn tone="danger" onClick={() => save(true)}>清除</Btn>}
           </Space.Compact>
         </Form.Item>
         <Space size={24} wrap>
@@ -98,36 +99,42 @@ export default function AiSettings() {
             <Space size={24} wrap>
               <Form.Item label="每批最多页数" extra="长卷分批发给模型"><InputNumber min={1} max={10} value={cfg.batch_pages} onChange={v => set({ batch_pages: v ?? 3 })} /></Form.Item>
               <Form.Item label="单次请求超时（秒）"><InputNumber min={2} max={600} value={cfg.timeout_sec} onChange={v => set({ timeout_sec: v ?? 180 })} /></Form.Item>
-              <Form.Item label="输出长度上限（tokens）" extra="服务商限制更小时请调低"><InputNumber min={1000} max={64000} step={1000} value={cfg.max_tokens} onChange={v => set({ max_tokens: v ?? 8192 })} /></Form.Item>
+              <Form.Item label="AI 一次最多写多长" extra={cfg.max_tokens_auto
+                ? '自动（推荐）：按所选模型决定。推理模型（如 deepseek-v4-pro）会先思考再写，思考也占额度，所以给得更大；写不完时程序还会自动加长一次；如果服务商不接受更大的数，会自动降到 8192 再试。'
+                : '手动指定（单位 tokens）。手填的数不会被自动加长；服务商限制更小时请调低；一般建议保持「自动」。'}>
+                <Space>
+                  <Switch data-testid="ai-max-auto" checked={cfg.max_tokens_auto} checkedChildren="自动" unCheckedChildren="手动" onChange={v => set({ max_tokens_auto: v })} />
+                  {!cfg.max_tokens_auto && <InputNumber data-testid="ai-max-tokens" min={1000} max={131072} step={1000} value={cfg.max_tokens} onChange={v => set({ max_tokens: v ?? 8192 })} />}
+                </Space>
+              </Form.Item>
             </Space>
           )
         }]} />
-        <Space wrap>
-          <Button type="primary" loading={saving} data-testid="ai-save" onClick={() => save()}>保存</Button>
-          <Button loading={testing === 'text'} data-testid="ai-test" onClick={() => test('text')}>测试连接</Button>
-          <Button loading={testing === 'vision'} data-testid="ai-test-vision" disabled={!cfg.vision_model.trim()} onClick={() => test('vision')}>测试视觉模型</Button>
+        <Space wrap style={{ marginTop: 12 }}>
+          <Btn tone="primary" loading={saving} data-testid="ai-save" onClick={() => save()}>保存</Btn>
+          <Btn tone="secondary" loading={testing === 'text'} data-testid="ai-test" onClick={() => test('text')}>测试连接</Btn>
+          <Btn tone="secondary" loading={testing === 'vision'} data-testid="ai-test-vision" disabled={!cfg.vision_model.trim()} onClick={() => test('vision')}>测试视觉模型</Btn>
         </Space>
         {result && (
-          <Alert data-testid="ai-test-result" style={{ marginTop: 12 }} type={result.ok ? 'success' : 'error'} showIcon
-            message={`${result.kind === 'vision' ? '视觉模型' : '文本模型'}：${result.ok ? '成功' : '失败'}`} description={result.message} />
+          <UsageNote kind={result.ok ? 'tip' : 'mistake'} label={result.ok ? '成功' : '失败'} data-testid="ai-test-result" title={`${result.kind === 'vision' ? '视觉模型' : '文本模型'}：${result.ok ? '成功' : '失败'}`}>{result.message}</UsageNote>
         )}
       </Form>
-      <div style={{ fontSize: 12, color: '#999', marginTop: 12 }}>
+      <p className="ewb-rep-note" style={{ marginTop: 12 }}>
         模型名称以服务商控制台为准，会随服务商更新。注意：DeepSeek 已在 2026 年 7 月下线 deepseek-chat，请不要再使用。
-      </div>
+      </p>
       {usage.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <b style={{ fontSize: 13 }}>累计 token 用量</b>
+          <b>累计 token 用量</b>
           <Table size="small" pagination={false} rowKey="model" dataSource={usage} style={{ marginTop: 6 }} columns={[
             { title: '模型', dataIndex: 'model' },
             { title: '调用次数', dataIndex: 'calls', width: 90 },
             { title: '输入', dataIndex: 'prompt', width: 100, render: (v: number) => v.toLocaleString() },
             { title: <Tooltip title="命中服务商前缀缓存的输入，通常更便宜">其中缓存命中</Tooltip>, dataIndex: 'cached', width: 120, render: (v: number) => v.toLocaleString() },
             { title: '输出', dataIndex: 'completion', width: 100, render: (v: number) => v.toLocaleString() },
-            { title: '失败', dataIndex: 'failed', width: 70, render: (v: number) => (v ? <Tag color="error">{v}</Tag> : '-') }
+            { title: '失败', dataIndex: 'failed', width: 70, render: (v: number) => (v ? <span className="ewb-set-pill ewb-set-pill--bad" style={{ marginInlineStart: 0 }}>{v}</span> : '-') }
           ]} />
         </div>
       )}
-    </Card>
+    </Panel></div>
   )
 }

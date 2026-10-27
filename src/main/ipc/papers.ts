@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { getDb, getFilesDir } from '../db'
 import { registerImports, reprocessPaper, isQueued } from '../pipeline/queue'
 import { isParseActive } from '../parse/queue'
+import { redetectAfterRemoval } from '../parse/similar'
+import { similarScanStatus, startSimilarScan } from '../similar-runner'
 import { notifyDataChanged } from '../events'
 import { PaperMetaSchema, PaperFilterSchema, ImportOptionsSchema } from '../types'
 import { allowPath } from '../allowedPaths'
@@ -35,7 +37,7 @@ export function registerPaperIpc(): void {
 
   ipcMain.handle('papers:list', async (_event, filter?: unknown) => {
     const db = getDb()
-    let sql = 'SELECT * FROM papers WHERE 1=1'
+    let sql = 'SELECT papers.*, (SELECT s.title FROM papers s WHERE s.id = papers.similar_to) AS similar_title FROM papers WHERE 1=1'
     const params: any[] = []
 
     if (filter) {
@@ -58,8 +60,23 @@ export function registerPaperIpc(): void {
   ipcMain.handle('papers:get', async (_event, rawId: unknown) => {
     const id = UuidSchema.parse(rawId)
     const db = getDb()
-    return db.prepare('SELECT * FROM papers WHERE id = ?').get(id) ?? null
+    return db.prepare('SELECT papers.*, (SELECT s.title FROM papers s WHERE s.id = papers.similar_to) AS similar_title FROM papers WHERE id = ?').get(id) ?? null
   })
+
+  /** 「确实是新卷，计入统计」：老师看过提示后确认这份不是重复卷（以后不再标成疑似重复） */
+  ipcMain.handle('papers:acceptSimilar', async (_event, rawId: unknown) => {
+    const id = UuidSchema.parse(rawId)
+    const r = getDb().prepare("UPDATE papers SET similar_state = 'accepted' WHERE id = ? AND similar_state = 'suspect'").run(id)
+    if (r.changes > 0) notifyDataChanged('papers')
+    return r.changes > 0
+  })
+
+  /**
+   * 「检查重复试卷」：后台对库里已有的卷子（按导入先后）补跑一遍疑似重复检测，不卡界面；老师确认过的不动。
+   * 返回的 Promise 在扫描结束时才完成（按钮可以据此显示「检查中」）；进度走 `similar:progress` 事件，`papers.scanSimilarStatus()` 可随时查询。
+   */
+  ipcMain.handle('papers:scanSimilar', async () => startSimilarScan())
+  ipcMain.handle('papers:scanSimilarStatus', async () => similarScanStatus())
 
   ipcMain.handle('papers:update', async (_event, rawId: unknown, meta: unknown) => {
     const id = UuidSchema.parse(rawId)
@@ -115,6 +132,9 @@ export function registerPaperIpc(): void {
     } catch (e) {
       console.warn(`[papers] 清理文件目录失败: ${(e as Error).message}`)
     }
+
+    // 原来因这份被标成「疑似重复」的卷子，原卷没了：重新判断（可能恢复计入统计）
+    try { redetectAfterRemoval(db, id) } catch (e) { console.warn(`[papers] 重新检查重复卷失败: ${(e as Error).message}`) }
 
     notifyDataChanged('papers', 'pages', 'questions')
     return true

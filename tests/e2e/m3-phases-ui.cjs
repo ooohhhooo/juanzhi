@@ -24,13 +24,21 @@ const saveCfg = (cfg, key) => ctx.page.evaluate(([c, k]) => (k === undefined ? w
 
 const T = id => ctx.page.locator(`[data-testid="${id}"]`)
 const txt = async id => (await T(id).first().innerText()).replace(/\s+/g, ' ').trim()
-const stat = async id => (await ctx.page.locator(`[data-testid="${id}"] .ant-statistic-content-value`).first().innerText()).trim()
+const stat = async id => (await ctx.page.locator(`[data-testid="${id}"]`).first().innerText()).trim()
 const goto = async hash => { await ctx.page.evaluate(h => { location.hash = h }, hash) }
+/** 筛选面板默认收起（顶栏只有一行范围句）：要操作下拉和开关前，先点「修改范围」展开（已展开则不动；展开状态在同一次启动里记住） */
+const openScope = async () => {
+  const b = ctx.page.locator('[data-testid=scope-bar] .ewb-scope__trigger')
+  await b.waitFor({ timeout: 15000 })
+  if ((await b.getAttribute('aria-expanded')) === 'false') { await b.click(); await ctx.page.waitForTimeout(350) }
+}
 const pickOpt = async (testid, optionText) => {
+  if (testid.startsWith('filter-')) await openScope()
   await T(testid).click()
   await ctx.page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option', { hasText: optionText }).first().click()
 }
 const clearSel = async testid => {
+  if (testid.startsWith('filter-')) await openScope()
   await T(testid).hover()
   await T(testid).locator('.ant-select-clear').click({ force: true })
 }
@@ -43,6 +51,7 @@ const setFilter = async (f, hash) => {
   await ctx.page.waitForSelector('[data-testid=dropzone]', { timeout: 30000 }).catch(() => {})
   await goto(hash)
   await T('filter-bar').waitFor()
+  await openScope()
 }
 const near = (a, b, eps = 0.003) => Math.abs(a - b) <= eps
 const fmtPct = v => `${Math.round(v * 1000) / 10}%`
@@ -58,7 +67,7 @@ async function phaseSetup() {
     const idx = d.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map(x => x.name)
     const cols = d.prepare('PRAGMA table_info(ai_analyses)').all().map(x => x.name)
     const trg = d.prepare("SELECT name FROM sqlite_master WHERE type='trigger'").all().map(x => x.name)
-    check('迁移 v8', `全新库升到 v${uv}：v6 的 3 个统计索引与 ai_analyses 缓存表；v7 的数据修订号表与缓存核对列；v8 把 papers / questions / question_kps 的触发器重建成带 WHEN 条件的（共 15 个触发器）`, uv === 9 && trg.filter(n => n.startsWith('trg_rev_')).length === 15 && d.prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_rev_%' AND (name LIKE '%papers%' OR name LIKE '%questions%' OR name LIKE '%question_kps%') AND sql LIKE '%WHEN%'").get().c === 9 && !!d.prepare("SELECT 1 FROM data_rev WHERE id = 1").get() && ['template_sig', 'checked_rev', 'checked_sig', 'checked_json'].every(c => cols.includes(c)) && ['idx_question_kps_kp', 'idx_papers_stats', 'idx_questions_paper_qtype'].every(i => idx.includes(i)) && ['scope_key', 'cache_key', 'prompt_version', 'fingerprint', 'markdown'].every(c => cols.includes(c)), `v${uv}`)
+    check('迁移 v8', `全新库升到 v${uv}：v6 的 3 个统计索引与 ai_analyses 缓存表；v7 的数据修订号表与缓存核对列；v8 把 papers / questions / question_kps 的触发器重建成带 WHEN 条件的（共 15 个触发器）`, uv === 10 && trg.filter(n => n.startsWith('trg_rev_')).length === 15 && d.prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_rev_%' AND (name LIKE '%papers%' OR name LIKE '%questions%' OR name LIKE '%question_kps%') AND sql LIKE '%WHEN%'").get().c === 9 && !!d.prepare("SELECT 1 FROM data_rev WHERE id = 1").get() && ['template_sig', 'checked_rev', 'checked_sig', 'checked_json'].every(c => cols.includes(c)) && ['idx_question_kps_kp', 'idx_papers_stats', 'idx_questions_paper_qtype'].every(i => idx.includes(i)) && ['scope_key', 'cache_key', 'prompt_version', 'fingerprint', 'markdown'].every(c => cols.includes(c)), `v${uv}`)
     ctx.tree = naive.makeTree(d.prepare('SELECT code, parent_code, level, name FROM kps').all())
   })
   // 用真实 Vision OCR 找到页面里第 3 题那一行的位置，作为 C2 第 1 题的定位框（截图位置能和它对照）
@@ -94,7 +103,7 @@ async function phaseOverview() {
   const gotTop = await T('top10').locator('[data-testid^=top-]').evaluateAll(els => els.map(e => [e.dataset.testid.replace('top-', ''), Number(e.dataset.papers), Number(e.dataset.rank)]))
   check('总览', '常考 Top 10（二级知识点）与逐条循环重算的结果一致（含并列时的次序），第 1 名是「细节理解」15/18 份（手算：A×3 B×3 C×5 G1 G4 K1d K2d）', JSON.stringify(gotTop.map(x => [x[0], x[1]])) === JSON.stringify(wantTop) && gotTop[0][0] === 'RD.DETAIL' && gotTop[0][1] === 15 && gotTop.every((x, i) => x[2] === i + 1), JSON.stringify(gotTop.slice(0, 4)))
   // 本学年新增：最新学年 2025，之前所有学年里没出现过的二级知识点只有「一般将来时」（C2、C5、G3 共 3 份，2025 学年共 5+1+1=7 份：C1–C5、G3、H1，H1d 是重复副本不另算）
-  check('总览', '本学年新增知识点：2025-2026 学年只有「一般将来时」3/7 份', (await T('new-this-year').count()) === 1 && (await T('new-GR.TENSE.FUT').count()) === 1 && (await T('new-this-year').locator('[data-testid^=new-G]').count()) === 1 && /一般将来时 3\/7/.test(await txt('new-GR.TENSE.FUT')) && /2025-2026学年/.test(await txt('new-this-year')), await txt('new-this-year'))
+  check('总览', '今年新出现的知识点：2025-2026 学年只有「一般将来时」（3/7 份写在悬停说明里）', (await T('new-this-year').count()) === 1 && (await T('new-GR.TENSE.FUT').count()) === 1 && (await T('new-this-year').locator('[data-testid^=new-G]').count()) === 1 && /一般将来时/.test(await txt('new-GR.TENSE.FUT')) && /2025-2026学年/.test(await txt('new-this-year')), await txt('new-this-year'))
   // 最近导入：按创建时间倒序，包含所有状态
   const wantRecent = SPEC.map((p, i) => [p, i]).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([p]) => ctx.ids[p.key])
   const gotRecent = await T('recent').locator('[data-testid^=recent-]').evaluateAll(els => els.map(e => e.dataset.testid.replace('recent-', '')))
@@ -178,6 +187,7 @@ async function phaseRestart() {
   Object.assign(ctx, r)
   await goto('#/dashboard')
   await T('filter-bar').waitFor()
+  await openScope()
   const okSel = await waitFor(async () => /四年级/.test(await txt('filter-grade')), 10000)
   check('筛选栏', '重启应用后，上次的筛选（年级=四年级）还在筛选栏里', okSel, await txt('filter-grade'))
   check('筛选栏', '但两个「计入范围」开关（含待审核、包含重复导入）每次启动回到关闭——安全的默认是只统计已确认、重复只算一份', (await T('filter-reviewing').getAttribute('aria-checked')) === 'false' && (await T('filter-dup').getAttribute('aria-checked')) === 'false' && (await T('reviewing-banner').count()) === 0)
@@ -225,13 +235,13 @@ async function phaseDistribution() {
   cells = await cellsOf()
   check('treemap', '再下钻到「一般过去时」：规则 8 + 不规则 6（手算），三级是叶子、不能再点', cells.length === 2 && cells.find(c => c.id === 'GR.TENSE.PAST.REG')?.v === 8 && cells.find(c => c.id === 'GR.TENSE.PAST.IRREG')?.v === 6 && cells.every(c => !c.drill), JSON.stringify(cells))
   await shot('05-treemap-drill')
-  await T('treemap-metric').getByText('题数（主知识点）').click()
+  await T('treemap-metric').getByText('题数（主要考的）').click()
   cells = await cellsOf()
   check('treemap', '面积口径切到「题数」：规则 4 题、不规则 3 题（手算）', cells.find(c => c.id === 'GR.TENSE.PAST.REG')?.v === 4 && cells.find(c => c.id === 'GR.TENSE.PAST.IRREG')?.v === 3, JSON.stringify(cells.map(c => [c.id, c.v])))
   await T('crumb-GR.TENSE').click()
   check('treemap', '点面包屑回到上一层', (await cellsOf()).some(c => c.id === 'GR.TENSE.FUT'))
   await T('crumb-root').click()
-  await T('treemap-metric').getByText('分值（主知识点）').click()
+  await T('treemap-metric').getByText('分值（主要考的）').click()
 
   // 考频柱状图（二级，按出现率）
   const wantFreq = [...tbl].filter(([c]) => t.level.get(c) === 2).sort((a, b) => b[1].papers.size / g4.length - a[1].papers.size / g4.length || b[1].qs.size - a[1].qs.size || (a[0] < b[0] ? -1 : 1)).slice(0, 15).map(([c, e]) => [c, e.papers.size])
@@ -261,7 +271,7 @@ async function phaseDistribution() {
   check('双向细目表', '表尾「全部题目合计」= 44 题 / 97 分（手算），不受一道题标多个知识点影响', (await T('matrix').innerText()).replace(/\s+/g, ' ').includes('全部题目合计') && (await page.locator('[data-testid^=matrix-foot-]').evaluateAll(els => els.reduce((s, e) => s + Number(e.dataset.q), 0))) === 44 && (await page.locator('[data-testid^=matrix-foot-]').evaluateAll(els => els.reduce((s, e) => s + Number(e.dataset.score), 0))) === 97)
   // 次知识点的格子：时态 × 阅读选择（C1 第 4 题把一般过去时标成次知识点）显示「仅次知识点」，不是「0 分」
   const sec = T('matrix-cell-GR.TENSE-RD_MC')
-  check('双向细目表', '只作为次知识点的格子写「仅次知识点」而不是 0 分：时态 × 阅读选择 = 1 题', (await sec.count()) === 1 && /1 题 \/ 仅次知识点/.test(await sec.innerText()) && (await sec.getAttribute('data-prim')) === '0', await sec.innerText().catch(() => ''))
+  check('双向细目表', '只是顺带考到的格子写「只是顺带考到」而不是 0 分：时态 × 阅读选择 = 1 题', (await sec.count()) === 1 && /1 题 \/ 只是顺带考到/.test(await sec.innerText()) && (await sec.getAttribute('data-prim')) === '0', await sec.innerText().catch(() => ''))
   await T('matrix-level').getByText('二级知识点').click()
   await waitFor(async () => (await T('matrix').getAttribute('data-level')) === '2', 8000)
   const f2 = await cell('GR.TENSE.PAST', 'FORM'), m2 = await cell('GR.TENSE.PAST', 'MC')
@@ -293,6 +303,8 @@ async function phaseDistribution() {
   // 口径说明
   await T('methodology-btn').click()
   await T('methodology').waitFor()
+  await T('methodology').locator('.ant-collapse-header').first().click()   // 详细说明默认折叠在「想细看？」里：先展开再读
+  await sleep(400)
   const mt = await txt('methodology')
   check('口径说明', '口径说明写清楚了：出现率分母、分值占比分母、向上汇总、主/次知识点只按主知识点计分值、分值缺失、20 个百分点、<5 份样本有限、重难点公式、「估计」、默认只统计已确认、重复导入只算一份、按学期对齐', ['出现率 = 含该知识点的试卷数 ÷ 当前筛选内的试卷数', '分值只按主知识点计', '分值缺失', '向上汇总', '不小于 20 个百分点', '5 份', '综合得分 = 出现率 × 分值占比 × (1 + 1.0 × 易错率)', '估计', '默认只统计状态为「已完成」', '同一个文件导入了多份时，只算一份', '按学期对齐（默认）', '不是考情结论'].every(s => mt.includes(s)))
   await shot('07-methodology')
@@ -306,7 +318,7 @@ async function phaseCompare() {
   await setFilter({ grade: '4' }, '#/dashboard')
   await page.getByRole('tab', { name: '同比' }).click()
   await T('compare-target').waitFor()
-  check('同比', '默认目标学年 = 最新学年 2025-2026，基线 = 之前的全部学年', /2025-2026/.test(await txt('compare-target')) && /之前的全部学年/.test(await txt('compare-base')))
+  check('同比', '默认目标学年 = 最新学年 2025-2026，基线 = 之前的全部学年', /2025-2026/.test(await txt('compare-target')) && /去年及以前的全部学年/.test(await txt('compare-base')))
   await T('col-added').waitFor()
   await waitFor(async () => (await T('col-added').getAttribute('data-count')) === '1', 8000)
   const want = naive.compare(t, { grade: '4' }, 2025, 'before', 2)
@@ -314,8 +326,10 @@ async function phaseCompare() {
   check('同比', '四栏（二级知识点）：新增 1 / 消失 1 / 上升 2 / 下降 1（手算，推导见 fixtures-m3.cjs 头部）', want.added.length === 1 && want.removed.length === 1 && want.up.length === 2 && want.down.length === 1 && await cnt('added') === 1 && await cnt('removed') === 1 && await cnt('up') === 2 && await cnt('down') === 1, [await cnt('added'), await cnt('removed'), await cnt('up'), await cnt('down')].join('/'))
   const codesIn = k => T(`col-${k}`).locator('[data-testid^=item-]').evaluateAll(els => els.map(e => e.dataset.testid.replace('item-', '')))
   check('同比', '各栏内容 = 逐条循环重算：新增=一般将来时；消失=字母与字母组合发音；上升=一般过去时、购物；下降=名词复数', JSON.stringify(await codesIn('added')) === JSON.stringify(['GR.TENSE.FUT']) && JSON.stringify(await codesIn('removed')) === JSON.stringify(['PH.PHONICS']) && JSON.stringify((await codesIn('up')).sort()) === JSON.stringify(['FN.SHOP', 'GR.TENSE.PAST']) && JSON.stringify(await codesIn('down')) === JSON.stringify(['GR.NOUN.PLURAL']) && JSON.stringify(want.up.map(x => x.code).sort()) === JSON.stringify(['FN.SHOP', 'GR.TENSE.PAST']))
-  const pastTxt = await txt('item-GR.TENSE.PAST'), shopTxt = await txt('item-FN.SHOP'), plTxt = await txt('item-GR.NOUN.PLURAL')
-  check('同比', '数字：一般过去时 基线 3/6 → 目标 4/5，+30.0 个百分点；购物 1/6 → 目标 3/5，+43.3（C4 第 4 题把购物标成次知识点，次知识点也计出现率）；名词复数 6/6 → 1/5，−80.0（手算）', /基线 3\/6 → 目标 4\/5/.test(pastTxt) && pastTxt.includes('+30.0 个百分点') && /基线 1\/6 → 目标 3\/5/.test(shopTxt) && shopTxt.includes('+43.3 个百分点') && /基线 6\/6 → 目标 1\/5/.test(plTxt) && plTxt.includes('-80.0 个百分点'), `${pastTxt} | ${shopTxt} | ${plTxt}`)
+  // 卡片上写白话（「比例变高了」），原始数字（3/6 → 4/5、+30.0 个百分点）放在悬停说明里：连悬停说明一起读
+  const withTitles = id => T(id).evaluate(e => e.innerText.replace(/\s+/g, ' ') + ' ' + [...e.querySelectorAll('[title]')].map(x => x.title).join(' '))
+  const pastTxt = await withTitles('item-GR.TENSE.PAST'), shopTxt = await withTitles('item-FN.SHOP'), plTxt = await withTitles('item-GR.NOUN.PLURAL')
+  check('同比', '数字：一般过去时 基线 3/6 → 目标 4/5，+30.0 个百分点；购物 1/6 → 目标 3/5，+43.3（C4 第 4 题把购物标成次知识点，次知识点也计出现率）；名词复数 6/6 → 1/5，−80.0（手算）', /去年及以前 3\/6 份 → 今年 4\/5 份/.test(pastTxt) && /比例变高了/.test(pastTxt) && pastTxt.includes('+30.0 个百分点') && /去年及以前 1\/6 份 → 今年 3\/5 份/.test(shopTxt) && shopTxt.includes('+43.3 个百分点') && /去年及以前 6\/6 份 → 今年 1\/5 份/.test(plTxt) && /比例变低了/.test(plTxt) && plTxt.includes('-80.0 个百分点'), `${pastTxt} | ${shopTxt} | ${plTxt}`)
   check('同比', '「上升」栏按变化幅度排序：购物 +43.3 在 一般过去时 +30.0 之前', JSON.stringify(await codesIn('up')) === JSON.stringify(['FN.SHOP', 'GR.TENSE.PAST']))
   check('同比', '两侧各 ≥5 份（5 与 6）：不显示「样本有限」', (await T('sample-warning').count()) === 0)
   const tb = async (side, name) => Number(await T(`textbooks-${side}-${name}`).getAttribute('data-papers'))
@@ -323,15 +337,15 @@ async function phaseCompare() {
   await shot('08-compare')
 
   // 基线只选 2024 一年（3 份）→ 样本有限
-  await pickOpt('compare-base', '只看 2024-2025学年')
+  await pickOpt('compare-base', '只和 2024-2025学年 比')
   const warnOk = await waitFor(async () => (await T('sample-warning').count()) > 0, 8000)
   const w = warnOk ? await txt('sample-warning') : ''
   const want2 = naive.compare(t, { grade: '4' }, 2025, 2024, 2)
   await waitFor(async () => (await cnt('added')) === want2.added.length, 8000)
-  check('同比', '基线只选 2024 学年（3 份）→ 显示「样本有限：基线只有 3 份卷子」，四栏按新基线重算（新增 ' + want2.added.length + '）', warnOk && /样本有限/.test(w) && /基线只有 3 份/.test(w) && !/目标学年只有/.test(w) && await cnt('added') === want2.added.length && await cnt('removed') === want2.removed.length && await cnt('up') === want2.up.length && await cnt('down') === want2.down.length, w)
+  check('同比', '基线只选 2024 学年（3 份）→ 显示「样本有限：去年及以前只有 3 份卷子」，四栏按新基线重算（新增 ' + want2.added.length + '）', warnOk && /样本有限/.test(w) && /去年及以前只有 3 份/.test(w) && !/今年只有/.test(w) && await cnt('added') === want2.added.length && await cnt('removed') === want2.removed.length && await cnt('up') === want2.up.length && await cnt('down') === want2.down.length, w)
   check('同比', '单一基线时「字母组合发音」不再算消失（它只出现在 2023 学年）', !(await codesIn('removed')).includes('PH.PHONICS'))
   await shot('09-compare-limited')
-  await pickOpt('compare-base', '之前的全部学年')
+  await pickOpt('compare-base', '去年及以前的全部学年')
   await waitFor(async () => (await T('sample-warning').count()) === 0, 8000)
 
   // 层级切到「一级」：向上汇总到一级知识点后重新分类（手算，grade=4）：
@@ -341,23 +355,25 @@ async function phaseCompare() {
   await waitFor(async () => (await codesIn('removed')).includes('PH'), 8000)
   const l1 = { added: await codesIn('added'), removed: await codesIn('removed'), up: await codesIn('up'), down: await codesIn('down') }
   const wantL1 = naive.compare(t, { grade: '4' }, 2025, 'before', 1)
-  check('同比', '层级切到「一级」：向上汇总后重新分类——消失 语音；上升 时态(+50.0)、功能交际(+43.3)；下降 名词；没有新增（手算，且与逐条循环重算一致）', JSON.stringify(l1) === JSON.stringify({ added: [], removed: ['PH'], up: ['GR.TENSE', 'FN'], down: ['GR.NOUN'] }) && JSON.stringify([...wantL1.up.map(x => x.code)].sort()) === JSON.stringify(['FN', 'GR.TENSE']) && /\+50\.0 个百分点/.test(await txt('item-GR.TENSE')) && /\+43\.3 个百分点/.test(await txt('item-FN')), JSON.stringify(l1))
+  check('同比', '层级切到「一级」：向上汇总后重新分类——消失 语音；上升 时态(+50.0)、功能交际(+43.3)；下降 名词；没有新增（手算，且与逐条循环重算一致）', JSON.stringify(l1) === JSON.stringify({ added: [], removed: ['PH'], up: ['GR.TENSE', 'FN'], down: ['GR.NOUN'] }) && JSON.stringify([...wantL1.up.map(x => x.code)].sort()) === JSON.stringify(['FN', 'GR.TENSE']) && /\+50\.0 个百分点/.test(await withTitles('item-GR.TENSE')) && /\+43\.3 个百分点/.test(await withTitles('item-FN')), JSON.stringify(l1))
   await T('compare-level').getByText('二级').click()
   await waitFor(async () => (await codesIn('added')).includes('GR.TENSE.FUT'), 8000)
 
   // 五年级：目标 1 份、基线 2 份 → 两侧都有限
   await T('filter-reset').click()
   await pickOpt('filter-grade', '五年级')
-  const w5 = await waitFor(async () => (await T('sample-warning').count()) > 0 && /目标学年只有 1 份/.test(await txt('sample-warning')), 10000)
-  check('同比', '五年级：目标 1 份、基线 2 份 → 「样本有限」两侧都提示', w5 && /基线只有 2 份/.test(await txt('sample-warning')), w5 ? await txt('sample-warning') : '')
+  const w5 = await waitFor(async () => (await T('sample-warning').count()) > 0 && /今年只有 1 份/.test(await txt('sample-warning')), 10000)
+  check('同比', '五年级：目标 1 份、基线 2 份 → 「样本有限」两侧都提示', w5 && /去年及以前只有 2 份/.test(await txt('sample-warning')), w5 ? await txt('sample-warning') : '')
   // 学期对齐：五年级目标学年（2025）只有下学期的 G3；基线里 2024 学年有下学期的 G1、G2 和上学期的 G4。默认按学期对齐，G4 不参与比较
   const al = await waitFor(async () => (await T('align-note').count()) > 0, 8000)
-  check('同比', '按学期对齐（默认）：目标学年只有下学期 → 基线只取下学期的 G1、G2（2 份），上学期的 G4 不参与，页面说明「另有 1 份其他学期的基线卷子没有参与比较」', al && /另有 1 份其他学期的基线卷子/.test(await txt('align-note')) && (await T('semesters-target-下').getAttribute('data-papers')) === '1' && (await T('semesters-base-下').getAttribute('data-papers')) === '2' && (await T('semesters-base-上').count()) === 0 && naive.compare(t, { grade: '5' }, 2025, 'before', 2).nB === 2, al ? await txt('align-note') : '')
+  check('同比', '按学期对齐（默认）：目标学年只有下学期 → 基线只取下学期的 G1、G2（2 份），上学期的 G4 不参与，页面说明「另有 1 份其他学期的基线卷子没有参与比较」', al && /另有 1 份其他学期的卷子/.test(await txt('align-note')) && (await T('semesters-target-下').getAttribute('data-papers')) === '1' && (await T('semesters-base-下').getAttribute('data-papers')) === '2' && (await T('semesters-base-上').count()) === 0 && naive.compare(t, { grade: '5' }, 2025, 'before', 2).nB === 2, al ? await txt('align-note') : '')
   await T('compare-align').click()
   const off = await waitFor(async () => (await T('align-off').count()) > 0 && (await T('semesters-base-上').count()) === 1, 8000)
-  check('同比', '关掉「按学期对齐」：基线含上、下学期共 3 份，学期分布并排显示；提示「学期构成不一致（目标学年有：下学期；基线有：上学期、下学期）」与「未按学期对齐」', off && /基线只有 3 份/.test(await txt('sample-warning')) && (await T('semesters-base-上').getAttribute('data-papers')) === '1' && /学期构成不一致（目标学年有：下学期；基线有：上学期、下学期）/.test(await txt('mixed-warning')) && naive.compare(t, { grade: '5' }, 2025, 'before', 2, false).nB === 3, off ? await txt('mixed-warning') : '')
+  check('同比', '关掉「按学期对齐」：基线含上、下学期共 3 份，学期分布并排显示；提示「学期构成不一致（目标学年有：下学期；基线有：上学期、下学期）」与「未按学期对齐」', off && /去年及以前只有 3 份/.test(await txt('sample-warning')) && (await T('semesters-base-上').getAttribute('data-papers')) === '1' && /学期构成不一致（今年有：下学期；去年及以前有：上学期、下学期）/.test(await txt('mixed-warning')) && naive.compare(t, { grade: '5' }, 2025, 'before', 2, false).nB === 3, off ? await txt('mixed-warning') : '')
   // 知识点抽屉里的基线题目卡片与表格同源（共用同一个「对齐后的基线范围」）：RD.DETAIL 在对齐时基线 1/2 份，抽屉 1 张卡片；不对齐时基线 2/3 份，抽屉 2 张
   const drawerBase = async () => {
+    // 这一段比的卷子少于 3 份：「新考的 / 没再考的」默认折叠，先点「仍要查看」
+    if (await T('show-few').count()) await T('show-few').click()
     await T('item-RD.DETAIL').click()
     await T('drawer-stats').waitFor()
     await T('kp-drawer').locator('[data-testid=question-card]').first().waitFor()
@@ -369,7 +385,7 @@ async function phaseCompare() {
   await T('compare-align').click()
   await waitFor(async () => (await T('align-off').count()) === 0, 8000)
   const onDrawer = await drawerBase()
-  check('抽屉', '基线卡片与表格同源（复审 P1-B）：对齐时 RD.DETAIL 基线 1/2 份、抽屉 1 张卡片；不对齐时 2/3 份、2 张卡片（修复前对齐时抽屉也是 2 张，与表格对不上）', /基线 .* 2\/3 份/.test(offDrawer.stats) && offDrawer.cards === 2 && /基线 .* 1\/2 份/.test(onDrawer.stats) && onDrawer.cards === 1 && naive.compare(t, { grade: '5' }, 2025, 'before', 2, true).removed.some(x => x.code === 'RD.DETAIL' && x.aB === 1), `${JSON.stringify(offDrawer)} / ${JSON.stringify(onDrawer)}`)
+  check('抽屉', '基线卡片与表格同源（复审 P1-B）：对齐时 RD.DETAIL 基线 1/2 份、抽屉 1 张卡片；不对齐时 2/3 份、2 张卡片（修复前对齐时抽屉也是 2 张，与表格对不上）', /去年及以前.* 2\/3 份/.test(offDrawer.stats) && offDrawer.cards === 2 && /去年及以前.* 1\/2 份/.test(onDrawer.stats) && onDrawer.cards === 1 && naive.compare(t, { grade: '5' }, 2025, 'before', 2, true).removed.some(x => x.code === 'RD.DETAIL' && x.aB === 1), `${JSON.stringify(offDrawer)} / ${JSON.stringify(onDrawer)}`)
   // 全部年级：混入不同年级 → 提示
   await T('filter-reset').click()
   const mixed = await waitFor(async () => (await T('mixed-warning').count()) > 0, 10000)
@@ -404,7 +420,7 @@ async function phaseDrawer() {
   const cards = drawer.locator('[data-testid=question-card]')
   check('抽屉', '点「一般将来时」打开抽屉：目标侧 2 题（C2 第 1 题、C5 第 1 题），易错的 C2 排在前面', (await cards.count()) === 2 && (await cards.nth(0).getAttribute('data-qid')) === ctx.qids.C2Q1 && (await cards.nth(1).getAttribute('data-qid')) === ctx.qids.C5Q1, `${await cards.count()}`)
   const stats = await drawer.locator('[data-testid=drawer-stats]').innerText()
-  check('抽屉', '抽屉里的对比数据：目标 2/5 份 · 40%，基线 0/6 份；目标侧 2 题', /2\/5 份 · 40%/.test(stats) && /0\/6 份 · 0%/.test(stats) && /2 题/.test(stats), stats.replace(/\s+/g, ' '))
+  check('抽屉', '抽屉里的对比数据：目标 2/5 份 · 40%，基线 0/6 份；目标侧 2 题', /2\/5 份卷子有 · 40%/.test(stats) && /0\/6 份卷子有 · 0%/.test(stats) && /2 题/.test(stats), stats.replace(/\s+/g, ' '))
   // 截图位置与 bbox 一致：从 DOM 实测
   const crop = cards.nth(0).locator('[data-testid=crop]')
   const bbox = ctx.bbox
@@ -413,8 +429,10 @@ async function phaseDrawer() {
     const c = el.getBoundingClientRect(), i = el.querySelector('img').getBoundingClientRect()
     return { mode: el.dataset.mode, bbox: JSON.parse(el.dataset.bbox), x: (c.x - i.x) / i.width, y: (c.y - i.y) / i.height, w: c.width / i.width, h: c.height / i.height, cw: c.width, ch: c.height, iw: i.width, ih: i.height }
   })
-  check('抽屉截图', '截图是按 bbox 用 CSS 裁切的：容器相对整页图的 位置/大小 = 库里的 bbox（误差 < 0.3%）', geo.mode === 'crop' && JSON.stringify(geo.bbox) === JSON.stringify(bbox) && near(geo.x, bbox[0]) && near(geo.y, bbox[1]) && near(geo.w, bbox[2]) && near(geo.h, bbox[3]), JSON.stringify({ geo: [geo.x, geo.y, geo.w, geo.h].map(v => Math.round(v * 10000) / 10000), bbox }))
-  check('抽屉截图', '截图容器的宽高比 = bbox 的像素宽高比（没有变形）', near((geo.cw / geo.ch) / ((bbox[2] * ctx.pageSize.width) / (bbox[3] * ctx.pageSize.height)), 1, 0.02), `${(geo.cw / geo.ch).toFixed(3)}`)
+  // M6 返工：框本身已经带着留白（locate + 按页面墨迹修准），裁切不再额外加：容器 = 库里的 bbox
+  const padded = [bbox[0], bbox[1], bbox[2], bbox[3]]
+  check('抽屉截图', '截图是按 bbox 用 CSS 裁切的：容器相对整页图的 位置/大小 = 库里的 bbox（误差 < 0.3%；框本身已带留白）', geo.mode === 'crop' && JSON.stringify(geo.bbox) === JSON.stringify(bbox) && near(geo.x, padded[0]) && near(geo.y, padded[1]) && near(geo.w, padded[2]) && near(geo.h, padded[3]), JSON.stringify({ geo: [geo.x, geo.y, geo.w, geo.h].map(v => Math.round(v * 10000) / 10000), padded }))
+  check('抽屉截图', '截图容器的宽高比 = bbox 的像素宽高比（没有变形）', near((geo.cw / geo.ch) / ((padded[2] * ctx.pageSize.width) / (padded[3] * ctx.pageSize.height)), 1, 0.02), `${(geo.cw / geo.ch).toFixed(3)}`)
   // 像素级核对：把这个截图元素放大后截下来，跑真实 OCR，里面应是第 3 题那一行，不含相邻的第 2、4 题
   const origW = await crop.evaluate(el => { const w = el.style.width; el.style.width = '760px'; return w })
   await sleep(300)
@@ -462,4 +480,4 @@ async function phaseDrawer() {
   await closeDrawer()
 }
 
-module.exports = { setFilter, phaseSetup, phaseOverview, phaseRestart, phaseDistribution, phaseCompare, phaseDrawer, ctx, T, txt, stat, goto, pickOpt, clearSel, waitText, waitStat, near, check, sleep, waitFor, work, shots, shot, SECRET, cfgFor, saveCfg, clean, fmtPct, p2mock, naive, SPEC }
+module.exports = { openScope, setFilter, phaseSetup, phaseOverview, phaseRestart, phaseDistribution, phaseCompare, phaseDrawer, ctx, T, txt, stat, goto, pickOpt, clearSel, waitText, waitStat, near, check, sleep, waitFor, work, shots, shot, SECRET, cfgFor, saveCfg, clean, fmtPct, p2mock, naive, SPEC }

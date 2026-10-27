@@ -6,6 +6,7 @@ import { getDb } from '../db'
 import { notifyDataChanged, sendProgress } from '../events'
 import { loadConfig, isAiReady } from '../ai/config'
 import { AiError } from '../ai/client'
+import { friendlyAiError } from '../ai/friendly'
 import { isQueuePaused, onResume } from '../pipeline/control'
 import { parsePaper, ParseError } from './run'
 import type { FromStage } from './run'
@@ -56,9 +57,11 @@ export function cancelParse(paperId: string): boolean {
   return false
 }
 
-function userMessage(e: unknown): string {
-  if (e instanceof ParseError || e instanceof AiError) return e.message
-  return `解析出错：${(e as Error).message}`
+/** 给用户看的白话原因 + 技术详情（详情收在界面的「查看详情」里，不出现在主文案里） */
+function userMessage(e: unknown): { message: string; detail: string } {
+  if (e instanceof ParseError) return { message: e.message, detail: e.detail }
+  if (e instanceof AiError) return friendlyAiError(e)
+  return { message: '解析时出了点问题，可以点「重试」，多次失败请联系管理员', detail: (e as Error).message }
 }
 
 async function runJob(job: Job): Promise<void> {
@@ -78,13 +81,13 @@ async function runJob(job: Job): Promise<void> {
       db.prepare("UPDATE parse_runs SET status = 'cancelled', finished_at = datetime('now','localtime') WHERE paper_id = ? AND status IN ('running','ai_done')").run(job.paperId)
       sendProgress({ paperId: job.paperId, stage: 'cancelled', progress: 0, message: '已取消' })
     } else {
-      const msg = userMessage(e)
-      console.warn(`[parse] 失败 ${job.paperId}: ${(e as Error).message}`)
+      const { message: msg, detail } = userMessage(e)
+      console.warn(`[parse] 失败 ${job.paperId}: ${(e as Error).message}${detail ? ` | ${detail}` : ''}`)
       const stage = e instanceof ParseError ? e.stage : 'ai'
-      db.prepare("UPDATE papers SET status = 'failed', error = ?, error_stage = 'parse', parse_stage = ? WHERE id = ?").run(msg, stage, job.paperId)
+      db.prepare("UPDATE papers SET status = 'failed', error = ?, error_detail = ?, error_stage = 'parse', parse_stage = ? WHERE id = ?").run(msg, detail.slice(0, 1000) || null, stage, job.paperId)
       // 定位/入库阶段的失败也要把这次运行记为 failed（AI 阶段的失败 run.ts 里已经记过）
       db.prepare("UPDATE parse_runs SET status = 'failed', error = ?, finished_at = datetime('now','localtime') WHERE paper_id = ? AND status IN ('running','ai_done')")
-        .run(msg.slice(0, 500), job.paperId)
+        .run(`${msg}${detail ? ` | ${detail}` : ''}`.slice(0, 500), job.paperId)
       sendProgress({ paperId: job.paperId, stage: 'failed', progress: 0, message: msg })
     }
   } finally {

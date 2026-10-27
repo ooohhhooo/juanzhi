@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-27T04:56:33Z",
+  "title": "Design System: 英语校考分析工作台",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "长春花紫",
+        "canonical": "#5B57D1 / oklch(52.9% 0.183 280) ; dark #9C98FF",
+        "tonalRamp": [
+          "#090031",
+          "#1F046C",
+          "#37269E",
+          "#524BC5",
+          "#706FEC",
+          "#949AFC",
+          "#BEC4FD",
+          "#EBEDFE"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "长春花紫·悬停",
+        "canonical": "#4B47BC / oklch(47.3% 0.178 279) ; dark #B3B0FF",
+        "tonalRamp": [
+          "#080030",
+          "#1E086B",
+          "#35289C",
+          "#504DC3",
+          "#6E71EA",
+          "#929BFA",
+          "#BDC5FC",
+          "#EBEDFE"
+        ]
+      },
+      "primary-active": {
+        "role": "primary",
+        "displayName": "长春花紫·按下",
+        "canonical": "#3E3AA3 / oklch(42.0% 0.164 278) ; dark #CBC9FF",
+        "tonalRamp": [
+          "#080030",
+          "#1E0071",
+          "#342D95",
+          "#5050BB",
+          "#6E74E2",
+          "#929BFA",
+          "#BDC5FC",
+          "#EBEDFE"
+        ]
+      },
+      "primary-soft": {
+        "role": "primary",
+        "displayName": "长春花紫浅底",
+        "canonical": "#EEEDFB / oklch(95.1% 0.019 289) ; dark #2B2B55",
+        "tonalRamp": [
+          "#0B0A13",
+          "#25242E",
+          "#41404C",
+          "#61606B",
+          "#82818D",
+          "#A4A3B0",
+          "#C8C7D5",
+          "#EEEDFB"
+        ]
+      },
+      "rose": {
+        "role": "secondary",
+        "displayName": "易错玫红",
+        "canonical": "#D63B53 / oklch(58.9% 0.191 17) ; dark #FF7A8C",
+        "tonalRamp": [
+          "#1F0003",
+          "#4C0011",
+          "#7E0424",
+          "#B40F38",
+          "#DD4258",
+          "#F97581",
+          "#FEB2B4",
+          "#FEE9E9"
+        ]
+      },
+      "rose-ink": {
+        "role": "secondary",
+        "displayName": "易错玫红·文字版",
+        "canonical": "#B52A40 / oklch(51.3% 0.174 18) ; dark #FF7A8C",
+        "tonalRamp": [
+          "#1F0003",
+          "#4C0011",
+          "#7E0623",
+          "#AE223A",
+          "#D64B5A",
+          "#FF707C",
+          "#FEB2B4",
+          "#FEE9E9"
+        ]
+      },
+      "paper-grey": {
+        "role": "neutral",
+        "displayName": "周边浅灰",
+        "canonical": "#ECECF1 / oklch(94.5% 0.007 286) ; dark #141427",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252528",
+          "#414145",
+          "#616165",
+          "#828286",
+          "#A4A4A9",
+          "#C8C8CD",
+          "#EEEEF3"
+        ]
+      },
+      "canvas-white": {
+        "role": "neutral",
+        "displayName": "画布白",
+        "canonical": "#FFFFFF / oklch(100.0% 0.000 90) ; dark #1D1D35",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "canvas-tint": {
+        "role": "neutral",
+        "displayName": "画布内第二层",
+        "canonical": "#F6F6FB / oklch(97.5% 0.007 286) ; dark #23233F",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#252528",
+          "#414145",
+          "#616165",
+          "#828286",
+          "#A4A4A9",
+          "#C8C8CD",
+          "#EEEEF3"
+        ]
+      },
+      "note-lavender": {
+        "role": "neutral",
+        "displayName": "信息框薰衣草",
+        "canonical": "#F2F2F9 / oklch(96.3% 0.009 286) ; dark #25254A",
+        "tonalRamp": [
+          "#0B0B0F",
+          "#242429",
+          "#414147",
+          "#616066",
+          "#828288",
+          "#A4A4AB",
+          "#C8C8CF",
+          "#EEEEF5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "正文墨",
+        "canonical": "#1C1B2E / oklch(23.3% 0.036 286) ; dark #ECEBF7",
+        "tonalRamp": [
+          "#0A081A",
+          "#232236",
+          "#403F55",
+          "#5F5F75",
+          "#808098",
+          "#A2A2BB",
+          "#C6C6E0",
+          "#ECEDFE"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "次要文字",
+        "canonical": "#5E5D75 / oklch(48.8% 0.038 287) ; dark #A9A8C2",
+        "tonalRamp": [
+          "#0A081A",
+          "#242237",
+          "#403F56",
+          "#5F5E76",
+          "#807F99",
+          "#A3A2BC",
+          "#C7C6E1",
+          "#EDEDFE"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "细线",
+        "canonical": "#D9D8E6 / oklch(88.7% 0.019 289) ; dark rgba(236,235,247,0.16)",
+        "tonalRamp": [
+          "#0B0A13",
+          "#25242E",
+          "#41404C",
+          "#61606C",
+          "#82818D",
+          "#A4A3B1",
+          "#C8C7D5",
+          "#EEEDFB"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "控件描边",
+        "canonical": "#8D8CA6 / oklch(65.0% 0.038 287) ; dark rgba(236,235,247,0.42)",
+        "tonalRamp": [
+          "#0A081A",
+          "#242237",
+          "#403F56",
+          "#5F5E76",
+          "#807F99",
+          "#A3A2BD",
+          "#C7C6E2",
+          "#EDECFE"
+        ]
+      },
+      "amber-phonics": {
+        "role": "tertiary",
+        "displayName": "琥珀·语音",
+        "canonical": "#B98733 / oklch(65.7% 0.116 77) ; dark #E0B060",
+        "tonalRamp": [
+          "#130900",
+          "#342100",
+          "#593C04",
+          "#80590D",
+          "#A97820",
+          "#CE9B49",
+          "#F4BF6E",
+          "#FEECD2"
+        ]
+      },
+      "sage-vocab": {
+        "role": "tertiary",
+        "displayName": "鼠尾草绿·词汇",
+        "canonical": "#4C9A74 / oklch(62.6% 0.097 161) ; dark #6CC49C",
+        "tonalRamp": [
+          "#001006",
+          "#002E1B",
+          "#054F33",
+          "#1F724E",
+          "#46946F",
+          "#6AB891",
+          "#8FDDB4",
+          "#C2FFDE"
+        ]
+      },
+      "sky-grammar": {
+        "role": "tertiary",
+        "displayName": "天蓝·语法",
+        "canonical": "#3F86C9 / oklch(60.5% 0.125 249) ; dark #6FB0E8",
+        "tonalRamp": [
+          "#000B1F",
+          "#002648",
+          "#004477",
+          "#1864A4",
+          "#4087CA",
+          "#63AAF0",
+          "#A0CEFD",
+          "#E3F0FE"
+        ]
+      },
+      "teal-communication": {
+        "role": "tertiary",
+        "displayName": "青·交际",
+        "canonical": "#2C9AA0 / oklch(62.9% 0.095 200) ; dark #52C4C8",
+        "tonalRamp": [
+          "#000E10",
+          "#002B2E",
+          "#044C4F",
+          "#0D6F74",
+          "#229399",
+          "#4FB7BD",
+          "#76DCE2",
+          "#C2FBFE"
+        ]
+      },
+      "orchid-reading": {
+        "role": "tertiary",
+        "displayName": "兰紫·阅读",
+        "canonical": "#A062B9 / oklch(59.9% 0.143 316) ; dark #C493E0",
+        "tonalRamp": [
+          "#170021",
+          "#3C004F",
+          "#5E2074",
+          "#804397",
+          "#A365BC",
+          "#C787E1",
+          "#E8B1FF",
+          "#F8E8FF"
+        ]
+      },
+      "terracotta-writing": {
+        "role": "tertiary",
+        "displayName": "陶土·写作",
+        "canonical": "#C87B4C / oklch(65.6% 0.115 51) ; dark #EAA079",
+        "tonalRamp": [
+          "#190500",
+          "#3E1900",
+          "#692F02",
+          "#934B18",
+          "#B86C3D",
+          "#DE8F60",
+          "#FDB78F",
+          "#FFEADE"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "总览大字结论里的数字（44px，只给数字）。"
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "一句话大字结论与页面标题（30px）。"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "词条的紫色词头与小节标题（22px）。"
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "面板标题、斜体英文例句、完整词条释义（16px）。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "正文与 AntD 控件文字（14px，下限）。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "标签、状态、书口索引计数（13px，系统最小字号）。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-pop",
+        "value": "0 10px 28px rgba(28, 27, 46, 0.14)",
+        "purpose": "只给浮层：下拉、抽屉、对话框、气泡、消息条、原卷放大查看。深色为 0 10px 28px rgba(0,0,0,0.45)。"
+      },
+      {
+        "name": "nav-active-soft",
+        "value": "0 6px 16px rgba(28, 27, 46, 0.1)",
+        "purpose": "侧栏当前项（白色圆角底）的柔影，唯一的非浮层阴影；深色改为 1px 细线环。"
+      },
+      {
+        "name": "ring-selected",
+        "value": "inset 0 0 0 1.5px var(--ewb-primary)",
+        "purpose": "选中状态（审核页当前题、读者选项）的内环，不是阴影。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "t-fast",
+        "value": "150ms",
+        "purpose": "状态过渡（悬停、颜色变化）。"
+      },
+      {
+        "name": "t-base",
+        "value": "200ms",
+        "purpose": "展开范围条面板、箭头旋转等。"
+      },
+      {
+        "name": "t-page",
+        "value": "240ms",
+        "purpose": "标志动效：书口索引翻页，内容横向滑入。"
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "指数缓出，全系统唯一缓动。prefers-reduced-motion 下全部关闭。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "container-page-760",
+        "value": "760px (容器宽)",
+        "purpose": "词条分两栏。"
+      },
+      {
+        "name": "container-page-980",
+        "value": "980px (容器宽)",
+        "purpose": "总览头部变单列；书口索引收成横排。"
+      },
+      {
+        "name": "container-page-1040",
+        "value": "1040px (容器宽)",
+        "purpose": "总览收紧，首屏先看到词条。"
+      },
+      {
+        "name": "window-1200",
+        "value": "1200px (窗口宽)",
+        "purpose": "审核页左右栏收窄。"
+      },
+      {
+        "name": "window-1100",
+        "value": "1100px (窗口宽)",
+        "purpose": "审核页题目列表收进左侧抽屉。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "每页唯一的主操作：紫色实心胶囊，白字。",
+      "html": "<button class=\"ds-btn-primary\">导入试卷</button>",
+      "css": ".ds-btn-primary{font:500 15px/1 var(--ewb-font, sans-serif);height:36px;padding:0 16px;border:1px solid var(--ewb-primary, #5B57D1);border-radius:999px;background:var(--ewb-primary, #5B57D1);color:var(--ewb-on-primary, #fff);cursor:pointer;transition:background-color 150ms cubic-bezier(.16,1,.3,1)}.ds-btn-primary:hover{background:var(--ewb-primary-hover, #4B47BC);border-color:var(--ewb-primary-hover, #4B47BC)}.ds-btn-primary:active{background:var(--ewb-primary-active, #3E3AA3)}.ds-btn-primary:focus-visible{outline:2px solid var(--ewb-primary, #5B57D1);outline-offset:2px;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "默认按钮：透明底、1px 墨色描边；悬停变紫并换紫色浅底。",
+      "html": "<button class=\"ds-btn-secondary\">查看原卷</button>",
+      "css": ".ds-btn-secondary{font:500 15px/1 var(--ewb-font, sans-serif);height:36px;padding:0 16px;border:1px solid var(--ewb-ink, #1C1B2E);border-radius:999px;background:transparent;color:var(--ewb-ink, #1C1B2E);cursor:pointer;transition:background-color 150ms cubic-bezier(.16,1,.3,1),color 150ms}.ds-btn-secondary:hover{color:var(--ewb-primary, #5B57D1);border-color:var(--ewb-primary, #5B57D1);background:var(--ewb-primary-soft, #EEEDFB)}.ds-btn-secondary:focus-visible{outline:2px solid var(--ewb-primary, #5B57D1);outline-offset:2px;}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "行内次要操作：无边框紫色文字胶囊。",
+      "html": "<button class=\"ds-btn-quiet\">修改范围</button>",
+      "css": ".ds-btn-quiet{font:500 15px/1 var(--ewb-font, sans-serif);height:36px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:var(--ewb-primary, #5B57D1);cursor:pointer}.ds-btn-quiet:hover{background:var(--ewb-primary-soft, #EEEDFB)}.ds-btn-quiet:focus-visible{outline:2px solid var(--ewb-primary, #5B57D1);outline-offset:2px;}"
+    },
+    {
+      "name": "Entry Tags",
+      "kind": "chip",
+      "refersTo": "entry-tag",
+      "description": "词条上的胶囊标签：默认、易错（玫红）、新（紫）。",
+      "html": "<span class=\"ds-tag\">考过 3 次</span> <span class=\"ds-tag ds-tag-mistake\">易错</span> <span class=\"ds-tag ds-tag-new\">新</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;height:24px;padding:0 10px;font:600 13px/1 var(--ewb-font, sans-serif);color:var(--ewb-ink-2, #5E5D75);border:1px solid var(--ewb-line-strong, #8D8CA6);border-radius:999px;font-variant-numeric:tabular-nums;white-space:nowrap}.ds-tag-mistake{color:var(--ewb-red-ink, #B52A40);border-color:var(--ewb-red-line, rgba(214,59,83,.5));background:var(--ewb-red-soft, rgba(214,59,83,.08))}.ds-tag-new{color:var(--ewb-primary, #5B57D1);border-color:var(--ewb-primary, #5B57D1)}"
+    },
+    {
+      "name": "Entry Card",
+      "kind": "card",
+      "refersTo": "entry-card",
+      "description": "一条词条（标准尺寸）：紫色词头、斜体例句、标签、白话释义；1px 细线，无阴影。",
+      "html": "<article class=\"ds-entry\"><h3 class=\"ds-entry-term\">现在完成时 <em class=\"ds-entry-ex\">have done</em></h3><p class=\"ds-entry-def\">做过的事对现在有影响，常和 already、yet 连用。</p><p class=\"ds-entry-eg\"><em>I <b>have</b> already <b>finished</b> my homework.</em> <span>我已经做完作业了。</span></p></article>",
+      "css": ".ds-entry{padding:24px;background:var(--ewb-page, #fff);border:1px solid var(--ewb-line, #D9D8E6);border-radius:18px;color:var(--ewb-ink, #1C1B2E);font:400 14px/1.6 var(--ewb-font, sans-serif)}.ds-entry-term{margin:0;font-size:22px;line-height:1.25;font-weight:700;color:var(--ewb-primary, #5B57D1)}.ds-entry-ex{font-size:16px;font-weight:400;color:var(--ewb-ink-2, #5E5D75)}.ds-entry-def{margin:8px 0 0;line-height:1.65}.ds-entry-eg{margin:8px 0 0;font-size:16px}.ds-entry-eg b{font-weight:700}.ds-entry-eg span{margin-left:8px;font-size:14px;color:var(--ewb-ink-2, #5E5D75)}"
+    },
+    {
+      "name": "Usage Note (易错)",
+      "kind": "custom",
+      "refersTo": "usage-note",
+      "description": "用法框：薰衣草信息框，左上角压边的小胶囊标签；「易错」是玫红实心标签 + 淡玫红底。",
+      "html": "<aside class=\"ds-note\"><span class=\"ds-note-label\">易错</span><p class=\"ds-note-title\">time for / time to</p><div>time for 后面接名词，time to 后面接动词原形。</div></aside>",
+      "css": ".ds-note{position:relative;margin:16px 0 8px;padding:16px 16px 12px;background:color-mix(in srgb, var(--ewb-red, #D63B53) 7%, var(--ewb-page, #fff));border:1px solid var(--ewb-red-line, rgba(214,59,83,.5));border-radius:18px;font:400 14px/1.65 var(--ewb-font, sans-serif);color:var(--ewb-ink, #1C1B2E)}.ds-note-label{position:absolute;top:-12px;left:12px;display:inline-flex;align-items:center;height:24px;padding:0 11px;font:700 13px/1 var(--ewb-font, sans-serif);color:var(--ewb-on-red, #fff);background:var(--ewb-red, #D63B53);border:1px solid var(--ewb-red, #D63B53);border-radius:999px}.ds-note-title{margin:0 0 4px;font-weight:700}"
+    },
+    {
+      "name": "Thumb Index Tab",
+      "kind": "custom",
+      "refersTo": "thumb-tab",
+      "description": "书口拇指索引的一个标签：大类色浅底、右边缘大类色条；选中向左移 6px。以语法为例。",
+      "html": "<ul class=\"ds-thumbs\"><li><button class=\"ds-thumb\" aria-selected=\"true\"><span class=\"ds-thumb-name\">语法</span><span class=\"ds-thumb-count\">12</span></button></li></ul>",
+      "css": ".ds-thumbs{margin:0;padding:0;list-style:none;width:76px;display:flex;flex-direction:column;align-items:flex-end}.ds-thumb{all:unset;box-sizing:border-box;cursor:pointer;position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;width:76px;min-height:62px;padding:8px 18px 8px 10px;color:var(--ewb-ink, #1C1B2E);background:color-mix(in srgb, var(--ewb-cat-grammar, #3F86C9) 30%, var(--ewb-page, #fff));border:1px solid color-mix(in srgb, var(--ewb-cat-grammar, #3F86C9) 55%, transparent);border-right:0;border-radius:18px 0 0 18px;transform:translateX(-6px);transition:transform 150ms cubic-bezier(.16,1,.3,1)}.ds-thumb::after{content:\"\";position:absolute;top:-1px;bottom:-1px;right:-6px;width:14px;background:var(--ewb-cat-grammar, #3F86C9)}.ds-thumb-name{font:700 14px/1.2 var(--ewb-font, sans-serif)}.ds-thumb-count{font:400 14px/1.2 var(--ewb-font, sans-serif);font-variant-numeric:tabular-nums}.ds-thumb:focus-visible{outline:2px solid var(--ewb-primary, #5B57D1);outline-offset:2px;}"
+    },
+    {
+      "name": "Side Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "窄图标栏里的一项：线性图标加两字标签；当前项是白色圆角底加柔影。",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-link\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 7v14\"/><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"/></svg><span>总览</span></button><button class=\"ds-nav-link\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 7v14\"/><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"/></svg><span>试卷</span></button></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;align-items:center;gap:6px;width:84px;padding:16px 0;background:var(--ewb-paper, #ECECF1)}.ds-nav-link{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:9px 0 8px;border-radius:18px;color:var(--ewb-ink-2, #5E5D75);font:600 14px/1.2 var(--ewb-font, sans-serif);transition:background-color 150ms cubic-bezier(.16,1,.3,1)}.ds-nav-link svg{color:var(--ewb-primary, #5B57D1)}.ds-nav-link:hover{background:var(--ewb-primary-soft, #EEEDFB)}.ds-nav-link[aria-current=\"page\"]{background:var(--ewb-page, #fff);color:var(--ewb-ink, #1C1B2E);box-shadow:0 6px 16px rgba(28,27,46,.1)}.ds-nav-link[aria-current=\"page\"] svg{color:var(--ewb-primary-active, #3E3AA3)}.ds-nav-link:focus-visible{outline:2px solid var(--ewb-primary, #5B57D1);outline-offset:2px;}"
+    },
+    {
+      "name": "Status Label",
+      "kind": "chip",
+      "refersTo": "status-label",
+      "description": "状态标签：实线、虚线与颜色共同表达状态。以「处理中」「排队中」「失败」为例。",
+      "html": "<span class=\"ds-status ds-status-working\"><i></i>处理中</span> <span class=\"ds-status ds-status-queued\">排队中</span> <span class=\"ds-status ds-status-failed\">失败</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;font:600 14px/1 var(--ewb-font, sans-serif);color:var(--ewb-ink, #1C1B2E);border:1px solid var(--ewb-line-strong, #8D8CA6);border-radius:999px;white-space:nowrap}.ds-status i{width:7px;height:7px;border-radius:50%;background:currentColor;animation:ds-pulse 1.4s ease-in-out infinite}.ds-status-working{color:var(--ewb-primary, #5B57D1);border-color:var(--ewb-primary, #5B57D1)}.ds-status-queued{color:var(--ewb-ink-2, #5E5D75);border-style:dashed}.ds-status-failed{color:var(--ewb-red-ink, #B52A40);border-color:var(--ewb-red, #D63B53);background:var(--ewb-red-soft, rgba(214,59,83,.08))}@keyframes ds-pulse{0%,100%{opacity:1}50%{opacity:.3}}@media (prefers-reduced-motion:reduce){.ds-status i{animation:none}}"
+    },
+    {
+      "name": "Category Bar Row",
+      "kind": "custom",
+      "refersTo": "entry-tag",
+      "description": "横条图的一行：中文名、大类色填充的胶囊轨道、数字；颜色旁边永远有字。以词汇为例。",
+      "html": "<div class=\"ds-bar\"><span class=\"ds-bar-label\">词汇</span><span class=\"ds-bar-track\"><span class=\"ds-bar-fill\" style=\"width:62%\"></span></span><span class=\"ds-bar-note\">考过 5 份</span></div>",
+      "css": ".ds-bar{display:grid;grid-template-columns:120px minmax(80px,1fr) 90px;align-items:center;gap:12px;font:400 14px/1.6 var(--ewb-font, sans-serif);color:var(--ewb-ink, #1C1B2E)}.ds-bar-label{font-weight:600}.ds-bar-track{height:12px;border-radius:999px;background:color-mix(in srgb, var(--ewb-cat-vocab, #4C9A74) 14%, var(--ewb-page, #fff));overflow:hidden}.ds-bar-fill{display:block;height:100%;border-radius:999px;background:var(--ewb-cat-vocab, #4C9A74)}.ds-bar-note{text-align:right;font-variant-numeric:tabular-nums}"
+    }
+  ],
+  "narrative": {
+    "northStar": "翻开的学习词典",
+    "overview": "**Creative North Star: \"翻开的学习词典\"**\n\n每个考点就是一条词条：中文名做词头（长春花紫），下面是白话释义、斜体英文例句、考过几次的小标签、原卷截图缩略。整个应用像一本摊在灰色桌面上的词典：周边是浅灰（#ECECF1），中间浮起一块白色大画布（圆角 24px），左边是只有 84px 宽的图标栏，右边是书口上伸出来的六色拇指索引。对象是不懂语法的运营和辅导老师，所以每一处都先用白话和例句说话，再给数字。\n\n密度是「读得下去」而不是「一屏塞满」：卡片靠 1px 细线和留白分组，不靠阴影，不靠色块；按钮和标签都是胶囊；强调色只有两个，紫色管词头、当前位置和主操作，玫红只管易错。深色是同一本词典的夜读版（深紫靛底，不是纯黑），全部颜色由同一份 tokens 生成。\n\n产品的硬约束（会被投屏、低技术自信、颜色不能是唯一信息载体）已经变成系统规则：正文不小于 14px，颜色旁边一定有字，投屏大字开关把整个界面放大到 115%。",
+    "keyCharacteristics": [
+      "灰色周边 + 白色大画布 + 84px 窄图标栏：外框一眼就不是后台管理系统。",
+      "一个主色（长春花紫 #5B57D1）+ 一个警示色（玫红 #D63B53），其余全部是带一点紫调的中性色。",
+      "卡片是 1px 细线加圆角 18px，不加阴影；阴影只给浮层。",
+      "英文用 Source Sans 3（含音标、斜体），中文用系统黑体；英文例句一律斜体。",
+      "浅色和深色两套都是一等公民，所有颜色读自 `--ewb-*` 变量。"
+    ],
+    "rules": [
+      {
+        "name": "The Rose Means Mistake Rule",
+        "body": "玫红只表示易错、失败和需要处理，从不当装饰色，也不拿来表示「第二强调」。画面上出现玫红，读者就应该知道这里有事要办。",
+        "section": "colors"
+      },
+      {
+        "name": "The Word Beside The Color Rule",
+        "body": "六个大类色旁边必须有中文名（和数量）；文字永远用墨色，大类色只做色条、圆点、浅底。颜色不是唯一的信息载体。",
+        "section": "colors"
+      },
+      {
+        "name": "The Violet Is The Headword Rule",
+        "body": "紫色只出现在三类位置：词头和可点的考点名、当前位置（导航、选中行）、每页唯一的主操作。其余强调用墨色加粗。",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Stays White Rule",
+        "body": "原卷截图的底永远是白纸，浅色深色都一样；任何叠在原卷上的框（审核页的框选层）使用固定的纸面色，不随主题变。",
+        "section": "colors"
+      },
+      {
+        "name": "The 14 Floor Rule",
+        "body": "正文不小于 14px，最小的辅助字是 13px；要投屏时靠设置里的「投屏大字」整体放大到 115%，而不是在局部放大。",
+        "section": "typography"
+      },
+      {
+        "name": "The Italic Is English Rule",
+        "body": "斜体只给英文例句和考点里的英文例词。中文标签不用斜体、不加字距、不转大写。",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numbers Rule",
+        "body": "所有数字（表格、统计、标签、拇指索引计数、书眉）都用等宽数字（`tabular-nums`）。",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline, Not Shadow Rule",
+        "body": "卡片、面板、词条、输入框一律是 1px 细线，圆角 18px，没有阴影；想让东西「浮起来」只能靠它所在的层（画布）。",
+        "section": "elevation"
+      },
+      {
+        "name": "The Overlay-Only Shadow Rule",
+        "body": "阴影等于「这个东西盖在页面上」。没有盖住别的东西的元素不许有阴影（侧栏当前项是唯一的例外）。",
+        "section": "elevation"
+      },
+      {
+        "name": "The Pill For Actions Rule",
+        "body": "可以点的小控件是胶囊，容器是圆角矩形；不要把按钮做成圆角矩形，也不要把卡片做成胶囊。",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** 所有颜色读 `--ewb-*` 变量（由 `tokens.ts` 生成），要加颜色先改 `tokens.ts`，浅色深色同时给。",
+      "**Do** 每个页面只放一个紫色实心主按钮，其余动作用次按钮或安静按钮；按钮永远带文字。",
+      "**Do** 英文例句用斜体，考点名用紫色词头，数字用等宽。",
+      "**Do** 大类色旁边写中文名，文字用墨色。",
+      "**Do** 原卷和页面图用 `PaperSheet` 包住，深色模式里保持白纸。",
+      "**Do** 空状态要教会界面：标题说清这里本该有什么，附步骤和一个主按钮，而不是「暂无数据」。",
+      "**Do** 状态靠文字标签和描边样式（实线、虚线、紫色、玫红）区分，不靠颜色单独承担。"
+    ],
+    "donts": [
+      "**Don't** 做成灰底蓝按钮的后台管理系统，或糖果色卡通教育风（产品经用户明确否定）。",
+      "**Don't** 给卡片、面板、输入框加阴影；阴影只属于浮层。",
+      "**Don't** 把玫红用在易错、失败、需要处理以外的地方。",
+      "**Don't** 把大类色当小字的文字色；大类色只做色条、圆点、浅底。",
+      "**Don't** 在新界面里用 `ok` 绿和 `warn` 琥珀（它们只是未迁移的 AntD 控件的兜底，状态改走文字标签）。",
+      "**Don't** 用一排一样大小的数字卡展示统计；总览用一句大字结论，数字写在句子里。",
+      "**Don't** 用图标单独做按钮；设置里的外观切换和侧栏项都带文字。",
+      "**Don't** 在 `tokens.ts` 之外写死颜色值。",
+      "**Don't** 用左侧粗色条标注提示或警告。"
+    ]
+  }
+}

@@ -8,6 +8,11 @@ import { PackError } from './errors.ts'
 export const KP_MAX_LEVEL = 3
 export const KP_NAME_MAX = 30
 export const KP_NOTE_MAX = 500
+/** 白话释义 / 例句 / 例词的长度上限（内置的都在 25 / 60 / 40 / 40 以内；自建节点放宽一点） */
+export const KP_PLAIN_MAX = 40
+export const KP_EXAMPLE_EN_MAX = 120
+export const KP_EXAMPLE_ZH_MAX = 80
+export const KP_HINT_MAX = 60
 export const KP_CODE_MAX = 80
 export const KP_MAX_COUNT = 5000
 
@@ -18,10 +23,20 @@ const CONTROL_RE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200b-\u200f\u202a-\
 /** 知识点树会逐行写进给 AI 的提示词（`代码 | 路径 | 年级 | 说明`）和报告表格：竖线、换行会把一行拆成几行，让人为写的文字冒充另一条记录 */
 const PIPE_RE = /\|/
 
+import { looksLikeCode } from '../../shared/code-guard.ts'
+
 /** 名称 / 说明的字符检查：合格返回 null，否则返回给老师看的原因（不含「名称」「说明」前缀，由调用方拼） */
 export function kpTextProblem(s: string): string | null {
   if (CONTROL_RE.test(s)) return '不能包含换行、制表符等控制字符或看不见的特殊字符'
   if (PIPE_RE.test(s)) return '不能包含竖线「|」（它在给 AI 的知识点表里是分隔符）'
+  return null
+}
+
+/** 名称的检查：除了字符，名称不能是内部代码（界面上显示的就是名称，代码会泄漏给老师） */
+export function kpNameProblem(s: string): string | null {
+  const p = kpTextProblem(s)
+  if (p) return p
+  if (looksLikeCode(s)) return '不能是英文代码，请写一个中文名称（如「看法与态度」）'
   return null
 }
 
@@ -39,10 +54,14 @@ export function cleanSuggestedName(raw: string): string {
   const name = flatKpText(raw)
   if (!name) throw new Error('名称不能为空（只有换行、竖线或看不见的字符不行）')
   if (name.length > KP_NAME_MAX) throw new Error(`名称不能超过 ${KP_NAME_MAX} 个字`)
+  const np = kpNameProblem(name)
+  if (np) throw new Error(`名称${np}`)
   return name
 }
 
-export interface KpRowLike { code: unknown; parent_code?: unknown; name?: unknown; level?: unknown; intro_grade?: unknown; note?: unknown }
+export interface KpRowLike { code: unknown; parent_code?: unknown; name?: unknown; level?: unknown; intro_grade?: unknown; note?: unknown; plain?: unknown; example_en?: unknown; example_zh?: unknown; hint_words?: unknown }
+
+export const KP_PLAIN_FIELDS = [['plain', KP_PLAIN_MAX], ['example_en', KP_EXAMPLE_EN_MAX], ['example_zh', KP_EXAMPLE_ZH_MAX], ['hint_words', KP_HINT_MAX]] as const
 
 const bad = (msg: string): never => { throw new PackError('bad_content', `数据包里的知识点树不合格：${msg}，已拒绝导入`) }
 
@@ -59,10 +78,19 @@ export function validateKpRows(rows: KpRowLike[]): void {
     const code = k.code as string
     if (typeof k.name !== 'string' || !k.name.trim()) bad(`知识点「${code}」没有名称`)
     if ((k.name as string).length > KP_NAME_MAX) bad(`知识点「${code}」的名称超过 ${KP_NAME_MAX} 个字`)
-    const np = kpTextProblem(k.name as string)
+    const np = kpTextProblem(k.name as string)   // 数据包里旧数据的名称可能就是代码（旧版本的 bug）：这里不拒绝，导入时改成「待命名的考点」
     if (np) bad(`知识点「${code}」的名称${np}`)
     if (k.note != null && (typeof k.note !== 'string' || k.note.length > KP_NOTE_MAX)) bad(`知识点「${code}」的说明超过 ${KP_NOTE_MAX} 个字`)
     if (typeof k.note === 'string') { const op = kpTextProblem(k.note); if (op) bad(`知识点「${code}」的说明${op}`) }
+    // 白话 / 例句 / 例词也会逐行写进给 AI 的提示词：和名称、说明同样的字符规则
+    for (const [f, max] of KP_PLAIN_FIELDS) {
+      const v = (k as any)[f]
+      if (v == null) continue
+      const label = f === 'plain' ? '白话释义' : f === 'hint_words' ? '例词' : '例句'
+      if (typeof v !== 'string' || v.length > max) bad(`知识点「${code}」的${label}不是文字或超过 ${max} 个字`)
+      const p = kpTextProblem(v)
+      if (p) bad(`知识点「${code}」的${label}${p}`)
+    }
     const g = k.intro_grade
     if (g != null && !(typeof g === 'number' && Number.isInteger(g) && g >= 1 && g <= 6)) bad(`知识点「${code}」的引入年级不在 1–6 之间`)
     const lv = k.level

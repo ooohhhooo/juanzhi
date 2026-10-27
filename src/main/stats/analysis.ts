@@ -5,22 +5,31 @@
  * 缓存：每个「同比范围」（筛选条件 + 目标 + 基线 + 层级）一行（ai_analyses），记录当时的提示词版本和数据指纹。
  * 数据或提示词变了 → 状态变成 stale（界面写「已过期，可重新生成」），绝不自动重算。
  */
-import { net } from 'electron'
 import crypto from 'node:crypto'
 import { getDb } from '../db'
-import { chat, AiError } from '../ai/client'
+import { AiError } from '../ai/client'
 import { loadConfig, recordUsage } from '../ai/config'
 import { getApiKey } from '../ai/secret'
+import { createStream } from '../ai/stream'
+import { limitFallbackNotice } from '../ai/friendly'
+import type { ChunkEvent, UnverifiedItem } from '../ai/chunk'
+import { friendlyAiError } from '../ai/friendly'
+import { clearDraft, getDraft, saveDraft } from '../ai/drafts'
+import type { Draft } from '../ai/drafts'
 import { promptText, promptVersionFor, PROMPT_DEFAULT_VERSION } from '../ai/prompts'
 import { notifyDataChanged } from '../events'
 import { stripUnknownCitations } from '../../shared/citation'
 import type { CitationRef } from '../../shared/citation'
 import { headingCodes } from '../../shared/markdown'
+import { checkRules, markFindings } from '../../shared/factcheck'
+import { fixBackticks } from '../../shared/report-post'
 import { compare, hot, sideScopes } from './core'
 import type { CompareResult } from './core'
 import { paperScope } from './filter'
 import type { StatsFilter } from './filter'
-import { buildP2Input, cacheKeys, fillTemplate, normalizeFilter, reusableCheck, templateSig } from './p2'
+import { buildP2Input, cacheKeys, fillTemplate, normalizeFilter, p2Codes, reusableCheck, templateSig } from './p2'
+import { collectEvidence } from './evidence'
+import type { Evidence } from './evidence'
 import type { CheckRecord } from './p2'
 import type { P2Input } from './p2'
 
@@ -51,6 +60,8 @@ export interface Prepared {
   cacheKey: string
   /** 开始计算时的数据修订号（之后数据再变，下次读状态时会重新核对） */
   rev: number
+  /** 证据包：已审核题目的易错说明 + 知识点白话释义，提示词里的 {{EVIDENCE}} 和事实核对都用它 */
+  evidence: Evidence
 }
 
 const currentRev = (): number => (getDb().prepare('SELECT rev FROM data_rev WHERE id = 1').get() as any)?.rev ?? 0
@@ -65,14 +76,16 @@ export function prepare(scope: AnalysisScope): Prepared {
   // 跨年高频考点：目标 + 基线合起来的试卷里统计（按学期对齐时同样只取目标学年出现过的学期）
   const both = paperScope(scope.filter, { in: [scope.target, ...cmp.base.years] }, undefined, cmp.align.on ? cmp.align.targetSemesters.map(x => x.key) : null)
   const hotRes = hot(db, scope.filter, scope.level, 15, both, false)   // P2 用不到「标在更高层级的题」，省一次查询
-  const input = buildP2Input(cmp, hotRes, scope.filter)
+  const evidence = collectEvidence(db, both, { codes: p2Codes(cmp, hotRes) })
+  const grades = (db.prepare(`SELECT DISTINCT p.grade g FROM papers p WHERE ${both.where} AND p.grade IS NOT NULL AND p.grade <> '' ORDER BY g`).all(...both.params) as any[]).map(r => String(r.g))
+  const input = buildP2Input(cmp, hotRes, scope.filter, evidence.text, grades)
   const system = promptText('p2_yoy', 'system')
   const userTpl = promptText('p2_yoy', 'user')
   let user = ''
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, input.placeholders) } catch (e) { promptError = (e as Error).message }
   const keys = cacheKeys(scopeObject(scope), system, user)
-  return { cmp, input, system, user, promptError, promptVersion: promptVersionFor('p2_yoy'), templateSig: templateSig(system, userTpl), rev, ...keys }
+  return { cmp, input, system, user, promptError, promptVersion: promptVersionFor('p2_yoy'), templateSig: templateSig(system, userTpl), rev, evidence, ...keys }
 }
 
 export interface AnalysisState {
@@ -84,10 +97,22 @@ export interface AnalysisState {
   /** stale 的原因：data = 统计数据或样本题变了；prompt = 提示词变了；model = 换了模型 */
   staleReasons: Array<'data' | 'prompt' | 'model'>
   warnings: string[]
+  /** 事实核对里没能对上证据的句子（已在 markdown 里标了「未核实」）：界面可汇总提示 */
+  unverified: UnverifiedItem[]
+  /** 上次生成失败时留下的「未完成草稿」（不是有效结果，不进缓存比对） */
+  draft: Pick<Draft, 'markdown' | 'refs' | 'message' | 'detail' | 'createdAt'> | null
+  /** AI 生成的内容统一带「AI 草稿 · 请老师核对」：这里恒为 true，设计代理据此显示标识 */
+  aiDraft: true
   /** 现在能不能生成：没配 AI / 某侧没有试卷 / 提示词被改坏 时给出原因 */
   blocked: string | null
   aiReady: boolean
   promptVersion: string
+}
+
+/** 失败留下的草稿（只给界面看）；有有效缓存时仍然给出，让老师能对比 */
+function draftView(key: string): AnalysisState['draft'] {
+  const d = getDraft(key)
+  return d ? { markdown: d.markdown, refs: refreshRefs(d.refs), message: d.message, detail: d.detail, createdAt: d.createdAt } : null
 }
 
 const aiConfigured = () => { const c = loadConfig(); return !!(c.base_url && c.model && getApiKey()) }
@@ -131,7 +156,7 @@ export function analysisState(scope: AnalysisScope): AnalysisState {
   const row = db.prepare('SELECT * FROM ai_analyses WHERE scope_key = ?').get(scopeKey) as any
   if (!row) {
     const blocked = sidesEmpty(scope) ? EMPTY_BLOCK : !ready ? GUIDE : null
-    return { aiReady: ready, blocked, promptVersion: label, status: 'none', markdown: '', refs: [], model: null, createdAt: null, staleReasons: [], warnings: [] }
+    return { aiReady: ready, blocked, promptVersion: label, status: 'none', markdown: '', refs: [], model: null, createdAt: null, staleReasons: [], warnings: [], unverified: [], draft: draftView(scopeKey), aiDraft: true }
   }
   const rev = currentRev()
   const sig = currentTemplateSig()
@@ -151,35 +176,34 @@ export function analysisState(scope: AnalysisScope): AnalysisState {
   let warnings: string[] = []
   try { refs = JSON.parse(row.refs_json) } catch { /* 忽略 */ }
   try { warnings = JSON.parse(row.warnings_json) } catch { /* 忽略 */ }
+  let unverified: UnverifiedItem[] = []
+  try { unverified = row.verify_json ? JSON.parse(row.verify_json) : [] } catch { /* 忽略 */ }
   const reasons: Array<'data' | 'prompt' | 'model'> = [...chk.reasons]
   if (modelChanged) reasons.push('model')
   // 换了模型不影响缓存键（输出是上次那个模型写的，界面写着模型名），但提示一下
   const fresh = chk.fresh
   return {
-    aiReady: ready, blocked, promptVersion: label, status: fresh ? 'fresh' : 'stale', markdown: row.markdown, refs: refreshRefs(refs), model: row.model, createdAt: row.created_at,
-    staleReasons: fresh ? (modelChanged ? ['model'] : []) : reasons, warnings
+    aiReady: ready, blocked, promptVersion: label, status: fresh ? 'fresh' : 'stale', markdown: fixBackticks(row.markdown), refs: refreshRefs(refs), model: row.model, createdAt: row.created_at,
+    staleReasons: fresh ? (modelChanged ? ['model'] : []) : reasons, warnings, unverified, draft: draftView(scopeKey), aiDraft: true
   }
 }
 
 // ───────────────────────── 生成（流式） ─────────────────────────
 
-export type ChunkEvent =
-  | { id: string; type: 'start'; scopeKey: string; refs: CitationRef[] }
-  | { id: string; type: 'delta'; text: string }
-  | { id: string; type: 'reset' }
-  | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string }
-  | { id: string; type: 'error'; code: string; message: string; partial: string }
-  | { id: string; type: 'cancelled'; partial: string }
+export type { ChunkEvent }
 
 export interface GenerateResult {
   ok: boolean
   cancelled?: boolean
   code?: string
   message?: string
+  /** 技术详情（给管理员看，界面收在「查看详情」里） */
+  detail?: string
   partial?: string
   markdown?: string
   refs?: CitationRef[]
   warnings?: string[]
+  unverified?: UnverifiedItem[]
 }
 
 const inflight = new Map<string, AbortController>()      // requestId → 控制器
@@ -194,17 +218,12 @@ export function cancelAnalysis(requestId: string): boolean {
   return true
 }
 
-const FRIENDLY: Record<string, string> = {
-  empty: '模型返回了空内容（已自动重试一次仍为空）。可以稍后重新生成，或换一个模型',
-  truncated: '分析被输出长度上限截断，可以在设置 → AI 服务 → 高级里调大「输出上限」后重新生成'
-}
-
 /** @param send 把事件发给发起请求的那个窗口（调用方传 event.sender.send），不广播 */
 export async function generateAnalysis(scope: AnalysisScope, requestId: string, send: (e: ChunkEvent) => void, senderGone: (cb: () => void) => () => void): Promise<GenerateResult> {
   const p = prepare(scope)
   if (p.cmp.empty) return { ok: false, code: 'no_data', message: '目标学年或基线没有计入统计的试卷，无法做同比分析' }
-  if (p.promptError) return { ok: false, code: 'bad_prompt', message: `P2 提示词有问题：${p.promptError}（请到设置 → 提示词修正或恢复默认）` }
-  if (!aiConfigured()) return { ok: false, code: 'no_ai', message: '尚未配置 AI 服务（设置 → AI 服务），统计结果不受影响' }
+  if (p.promptError) return { ok: false, code: 'bad_prompt', message: `P2 提示词有问题：${p.promptError}（请到设置 → 管理员设置 → 提示词修正或恢复默认）` }
+  if (!aiConfigured()) return { ok: false, code: 'no_ai', message: '尚未配置 AI 服务（设置 → 管理员设置 → AI 服务），统计结果不受影响' }
   if (inflight.has(requestId)) return { ok: false, code: 'busy', message: '这个请求已经在生成' }
   if (busyScopes.has(p.scopeKey)) return { ok: false, code: 'busy', message: '这个范围的分析正在生成，请等它结束或先取消' }
 
@@ -214,66 +233,57 @@ export async function generateAnalysis(scope: AnalysisScope, requestId: string, 
   busyScopes.add(p.scopeKey)
   const offGone = senderGone(() => ctl.abort())
 
-  let buf = ''
-  let lastPartial = ''   // 失败重试前被清掉的那次尝试里已收到的内容：最终失败/取消时界面要能看到
-  let pending = ''
-  let timer: ReturnType<typeof setTimeout> | null = null
-  const flush = () => { timer = null; if (pending) { send({ id: requestId, type: 'delta', text: pending }); pending = '' } }
+  const stream = createStream({ cfg, system: p.system, user: p.user, requestId, send, signal: ctl.signal })
   try {
     send({ id: requestId, type: 'start', scopeKey: p.scopeKey, refs: p.input.refs })
-    const r = await chat({
-      baseUrl: cfg.base_url, apiKey: getApiKey()!, model: cfg.model, stream: true, temperature: 0.3, maxTokens: cfg.max_tokens,
-      messages: [{ role: 'system', content: p.system }, { role: 'user', content: p.user }],
-      timeoutMs: cfg.timeout_sec * 1000, maxRetries: 2, backoffMs: 1000, signal: ctl.signal, fetchImpl: net.fetch as unknown as typeof fetch,
-      onDelta: (t) => { buf += t; pending += t; if (!timer) timer = setTimeout(flush, 40) },
-      // 失败后要重试：已经推给界面的半截内容作废，从头来
-      onAttempt: (a) => {
-        if (a.ok) return
-        if (timer) clearTimeout(timer)
-        timer = null; pending = ''
-        if (buf) lastPartial = buf
-        buf = ''
-        if (a.error?.code !== 'aborted') send({ id: requestId, type: 'reset' })
-      }
-    })
-    if (timer) clearTimeout(timer)
-    flush()
+    const r = await stream.run()
     recordUsage({ paperId: null, kind: 'p2_yoy', model: r.model, usage: r.usage, ok: true })
 
     // 校验：引用必须来自我们给的索引；标题里的知识点代码应在输入里
     const known = new Set(p.input.refs.map(x => x.token))
-    const { text, removed } = stripUnknownCitations(r.content, known)
+    const { text: cited, removed } = stripUnknownCitations(fixBackticks(r.content), known)
     const warnings: string[] = []
+    if (r.fellBackTo) warnings.push(limitFallbackNotice(r.fellBackTo))
     if (removed.length) warnings.push(`已移除 ${removed.length} 处无法核对的引用（模型写出了输入里没有的试卷或题号）`)
     const codes = new Set(p.input.codes)
-    const stray = headingCodes(text).filter(c => !codes.has(c))
-    if (stray.length) warnings.push(`有 ${stray.length} 个小标题的知识点代码不在输入数据里（${stray.slice(0, 3).join('、')}），请核对`)
+    const stray = headingCodes(cited).filter(c => !codes.has(c))
+    if (stray.length) warnings.push(`有 ${stray.length} 个小标题的知识点对不上输入数据（${stray.slice(0, 3).join('、')}），请核对`)
     // 完整性兜底：默认提示词规定了「五、…」这个最后一节；缺了很可能是被截断（自定义提示词不检查）
-    if (promptVersionFor('p2_yoy') === PROMPT_DEFAULT_VERSION && !/^#{1,3}\s*五、/m.test(text)) warnings.push('输出里没有最后一节「五、下学期教学与复习建议」，内容可能不完整，建议重新生成')
+    if (promptVersionFor('p2_yoy') === PROMPT_DEFAULT_VERSION && !/^#{1,3}\s*五、/m.test(cited)) warnings.push('输出里没有最后一节「五、下学期教学与复习建议」，内容可能不完整，建议重新生成')
+    // 事实核对：规则句只能对得上已审核题目的解释，对不上的标「未核实」，说反的标「矛盾」
+    const findings = checkRules(cited, p.evidence.statements)
+    const text = markFindings(cited, findings).text
+    const unverified: UnverifiedItem[] = findings.map(f => ({ sentence: f.sentence, kind: f.kind, reason: f.reason }))
     const used = p.input.refs.filter(x => text.includes(x.token))
 
     // 修订号用「开始生成时」的：生成期间数据又变了，下次读状态会重新核对，不会把过期结果误报成新鲜
     getDb().prepare(`INSERT OR REPLACE INTO ai_analyses (scope_key, kind, cache_key, prompt_version, fingerprint, scope_json, markdown, refs_json, warnings_json, model, usage_json,
-        template_sig, checked_rev, checked_sig, checked_json)
-      VALUES (?, 'p2_yoy', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.scopeKey, p.cacheKey, p.promptVersion, p.input.fingerprint, JSON.stringify(scopeObject(scope)),
+        template_sig, checked_rev, checked_sig, checked_json, verify_json)
+      VALUES (?, 'p2_yoy', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.scopeKey, p.cacheKey, p.promptVersion, p.input.fingerprint, JSON.stringify(scopeObject(scope)),
       text, JSON.stringify(used), JSON.stringify(warnings), r.model, JSON.stringify(r.usage),
-      p.templateSig, p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }))
+      p.templateSig, p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), JSON.stringify(unverified))
+    clearDraft(p.scopeKey)
     notifyDataChanged('analysis')   // 另一个页面（比如生成中被刷新过的）也能看到新结果
-    send({ id: requestId, type: 'done', markdown: text, refs: used, warnings })
-    return { ok: true, markdown: text, refs: used, warnings }
+    send({ id: requestId, type: 'done', markdown: text, refs: used, warnings, unverified })
+    return { ok: true, markdown: text, refs: used, warnings, unverified }
   } catch (e) {
-    if (timer) clearTimeout(timer)
-    const partial = buf || lastPartial
+    const partial = stream.partial(e)
+    stream.dispose()
     if (e instanceof AiError && e.code === 'aborted') {
       send({ id: requestId, type: 'cancelled', partial })
       return { ok: false, cancelled: true, code: 'aborted', message: '已取消', partial }
     }
     const err = e instanceof AiError ? e : new AiError('network', (e as Error).message)
     recordUsage({ paperId: null, kind: 'p2_yoy', model: cfg.model, ok: false })
-    const message = FRIENDLY[err.code] ?? err.message
-    send({ id: requestId, type: 'error', code: err.code, message, partial })
-    return { ok: false, code: err.code, message, partial }
+    const fr = friendlyAiError(err)
+    // 已经写出来的部分留作「未完成草稿」：可以看，但不当作有效结果
+    const known = new Set(p.input.refs.map(x => x.token))
+    saveDraft({ key: p.scopeKey, kind: 'p2_yoy', markdown: stripUnknownCitations(fixBackticks(partial), known).text, refs: p.input.refs, message: fr.message, detail: fr.detail, model: cfg.model })
+    notifyDataChanged('analysis')
+    send({ id: requestId, type: 'error', code: err.code, message: fr.message, detail: fr.detail, partial })
+    return { ok: false, code: err.code, message: fr.message, detail: fr.detail, partial }
   } finally {
+    stream.dispose()
     offGone()
     inflight.delete(requestId)
     busyScopes.delete(p.scopeKey)

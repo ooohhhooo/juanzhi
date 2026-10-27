@@ -3,6 +3,7 @@
  * report/service.ts 和单测共用同一个入口——重难点取全量（P3_HOT_LIMIT）这个易错的调用点因此有测试守着（M4 复审 P2-2）。
  */
 import { compare, distribution, hot } from './core.ts'
+import { collectEvidence } from './evidence.ts'
 import { paperScope } from './filter.ts'
 import type { StatsFilter } from './filter.ts'
 import { P3_HOT_LIMIT } from './p3.ts'
@@ -22,5 +23,10 @@ export function collectP3Source(db: any, filter: StatsFilter): P3Source {
     const { school_year_start: _drop, ...rest } = filter
     cmp = compare(db, rest, target, { lt: target }, 2, 0, true)
   }
-  return { filter, dist, hot: hotRes, cmp, years, distinctGrades: distinct('grade'), distinctExamTypes: distinct('exam_type') }
+  const list = (col: string) => (db.prepare(`SELECT DISTINCT p.${col} v FROM papers p WHERE ${sc.where} AND p.${col} IS NOT NULL AND p.${col} <> '' ORDER BY v`).all(...sc.params) as any[]).map(r => String(r.v))
+  return {
+    filter, dist, hot: hotRes, cmp, years, distinctGrades: distinct('grade'), distinctExamTypes: distinct('exam_type'),
+    grades: list('grade'), semesters: list('semester'), examTypes: list('exam_type'),
+    evidence: collectEvidence(db, sc)
+  }
 }

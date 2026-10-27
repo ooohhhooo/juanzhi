@@ -16,9 +16,17 @@ import p2System from './prompts/p2_yoy.system.txt?raw'
 import p2User from './prompts/p2_yoy.user.txt?raw'
 import p3System from './prompts/p3_report.system.txt?raw'
 import p3User from './prompts/p3_report.user.txt?raw'
+import p3BossSystem from './prompts/p3_boss.system.txt?raw'
+import p3BossUser from './prompts/p3_boss.user.txt?raw'
+import p3ParentSystem from './prompts/p3_parent.system.txt?raw'
+import p3ParentUser from './prompts/p3_parent.user.txt?raw'
+import p3TeacherSystem from './prompts/p3_teacher.system.txt?raw'
+import p3TeacherUser from './prompts/p3_teacher.user.txt?raw'
+import p2KpSystem from './prompts/p2_kp.system.txt?raw'
+import p2KpUser from './prompts/p2_kp.user.txt?raw'
 
 /** 内置提示词的版本号；改了资源文件就要同步提升，并在交付说明里记一笔 */
-export const PROMPT_DEFAULT_VERSION = 'v1.1'
+export const PROMPT_DEFAULT_VERSION = 'v2.0'
 const SETTINGS_KEY = 'ai_prompts'
 
 // 资源文件末尾有换行（便于编辑器查看），发给模型前去掉，保证与 docs 里的提示词正文逐字一致
@@ -28,22 +36,32 @@ const DEFAULTS: Record<string, string> = {
   'p1_text.system': trimEnd(p1TextSystem), 'p1_text.user': trimEnd(p1TextUser),
   'p1_vision.system': trimEnd(p1VisionSystem), 'p1_vision.user': trimEnd(p1VisionUser),
   'p2_yoy.system': trimEnd(p2System), 'p2_yoy.user': trimEnd(p2User),
-  'p3_report.system': trimEnd(p3System), 'p3_report.user': trimEnd(p3User)
+  'p3_report.system': trimEnd(p3System), 'p3_report.user': trimEnd(p3User),
+  'p3_boss.system': trimEnd(p3BossSystem), 'p3_boss.user': trimEnd(p3BossUser),
+  'p3_parent.system': trimEnd(p3ParentSystem), 'p3_parent.user': trimEnd(p3ParentUser),
+  'p3_teacher.system': trimEnd(p3TeacherSystem), 'p3_teacher.user': trimEnd(p3TeacherUser),
+  'p2_kp.system': trimEnd(p2KpSystem), 'p2_kp.user': trimEnd(p2KpUser)
 }
 
 const TITLES: Record<PromptId, string> = {
   p1_text: 'P1 解析（文本版）：OCR 文本 → 题目清单',
   p1_vision: 'P1 解析（视觉版）：页面图片 → 题目清单',
   p2_yoy: 'P2 年度变化分析',
-  p3_report: 'P3 考情分析报告'
+  p3_report: 'P3 考情分析报告：完整数据版',
+  p3_boss: 'P3 考情分析报告：老板版',
+  p3_parent: 'P3 考情分析报告：家长版',
+  p3_teacher: 'P3 考情分析报告：老师版',
+  p2_kp: 'P2 单个考点分析（看板抽屉）'
 }
 
 const P1_COMMON = ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'FILE_NAME', 'KNOWN_META', 'BATCH_INFO', 'BATCH_PREFIX', 'PREV_CONTEXT']
+const P3_PH = ['FILTER_DESC', 'PAPER_COUNT', 'QUESTION_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_DIST', 'QTYPE_DIST', 'DIFF_DIST', 'ERROR_PRONE', 'YEAR_DIFF', 'EVIDENCE']
 export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p1_text: [...P1_COMMON, 'OCR_TEXT'],
   p1_vision: [...P1_COMMON, 'PAGE_LIST'],
-  p2_yoy: ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT'],
-  p3_report: ['FILTER_DESC', 'PAPER_COUNT', 'QUESTION_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_DIST', 'QTYPE_DIST', 'DIFF_DIST', 'ERROR_PRONE', 'YEAR_DIFF']
+  p2_yoy: ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT', 'EVIDENCE'],
+  p3_report: P3_PH, p3_boss: P3_PH, p3_parent: P3_PH, p3_teacher: P3_PH,
+  p2_kp: ['FILTER_DESC', 'PAPER_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_NAME', 'KP_DATA', 'KP_SAMPLES', 'EVIDENCE']
 }
 function overrides(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(SETTINGS_KEY) as { value_json: string } | undefined

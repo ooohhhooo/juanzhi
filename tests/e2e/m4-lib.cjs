@@ -16,7 +16,7 @@ const ctx = { ud: null, app: null, page: null, mock: null, consoleErrors: [], id
 const clean = e => String(e && e.message ? e.message : e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 const T = id => ctx.page.locator(`[data-testid="${id}"]`)
 const txt = async id => (await T(id).first().innerText()).replace(/\s+/g, ' ').trim()
-const stat = async id => (await ctx.page.locator(`[data-testid="${id}"] .ant-statistic-content-value`).first().innerText()).trim()
+const stat = async id => (await ctx.page.locator(`[data-testid="${id}"]`).first().innerText()).trim()
 const goto = async hash => { await ctx.page.evaluate(h => { location.hash = h }, hash) }
 const shot = async name => ctx.page.screenshot({ path: path.join(shots, `m4-${name}.png`) })
 const waitStat = (id, want, ms = 15000) => waitFor(async () => (await T(id).count()) > 0 && (await stat(id)) === String(want), ms)

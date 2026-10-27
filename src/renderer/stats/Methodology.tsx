@@ -1,11 +1,21 @@
 import React from 'react'
-import { Button, Modal, Typography } from 'antd'
-import { QuestionCircleOutlined } from '@ant-design/icons'
+import { Collapse, Modal, Typography } from 'antd'
+import { CircleHelp } from 'lucide-react'
+import { Btn, UsageNote } from '../design'
+import '../design/page-analysis.css'
 
 /** 口径说明：看板上每个数字是怎么算出来的（对应设计方案 §4）。放在一处，页面上的提示都指向它 */
 export function MethodologyBody() {
   return (
-    <div data-testid="methodology" style={{ fontSize: 13, lineHeight: 1.8 }}>
+    <div data-testid="methodology" className="ewb-ana-method">
+      <UsageNote kind="tip" title="三句话看懂" data-testid="methodology-summary">
+        <ol>
+          <li>只统计老师<b>确认过</b>的卷子；同一份卷子导入多次、或像是别的卷子的一部分的，只算一份。</li>
+          <li>“考了几份卷子”看一个知识点在多少份卷子里出现过；“占总分多少”看它的题加起来占总分的比例。两者都高的就是重点。</li>
+          <li>难易程度、容易错都是 <b>AI 估计</b>，不是学生考试成绩；卷子少于 3 份时不下“新考的”“难点”这类结论。</li>
+        </ol>
+      </UsageNote>
+      <Collapse ghost size="small" items={[{ key: 'detail', forceRender: true, label: '想细看？展开详细说明（给运营和教研核对数字用）', children: (<div>
       <Typography.Title level={5} style={{ marginTop: 0 }}>哪些试卷计入统计</Typography.Title>
       <ul>
         <li>默认只统计<b>状态为「已完成」</b>（老师已审核并确认整份）的试卷。待审核的试卷里 AI 标注还没人核对过，默认不计入。</li>
@@ -22,7 +32,7 @@ export function MethodologyBody() {
         <li><b>主 / 次知识点</b>：一道题可以标 1 个主知识点和最多 3 个次知识点。主、次都计入<b>出现率和题数</b>；<b>分值只按主知识点计</b>，避免一道题的分数被重复计算。所以某个知识点只作为次知识点出现时，它有出现率、有题数，但分值为 0。</li>
         <li><b>难度、易错</b>是 AI 或老师的估计，没有学生成绩，界面一律标「估计」。</li>
       </ul>
-      <Typography.Title level={5}>双向细目表</Typography.Title>
+      <Typography.Title level={5}>知识点 × 题型表（双向细目表）</Typography.Title>
       <ul>
         <li>行 = 知识点（一级或二级，向上汇总），列 = 题型，格子里是「题数 / 分值」。标在一级节点上的题，在二级视图里单独成一行「该一级节点本身」，不会丢。</li>
         <li>一道题标了多个知识点时，会在多行各计一次题数；分值只在主知识点所在的行计。所以各行题数相加会大于全卷题数，表尾「全部题目合计」才是真实的题数与分值。</li>
@@ -43,6 +53,18 @@ export function MethodologyBody() {
         <li>这是帮助排序的启发式，不是考情结论，也不是学生成绩统计；出现率和分值占比本身高度相关（出现得多，分值占比自然大），易错项最多让得分 ×2。只作为次知识点出现的知识点没有分值占比，得分为 0，排在最后。典型题优先选易错、难度高的题。</li>
         <li>每个视图只看一个层级：主知识点标在更高一级节点上的题不属于任何一行，页面会单独写出这类题的数量与分值。</li>
       </ul>
+      <Typography.Title level={5}>样本少的时候</Typography.Title>
+      <ul>
+        <li>同比任一侧少于 <b>3 份</b>卷子时，“新考的 / 没再考的”默认折叠，写“样本不足，暂不比较”；少于 5 份时写“样本有限”。</li>
+        <li>总卷子数 ≥ 2 而某个知识点只在 <b>1 份</b>卷子里出现，叫“个例”：不算规律，也不会被当成难点。总览的“最常考”在只有 1–2 份卷子时改成“每份都考 / 只考了一份”两组。</li>
+        <li>重难点页每个知识点有“重点 / 难点 / 又重又难 / 个例”的标签，不再只给一个看不出高低的分数。</li>
+      </ul>
+      <Typography.Title level={5}>疑似重复的卷子</Typography.Title>
+      <ul>
+        <li>解析完成后，软件会比对这份卷子和已有卷子的题目文字。大部分题在某份已有卷子里也有（比如只是同一份卷子的第 1 页），就标成“疑似重复”，默认不计入统计。</li>
+        <li>你可以选“确实是新卷，计入统计”或“删除这份”。打开筛选栏的“包含重复导入”可以把它们一起算进来。</li>
+      </ul>
+      </div>) }]} />
     </div>
   )
 }
@@ -51,8 +73,8 @@ export default function MethodologyButton() {
   const [open, setOpen] = React.useState(false)
   return (
     <>
-      <Button size="small" icon={<QuestionCircleOutlined />} data-testid="methodology-btn" onClick={() => setOpen(true)}>口径说明</Button>
-      <Modal open={open} onCancel={() => setOpen(false)} footer={null} title="口径说明" width="min(760px, 92vw)" destroyOnHidden zIndex={1050}><MethodologyBody /></Modal>
+      <Btn tone="secondary" size="small" icon={CircleHelp} data-testid="methodology-btn" onClick={() => setOpen(true)}>怎么算的</Btn>
+      <Modal open={open} onCancel={() => setOpen(false)} footer={null} title="怎么算的" width="min(760px, 92vw)" destroyOnHidden zIndex={1050}><MethodologyBody /></Modal>
     </>
   )
 }

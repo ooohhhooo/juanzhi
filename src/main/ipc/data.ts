@@ -15,6 +15,7 @@ import { busyReason } from '../busy'
 import { PackError } from '../pack/errors'
 import { extractPack } from '../pack/reader'
 import { prepareStagedDb } from '../pack/stage-db'
+import { refineImported } from '../parse/refine-run'
 import { applyMerge, applyOverwrite, backupsRoot, listBackups, summarizePack } from '../pack/apply'
 import { buildPack } from '../pack/exporter'
 import { PACK_FORMAT_VERSION } from '../pack/manifest'
@@ -156,6 +157,8 @@ export function registerDataIpc(): void {
     try {
       const report = mode === 'merge' ? applyMerge(deps, staged) : applyOverwrite(deps, staged)
       discardPending()
+      // 导入进来的卷子也要走同一套截图框修正（别的机器解析出来的框没有留白，PAD = 0 之后会裁得偏紧）；后台做，不挡导入结果
+      void refineImported(mode === 'merge' ? (report.newPaperIds ?? []) : 'all').catch(e => console.warn(`[crop] 导入后修框失败：${(e as Error).message}`))
       notifyDataChanged('papers', 'questions', 'pages', 'materials', 'assets', 'taxonomy', 'analysis', 'reports', 'prompts', 'usage', 'queue')
       return report
     } catch (e) {

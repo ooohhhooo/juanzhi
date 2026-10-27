@@ -2,7 +2,9 @@ import { app, BrowserWindow, dialog, Menu, protocol, session } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import fs from 'node:fs'
-import { initDatabase, closeDatabase, configuredDir, defaultDir, setDataDir } from './db'
+import { initDatabase, closeDatabase, configuredDir, defaultDir, setDataDir, takeUpgradeScan } from './db'
+import { startSimilarScan } from './similar-runner'
+import { refineAllOnce } from './parse/refine-run'
 import { writeConfig } from './datadir'
 import { registerProtocol } from './protocol'
 import { registerPaperIpc } from './ipc/papers'
@@ -160,6 +162,11 @@ if (!app.requestSingleInstanceLock()) {
     registerDataIpc()
     registerTaxonomyIpc()
     createWindow()
+    // 升级后给库里已有的卷子补扫一遍重复卷：后台分片跑，不挡窗口（失败只写日志）
+    if (takeUpgradeScan()) startSimilarScan().then(r => console.log(`[db] 升级后扫描重复试卷：检查 ${r.checked} 份，疑似重复 ${r.suspects} 份`), e => console.warn(`[db] 升级后扫描重复试卷失败: ${(e as Error).message}`))
+
+    // 旧数据里的题目截图框用页面墨迹修一遍（只做一次，后台分片，失败只写日志）
+    refineAllOnce().then(n => { if (n) console.log(`[crop] 已修正 ${n} 道题的截图框`) }, e => console.warn(`[crop] 修正截图框失败: ${(e as Error).message}`))
 
     app.on('activate', () => {
       if (!getMainWindow()) createWindow()

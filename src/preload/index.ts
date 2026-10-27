@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -16,6 +16,14 @@ const api = {
       ipcRenderer.invoke('papers:assets', paperId),
     reprocess: (id: string): Promise<boolean> =>
       ipcRenderer.invoke('papers:reprocess', id),
+    acceptSimilar: (id: string): Promise<boolean> =>
+      ipcRenderer.invoke('papers:acceptSimilar', id),
+    /** 「检查重复试卷」：后台扫描，结束时才 resolve（按钮据此显示「检查中」）；进度见事件 `similar:progress`（{ running, done, total, suspects? }） */
+    scanSimilar: (): Promise<{ checked: number; suspects: number }> =>
+      ipcRenderer.invoke('papers:scanSimilar'),
+    /** 当前扫描状态（页面刷新后恢复「检查中」用） */
+    scanSimilarStatus: (): Promise<{ running: boolean; done: number; total: number; suspects: number | null }> =>
+      ipcRenderer.invoke('papers:scanSimilarStatus'),
     list: (filter?: Record<string, unknown>): Promise<any[]> =>
       ipcRenderer.invoke('papers:list', filter),
     get: (id: string): Promise<any> =>
@@ -39,6 +47,7 @@ const api = {
   },
   ai: {
     presets: (): Promise<any[]> => ipcRenderer.invoke('ai:presets'),
+    modelProfile: (model: string): Promise<any> => ipcRenderer.invoke('ai:modelProfile', model),
     // 只能拿到 hasKey，拿不到密钥本身；密钥只能写入（apiKey 省略 = 不改，null = 清除）
     getConfig: (): Promise<any> => ipcRenderer.invoke('ai:getConfig'),
     saveConfig: (cfg: Record<string, unknown>, apiKey?: string | null): Promise<any> =>
@@ -51,6 +60,9 @@ const api = {
     // P2 同比分析：compareAnalysis 只读缓存状态（不花钱）；analyzeCompare 流式生成，增量走 ai:chunk 事件（只发给发起请求的窗口）
     compareAnalysis: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('ai:compareAnalysis', scope),
     analyzeCompare: (scope: Record<string, unknown>, requestId: string): Promise<any> => ipcRenderer.invoke('ai:analyzeCompare', scope, requestId),
+    /** 看板抽屉里「只讲这一个考点」的 AI 分析。scope = { filter, code, target?, base?, align? }：从同比页打开时带 target（今年）和 base（'before' 或某一学年），否则只讲筛选范围内的情况。kpAnalysis 只读状态（不花钱）；analyzeKp 流式生成（ai:chunk，ai.cancel 取消），≤ 250 字、很快 */
+    kpAnalysis: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('ai:kpAnalysis', scope),
+    analyzeKp: (scope: Record<string, unknown>, requestId: string): Promise<any> => ipcRenderer.invoke('ai:analyzeKp', scope, requestId),
     cancel: (requestId: string): Promise<boolean> => ipcRenderer.invoke('ai:cancel', requestId),
   },
   stats: {
@@ -67,11 +79,20 @@ const api = {
   report: {
     list: (): Promise<any[]> => ipcRenderer.invoke('report:list'),
     get: (id: string): Promise<any> => ipcRenderer.invoke('report:get', id),
-    preview: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('report:preview', filter),
-    // 流式增量走 ai:chunk（只发给发起请求的窗口）；取消用 ai.cancel(requestId)
-    generate: (filter: Record<string, unknown> | undefined, requestId: string): Promise<any> => ipcRenderer.invoke('report:generate', filter, requestId),
+    preview: (filter?: Record<string, unknown>, reader?: string): Promise<any> => ipcRenderer.invoke('report:preview', filter, reader),
+    // 流式增量走 ai:chunk（只发给发起请求的窗口）；取消用 ai.cancel(requestId)。reader：boss / parent / teacher / full（默认 full）
+    generate: (filter: Record<string, unknown> | undefined, requestId: string, reader?: string): Promise<any> => ipcRenderer.invoke('report:generate', filter, requestId, reader),
     delete: (id: string): Promise<boolean> => ipcRenderer.invoke('report:delete', id),
-    export: (id: string, fmt: 'md' | 'pdf'): Promise<any> => ipcRenderer.invoke('report:export', id, fmt),
+    export: (id: string, fmt: 'md' | 'pdf' | 'docx'): Promise<any> => ipcRenderer.invoke('report:export', id, fmt),
+    // 老师点「我已核对」（家长版必须先核对才能导出 / 复制）
+    /** 「我已核对」。家长版必须带上 acknowledged = 老师勾了「已确认无误」的未核实句子（原文）：每句「未核实」的话要么已删掉、要么在这个列表里，否则 reject（白话 message）；有矛盾句 / 内容太少也 reject */
+    confirm: (id: string, acknowledged?: string[]): Promise<boolean> => ipcRenderer.invoke('report:confirm', id, acknowledged ?? []),
+    /** 核对时从报告里删掉清单里的一句「未核实 / 矛盾」的话（正文里连标记一起删）；已核对的报告不能再改。返回更新后的报告 */
+    removeSentence: (id: string, sentence: string): Promise<any> => ipcRenderer.invoke('report:removeSentence', id, sentence),
+    // 复制到微信：纯文本写进系统剪贴板
+    copyWechat: (id: string): Promise<{ text: string; chars: number }> => ipcRenderer.invoke('report:copyWechat', id),
+    // 在文件夹里显示刚导出的文件
+    reveal: (path: string): Promise<boolean> => ipcRenderer.invoke('report:reveal', path),
   },
   data: {
     info: (): Promise<any> => ipcRenderer.invoke('data:info'),

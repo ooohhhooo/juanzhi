@@ -1,0 +1,114 @@
+/*
+ * 审核页（页面级样式，前缀 ewb-rev-）：三栏效率页放在白色大画布里。
+ * 原卷是白纸，深色模式下也不变，所以叠在原卷上的框用「纸面色」常量（--rev-*），不用随主题变的 token。
+ */
+
+/* ───── 纸面常量：叠在白纸上的框（浅色主题的主色，两种主题都用它） ───── */
+.ewb-rev-sheet { --rev-primary: #5B57D1; --rev-ink: #1C1B2E; background: var(--ewb-sheet); outline: 1px solid var(--ewb-line); border-radius: var(--ewb-r-sm); overflow: visible; }
+
+/* ───── 页面骨架 ───── */
+.ewb-rev { height: calc(var(--ewb-vh, 100vh) - 2 * var(--ewb-canvas-gap)); display: flex; flex-direction: column; background: var(--ewb-page); min-width: 0; }
+.ewb-rev__bar { display: flex; align-items: center; gap: var(--ewb-sp-4); padding: var(--ewb-sp-3) var(--ewb-sp-5); border-bottom: 1px solid var(--ewb-line); flex: none; }
+.ewb-rev__heading { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.ewb-rev__title { margin: 0; font-size: var(--ewb-fs-xl); line-height: 1.3; font-weight: 700; color: var(--ewb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ewb-rev__sub { display: flex; align-items: center; flex-wrap: wrap; gap: 6px var(--ewb-sp-3); font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-rev__sub b { font-variant-numeric: tabular-nums; color: var(--ewb-ink); }
+.ewb-rev__keys { color: var(--ewb-ink-2); }
+.ewb-rev__actions { flex: none; display: flex; gap: var(--ewb-sp-2); }
+.ewb-rev__notes { padding: 0 var(--ewb-sp-5); flex: none; }
+.ewb-rev__notes .ewb-note { margin: var(--ewb-sp-4) 0 var(--ewb-sp-2); }
+.ewb-rev__cols { flex: 1; display: flex; min-height: 0; }
+
+/* ───── 胶囊标签 ───── */
+.ewb-rev-pill { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: var(--ewb-r-pill); border: 1px solid var(--ewb-line-strong); background: var(--ewb-page); color: var(--ewb-ink-2); font-size: var(--ewb-fs-xs); font-weight: 600; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ewb-rev-pill--warn { color: var(--ewb-red-ink); border-color: var(--ewb-red-line); background: var(--ewb-red-soft); }
+.ewb-rev-pill--info { color: var(--ewb-primary); border-color: var(--ewb-primary); background: transparent; }
+.ewb-rev-pill--done { color: var(--ewb-ink); border-color: var(--ewb-line); background: var(--ewb-note); }
+.ewb-rev-pill[tabindex] { cursor: help; }
+
+/* ───── 左栏：题目条目索引 ───── */
+.ewb-rev-left { width: 260px; flex: none; min-width: 0; border-right: 1px solid var(--ewb-line); display: flex; flex-direction: column; }
+.ewb-rev-left__top { padding: var(--ewb-sp-3); border-bottom: 1px solid var(--ewb-line); }
+.ewb-rev-left__list { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--ewb-sp-2) var(--ewb-sp-3); }
+.ewb-rev-empty { margin: var(--ewb-sp-6) var(--ewb-sp-3); font-size: var(--ewb-fs-md); color: var(--ewb-ink-2); text-align: center; }
+.ewb-rev-sec { position: sticky; top: 0; z-index: 1; padding: 8px var(--ewb-sp-2) 4px; margin: 0 calc(-1 * var(--ewb-sp-2)); background: var(--ewb-page); font-size: var(--ewb-fs-sm); font-weight: 600; color: var(--ewb-ink-2); border-bottom: 1px solid var(--ewb-line); }
+.ewb-rev-q { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 2px var(--ewb-sp-2); align-items: start; margin-top: 4px; padding: 8px var(--ewb-sp-2); border-radius: var(--ewb-r-md); cursor: pointer; transition: background-color var(--ewb-t-fast) var(--ewb-ease); }
+.ewb-rev-q:hover { background: var(--ewb-paper-2); }
+.ewb-rev-q--warn { background: var(--ewb-red-soft); }
+.ewb-rev-q--warn:hover { background: var(--ewb-red-soft); }
+.ewb-rev-q--active, .ewb-rev-q--active:hover { background: var(--ewb-primary-soft); box-shadow: inset 0 0 0 1.5px var(--ewb-primary); }
+.ewb-rev-q__no { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ewb-ink); }
+.ewb-rev-q--active .ewb-rev-q__no { color: var(--ewb-primary); }
+.ewb-rev-q__stem { font-size: var(--ewb-fs-sm); line-height: 1.45; color: var(--ewb-ink-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ewb-rev-q__kp { grid-column: 2; font-size: var(--ewb-fs-xs); font-weight: 600; color: var(--ewb-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ewb-rev-q__marks { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; gap: 4px; min-height: 22px; }
+.ewb-rev-q__state { display: inline-flex; align-items: center; gap: 3px; font-size: var(--ewb-fs-xs); font-weight: 600; color: var(--ewb-ink-2); }
+.ewb-rev-q__state--done { color: var(--ewb-ink); }
+.ewb-rev-q__state--warn { color: var(--ewb-red-ink); }
+
+/* ───── 中栏：原卷放在布面上 ───── */
+.ewb-rev-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--ewb-line); }
+.ewb-rev-mid__tools { display: flex; align-items: center; flex-wrap: wrap; gap: var(--ewb-sp-2) var(--ewb-sp-3); padding: var(--ewb-sp-2) var(--ewb-sp-3); border-bottom: 1px solid var(--ewb-line); flex: none; }
+.ewb-rev-mid__tools .push { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--ewb-sp-2) var(--ewb-sp-3); }
+.ewb-rev-mid__page { font-size: var(--ewb-fs-md); font-variant-numeric: tabular-nums; }
+.ewb-rev-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); cursor: pointer; }
+.ewb-rev-check input { width: 16px; height: 16px; accent-color: var(--ewb-primary); cursor: pointer; }
+.ewb-rev-cloth { flex: 1; min-height: 0; overflow: auto; padding: var(--ewb-sp-4); background: var(--ewb-paper-2); }
+.ewb-rev-cloth__act { margin-top: var(--ewb-sp-3); display: flex; justify-content: center; align-items: center; gap: var(--ewb-sp-2); flex-wrap: wrap; font-size: var(--ewb-fs-sm); }
+.ewb-rev-docx { white-space: pre-wrap; padding: var(--ewb-sp-4); font-size: var(--ewb-fs-md); line-height: 1.8; }
+.ewb-rev-others { position: absolute; border: 1px dashed color-mix(in srgb, var(--rev-ink) 45%, transparent); cursor: pointer; box-sizing: border-box; }
+.ewb-rev-others:hover { border-color: var(--rev-primary); background: color-mix(in srgb, var(--rev-primary) 8%, transparent); }
+
+/* ───── 右栏：标注表单 ───── */
+.ewb-rev-right { width: 360px; flex: none; min-height: 0; min-width: 0; }
+.ewb-rev-form { padding: var(--ewb-sp-4) var(--ewb-sp-5) var(--ewb-sp-5); overflow: auto; height: 100%; display: flex; flex-direction: column; gap: var(--ewb-sp-3); }
+.ewb-rev-form > * { flex: none; }
+.ewb-rev-form .ewb-note { margin: var(--ewb-sp-3) 0 var(--ewb-sp-1); padding: var(--ewb-sp-4) var(--ewb-sp-3) var(--ewb-sp-3); font-size: var(--ewb-fs-sm); }
+.ewb-rev-form__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--ewb-sp-2); }
+.ewb-rev-form__title { margin: 0; font-size: var(--ewb-fs-h3); line-height: 1.25; font-weight: 700; color: var(--ewb-ink); }
+.ewb-rev-form__meta { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); font-variant-numeric: tabular-nums; }
+.ewb-rev-form__flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ewb-rev-form__grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--ewb-sp-2); }
+.ewb-rev-field { display: grid; gap: 4px; }
+.ewb-rev-label { font-size: var(--ewb-fs-sm); font-weight: 600; color: var(--ewb-ink-2); }
+.ewb-rev-label--hint { cursor: help; text-decoration: underline dotted var(--ewb-ink-2); text-underline-offset: 3px; }
+.ewb-rev-opt { display: flex; gap: var(--ewb-sp-1); align-items: center; margin-bottom: 4px; }
+.ewb-rev-inline { display: flex; align-items: center; flex-wrap: wrap; gap: var(--ewb-sp-2); }
+.ewb-rev-actions { display: flex; flex-wrap: wrap; gap: var(--ewb-sp-2); padding-top: var(--ewb-sp-2); }
+.ewb-rev-material { white-space: pre-wrap; font-size: var(--ewb-fs-sm); max-height: 160px; overflow: auto; }
+.ewb-rev-suggest { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); margin: 6px 0 var(--ewb-sp-2); }
+
+/* ───── 知识点下拉：中文名 + 斜体例词 + 一句白话（行内，保持文字连续） ───── */
+.ewb-kp-name { font-weight: 600; color: var(--ewb-ink); }
+.ewb-kp-hint { font-style: italic; color: var(--ewb-ink-2); }
+.ewb-kp-plain { color: var(--ewb-ink-2); }
+.ewb-kp-code { color: var(--ewb-ink-2); font-size: var(--ewb-fs-xs); }
+.ant-select-tree-treenode-disabled .ewb-kp-name { color: var(--ewb-ink-2); }
+
+/* ───── 审核列表页 ───── */
+.ewb-rev-list-cell { font-variant-numeric: tabular-nums; }
+.ewb-rev-list-title { font-weight: 600; }
+
+/* 窗口窄（≤ 1200）时让出中栏：原卷页面至少留 400px 宽 */
+@media (max-width: 1200px) {
+  .ewb-rev-left { width: 232px; }
+  .ewb-rev-right { width: 330px; }
+  .ewb-rev-form { padding: var(--ewb-sp-4); }
+}
+
+/* ───── 窄窗口（≤ 1100px，最小窗口 900）：题目列表收进左侧抽屉，原卷至少占画布一半宽；顶栏换行排整齐 ───── */
+.ewb-rev__listbtn { display: none !important; }
+.ewb-rev__backdrop { display: none; }
+@media (max-width: 1100px) {
+  .ewb-rev__listbtn { display: inline-flex !important; }
+  .ewb-rev__bar { flex-wrap: wrap; row-gap: var(--ewb-sp-2); }
+  .ewb-rev__heading { flex: 1 1 320px; }
+  .ewb-rev__actions { flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; }
+  .ewb-rev__cols { position: relative; }
+  .ewb-rev-left { display: none; }
+  .ewb-rev-left.is-open { display: flex; position: absolute; z-index: 30; left: 0; top: 0; bottom: 0; width: 300px; background: var(--ewb-page); box-shadow: var(--ewb-shadow-pop); border-right: 1px solid var(--ewb-line); }
+  .ewb-rev__backdrop { display: block; position: absolute; inset: 0; z-index: 20; background: var(--ewb-mask); }
+  .ewb-rev-right { width: 320px; }
+  .ewb-rev-mid__tools { gap: var(--ewb-sp-2); }
+  .ewb-rev-mid__tools .push { margin-left: 0; width: 100%; justify-content: space-between; }
+}

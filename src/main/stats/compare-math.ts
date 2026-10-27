@@ -6,6 +6,8 @@
  */
 export const CHANGE_THRESHOLD_PP = 20
 export const MIN_SAMPLE = 5
+/** 任一侧少于 3 份卷子：新增 / 消失说明不了什么，界面默认折叠并写「样本不足，暂不比较」，P2 也不展开分析 */
+export const MIN_COMPARE = 3
 
 export type ChangeKind = 'added' | 'removed' | 'up' | 'down'
 
@@ -27,6 +29,14 @@ export function classifyChange(aT: number, nT: number, aB: number, nB: number): 
 export function deltaPoints(aT: number, nT: number, aB: number, nB: number): number {
   if (nT <= 0 || nB <= 0) return 0
   return Math.round((aT / nT - aB / nB) * 1000) / 10
+}
+
+/** 试卷数少于 3 份的一侧（样本不足，暂不比较） */
+export function insufficientSides(nT: number, nB: number): Array<'target' | 'base'> {
+  const out: Array<'target' | 'base'> = []
+  if (nT < MIN_COMPARE) out.push('target')
+  if (nB < MIN_COMPARE) out.push('base')
+  return out
 }
 
 /** 任一侧试卷数不足 5 份即为样本有限 */

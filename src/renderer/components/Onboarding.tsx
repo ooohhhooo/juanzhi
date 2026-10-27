@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { App, Button, Card, Col, Row, Select, Space, Tag } from 'antd'
-import { CheckCircleFilled } from '@ant-design/icons'
+import { App, Select } from 'antd'
+import { Check } from 'lucide-react'
+import { Btn, Icon, StatusLabel } from '../design'
+import '../design/page-library.css'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useStatsFilter } from '../stats/StatsFilter'
@@ -63,44 +65,50 @@ export default function Onboarding() {
     } catch (e) { message.error(clean(e)) } finally { setLoading(false) }
   }
 
+  // 一个面板里一列步骤：序号是真正的先后顺序，做完的步骤打勾
   const step = (n: number, title: string, ok: boolean, tag: React.ReactNode, body: React.ReactNode, testid: string) => (
-    <Col xs={24} md={8}>
-      <Card size="small" data-testid={testid} data-done={ok ? '1' : '0'} style={{ height: '100%', borderColor: ok ? '#b7eb8f' : undefined }}
-        title={<span>{ok ? <CheckCircleFilled style={{ color: '#52c41a', marginRight: 6 }} /> : <b style={{ marginRight: 6 }}>{n}</b>}{title}</span>} extra={tag}>
+    <li className="ewb-lib-step" data-testid={testid} data-done={ok ? '1' : '0'}>
+      <span className="ewb-lib-stepn" aria-hidden>{ok ? <Icon as={Check} size={15} /> : n}</span>
+      <div style={{ minWidth: 0 }}>
+        <h3 className="ewb-lib-step__title">{title}{tag}</h3>
         {body}
-      </Card>
-    </Col>
+      </div>
+      <span />
+    </li>
   )
   return (
-    <Card size="small" data-testid="onboarding" style={{ marginBottom: 16, background: '#f7f9ff', borderColor: '#d6e4ff' }}
-      title="开始使用：三步就能出第一份分析" extra={<Button type="link" size="small" data-testid="onb-done" onClick={finish}>不再显示</Button>}>
-      <Row gutter={[12, 12]}>
-        {step(1, '配置 AI 服务', aiOk, aiOk ? <Tag color="success">已配置</Tag> : skippedAi ? <Tag>已跳过</Tag> : <Tag color="blue">可跳过</Tag>,
-          <Space direction="vertical" size={6}>
-            <span style={{ fontSize: 13, color: '#555' }}>AI 负责把试卷拆成题并标上知识点。不配置也能用——只是题目要手动标注。</span>
-            <Space>
-              <Button size="small" type="primary" data-testid="onb-ai" onClick={() => nav('/settings')}>去设置</Button>
-              {!aiOk && !skippedAi && <Button size="small" data-testid="onb-skip-ai" onClick={() => setSkippedAi(true)}>先跳过</Button>}
-            </Space>
-          </Space>, 'onb-step-ai')}
-        {step(2, '拖入第一批卷子', real.length > 0, real.length > 0 ? <Tag color="success">已导入 {real.length} 份</Tag> : <Tag color="blue">待完成</Tag>,
-          <Space direction="vertical" size={6}>
-            <span style={{ fontSize: 13, color: '#555' }}>把 PDF、图片或 Word 试卷拖到下面的虚线框里，或者点按钮选择文件。</span>
-            <Button size="small" type="primary" data-testid="onb-import" onClick={pickFiles}>选择文件</Button>
-          </Space>, 'onb-step-papers')}
-        {step(3, '选择教材版本', !!textbook, textbook ? <Tag color="success">{textbook}</Tag> : <Tag color="blue">待完成</Tag>,
-          <Space direction="vertical" size={6} style={{ width: '100%' }}>
-            <span style={{ fontSize: 13, color: '#555' }}>卷头没写教材时，用它作新试卷的默认教材（之后可以在每份试卷里改）。</span>
+    <section className="ewb-lib-guide" data-testid="onboarding" aria-label="开始使用">
+      <div className="ewb-lib-guide__head">
+        <h2 className="ewb-lib-guide__title">开始使用：三步就能出第一份分析</h2>
+        <div className="ewb-lib-guide__tools"><Btn tone="quiet" size="small" data-testid="onb-done" onClick={finish}>不再显示</Btn></div>
+      </div>
+      <ol className="ewb-lib-steps">
+        {step(1, '配置 AI 服务', aiOk, aiOk ? <StatusLabel kind="done">已配置</StatusLabel> : skippedAi ? <StatusLabel kind="queued">已跳过</StatusLabel> : <StatusLabel kind="queued">可跳过</StatusLabel>,
+          <div className="ewb-lib-step__body">
+            <p className="ewb-lib-step__text" style={{ margin: 0 }}>AI 负责把试卷拆成题并标上知识点。这一步一般由管理员做一次；不配置也能用——只是题目要手动标注。</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Btn tone="secondary" size="small" data-testid="onb-ai" onClick={() => nav('/settings?admin=1')}>去管理员设置</Btn>
+              {!aiOk && !skippedAi && <Btn tone="quiet" size="small" data-testid="onb-skip-ai" onClick={() => setSkippedAi(true)}>先跳过</Btn>}
+            </div>
+          </div>, 'onb-step-ai')}
+        {step(2, '拖入第一批卷子', real.length > 0, real.length > 0 ? <StatusLabel kind="done">已导入 {real.length} 份</StatusLabel> : <StatusLabel kind="pending">待完成</StatusLabel>,
+          <div className="ewb-lib-step__body">
+            <p className="ewb-lib-step__text" style={{ margin: 0 }}>把 PDF、图片或 Word 试卷拖到下面的虚线框里，或者点按钮选择文件。</p>
+            <Btn tone="secondary" size="small" data-testid="onb-import" onClick={pickFiles}>选择文件</Btn>
+          </div>, 'onb-step-papers')}
+        {step(3, '选择教材版本', !!textbook, textbook ? <StatusLabel kind="done">{textbook}</StatusLabel> : <StatusLabel kind="pending">待完成</StatusLabel>,
+          <div className="ewb-lib-step__body" style={{ width: '100%', maxWidth: 360 }}>
+            <p className="ewb-lib-step__text" style={{ margin: 0 }}>卷头没写教材时，用它作新试卷的默认教材（之后可以在每份试卷里改）。</p>
             <Select data-testid="onb-textbook" allowClear placeholder="选择教材版本" value={textbook ?? undefined} style={{ width: '100%' }} onChange={v => setTextbook(v)}
               options={TEXTBOOKS.map(t => ({ value: t, label: t }))} />
-            <span style={{ fontSize: 12, color: '#999' }}>没有你的教材？在每份试卷的信息里手动填写即可。</span>
-          </Space>, 'onb-step-textbook')}
-      </Row>
-      <div style={{ marginTop: 12, fontSize: 13, color: '#555' }}>
-        想先看看效果？
-        <Button type="link" size="small" data-testid="onb-load-sample" loading={loading} onClick={loadSample}>{sample?.loaded ? '示例数据已加载，去看看' : '加载示例数据试一试'}</Button>
-        <span style={{ color: '#999' }}>（内置的合成演示卷，不会混进你的真实数据，随时可在「设置 → 示例数据」一键清除）</span>
+            <span className="ewb-lib-step__hint">没有你的教材？在每份试卷的信息里手动填写即可。</span>
+          </div>, 'onb-step-textbook')}
+      </ol>
+      <div className="ewb-lib-guide__foot">
+        <span>想先看看效果？</span>
+        <Btn tone="quiet" size="small" data-testid="onb-load-sample" loading={loading} onClick={loadSample}>{sample?.loaded ? '示例数据已加载，去看看' : '加载示例数据试一试'}</Btn>
+        <span className="ewb-lib-sub">（内置的合成演示卷，不会混进你的真实数据，随时可在「设置 → 示例数据」一键清除）</span>
       </div>
-    </Card>
+    </section>
   )
 }

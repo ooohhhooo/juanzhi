@@ -31,7 +31,7 @@ const cols = line => line.split(' | ')
   const inp = P.buildP2Input(cmp, hot, {})
   const ph = inp.placeholders
 
-  assert.equal(ph.FILTER_DESC, '全部年级 · 按二级知识点统计 · 学期范围：目标学年 上学期；基线已按学期对齐，只取 上学期', 'FILTER_DESC 写明学期范围')
+  assert.equal(ph.FILTER_DESC, '全部年级 · 按二级知识点统计 · 学期范围：今年 上学期；去年及以前已按学期对齐，只取 上学期', 'FILTER_DESC 写明学期范围')
   assert.equal(ph.TARGET_YEAR, '2025-2026学年'); assert.equal(ph.TARGET_PAPERS, '5')
   assert.equal(ph.BASE_YEARS, '2023-2024学年、2024-2025学年'); assert.equal(ph.BASE_PAPERS, '5')
   assert.equal(ph.TARGET_TEXTBOOKS, '人教PEP 3 份、外研版 2 份')
@@ -89,8 +89,8 @@ const cols = line => line.split(' | ')
   const cmp = S.compare(db, {}, 2025, { lt: 2025 }, 2)
   const inp = P.buildP2Input(cmp, S.hot(db, {}, 2, 15), { grade: '5', includeReviewing: true })
   assert.equal(inp.placeholders.ADDED, '（无）'); assert.equal(inp.placeholders.REMOVED, '（无）'); assert.equal(inp.placeholders.CHANGED, '（无）')
-  assert.equal(inp.placeholders.SAMPLE_WARNING, '样本偏小：目标学年只有 1 份卷子，基线学年只有 1 份卷子（不足 5 份），出现率的变化可能只是一两份卷子的差别；两侧混入了不同年级的试卷，混入了不同考试类型的试卷，对比时请注意口径不一致；学期范围：目标学年 上学期；基线已按学期对齐，只取 上学期。', '样本说明里也写清学期范围')
-  assert.equal(inp.placeholders.FILTER_DESC, '五年级 · 按二级知识点统计 · 含未确认的 AI 结果 · 学期范围：目标学年 上学期；基线已按学期对齐，只取 上学期')
+  assert.equal(inp.placeholders.SAMPLE_WARNING, '样本不足：今年只有 1 份卷子，去年及以前只有 1 份卷子（少于 3 份），暂不比较新增和消失，也不要把只在一份卷子里出现的知识点写成难点或趋势；样本偏小：今年只有 1 份卷子，去年及以前只有 1 份卷子（不足 5 份），“考了几份卷子”的差别可能只是一两份卷子的事；两侧混入了不同年级的试卷，混入了不同考试类型的试卷，对比时请注意口径不一致；学期范围：今年 上学期；去年及以前已按学期对齐，只取 上学期。', '样本说明里也写清学期范围')
+  assert.equal(inp.placeholders.FILTER_DESC, '五年级 · 按二级知识点统计 · 含未确认的 AI 结果 · 学期范围：今年 上学期；去年及以前已按学期对齐，只取 上学期')
 }
 
 // 学期不齐：不对齐时 SAMPLE_WARNING 与 FILTER_DESC 都写明；对齐时 FILTER_DESC 写明基线只取了哪些学期、另有几份没参与
@@ -98,11 +98,11 @@ const cols = line => line.split(' | ')
   const { db } = newDb(); useTree(db, TREE)
   for (let i = 0; i < 5; i++) { addPaper(db, { year: 2024, semester: '上', questions: [{ kp: 'A.1' }] }); addPaper(db, { year: 2024, semester: '下', questions: [{ kp: 'B.1' }] }); addPaper(db, { year: 2025, semester: '上', questions: [{ kp: 'A.1' }] }) }
   const off = P.buildP2Input(S.compare(db, {}, 2025, { lt: 2025 }, 2, 3, false), S.hot(db, {}, 2, 15), {})
-  assert.match(off.placeholders.SAMPLE_WARNING, /两侧学期构成不一致（目标学年有：上学期；基线有：上学期、下学期）/)
-  assert.match(off.placeholders.FILTER_DESC, /学期范围：目标学年 上学期；基线未按学期对齐，含 上学期、下学期/)
+  assert.match(off.placeholders.SAMPLE_WARNING, /两侧学期构成不一致（今年有：上学期；去年及以前有：上学期、下学期）/)
+  assert.match(off.placeholders.FILTER_DESC, /学期范围：今年 上学期；去年及以前未按学期对齐，含 上学期、下学期/)
   const on = P.buildP2Input(S.compare(db, {}, 2025, { lt: 2025 }, 2), S.hot(db, {}, 2, 15), {})
   assert.equal(on.placeholders.SAMPLE_WARNING, '无')
-  assert.match(on.placeholders.FILTER_DESC, /基线已按学期对齐，只取 上学期（另有 5 份其他学期的基线卷子未参与比较）/)
+  assert.match(on.placeholders.FILTER_DESC, /去年及以前已按学期对齐，只取 上学期（另有 5 份其他学期的基线卷子未参与比较）/)
   assert.notEqual(on.fingerprint, off.fingerprint, '对齐与否是不同的输入 → 不同的数据指纹')
 }
 

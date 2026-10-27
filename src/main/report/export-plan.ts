@@ -28,13 +28,20 @@ export function planMarkdownExport(markdown: string, refs: Array<CitationRef & {
   const out = lines.map(line => {
     if (/^\s*```/.test(line)) { inFence = !inFence; return line }
     if (inFence) return line
-    return line.replace(CITATION_RE, (tok) => {
+    // 截图放在这一段（这一条）的后面，不插在句子中间；表格里的格子没有「段落后面」，仍紧跟在引用后面
+    const isTable = /^\s*\|/.test(line)
+    const tail: string[] = []
+    const text = line.replace(CITATION_RE, (tok) => {
       const r = byToken.get(tok)
       if (!r) return tok
       let f = fileOf.get(tok)
       if (!f) { f = fileName(images.length + 1); fileOf.set(tok, f); images.push({ file: f, ref: r }) }
-      return `${tok} ![题目截图：${tok.replace(/[\[\]()]/g, ' ').replace(/\s+/g, ' ').trim()}](${encodeURIComponent(dirName)}/${f})`
+      const img = `![题目截图：${tok.replace(/[\[\]()]/g, ' ').replace(/\s+/g, ' ').trim()}](${encodeURIComponent(dirName)}/${f})`
+      if (isTable) return `${tok} ${img}`
+      tail.push(img)
+      return tok
     })
+    return tail.length ? `${text} ${tail.join(' ')}` : text
   })
   return { markdown: out.join('\n'), images }
 }
@@ -62,3 +69,28 @@ export function neutralizeHtml(markdown: string): string {
     return inFence ? line : line.replace(/</g, '&lt;')
   }).join('\n')
 }
+
+/** 导出时的页脚 / 抬头文字（旧接口，只给导出文件抬头里的括号用）：AI 草稿还是老师已核对 */
+export function reviewNote(report: { confirmedAt: string | null }): string {
+  return report.confirmedAt ? `已由老师核对（${report.confirmedAt}）` : 'AI 草稿 · 请老师核对后再使用'
+}
+
+/**
+ * PDF / Word 页脚。已经「核对」过的报告不再写「AI 草稿」，写数据口径（几份卷子、哪几个学年；易错点是 AI 估计）；
+ * 还没核对的保留「AI 草稿 · 请老师核对后再使用」并带上同样的数据口径。dataNote 由调用方按报告的筛选范围算好（service.dataScopeNote）。
+ */
+export function footerNote(report: { confirmedAt: string | null; createdAt: string }, dataNote: string): string {
+  const basis = `${dataNote}；难度与易错点为 AI 估计，不是学生成绩`
+  return report.confirmedAt ? `${basis} · 生成于 ${report.createdAt}` : `AI 草稿 · 请老师核对后再使用 · ${basis} · 生成于 ${report.createdAt}`
+}
+
+/** 导出文件的标题：家长版不写「期末 考情分析报告（家长版）」这种长标题（那是历史列表里区分版本用的） */
+export const exportTitle = (report: { reader: string; title: string }): string => (report.reader === 'parent' ? '给家长的话' : report.title)
+
+/**
+ * 导出的 Markdown 文件抬头（HTML 注释）。没有截图（没有引用、或一张都裁不出）时不写「截图在同名文件夹里」——那个文件夹不存在。
+ */
+export function mdHeader(report: { confirmedAt: string | null }, stem: string, writtenImages: number, dataNote = ''): string {
+  return `<!-- 由「英语校考分析工作台」导出（${reviewNote(report)}${dataNote ? `；${dataNote}` : ''}）${writtenImages > 0 ? `；引用的题目截图在同名文件夹「${stem}」里` : ''} -->\n\n`
+}
+

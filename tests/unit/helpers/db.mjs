@@ -8,13 +8,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const seed = await import(pathToFileURL(path.join(root, 'src/main/seed/taxonomy.ts')).href)
+const plainSeed = await import(pathToFileURL(path.join(root, 'src/main/seed/kp-plain.ts')).href)
 
 function loadMigrations() {
   const src = fs.readFileSync(path.join(root, 'src/main/db.ts'), 'utf8')
   const m = /const MIGRATIONS: Array<\(db: any\) => void> = (\[[\s\S]*?\n\])\r?\n\r?\nlet db: any/.exec(src)
   if (!m) throw new Error('db.ts 里找不到 MIGRATIONS')
-  const js = module.stripTypeScriptTypes(`const MIGRATIONS = ${m[1]}`)
-  return new Function('buildKpRows', 'QTYPE_SEEDS_V1', `${js}\nreturn MIGRATIONS`)(seed.buildKpRows, seed.QTYPE_SEEDS_V1)
+  // v10 里冻结的「缩框」函数也在 db.ts 里（迁移不依赖会变的共享代码）：一并取出
+  const fm = /function repairNeighborEdgesV10[\s\S]*?\n}\n/.exec(src)
+  if (!fm) throw new Error('db.ts 里找不到 repairNeighborEdgesV10')
+  const js = module.stripTypeScriptTypes(`${fm[0]}\nconst MIGRATIONS = ${m[1]}`)
+  return new Function('buildKpRows', 'QTYPE_SEEDS_V1', 'KP_PLAIN', `${js}\nreturn MIGRATIONS`)(seed.buildKpRows, seed.QTYPE_SEEDS_V1, plainSeed.KP_PLAIN)
 }
 
 /** 取出真实的迁移数组（v1–最新），数据包导入 / 升级的单测用它当 migrate */

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react'
-import {
-  Button, Table, Tag, Space, Modal, Form, Select, InputNumber, Input,
-  App, Popconfirm
-} from 'antd'
-import { PlusOutlined, InboxOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ReloadOutlined, ThunderboltOutlined, CheckSquareOutlined } from '@ant-design/icons'
+import { Modal, Form, Select, InputNumber, Input, App, Dropdown } from 'antd'
+import { ClipboardCheck, Eye, Inbox, MoreHorizontal, Plus, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { paperTag } from '../status'
+import { paperKind, paperTag } from '../status'
+import { Btn, Icon, IndexTable, Page, StatusLabel } from '../design'
+import '../design/page-library.css'
 import { useImportFlow } from '../hooks/useImportFlow'
 import { useDiscardGuard } from '../hooks/useDiscardGuard'
 import RetryActions from '../components/RetryActions'
 import Onboarding from '../components/Onboarding'
+import RoleGuide from '../components/RoleGuide'
+import SimilarNotice from '../components/SimilarNotice'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
@@ -20,7 +21,13 @@ const examTypeOptions = ['单元测试', '期中', '期末', '月考', '其他']
 export function aiFieldsOf(p: Paper): string[] {
   try { return p.ai_meta_json ? JSON.parse(p.ai_meta_json) : [] } catch { return [] }
 }
-export const AiGuessTag = () => <Tag color="purple" style={{ marginInlineStart: 4, fontSize: 11, lineHeight: '16px' }} data-testid="ai-guess">AI 猜测</Tag>
+export const AiGuessTag = () => <span className="ewb-lib-guess" data-testid="ai-guess" title="这一项是 AI 从卷头读出来的，不一定对。你核对过、点「确认整份试卷」或改过它，这个提示就会消失">AI 猜的，请确认</span>
+
+const FIELD_LABEL: Record<string, string> = { title: '标题', grade: '年级', semester: '学期', school_year_start: '学年', exam_type: '类型', textbook: '教材', total_score: '总分' }
+/** 试卷库每行只标一次：这份卷子有 AI 从卷头读出来的信息，悬停看是哪几项 */
+export const AiGuessRow = ({ fields }: { fields: string[] }) => (
+  <span className="ewb-lib-guess ewb-lib-guess--row" data-testid="ai-guess" title={`AI 从卷头读出来的：${fields.map(f => FIELD_LABEL[f] ?? f).join('、')}，不一定对。你核对过、点「确认整份试卷」或改过它，这个提示就会消失`}>AI 猜的，请确认</span>
+)
 
 export default function PaperLibrary() {
   const navigate = useNavigate()
@@ -141,135 +148,121 @@ export default function PaperLibrary() {
     }
   }
 
+  // 词条式行：一份卷子一行，标题加粗，下面一行年级 · 学期 · 学年 · 类型 · 页数；只有一个主操作胶囊，其余收进「更多」
+  const confirmDelete = (p: Paper) => modal.confirm({
+    title: '确定删除？', content: `「${p.title || p.file_name}」和它的页面图、题目都会删掉，不能恢复。`, okText: '删除', cancelText: '取消', okButtonProps: { danger: true, 'data-testid': 'delete-confirm' } as any,
+    onOk: () => handleDelete(p.id)
+  })
   const columns = [
     {
-      title: '标题',
+      title: '试卷',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: true,
-      render: (text: string, record: Paper) => (
-        <span>
-          <a onClick={() => navigate(`/paper/${record.id}`)}>{text || record.file_name}</a>
-          {aiFieldsOf(record).includes('title') && <AiGuessTag />}
-          {record.is_sample === 1 && <Tag color="geekblue" style={{ marginInlineStart: 6 }} data-testid="sample-tag">示例</Tag>}
-        </span>
-      )
-    },
-    {
-      title: '年级',
-      dataIndex: 'grade',
-      key: 'grade',
-      width: 80,
-      render: (v: string | null, r: Paper) => v ? <span>{v}年级{aiFieldsOf(r).includes('grade') && <AiGuessTag />}</span> : '-'
-    },
-    {
-      title: '学期',
-      dataIndex: 'semester',
-      key: 'semester',
-      width: 110,
-      render: (v: string | null, r: Paper) => v ? <span>{v}{aiFieldsOf(r).includes('semester') && <AiGuessTag />}</span> : '-'
-    },
-    {
-      title: '学年',
-      dataIndex: 'school_year_start',
-      key: 'school_year_start',
-      width: 150,
-      render: (v: number | null, r: Paper) => v ? <span>{v}-{v + 1}{aiFieldsOf(r).includes('school_year_start') && <AiGuessTag />}</span> : '-'
-    },
-    {
-      title: '类型',
-      dataIndex: 'exam_type',
-      key: 'exam_type',
-      width: 130,
-      render: (v: string | null, r: Paper) => v ? <span>{v}{aiFieldsOf(r).includes('exam_type') && <AiGuessTag />}</span> : '-'
-    },
-    {
-      title: '页数',
-      dataIndex: 'page_count',
-      key: 'page_count',
-      width: 60
+      render: (text: string, record: Paper) => {
+        const ai = aiFieldsOf(record)
+        return (
+          <div className="ewb-lib-papercell">
+            <div className="ewb-lib-papertitle">
+              <a onClick={() => navigate(`/paper/${record.id}`)}>{text || record.file_name}</a>
+              <SimilarNotice paper={record} compact />
+              {ai.length > 0 && <AiGuessRow fields={ai} />}
+              {record.is_sample === 1 && <span className="ewb-lib-tag" style={{ marginInlineStart: 8 }} data-testid="sample-tag">示例</span>}
+            </div>
+            <div className="ewb-lib-meta">
+              <span>{record.grade ? `${record.grade}年级` : '年级 -'}</span>
+              <span>{record.semester ?? '学期 -'}</span>
+              <span>{record.school_year_start ? `${record.school_year_start}-${record.school_year_start + 1}` : '学年 -'}</span>
+              <span>{record.exam_type ?? '类型 -'}</span>
+              <span>{record.page_count} 页</span>
+            </div>
+          </div>
+        )
+      }
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 130,
+      width: 128,
       render: (_: string, record: Paper) => {
         const t = paperTag(record, progress[record.id])
-        return <Tag color={t.color} title={t.title}>{t.label}</Tag>
+        return <StatusLabel kind={paperKind(record)} title={t.title}>{t.label}</StatusLabel>
       }
     },
     {
       title: '操作',
       key: 'action',
-      width: 340,
-      render: (_: unknown, record: Paper) => (
-        <Space size="small" wrap>
-          <Button type="text" size="small" icon={<EyeOutlined />}
-            onClick={() => navigate(`/paper/${record.id}`)} />
-          <Button type="text" size="small" icon={<EditOutlined />}
-            onClick={() => handleEdit(record)} />
-          {record.status === 'extracted' && (
-            <Button type="text" size="small" icon={<ThunderboltOutlined />} title="AI 解析"
-              data-testid="parse-paper" onClick={() => handleParse(record.id)} />
-          )}
-          {(record.status === 'reviewing' || record.status === 'done') && (
-            <Button type="text" size="small" icon={<CheckSquareOutlined />} title="审核"
-              data-testid="open-review" onClick={() => navigate(`/review/${record.id}`)} />
-          )}
-          {record.status === 'failed' && <RetryActions paper={record} />}
-          {(record.status === 'extracted' || record.status === 'done' || record.status === 'reviewing') && (
-            <Button type="text" size="small" icon={<ReloadOutlined />} title="重新提取（会清除已解析的题目）"
-              data-testid="reprocess" onClick={() => confirmReprocess(record)} />
-          )}
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      )
+      width: 250,
+      render: (_: unknown, record: Paper) => {
+        const canRework = record.status === 'extracted' || record.status === 'done' || record.status === 'reviewing'
+        const reviewable = record.status === 'reviewing' || record.status === 'done'
+        const items = [
+          { key: 'view', label: <span data-testid="view-paper">查看原卷</span> },
+          { key: 'edit', label: <span data-testid="edit-paper" title="修改年级、学年、教材等信息">改信息</span> },
+          ...(canRework ? [{ key: 'reprocess', label: <span data-testid="reprocess" title="重新读取文件（会清除已整理好的题目）">重新读取</span> }] : []),
+          { key: 'delete', danger: true, label: <span data-testid="delete-paper">删除</span> }
+        ]
+        const onMenu = ({ key }: { key: string }) => {
+          if (key === 'view') navigate(`/paper/${record.id}`)
+          else if (key === 'edit') handleEdit(record)
+          else if (key === 'reprocess') void confirmReprocess(record)
+          else if (key === 'delete') confirmDelete(record)
+        }
+        return (
+          <div className="ewb-lib-ops">
+            {record.status === 'failed' && <RetryActions paper={record} />}
+            {record.status === 'extracted' && (
+              <Btn tone="secondary" size="small" icon={Zap} title="让 AI 读出题目并标上知识点" data-testid="parse-paper" onClick={() => handleParse(record.id)}>AI 解析</Btn>
+            )}
+            {reviewable && (
+              <Btn tone="secondary" size="small" icon={ClipboardCheck} title="核对 AI 标的题" data-testid="open-review" onClick={() => navigate(`/review/${record.id}`)}>去审核</Btn>
+            )}
+            {!reviewable && record.status !== 'extracted' && record.status !== 'failed' && (
+              <Btn tone="secondary" size="small" icon={Eye} data-testid="open-paper" onClick={() => navigate(`/paper/${record.id}`)}>查看</Btn>
+            )}
+            <Dropdown trigger={['click']} menu={{ items, onClick: onMenu }}>
+              <Btn tone="quiet" size="small" icon={MoreHorizontal} data-testid="more-menu" aria-label={`更多操作：${record.title || record.file_name}`}>更多</Btn>
+            </Dropdown>
+          </div>
+        )
+      }
     }
   ]
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0, color: '#1e2952' }}>试卷库</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleImportFiles}
-          loading={importing}
-        >
-          导入试卷
-        </Button>
+    <Page>
+      <div className="ewb-lib-head">
+        <h1 className="ewb-lib-title">试卷库</h1>
+        <div className="ewb-lib-actions">
+          <Btn tone="primary" icon={Plus} onClick={handleImportFiles} loading={importing}>导入试卷</Btn>
+        </div>
       </div>
 
+      <RoleGuide />
       <Onboarding />
 
       <div
         data-testid="dropzone"
+        data-over={dragOver ? 'true' : 'false'}
+        className="ewb-lib-drop"
+        role="button"
+        tabIndex={0}
         onDrop={handleNativeDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={handleImportFiles}
-        style={{
-          marginBottom: 16, padding: '20px 0', textAlign: 'center',
-          border: `1px dashed ${dragOver ? '#1e2952' : '#d9d9d9'}`,
-          borderRadius: 8, cursor: 'pointer', transition: 'border-color 0.2s',
-          background: dragOver ? '#f0f2ff' : '#fafafa'
-        }}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleImportFiles() } }}
       >
-        <p style={{ fontSize: 36, color: '#999', margin: '0 0 8px' }}><InboxOutlined /></p>
-        <p style={{ fontSize: 14, color: 'rgba(0,0,0,0.85)' }}>拖拽试卷文件到此处，或点击选择</p>
-        <p style={{ fontSize: 12, color: '#999' }}>支持 PDF、JPG/PNG/HEIC、DOCX（不支持 .doc，请先另存为 .docx）</p>
+        <div className="ewb-lib-drop__icon"><Icon as={Inbox} size={32} /></div>
+        <p className="ewb-lib-drop__main">拖拽试卷文件到此处，或点击选择</p>
+        <p className="ewb-lib-drop__sub">支持 PDF、JPG/PNG/HEIC、DOCX（不支持 .doc，请先另存为 .docx）</p>
       </div>
 
-      <Table
+      <IndexTable
         dataSource={papers}
         columns={columns}
         rowKey="id"
         loading={isLoading || importing}
-        size="middle"
         pagination={{ pageSize: 20, showSizeChanger: false }}
       />
 
@@ -285,7 +278,7 @@ export default function PaperLibrary() {
           <Form.Item name="title" label={<span>标题{editPaper && aiFieldsOf(editPaper).includes('title') && <AiGuessTag />}</span>}>
             <Input />
           </Form.Item>
-          <Space size={12} wrap>
+          <div className="ewb-lib-formrow">
             <Form.Item name="grade" label={<span>年级{editPaper && aiFieldsOf(editPaper).includes('grade') && <AiGuessTag />}</span>}>
               <Select options={gradeOptions} allowClear style={{ width: 120 }} />
             </Form.Item>
@@ -298,11 +291,11 @@ export default function PaperLibrary() {
             <Form.Item name="exam_type" label={<span>考试类型{editPaper && aiFieldsOf(editPaper).includes('exam_type') && <AiGuessTag />}</span>}>
               <Select options={examTypeOptions} allowClear style={{ width: 120 }} />
             </Form.Item>
-          </Space>
+          </div>
           <Form.Item name="textbook" label={<span>教材版本{editPaper && aiFieldsOf(editPaper).includes('textbook') && <AiGuessTag />}</span>}>
             <Input placeholder="如 PEP 三年级起点" />
           </Form.Item>
-          <Space size={12} wrap>
+          <div className="ewb-lib-formrow">
             <Form.Item name="region" label="地区">
               <Input />
             </Form.Item>
@@ -312,9 +305,9 @@ export default function PaperLibrary() {
             <Form.Item name="total_score" label={<span>总分{editPaper && aiFieldsOf(editPaper).includes('total_score') && <AiGuessTag />}</span>}>
               <InputNumber min={0} max={200} precision={0} />
             </Form.Item>
-          </Space>
+          </div>
         </Form>
       </Modal>
-    </div>
+    </Page>
   )
 }

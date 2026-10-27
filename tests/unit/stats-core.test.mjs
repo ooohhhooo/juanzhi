@@ -200,8 +200,8 @@ function s1() {
   assert.equal(S.overview(db, {}).cards.pending, 1)
   assert.equal(S.overview(db, { includeReviewing: true }).cards.pending, 1)
   assert.equal(S.overview(db, { includeReviewing: true }).includeReviewing, true)
-  assert.deepEqual(S.scopeNotes(db, {}), { pendingReviewing: 1, reviewing: 1, reviewingCounted: 0, reviewingSuperseded: 0, duplicates: 1, includeDuplicates: false, noYear: 0 })
-  assert.deepEqual(S.scopeNotes(db, { includeReviewing: true }), { pendingReviewing: 0, reviewing: 1, reviewingCounted: 1, reviewingSuperseded: 0, duplicates: 1, includeDuplicates: false, noYear: 0 }, '开关打开后「没计入」是 0，但待审核总数（提示条用）仍是 1')
+  assert.deepEqual(S.scopeNotes(db, {}), { pendingReviewing: 1, reviewing: 1, reviewingCounted: 0, reviewingSuperseded: 0, duplicates: 1, includeDuplicates: false, noYear: 0, similarSuspects: 0 })
+  assert.deepEqual(S.scopeNotes(db, { includeReviewing: true }), { pendingReviewing: 0, reviewing: 1, reviewingCounted: 1, reviewingSuperseded: 0, duplicates: 1, includeDuplicates: false, noYear: 0, similarSuspects: 0 }, '开关打开后「没计入」是 0，但待审核总数（提示条用）仍是 1')
 }
 
 // ═════════ 重复导入：副本能顶上，一份卷子不会因为「是副本」而消失（审核 P0-1） ═════════
@@ -512,7 +512,7 @@ function cmpDb() {
 // 迁移 v6：新增的索引与缓存表；v7：数据修订号与触发器；v8：触发器加 WHEN 条件
 {
   const { db, version } = newDb()
-  assert.equal(version, 9)
+  assert.equal(version, 10)
   const idx = db.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map(r => r.name)
   for (const n of ['idx_question_kps_kp', 'idx_papers_stats', 'idx_questions_paper_qtype']) assert.ok(idx.includes(n), `缺索引 ${n}`)
   const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT * FROM question_kps WHERE kp_code = 'A'`).all().map(r => r.detail).join(' ')
@@ -622,7 +622,7 @@ function cmpDb() {
   const m = /AFTER UPDATE OF ([^\n]+?) ON papers/.exec(trg)
   assert.ok(m, '找得到 papers 更新触发器的列清单')
   const watched = m[1].split(',').map(x => x.trim())
-  const NOT_STATS = ['id', 'school', 'total_score', 'file_name', 'error', 'page_count', 'ai_model', 'extracted_at', 'warning', 'duplicate_of', 'prompt_version', 'ai_meta_json', 'parse_stage', 'error_stage', 'parsed_at']
+  const NOT_STATS = ['id', 'school', 'total_score', 'file_name', 'error', 'page_count', 'ai_model', 'extracted_at', 'warning', 'duplicate_of', 'prompt_version', 'ai_meta_json', 'parse_stage', 'error_stage', 'parsed_at', 'error_detail', 'similar_to', 'similar_ratio']   // similar_state 影响统计（已在 v10 触发器里）；其余只是说明性的列
   const unlisted = cols.filter(c => !watched.includes(c) && !NOT_STATS.includes(c))
   assert.deepEqual(unlisted, [], `papers 新增了列 ${unlisted.join('、')}：它影响统计吗？影响 → 加进 v8 触发器 trg_rev_papers_u 的 UPDATE OF 列清单（新迁移里重建）；不影响 → 登记到本测试的 NOT_STATS`)
   const ghost = watched.filter(c => !cols.includes(c))

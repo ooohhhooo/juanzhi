@@ -152,7 +152,7 @@ assert.equal(pkg.name, 'english-exam-workbench')
       const code = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '')   // 去掉行尾 // 注释和 /* */ 注释（粗略）
       if (/^\s*(\*|\/\*)/.test(line)) return
       for (const m of code.matchAll(/(['"`])((?:\\.|(?!\1).)*)\1/g)) {
-        if (/\bM[1-5]\b|里程碑|占位版|（M\d）/.test(m[2]) && !/^[A-Za-z0-9_.\-/@]+$/.test(m[2])) offenders.push(`${path.relative(root, f)}:${i + 1}: ${m[2].slice(0, 60)}`)
+        if (/\bM[1-5]\b|里程碑|占位版|（M\d）/.test(m[2]) && !/^[A-Za-z0-9_.\-/@]+$/.test(m[2]) && !/^[MmLlHhVvCcSsQqTtAaZz0-9\s.,-]+$/.test(m[2])) offenders.push(`${path.relative(root, f)}:${i + 1}: ${m[2].slice(0, 60)}`)
       }
     })
   }

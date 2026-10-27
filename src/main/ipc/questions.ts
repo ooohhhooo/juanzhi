@@ -5,7 +5,9 @@ import { getDb } from '../db'
 import { listKps, listQtypes } from '../ai/taxonomy'
 import { notifyDataChanged } from '../events'
 import { cleanSuggestedName, flatKpText } from '../pack/kp-rules'
+import { labelsOf, safeSuggestion } from '../../shared/code-guard'
 import { LOW_CONFIDENCE } from '../parse/validate'
+import { consistencyHints } from '../../shared/consistency'
 
 const UuidSchema = z.string().uuid()
 const unit = z.number().min(0).max(1)
@@ -49,7 +51,7 @@ function toView(r: QuestionRow, kps: Array<{ kp_code: string; is_primary: number
     qtype: r.qtype ?? 'OTHER', material_id: r.material_id, stem: r.stem ?? '', options: json<string[]>(r.options, []), answer: r.answer ?? '',
     score: r.score, difficulty: r.difficulty ?? 3, error_prone: !!r.error_prone, error_reason: r.error_reason ?? '',
     page_idx: r.page_idx, bbox: json<number[] | null>(r.bbox_json, null), bbox_source: r.bbox_source ?? 'none',
-    confidence: r.confidence ?? 1, reviewed: !!r.reviewed, kp_suggestion: r.kp_suggestion ?? '', kp_suggestion_status: r.kp_suggestion_status,
+    confidence: r.confidence ?? 1, reviewed: !!r.reviewed, kp_suggestion: safeSuggestion(r.kp_suggestion), kp_suggestion_status: r.kp_suggestion_status,
     flags: json<string[]>(r.flags_json, []), edited: !!r.edited,
     kp_main: kps.find(k => k.is_primary)?.kp_code ?? null,
     kp_secondary: kps.filter(k => !k.is_primary).map(k => k.kp_code)
@@ -93,10 +95,11 @@ function unionBox(a: number[] | null, b: number[] | null): number[] | null {
   return [x0, y0, x1 - x0, y1 - y0].map(v => Math.round(v * 1000) / 1000)
 }
 
-/** 已「完成」的试卷里内容又变了（编辑、拆分、合并、删除、采纳建议）→ 回到「待审核」，不让状态和内容对不上 */
-function reopenIfDone(paperId: string): void {
+/** 已「完成」的试卷里内容又变了（编辑、拆分、合并、删除、采纳建议）→ 回到「待审核」，不让状态和内容对不上。返回这次是不是真的变回了待审核（界面据此明确提示老师，不能悄悄变） */
+function reopenIfDone(paperId: string): boolean {
   const r = getDb().prepare("UPDATE papers SET status = 'reviewing' WHERE id = ? AND status = 'done'").run(paperId)
   if (r.changes > 0) notifyDataChanged('papers')
+  return r.changes > 0
 }
 
 export function registerQuestionIpc(): void {
@@ -108,8 +111,11 @@ export function registerQuestionIpc(): void {
     const run = db.prepare("SELECT id, prompt_version, model, vision_model, status, started_at, finished_at, result_json FROM parse_runs WHERE paper_id = ? AND status = 'done' ORDER BY id DESC LIMIT 1").get(paperId) as any
     let notes: string[] = []
     if (run?.result_json) { try { notes = JSON.parse(run.result_json).notes ?? [] } catch { /* 忽略 */ } }
+    const questions = listForPaper(paperId)
     return {
-      questions: listForPaper(paperId),
+      questions,
+      /** 同类题标注不一致的提示（题目 id → 一句话）：界面标「需要核对」，不影响「需关注」的计数 */
+      hints: consistencyHints(questions.map(q => ({ id: q.id, section: q.section, qtype: q.qtype, kp_main: q.kp_main, difficulty: q.difficulty, error_prone: q.error_prone }))),
       materials,
       notes,
       lowConfidence: LOW_CONFIDENCE,
@@ -151,6 +157,7 @@ export function registerQuestionIpc(): void {
     if (p.reviewed !== undefined) set('reviewed', p.reviewed ? 1 : 0)
     if (contentChanged) set('edited', 1)
 
+    let dropped: string[] = []
     db.exec('BEGIN')
     try {
       if (sets.length) db.prepare(`UPDATE questions SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id)
@@ -158,6 +165,7 @@ export function registerQuestionIpc(): void {
         const existing = db.prepare('SELECT kp_code, is_primary FROM question_kps WHERE question_id = ?').all(id) as unknown as Array<{ kp_code: string; is_primary: number }>
         const main = p.kp_main !== undefined ? p.kp_main : existing.find(k => k.is_primary)?.kp_code ?? null
         const secondary = p.kp_secondary !== undefined ? p.kp_secondary : existing.filter(k => !k.is_primary).map(k => k.kp_code)
+        dropped = main ? secondary.filter(c => c === main) : []
         setKps(id, main, secondary)
         db.prepare('UPDATE questions SET edited = 1 WHERE id = ?').run(id)
       }
@@ -166,9 +174,14 @@ export function registerQuestionIpc(): void {
       db.exec('ROLLBACK')
       throw e
     }
-    if (contentChanged || p.kp_main !== undefined || p.kp_secondary !== undefined) reopenIfDone(cur.paper_id)
+    const reopened = (contentChanged || p.kp_main !== undefined || p.kp_secondary !== undefined) ? reopenIfDone(cur.paper_id) : false
     notifyDataChanged('questions')
-    return listForPaper(cur.paper_id).find(q => q.id === id) ?? null
+    // 改了主知识点：原来的次知识点里如果有和新主知识点重复的，会被去重删掉——告诉老师删了谁（界面给「撤销」）
+    const droppedSecondary = dropped
+    // 给界面显示用的名称（和 droppedSecondary 一一对应）：提示里写知识点的名字，永远不写内部代码
+    const droppedSecondaryNames = labelsOf(dropped, c => (db.prepare('SELECT name FROM kps WHERE code = ?').get(c) as any)?.name)
+    const view = listForPaper(cur.paper_id).find(q => q.id === id) ?? null
+    return view ? { ...view, notices: { reopened, droppedSecondary, droppedSecondaryNames } } : null
   })
 
   ipcMain.handle('questions:remove', async (_e, rawId: unknown) => {
@@ -269,7 +282,8 @@ export function registerQuestionIpc(): void {
     db.exec('BEGIN')
     try {
       if (all) db.prepare('UPDATE questions SET reviewed = 1 WHERE paper_id = ?').run(paperId)
-      db.prepare("UPDATE papers SET status = 'done' WHERE id = ?").run(paperId)
+      // 整份确认 = 老师已经看过卷头信息：「AI 猜测」的标签随之消失（老师没改的字段，视为认可 AI 读到的）
+      db.prepare("UPDATE papers SET status = 'done', ai_meta_json = '[]' WHERE id = ?").run(paperId)
       db.exec('COMMIT')
     } catch (e) {
       db.exec('ROLLBACK')

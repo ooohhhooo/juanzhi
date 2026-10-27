@@ -1,5 +1,5 @@
 /** 提示词的校验规则（纯函数）：设置页保存时、数据包导入设置时用同一份，导入的提示词不能绕过保存时的检查 */
-export const PROMPT_IDS_ALL = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report'] as const
+export const PROMPT_IDS_ALL = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp'] as const
 export const MAX_PROMPT_CHARS = 60_000
 
 /** 缺了这些占位符，对应的提示词就拿不到关键输入 */
@@ -7,10 +7,14 @@ export const REQUIRED: Record<string, string[]> = {
   'p1_text.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'OCR_TEXT'],
   'p1_vision.user': ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'PAGE_LIST'],
   'p2_yoy.user': ['ADDED', 'REMOVED', 'CHANGED', 'HOT'],
-  'p3_report.user': ['KP_DIST', 'QTYPE_DIST', 'DIFF_DIST', 'ERROR_PRONE']
+  'p3_report.user': ['KP_DIST', 'QTYPE_DIST', 'DIFF_DIST', 'ERROR_PRONE'],
+  'p3_boss.user': ['KP_DIST', 'ERROR_PRONE'],
+  'p3_parent.user': ['KP_DIST', 'ERROR_PRONE'],
+  'p3_teacher.user': ['KP_DIST', 'ERROR_PRONE'],
+  'p2_kp.user': ['KP_NAME', 'KP_DATA', 'EVIDENCE']
 }
 
-export const isPromptKey = (k: string): boolean => /^(p1_text|p1_vision|p2_yoy|p3_report)\.(system|user)$/.test(k)
+export const isPromptKey = (k: string): boolean => /^(p1_text|p1_vision|p2_yoy|p3_report|p3_boss|p3_parent|p3_teacher|p2_kp)\.(system|user)$/.test(k)
 
 /** 不合格返回原因，合格返回 null */
 export function promptProblem(key: string, text: string): string | null {

@@ -11,7 +11,7 @@ import * as P3 from '../../src/main/stats/p3.ts'
 import { CITATION_RE, stripUnknownCitations } from '../../src/shared/citation.ts'
 import { parseBlocks, parseInline, splitRow } from '../../src/shared/markdown.ts'
 import { markdownToHtml, reportHtmlPage, CJK_FONT_STACK, esc } from '../../src/shared/mdhtml.ts'
-import { planMarkdownExport, safeStem, uniqueRefs, neutralizeHtml } from '../../src/main/report/export-plan.ts'
+import { planMarkdownExport, safeStem, uniqueRefs, neutralizeHtml, footerNote, exportTitle, mdHeader } from '../../src/main/report/export-plan.ts'
 const require = createRequire(import.meta.url)
 const mock = require('../mock-ai/p3.cjs')
 const mockP2 = require('../mock-ai/p2.cjs')
@@ -46,18 +46,18 @@ const cols = l => l.split(' | ')
 assert.equal(ph.FILTER_DESC, '全部年级')
 assert.equal(ph.PAPER_COUNT, '5'); assert.equal(ph.QUESTION_COUNT, '10')
 assert.equal(ph.YEARS, '2024-2025学年、2025-2026学年')
-assert.equal(ph.SAMPLE_WARNING, '年度变化的样本偏小：目标学年只有 3 份，基线学年只有 2 份（不足 5 份）。', '卷子 5 份、同年级同类型、分值覆盖 9/10 刚好 90% → 只有年度变化两侧不足 5 份的警示')
+assert.equal(ph.SAMPLE_WARNING, '年度变化：2025-2026学年只有 3 份，2024-2025学年只有 2 份，比较只能当线索。', '卷子 5 份、同年级同类型、分值覆盖 9/10 刚好 90% → 只有年度变化两侧不足 5 份的警示')
 assert.deepEqual(ph.KP_DIST.split('\n'), [
-  '一级 | A | 甲 | 5/5 | 7 | 68.4% | 2.86 | 2', '一级 | B | 乙 | 2/5 | 2 | 21.1% | 3 | 2', '一级 | D | 丁 | 1/5 | 1 | 10.5% | 4 | 0',
-  '二级 | A.1 | 甲一 | 5/5 | 5 | 52.6% | 3 | 2', '二级 | A.2 | 甲二 | 2/5 | 2 | 15.8% | 2.5 | 0', '二级 | B.1 | 乙一 | 2/5 | 2 | 21.1% | 3 | 2', '二级 | D.1 | 丁一 | 1/5 | 1 | 10.5% | 4 | 0'])
+  '一级 | A | 甲 | 5/5 | 7 | 68.4% | 2.86 | 2 | —', '一级 | B | 乙 | 2/5 | 2 | 21.1% | 3 | 2 | —', '一级 | D | 丁 | 1/5 | 1 | 10.5% | 4 | 0 | 个例',
+  '二级 | A.1 | 甲一 | 5/5 | 5 | 52.6% | 3 | 2 | —', '二级 | A.2 | 甲二 | 2/5 | 2 | 15.8% | 2.5 | 0 | —', '二级 | B.1 | 乙一 | 2/5 | 2 | 21.1% | 3 | 2 | —', '二级 | D.1 | 丁一 | 1/5 | 1 | 10.5% | 4 | 0 | 个例'])   // 末列「个例」：总份数 ≥ 2 而只在 1 份卷子里出现
 assert.equal(ph.QTYPE_DIST, '单项选择 | 10 | 19 | 100% | 3')
 assert.deepEqual(ph.DIFF_DIST.split('\n'), ['1 | 1 | 10%', '2 | 2 | 20%', '3 | 4 | 40%', '4 | 2 | 20%', '5 | 1 | 10%'])
 const err = ph.ERROR_PRONE.split('\n').map(cols)
 assert.deepEqual(err.map(r => r.slice(0, 3)), [['A.1', '甲一', '时态混用'], ['B.1', '乙一', '易混淆']], '易错点按易错题数、综合得分排序；只列有易错题的')
+assert.deepEqual(err.map(r => r[4]), ['5/5', '2/5'], '易错点表末列：出现份数/总份数')
 assert.equal(err[0][3], '[2025卷A.1A.2 · 1]（单项选择：题干1）；[2025卷A.1D.1 · 1]（单项选择：题干1）', '样本题：易错的优先，难度高的在前，每个知识点最多 2 道')
 assert.equal(err[1][3], '[2025卷A.1B.1 · 2]（单项选择：题干2）；[2024卷A.1B.1 · 2]（单项选择：题干2）')
-assert.equal(ph.YEAR_DIFF, ['对比口径：目标 2025-2026学年 3 份，基线 2024-2025学年 2 份；学期范围：目标 上学期，基线已按学期对齐，只取 上学期',
-  '新增（基线学年从未出现）：丁一（目标 1/3 份）', '消失（目标学年未出现）：无', '明显上升：无', '明显下降：无'].join('\n'))
+assert.equal(ph.YEAR_DIFF, '样本不足，暂不比较（2025-2026学年 3 份，2024-2025学年 2 份，两边至少各 3 份才比较新增和消失）', '基线只有 2 份（< 3）：年度变化只写「样本不足，暂不比较」，不列新增 / 消失')
 // 占位符齐全，模板填得进去，没有残留
 assert.deepEqual(Object.keys(ph), [...P3.P3_PLACEHOLDERS])
 const user = P2.fillTemplate(userTpl, ph)
@@ -72,14 +72,14 @@ assert.notEqual(P3.buildP3Input({ ...base, filter: { grade: '4' } }).fingerprint
 // ── SAMPLE_WARNING 由程序判定 ──
 {
   const w = (dist2, over = {}) => P3.p3SampleWarning({ dist: dist2, cmp: null, distinctGrades: 1, distinctExamTypes: 1, ...over })
-  assert.equal(w({ ...dist, papers: 4 }), '样本偏小：当前范围内只有 4 份卷子（不足 5 份），出现率等比例可能只是一两份卷子的差别。')
+  assert.equal(w({ ...dist, papers: 4 }), '只有 4 份卷子（少于 5 份），每个考点“考了几份”的差别可能只是一两份卷子的事，仅作方向参考。')
   assert.equal(w(dist), '无')
   assert.equal(w(dist, { distinctGrades: 2 }), '范围内混入了不同年级的试卷，结论只能作粗略参考。')
   assert.equal(w(dist, { distinctGrades: 3, distinctExamTypes: 2 }), '范围内混入了不同年级、不同考试类型的试卷，结论只能作粗略参考。')
   assert.match(w({ ...dist, coverage: { scored: 5, questions: 10, tagged: 10 } }), /有 5 道题没有填写分值（分值覆盖 5\/10 题）/)
   assert.equal(w({ ...dist, coverage: { scored: 9, questions: 10, tagged: 10 } }), '无', '刚好 90% 不警示')
   const two = w({ ...dist, papers: 3 }, { distinctGrades: 2 })
-  assert.ok(two.startsWith('样本偏小') && two.includes('；范围内混入了') && two.endsWith('。'), '多条警示用分号连起来')
+  assert.ok(two.startsWith('只有 3 份卷子') && two.includes('；范围内混入了') && two.endsWith('。'), '多条警示用分号连起来')
 }
 // 只有一个学年 → 年度变化为（无）
 {
@@ -123,7 +123,7 @@ assert.match(P2.describeFilter({ sample: true }, 0), /^示例数据（合成的�
   const dropped = '# 标题\n> 说明：难度与易错点为 AI 估计，非学生成绩统计。\n\n## 样本概览\n…'
   const r = P3.ensureSampleWarning(dropped, warn)
   assert.equal(r.inserted, true)
-  assert.equal(r.text.split('\n').slice(0, 4).join('|'), `# 标题|> 说明：难度与易错点为 AI 估计，非学生成绩统计。|> 样本提示（程序判定）：${warn}结论仅供参考。|`)
+  assert.equal(r.text.split('\n').slice(0, 4).join('|'), `# 标题|> 说明：难度与易错点为 AI 估计，非学生成绩统计。|> 样本提示：${warn}结论仅供参考。|`)
   assert.deepEqual(P3.ensureSampleWarning(dropped, '无'), { text: dropped, inserted: false }, '无警示时不写')
   assert.equal(P3.ensureSampleWarning('没有标题的正文\n## 节', warn).text.split('\n')[0].startsWith('> 样本提示'), true)
   assert.equal(P3.hasFinalSection('## 教学建议\n1. x'), true); assert.equal(P3.hasFinalSection('## 年度变化\n…'), false)
@@ -133,15 +133,18 @@ assert.match(P2.describeFilter({ sample: true }, 0), /^示例数据（合成的�
 {
   assert.ok(mock.isP3(sys, user)); assert.ok(!mock.isP3(p2sys, user)); assert.ok(!mockP2.isP2(sys, user), 'P2 的 mock 不会接 P3')
   const md = mock.build(user, {})
-  for (const h of ['# 全部年级 考情分析报告', '## 样本概览', '## 知识点分布', '## 题型与分值', '## 难度结构', '## 重点与难点', '## 易错点预警', '## 年度变化', '## 教学建议']) assert.ok(md.includes(h), h)
+  for (const h of ['# 全部年级 考情分析报告', '## 样本概览', '## 知识点分布', '## 题型与分值', '## 难度结构', '## 重点与难点', '## 易错点预警', '## 教学建议']) assert.ok(md.includes(h), h)
+  assert.ok(!md.includes('## 年度变化'), '年度变化写着「样本不足，暂不比较」时整节省略')
+  const withDiff = P2.fillTemplate(userTpl, { ...ph, YEAR_DIFF: '对比口径：目标 2025-2026学年 5 份，基线 2024-2025学年 5 份\n新增（基线学年从未出现）：丁一（目标 1/5 份）' })
+  assert.ok(mock.build(withDiff, {}).includes('## 年度变化'))
   assert.match(md, /卷子 5 份，题目 10 道；覆盖学年：2024-2025学年、2025-2026学年/)
   assert.match(md, /\| 二级 \| A\.1 \| 甲一 \| 5\/5 \| 5 \| 52\.6% \|/, '表格里的数字逐字抄自输入')
-  assert.ok(md.split('\n')[1].startsWith('> 说明：难度与易错点为 AI 估计，非学生成绩统计。年度变化的样本偏小'), '有样本提示就转述')
+  assert.ok(md.split('\n')[1].startsWith('> 说明：难度与易错点为 AI 估计，非学生成绩统计。年度变化'), '有样本提示就转述')
   const known = new Set(inp.refs.map(r => r.token))
   assert.deepEqual(stripUnknownCitations(md, known).removed, [])
   assert.ok([...md.matchAll(CITATION_RE)].length >= 1)
   assert.deepEqual(stripUnknownCitations(mock.build(user, { badCite: true }), known).removed, ['[不存在的卷 · 99]'])
-  assert.ok(!mock.build(user, { dropWarning: true }).includes('样本偏小'))
+  assert.ok(!mock.build(user, { dropWarning: true }).includes('比较只能当线索'))
   assert.ok(!mock.build(user, { noAdvice: true }).includes('## 教学建议'))
   assert.ok(/\*\*\[2025卷A\.1A\.2 · 1\]\*\*/.test(mock.build(user, { boldCite: true })))
   // 没有年度变化 → 整节省略
@@ -222,7 +225,7 @@ assert.match(P2.describeFilter({ sample: true }, 0), /^示例数据（合成的�
   // 知识点名里有 | 或换行：表格不能错列
   const weird = { ...dist2, nodes: [{ code: 'A', name: '甲|乙\n丙', level: 1, papers: 1, questions: 1, scoreShare: 0.5, avgDifficulty: 3, errorCount: 0 }] }
   const wi = P3.buildP3Input({ filter: {}, dist: weird, hot: full, cmp: null, years: [2025], distinctGrades: 1, distinctExamTypes: 1 })
-  assert.equal(wi.placeholders.KP_DIST, '一级 | A | 甲／乙 丙 | 1/5 | 1 | 50% | 3 | 0', '名称里的 | 换成全角、换行压成空格')
+  assert.equal(wi.placeholders.KP_DIST, '一级 | A | 甲／乙 丙 | 1/5 | 1 | 50% | 3 | 0 | 个例', '名称里的 | 换成全角、换行压成空格')
 }
 // ── 审核 P2-9：导出的 .md 里模型输出的 HTML 要中和（代码围栏里的不动，我们生成的图片链接不受影响）──
 {
@@ -234,4 +237,34 @@ assert.match(P2.describeFilter({ sample: true }, 0), /^示例数据（合成的�
   const plan = planMarkdownExport(neutralizeHtml('见 [卷 · 1] <b>x</b>'), [{ token: '[卷 · 1]', questionId: 'q', paperId: 'p', paperTitle: '卷', no: '1', qtypeName: 'x', page_idx: 1, pageRel: 'page-1.png', pageW: 1, pageH: 1, bbox: [0, 0, 1, 1] }], 'd')
   assert.ok(plan.markdown.includes('![题目截图：卷 · 1](d/q-001.png)') && plan.markdown.includes('&lt;b>x'), '图片链接仍在')
 }
+// ── R3：截图放在这一段（这一条）的后面，不插在句子中间；PDF 同样 ──
+{
+  const ref = (tok, n) => ({ token: tok, questionId: `q${n}`, paperId: 'p', paperTitle: '卷', no: String(n), qtypeName: 'x', page_idx: 1, pageRel: 'page-1.png', pageW: 1, pageH: 1, bbox: [0, 0, 1, 1] })
+  const refs = [ref('[卷 · 1]', 1), ref('[卷 · 2]', 2)]
+  const md = '- **原卷例题**：[卷 · 1]（填空：Look at the ____ (sheep).）；[卷 · 2]（填空：Those are ____ (tomato).）\n- **练法**：先口头说，再写。'
+  const plan = planMarkdownExport(md, refs, 'd')
+  const first = plan.markdown.split('\n')[0]
+  assert.ok(first.indexOf('![') > first.indexOf('Those are ____ (tomato).）'), '图片在整条文字的后面：' + first)
+  assert.ok(first.indexOf('[卷 · 1]（填空') >= 0 && !/\[卷 · 1\] !\[/.test(first), 'token 后面不再紧跟图片')
+  assert.equal(plan.markdown.split('\n')[1], '- **练法**：先口头说，再写。')
+  const tbl = planMarkdownExport('| 名称 | 样本 |\n|---|---|\n| 甲 | [卷 · 1] |', refs, 'd').markdown
+  assert.ok(/\[卷 · 1\] !\[/.test(tbl), '表格里没有「段落后面」，仍紧跟在引用后面')
+  const html = markdownToHtml(md, { citeAfter: tok => `<span class="cite">${tok}</span>` })
+  assert.ok(html.indexOf('<div class="cites">') > html.indexOf('Those are'), 'PDF：卡片在这一条文字的后面')
+  assert.equal((html.match(/class="cites"/g) ?? []).length, 1)
+}
+
+// ── R2 / R3：页脚、标题、Markdown 抬头 ──
+{
+  const note = '数据来源：2 份校考卷（2024-2025、2025-2026 学年）'
+  const open = { confirmedAt: null, createdAt: '2026-10-27 09:00:00' }, done = { confirmedAt: '2026-10-27 10:00:00', createdAt: '2026-10-27 09:00:00' }
+  assert.ok(footerNote(open, note).startsWith('AI 草稿 · 请老师核对后再使用') && footerNote(open, note).includes(note), '没核对：保留「AI 草稿」，并带数据口径')
+  const f = footerNote(done, note)
+  assert.ok(!/AI 草稿|请老师核对/.test(f) && f.includes('2 份校考卷（2024-2025、2025-2026 学年）') && f.includes('AI 估计'), '核对后：写数据口径，不再写「AI 草稿」：' + f)
+  assert.equal(exportTitle({ reader: 'parent', title: '四年级 …（家长版）' }), '给家长的话')
+  assert.equal(exportTitle({ reader: 'boss', title: '四年级 …（老板版）' }), '四年级 …（老板版）')
+  assert.ok(!mdHeader(open, 'ops-boss', 0).includes('同名文件夹'), '没有截图就不写「截图在同名文件夹里」')
+  assert.ok(mdHeader(open, 'tutor-teacher', 3).includes('截图在同名文件夹「tutor-teacher」'))
+}
+
 console.log('report-p3.test ✓')

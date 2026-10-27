@@ -9,7 +9,7 @@ const REPORT = '[data-testid=report-page]'
 const rows = () => withDb(ctx.ud, d => d.prepare("SELECT * FROM reports WHERE kind = 'report' ORDER BY created_at, rowid").all())
 const reqs = () => ctx.mock.p3Requests
 
-/** 把收到的 user 提示词按 docs 里的模板拆回 10 个占位符的值（拆不回去 = 模板骨架被改了） */
+/** 把收到的 user 提示词按 docs 里的模板拆回 11 个占位符的值（M6 起多一个 EVIDENCE）（拆不回去 = 模板骨架被改了） */
 function parseUser(user) {
   const tpl = docsPrompt('p3_report', 'user')
   const names = [...tpl.matchAll(/\{\{([A-Z_]+)\}\}/g)].map(m => m[1])
@@ -42,7 +42,7 @@ async function phaseSetup() {
   const s = seed(ud, { bboxes: { C2Q1: ctx.bbox }, pageImage: pageImg, pageSize: ctx.pageSize })
   ctx.ids = s.ids; ctx.qids = s.qids
   await open(ud)
-  check('夹具', `直接往库里造了 ${SPEC.length} 份卷子（含待审核 / 失败 / 刚导入），迁移后库版本 = v9`, withDb(ctx.ud, d => d.prepare('SELECT COUNT(*) c FROM papers').get().c === SPEC.length && d.prepare('PRAGMA user_version').get().user_version === 9))
+  check('夹具', `直接往库里造了 ${SPEC.length} 份卷子（含待审核 / 失败 / 刚导入），迁移后库版本 = v10`, withDb(ctx.ud, d => d.prepare('SELECT COUNT(*) c FROM papers').get().c === SPEC.length && d.prepare('PRAGMA user_version').get().user_version === 10))
   withDb(ctx.ud, d => { ctx.tree = naive.makeTree(d.prepare('SELECT code, parent_code, level, name FROM kps').all()) })
 }
 
@@ -55,7 +55,7 @@ async function phaseReport() {
   check('报告 无 AI', '没配 AI：报告页给出引导（链到设置），没有「生成报告」按钮；页面上仍显示按当前筛选的卷子数', await waitFor(async () => (await T('report-guide').count()) > 0, 10000) && (await T('report-generate').count()) === 0 && /共 11 份卷子、44 道题/.test(await txt('report-counts')), await txt('report-counts').catch(() => ''))
   await shot('01-report-guide')
   await T('report-guide-link').click()
-  check('报告 无 AI', '引导链接直接去「设置」', await waitFor(async () => (await page.evaluate(() => location.hash)) === '#/settings', 5000))
+  check('报告 无 AI', '引导链接直接去「设置」', await waitFor(async () => (await page.evaluate(() => location.hash)) === '#/settings?admin=1', 5000))   // 链到「设置 → 管理员设置」
   await saveCfg(cfgFor(mock), SECRET)
   await goto('#/report')
   check('报告 无 AI', '配好 AI 后回到报告页（不用刷新）：引导消失，出现「生成报告」', await waitFor(async () => (await T('report-generate').count()) > 0 && (await T('report-guide').count()) === 0, 10000))
@@ -84,15 +84,15 @@ async function phaseReport() {
   // ── 发给模型的提示词：占位符全部由本地统计填入 ──
   const req = reqs()[0]
   check('报告 提示词', '只发了 1 次请求，流式，模型名和鉴权正确', reqs().length === 1 && req.stream === true && req.model === 'mock-text-model' && req.auth === `Bearer ${SECRET}`)
-  check('报告 提示词', 'system 与 docs/prompts/v1-sonnet改写.md 里的 P3 system 逐字一致', req.system === docsPrompt('p3_report', 'system'))
+  check('报告 提示词', 'system 与 docs/prompts/v2-分读者与事实核对.md 里的 P3 system 逐字一致', req.system === docsPrompt('p3_report', 'system'))
   const v = parseUser(req.user)
-  check('报告 提示词', 'user 的骨架与 docs 里的 P3 user 模板逐字一致，10 个占位符一个不缺；无残留 {{ }}', !!v && Object.keys(v).length === 10 && !req.user.includes('{{') && !req.user.includes('}}'), v ? Object.keys(v).join(',') : '拆不回去')
+  check('报告 提示词', 'user 的骨架与 docs 里的 P3 user 模板逐字一致，11 个占位符一个不缺（M6 新增 EVIDENCE）；无残留 {{ }}', !!v && Object.keys(v).length === 11 && !req.user.includes('{{') && !req.user.includes('}}'), v ? Object.keys(v).join(',') : '拆不回去')
   const g4 = naive.counted({ grade: '4' })
   const tot = naive.totals(g4)
   const t = ctx.tree
   const tbl = naive.nodeTable(t, g4)
   check('报告 提示词', '头部 = 手算：全部… 四年级；11 份卷子 44 道题；覆盖学年 2023–2025 三个学年', v && v.FILTER_DESC === '四年级' && v.PAPER_COUNT === '11' && v.QUESTION_COUNT === '44' && v.YEARS === '2023-2024学年、2024-2025学年、2025-2026学年' && tot.papers === 11 && tot.questions === 44, v && [v.FILTER_DESC, v.PAPER_COUNT, v.QUESTION_COUNT, v.YEARS].join(' / '))
-  check('报告 提示词', 'SAMPLE_WARNING 由程序判定：卷子 11 份、同一年级，但混入了期中和期末 → 只提示考试类型混入，没有「样本偏小」', v && v.SAMPLE_WARNING === '范围内混入了不同考试类型的试卷，结论只能作粗略参考。', v && v.SAMPLE_WARNING)
+  check('报告 提示词', 'SAMPLE_WARNING 由程序判定：卷子 11 份、同一年级，但混入了期中和期末 → 只提示考试类型混入，没有「样本偏小」类的话', v && v.SAMPLE_WARNING === '范围内混入了不同考试类型的试卷，结论只能作粗略参考。', v && v.SAMPLE_WARNING)
   // KP_DIST = 逐条循环重算：每个有题的节点（一级全列，二级前 30）的 出现份数/总份数 与 题数
   const kpRows = v ? v.KP_DIST.split('\n').map(l => l.split(' | ')) : []
   const l1 = kpRows.filter(r => r[0] === '一级'), l2 = kpRows.filter(r => r[0] === '二级')
@@ -113,11 +113,11 @@ async function phaseReport() {
   const wantErr = [...tbl].filter(([c, e]) => t.level.get(c) === 2 && e.err > 0).map(([c]) => c).sort()
   check('报告 提示词', '易错点表 = 有 AI 估计易错题的二级知识点（逐条循环重算），每行带样本题 token；一般将来时的样本题指向 C2 第 1 题', JSON.stringify([...errCodes].sort()) === JSON.stringify(wantErr) && errRows.every(r => /\[[^\]]+ · [^\]]+\]/.test(r[3])) && errRows.some(r => r[0] === 'GR.TENSE.FUT' && /2025学年四年级下期末卷C2 · 1/.test(r[3])), errRows.map(r => r[0]).join(','))
   const cmp = naive.compare(t, { grade: '4' }, 2025, 'before', 2)
-  check('报告 提示词', '年度变化摘要 = 同比重算：新增 1（一般将来时 2/5）、消失 1（字母与字母组合发音 基线 3/6）、上升 2、下降 1；学期范围写明已对齐', v && /新增（基线学年从未出现）：一般将来时（目标 2\/5 份）/.test(v.YEAR_DIFF) && /消失（目标学年未出现）：字母与字母组合发音（基线 3\/6 份）/.test(v.YEAR_DIFF) && /明显上升：购物（1\/6 → 3\/5 份，\+43\.3 个百分点）；一般过去时（3\/6 → 4\/5 份，\+30\.0 个百分点）/.test(v.YEAR_DIFF) && /明显下降：名词复数（6\/6 → 1\/5 份，-80\.0 个百分点）/.test(v.YEAR_DIFF) && /基线已按学期对齐/.test(v.YEAR_DIFF) && cmp.added.length === 1 && cmp.up.length === 2, v && v.YEAR_DIFF.split('\n')[1])
+  check('报告 提示词', '年度变化摘要 = 同比重算：新增 1（一般将来时 2/5）、消失 1（字母与字母组合发音 基线 3/6）、上升 2、下降 1；学期范围写明已对齐', v && /今年新出现（去年及以前从未出现）：一般将来时（今年 2\/5 份卷子有）/.test(v.YEAR_DIFF) && /今年没再出现（去年及以前出现过）：字母与字母组合发音（去年及以前 3\/6 份卷子有）/.test(v.YEAR_DIFF) && /明显变多：购物（去年及以前 1\/6 份 → 今年 3\/5 份卷子有）；一般过去时（去年及以前 3\/6 份 → 今年 4\/5 份卷子有）/.test(v.YEAR_DIFF) && /明显变少：名词复数（去年及以前 6\/6 份 → 今年 1\/5 份卷子有）/.test(v.YEAR_DIFF) && /去年及以前已按学期对齐/.test(v.YEAR_DIFF) && !/基线|目标学年|百分点/.test(v.YEAR_DIFF) && cmp.added.length === 1 && cmp.up.length === 2, v && v.YEAR_DIFF.split('\n')[1])
 
   // ── 报告页上的呈现 ──
   const body = T('report-body')
-  check('报告 呈现', '报告按 Markdown 渲染：标题、表格（至少 3 张）、「结论 / 依据 / 建议」粗体都在；样本提示（程序判定）单独显示一条', (await body.locator('[data-testid=md-table]').count()) >= 3 && /考情分析报告/.test(await body.innerText()) && (await T('report-sample-warning').count()) === 1 && /混入了不同考试类型/.test(await txt('report-sample-warning')) && !(await body.innerText()).includes('**'), `${await body.locator('[data-testid=md-table]').count()} 张表`)
+  check('报告 呈现', '报告按 Markdown 渲染：标题、表格（至少 3 张）、「结论 / 依据 / 建议」粗体都在；样本提示只在正文开头的说明里出现一次（界面上方不再重复放一条黄条）', (await body.locator('[data-testid=md-table]').count()) >= 3 && /考情分析报告/.test(await body.innerText()) && (await T('report-sample-warning').count()) === 0 && ((await body.innerText()).match(/混入了不同考试类型/g) || []).length === 1 && !(await body.innerText()).includes('**'), `${await body.locator('[data-testid=md-table]').count()} 张表`)
   const cards = await body.locator('[data-testid=cite-card]').evaluateAll(els => els.map(e => e.dataset.token))
   const tokens = new Set([...req.user.matchAll(/\[[^\[\]\n·]{1,60} · [^\[\]\n·]{1,30}\]/g)].map(m => m[0]))
   check('报告 引用', '引用渲染成截图卡片：每张卡片的 token 都来自提示词里给出的样本题（至少 1 张）', cards.length >= 1 && cards.every(c => tokens.has(c)), `${cards.length} 张`)
@@ -143,7 +143,7 @@ async function phaseReport() {
   const w = JSON.parse(r2.warnings_json)
   await waitFor(async () => (await T('report-warning').allInnerTexts()).some(x => /已移除 1 处/.test(x)), 10000)   // 新报告生成完会自动选中，等界面切过去
   check('报告 引用校验', '模型自造的引用 [不存在的卷 · 99] 被移除并提示「已移除 1 处」；正文里不再有它', !r2.markdown.includes('不存在的卷') && w.some(x => /已移除 1 处无法核对的引用/.test(x)) && (await T('report-warning').allInnerTexts()).some(x => /已移除 1 处/.test(x)), JSON.stringify([r2.markdown.includes('不存在的卷'), w, await T('report-warning').allInnerTexts()]).slice(0, 300))
-  check('报告 样本提示', '模型没转述样本提示 → 程序判定的提示补在开头（「样本提示（程序判定）」），并有一条说明', /样本提示（程序判定）：范围内混入了不同考试类型/.test(r2.markdown) && w.some(x => /模型没有转述样本提示/.test(x)) && r2.sample_warning === '范围内混入了不同考试类型的试卷，结论只能作粗略参考。')
+  check('报告 样本提示', '模型没转述样本提示 → 程序判定的提示补在开头（「样本提示：」），只补这一处、不再另放一条「模型没有转述」的说明', /样本提示：范围内混入了不同考试类型/.test(r2.markdown) && !w.some(x => /样本提示|模型没有转述/.test(x)) && (await T('report-sample-warning').count()) === 0 && r2.sample_warning === '范围内混入了不同考试类型的试卷，结论只能作粗略参考。')
   check('报告 完整性', '默认提示词规定的最后一节「教学建议」缺了 → 提示「内容可能不完整」', w.some(x => /没有最后一节「教学建议」/.test(x)))
   check('报告 历史', '历史列表：两份报告，最新的在最上面并被选中', (await page.locator('[data-testid^=report-item-]').count()) === 2 && (await page.locator('[data-testid^=report-item-]').first().getAttribute('data-testid')) === `report-item-${r2.id}`)
   ctx.badReport = r2.id
@@ -167,16 +167,19 @@ async function phaseReport() {
     await T('report-generate').click()
     const err = await waitFor(async () => (await T('report-error').count()) > 0, 60000)
     const msg = err ? await txt('report-error') : ''
+    // 白话报错 + 「查看详情」折叠里的技术原因（给管理员看）
+    if (err) { await T('report-error').locator('.ant-collapse-header').first().click().catch(() => undefined); await sleep(300) }
+    const detail = err && (await T('report-error-detail').count()) ? await txt('report-error-detail') : ''
     const n = reqs().length
     await T('report-dismiss').click()
-    return { err, msg, n }
+    return { err, msg, detail, n }
   }
   const cut = await attempt([{ type: 'p2_cut', times: 3, after: 3, only: 'p3' }])
-  check('报告 故障', '中途断流（连接被硬断）3 次 → 「数据流中断」，自动重试 2 次（共 3 次请求），不入库', cut.err && /数据流中断|中断/.test(cut.msg) && cut.n === 3 && rows().length === 2, `${cut.n} 次；${cut.msg}`)
+  check('报告 故障', '中途断流（连接被硬断）3 次 → 白话「连不上 AI 服务」（技术原因「数据流中断」收在详情里），自动重试 2 次（共 3 次请求），不入库', cut.err && /连不上 AI 服务/.test(cut.msg) && /数据流中断|中断/.test(cut.detail) && cut.n === 3 && rows().length === 2, `${cut.n} 次；${cut.msg}`)
   const eof = await attempt([{ type: 'p2_eof', times: 3, after: 3, only: 'p3' }])
-  check('报告 故障', '「干净 EOF」（没有 finish_reason 也没有 [DONE]）3 次 → 「数据流意外结束」，半截内容不入库', eof.err && /意外结束/.test(eof.msg) && eof.n === 3 && rows().length === 2, eof.msg)
+  check('报告 故障', '「干净 EOF」（没有 finish_reason 也没有 [DONE]）3 次 → 白话提示（技术原因「数据流意外结束」收在详情里），半截内容不入库', eof.err && /连不上 AI 服务/.test(eof.msg) && /意外结束/.test(eof.detail) && eof.n === 3 && rows().length === 2, eof.msg)
   const empty = await attempt([{ type: 'empty', times: 2, only: 'p3' }])
-  check('报告 故障', '模型连续返回空内容 → 先同参数重试一次再报「模型返回了空内容」，不入库', empty.err && /空内容/.test(empty.msg) && empty.n === 2 && rows().length === 2, `${empty.n} 次；${empty.msg}`)
+  check('报告 故障', '模型连续返回空内容 → 先同参数重试一次再报白话「AI 这次没有返回内容」（技术原因「空内容」在详情里），不入库', empty.err && /没有返回内容/.test(empty.msg) && /空内容/.test(empty.detail) && empty.n === 2 && rows().length === 2, `${empty.n} 次；${empty.msg}`)
   // 断流 1 次后重试成功：只有完整的一份
   mock.resetStats(); mock.script([{ type: 'p2_cut', times: 1, after: 3, only: 'p3' }])
   await T('report-generate').click()
@@ -216,8 +219,8 @@ async function phaseReport() {
   await api(t => window.api.ai.savePrompt('p3_report', 'system', t + '\n（测试追加一句）'), (await api(() => window.api.ai.prompts())).items.find(x => x.id === 'p3_report' && x.part === 'system').text)
   const staleP = await waitFor(async () => Object.values(await listStatus()).every(x => x === 'stale'), 15000)
   await T(`report-item-${rows()[0].id}`).click()
-  await waitFor(async () => (await T('report-stale').count()) > 0 && /提示词变了/.test(await txt('report-stale')), 10000)
-  check('报告 过期', '改了 P3 提示词 → 标「已过期（提示词变了）」，仍不自动重算', staleP && /提示词变了/.test(await txt('report-stale')) && reqs().length === reqBefore, await txt('report-stale').catch(() => ''))
+  await waitFor(async () => (await T('report-stale').count()) > 0 && /写作要求有更新/.test(await txt('report-stale')), 10000)
+  check('报告 过期', '改了 P3 提示词 → 标「已过期（AI 的写作要求有更新）」，仍不自动重算', staleP && /写作要求有更新/.test(await txt('report-stale')) && reqs().length === reqBefore, await txt('report-stale').catch(() => ''))
   await api(() => window.api.ai.resetPrompt('p3_report', 'system'))
   check('报告 过期', '恢复默认提示词 → 又是「最新」', await waitFor(async () => Object.values(await listStatus()).every(x => x === 'fresh'), 15000))
   // 删除
@@ -244,10 +247,11 @@ async function phaseExport() {
   const dir = path.join(out, '考情报告')
   const links = [...text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map(m => decodeURIComponent(m[1]))
   const files = links.map(l => path.join(out, l))
-  check('导出 Markdown', '文件存在，内容是这份报告（含标题、表格），文首有来源注释', wrote && /^<!-- 由「英语校考分析工作台」导出/.test(text) && /# 四年级 考情分析报告/.test(text) && /\| 层级 \| 代码 \|/.test(text), text.slice(0, 80))
+  check('导出 Markdown', '文件存在，内容是这份报告（标题含年级 / 学年 / 版本 / 日期，表格里没有「代码」列），文首有来源注释', wrote && /^<!-- 由「英语校考分析工作台」导出/.test(text) && /# 四年级 2023–2026学年 考情分析报告（完整数据版）· \d{4}-\d{2}-\d{2}/.test(text) && /\| 层级 \| 名称 \|/.test(text) && !/\| 代码 \|/.test(text), text.slice(0, 80))
   check('导出 Markdown', '引用的题目截图导成同名文件夹「考情报告/」下的真实 PNG：文档里每个图片链接指向的文件都存在、都是有效 PNG（至少 1 张）', links.length >= 1 && files.every(f => fs.existsSync(f) && isPng(f)) && links.every(l => /^考情报告\/q-\d{3}\.png$/.test(l)) && fs.readdirSync(dir).length === new Set(links).size, `${links.length} 个链接：${links.slice(0, 3).join(', ')}`)
   // 截图内容正确：C2 第 1 题的裁切图 OCR 出 skirt，且不含相邻题
-  const c2link = (() => { const m = /\[(2025学年四年级下期末卷C2 · 1)\] !\[[^\]]*\]\(([^)]+)\)/.exec(text); return m ? decodeURIComponent(m[2]) : null })()
+  // 截图现在放在这一段的后面，不再紧跟在引用后面：按图片的说明文字找
+  const c2link = (() => { const m = /!\[题目截图：(2025学年四年级下期末卷C2 · 1)\]\(([^)]+)\)/.exec(text); return m ? decodeURIComponent(m[2]) : null })()
   let ocrOk = false, ocrTxt = ''
   if (c2link && fs.existsSync(path.join(out, c2link))) { ocrTxt = L.ocrText(path.join(out, c2link)); ocrOk = /skirt/i.test(ocrTxt) && !/sheep|library/i.test(ocrTxt) }
   check('导出 Markdown', '截图内容对：C2 第 1 题的裁切图（主进程 nativeImage.crop）用真实 OCR 读出「skirt」，且不含相邻题的 sheep / library', ocrOk, ocrTxt.slice(0, 80))
@@ -266,7 +270,7 @@ async function phaseExport() {
   const pwrote = await waitFor(async () => fs.existsSync(pdf) && fs.statSync(pdf).size > 1000, 30000)
   const info = pwrote ? await pdfInfo(pdf) : { pages: 0, text: '' }
   check('导出 PDF', '文件存在、是有效 PDF（%PDF- 开头）、页数 > 0', pwrote && fs.readFileSync(pdf).subarray(0, 5).toString() === '%PDF-' && info.pages > 0, `${info.pages} 页，${pwrote ? fs.statSync(pdf).size : 0} 字节`)
-  check('导出 PDF', '中文能正常显示：PDF 里读得出标题「四年级 考情分析报告」、表头「出现份数/总份数」、章节「教学建议」', /四年级考情分析报告|四年级 考情分析报告/.test(info.text.replace(/\s/g, '')) && info.text.replace(/\s/g, '').includes('出现份数/总份数') && info.text.includes('教学建议'), info.text.slice(0, 60))
+  check('导出 PDF', '中文能正常显示：PDF 里读得出标题「四年级 2023–2026学年 考情分析报告（完整数据版）」、表头「出现份数/总份数」、章节「教学建议」', /四年级2023–2026学年考情分析报告（完整数据版）/.test(info.text.replace(/\s/g, '')) && info.text.replace(/\s/g, '').includes('出现份数/总份数') && info.text.includes('教学建议'), info.text.slice(0, 60))
   check('导出 PDF', '题目截图出现在 PDF 里（带截图的 PDF 比同一份纯文字大得多：> 40 KB），并且有页脚页码「1 / N」', pwrote && fs.statSync(pdf).size > 40_000 && /1\s*\/\s*\d/.test(info.text), `${fs.statSync(pdf).size} 字节`)
   // PDF 的 HTML 用跨平台字体链：源码级检查（Windows 上无法实跑，见交付说明）
   const src = fs.readFileSync(path.join(root, 'src/shared/mdhtml.ts'), 'utf8')

@@ -19,6 +19,7 @@ import { PackError } from './errors.ts'
 import { withRetry } from './fsretry.ts'
 import { classifyEntry } from './names.ts'
 import { flatKpText } from './kp-rules.ts'
+import { safeKpName } from '../../shared/code-guard.ts'
 import { PACK_FORMAT, PACK_FORMAT_VERSION, PACK_SETTING_KEYS } from './manifest.ts'
 import type { Manifest } from './manifest.ts'
 import type { OpenDb } from './stage-db.ts'
@@ -60,9 +61,19 @@ export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpD
     // 知识点名称 / 说明折成一行：旧版本允许输入换行和竖线，导入端对它们是严格的——导出的包必须永远能被导回来（名称折完是空的就用代码顶上）
     const upd = s.prepare('UPDATE kps SET name = ?, note = ? WHERE code = ?')
     for (const k of s.prepare('SELECT code, name, note FROM kps').all() as Array<{ code: string; name: string | null; note: string | null }>) {
-      const name = flatKpText(String(k.name ?? '')).slice(0, 30) || k.code
+      const name = safeKpName(flatKpText(String(k.name ?? '')).slice(0, 30))
       const note = k.note == null ? null : (flatKpText(String(k.note)).slice(0, 500) || null)
       if (name !== k.name || note !== k.note) upd.run(name, note, k.code)
+    }
+    // 白话释义 / 例句 / 例词同样折成一行（导出的包必须永远能被导回来）
+    for (const k of s.prepare('SELECT code, plain, example_en, example_zh, hint_words FROM kps').all() as any[]) {
+      const fields: Array<[string, number]> = [['plain', 40], ['example_en', 120], ['example_zh', 80], ['hint_words', 60]]
+      for (const [f, max] of fields) {
+        const v = k[f]
+        if (v == null) continue
+        const t = flatKpText(String(v)).slice(0, max)
+        if (t !== v) s.prepare(`UPDATE kps SET ${f} = ? WHERE code = ?`).run(t || null, k.code)
+      }
     }
     s.exec('UPDATE ai_analyses SET checked_rev = NULL, checked_sig = NULL, checked_json = NULL')
     s.exec('UPDATE reports SET checked_rev = NULL, checked_sig = NULL, checked_json = NULL')

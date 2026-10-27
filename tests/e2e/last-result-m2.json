@@ -7,9 +7,9 @@
   },
   {
     "feature": "迁移 v5",
-    "name": "带数据的真实 v4 库升级到最新版本（现为 v9，M3 在 v5 之后新增了 v6、v7、v8，M4 新增 v9）：版本号、v5 的新列、新表齐全",
+    "name": "带数据的真实 v4 库升级到最新版本（现为 v10，M3 在 v5 之后新增了 v6、v7、v8，M4 新增 v9，M6 新增 v10）：版本号、v5 的新列、新表齐全",
     "pass": true,
-    "detail": "v9"
+    "detail": "v10"
   },
   {
     "feature": "迁移 v5",
@@ -25,7 +25,7 @@
   },
   {
     "feature": "知识点树",
-    "name": "全新库 v9：种子树 145 个节点（80–150）、最多 3 层、父节点都存在、代码唯一",
+    "name": "全新库 v10：种子树 145 个节点（80–150）、最多 3 层、父节点都存在、代码唯一",
     "pass": true,
     "detail": "145 个"
   },
@@ -51,7 +51,7 @@
     "feature": "AI 设置",
     "name": "「测试连接」用界面当前值（尚未保存）连通 mock，提示成功",
     "pass": true,
-    "detail": "文本模型：成功 连接成功（mock-text-model，103 毫秒）"
+    "detail": "成功  文本模型：成功  连接成功（mock-text-model，67 毫秒）"
   },
   {
     "feature": "AI 设置",
@@ -67,21 +67,21 @@
   },
   {
     "feature": "提示词版本",
-    "name": "内置提示词版本号为 v1.1（示例代码换成树里真实代码后升了一版）",
+    "name": "内置提示词版本号为 v2.0（M6：分读者版本、规则只能来自证据、白话）",
     "pass": true,
-    "detail": "v1.1"
+    "detail": "v2.0"
   },
   {
     "feature": "AI 设置",
     "name": "密钥错误时给出明确中文原因（401 → API Key 无效）",
     "pass": true,
-    "detail": "文本模型：失败 API Key 无效或没有权限（HTTP 401），请检查密钥与所选服务商是否匹配"
+    "detail": "失败  文本模型：失败  API Key 无效或没有权限（HTTP 401），请检查密钥与所选服务商是否匹配"
   },
   {
     "feature": "密钥安全",
     "name": "getConfig 只返回 hasKey，整个返回值里没有密钥",
     "pass": true,
-    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:59714/v1\",\"model\":\"mock-text-model\",\"vision_model\":\"mock-vision-model\",\"concurrency\":2,\"auto_parse\":true,\"batc"
+    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:55035/v1\",\"model\":\"mock-text-model\",\"vision_model\":\"mock-vision-model\",\"concurrency\":2,\"auto_parse\":true,\"batc"
   },
   {
     "feature": "密钥安全",
@@ -93,7 +93,7 @@
     "feature": "密钥安全",
     "name": "渲染端 API 面上没有任何读取密钥的方法；保存后输入框已清空，页面 DOM / localStorage 里没有密钥",
     "pass": true,
-    "detail": "75 个 API"
+    "detail": "85 个 API"
   },
   {
     "feature": "密钥安全",
@@ -159,7 +159,7 @@
     "feature": "处理队列",
     "name": "队列页实时显示「AI 解析中」与进度",
     "pass": true,
-    "detail": "AI 解析中 8% 调用 AI 拆题与标注…"
+    "detail": "AI 解析中 AI 正在处理 · 已用 0 秒（通常 2–3 分钟）"
   },
   {
     "feature": "处理队列",
@@ -253,27 +253,27 @@
   },
   {
     "feature": "提示词版本",
-    "name": "每份试卷记录解析用的模型与提示词版本（内置 v1.1）",
+    "name": "每份试卷记录解析用的模型与提示词版本（内置 v2.0）",
     "pass": true,
-    "detail": "mock-text-model / v1.1"
+    "detail": "mock-text-model / v2.0"
   },
   {
     "feature": "token 用量",
     "name": "每次调用的 token 用量写入 ai_usage（含缓存命中数）",
     "pass": true,
-    "detail": "{\"n\":1,\"p\":13325,\"c\":10204,\"k\":0}"
+    "detail": "{\"n\":1,\"p\":15121,\"c\":10204,\"k\":0}"
   },
   {
     "feature": "token 用量",
     "name": "缓存命中数的记录链路：mock 按「同一 system 见过没」模拟 prompt_cache_hit_tokens，证明该字段被解析并落库（⚠️ 不代表真实服务商的命中率）",
     "pass": true,
-    "detail": "cached=10242（mock 模拟值）"
+    "detail": "cached=10660（mock 模拟值）"
   },
   {
     "feature": "提示词",
     "name": "system 部分与 docs/prompts 里 P1 文本版逐字一致（直接从 docs 取，不是资源文件），且所有 P1 请求的 system 彼此相同（利于前缀缓存）",
     "pass": true,
-    "detail": "system 8193 字"
+    "detail": "system 8527 字"
   },
   {
     "feature": "提示词",
@@ -297,7 +297,7 @@
     "feature": "bbox 位置",
     "name": "数值核对（PDF 文本层真实坐标）：Q9 的框 y≈0.444、高≈1 行；Q17 的框从行中间开始，与 Q16 的框不重叠",
     "pass": true,
-    "detail": "Q9=0.128,0.44,0.431,0.026 Q16=0.128,0.677,0.291,0.026 Q17=0.412,0.677,0.274,0.026"
+    "detail": "Q9=0.128,0.44,0.431,0.024 Q16=0.128,0.677,0.279,0.027 Q17=0.411,0.677,0.275,0.027"
   },
   {
     "feature": "自动解析",
@@ -337,25 +337,25 @@
   },
   {
     "feature": "元数据",
-    "name": "试卷库里 AI 预填的字段带「AI 猜测」标记",
+    "name": "试卷库里有 AI 预填字段的卷子，整行只带一个「AI 猜测」标记，悬停说明里写出是哪几项（学年 / 类型 / 总分 / 标题等）",
     "pass": true,
-    "detail": "23 个标记"
+    "detail": "9 个标记；AI 从卷头读出来的：学年、类型、总分、标题，不一定对。你核对过、点「确认整份试"
   },
   {
     "feature": "故障：空内容",
-    "name": "模型连续返回空 content：先同参数重试、再对半拆小重试，仍不行 → failed，原因是中文提示",
+    "name": "模型连续返回空 content：先同参数重试、再对半拆小重试，仍不行 → failed，原因是白话提示（技术原因「空内容」收在详情里）",
     "pass": true,
-    "detail": "第 1 页解析失败：模型返回了空内容（重试后仍为空）。可以点击「重试」，或换一个更强的模型（4 次请求）"
+    "detail": "AI 没能完整读懂第 1 页（已经自动重试过）；可以点「重试」，多次失败请联系管理员｜详情：第 1 页：模型返回了空内容（重试后仍为空）；reasoning 0 字；finish_reason=stop（4 次请求）"
   },
   {
     "feature": "故障：空内容",
     "name": "队列页展示失败原因（含失败阶段）与「重试」入口",
     "pass": true,
-    "detail": "AI 解析失败：第 1 页解析失败：模型返回了空内容（重试后仍为空）。可以点击「重试」，或换一个更强的模型"
+    "detail": "AI 没能完整读懂第 1 页（已经自动重试过）；可以点「重试」，多次失败请联系管理员"
   },
   {
     "feature": "故障：空内容",
-    "name": "点「重试 AI 解析」（不重新提取）后成功，回到待审核",
+    "name": "点「重试」（不重新提取）后成功，回到待审核",
     "pass": true,
     "detail": ""
   },
@@ -367,9 +367,9 @@
   },
   {
     "feature": "故障：非法 JSON",
-    "name": "模型连续返回非法 JSON → failed，提示「输出不是合法的 JSON」并指出哪一页",
+    "name": "模型连续返回非法 JSON → failed，白话提示并指出哪一页，技术原因「输出不是合法的 JSON」收在详情里",
     "pass": true,
-    "detail": "第 1 页解析失败：输出不是合法的 JSON（可能被截断或带了多余内容）。可以点击「重试」，或换一个更强的模型"
+    "detail": "AI 没能完整读懂第 1 页（已经自动重试过）；可以点「重试」，多次失败请联系管理员｜详情：第 1 页：输出不是合法的 JSON（可能被截断或带了多余内容）"
   },
   {
     "feature": "P1-1 再导入",
@@ -397,9 +397,9 @@
   },
   {
     "feature": "故障：结构不符",
-    "name": "模型返回的 JSON 不符合 Schema（难度 9）→ failed，提示具体字段 questions[0].difficulty",
+    "name": "模型返回的 JSON 不符合 Schema（难度 9）→ failed，用户看到白话提示，具体字段 questions[0].difficulty 收在详情里",
     "pass": true,
-    "detail": "第 1 页解析失败：输出的结构不符合要求： questions[0].difficulty：不能大于 5。可以点击「重试」，或换一个更强的模型"
+    "detail": "AI 没能完整读懂第 1 页（已经自动重试过）；可以点「重试」，多次失败请联系管理员｜详情：第 1 页：输出的结构不符合要求： questions[0].difficulty：不能大于 5"
   },
   {
     "feature": "故障：结构不符",
@@ -415,9 +415,9 @@
   },
   {
     "feature": "故障：429",
-    "name": "429 持续：重试 3 次（共 4 次请求）后 failed，提示「请求太频繁/额度不足（HTTP 429）」",
+    "name": "429 持续：重试 3 次（共 4 次请求）后 failed，白话提示「AI 服务太忙，或账户额度不够了」，HTTP 429 收在详情里",
     "pass": true,
-    "detail": "请求太频繁或额度不足（HTTP 429），稍后重试，或检查账户余额"
+    "detail": "AI 服务太忙，或账户额度不够了。请稍后再试，多次失败请联系管理员检查账户｜详情：rate_limit；HTTP 429；请求太频繁或额度不足（HTTP 429），稍后重试，或检查账户余额；{\"error\":{\"message\":\"rate limit\"}}"
   },
   {
     "feature": "故障：5xx",
@@ -433,9 +433,9 @@
   },
   {
     "feature": "故障：超时",
-    "name": "持续无响应：重试用尽（4 次）后 failed，提示「模型响应超时」",
+    "name": "持续无响应：重试用尽（4 次）后 failed，白话提示「AI 等了太久没有回应」，「模型响应超时」收在详情里",
     "pass": true,
-    "detail": "模型响应超时（超过 2 秒没有返回）"
+    "detail": "AI 等了太久没有回应；可以点「重试」，多次失败请联系管理员｜详情：timeout；模型响应超时（超过 2 秒没有返回）"
   },
   {
     "feature": "故障：批次被截断",
@@ -445,15 +445,15 @@
   },
   {
     "feature": "故障：批次被截断",
-    "name": "单页也被截断 → failed，提示「输出被长度上限截断」并指明页码",
+    "name": "单页也被截断 → failed，白话提示并指明页码，「长度上限」这类技术原因收在详情里",
     "pass": true,
-    "detail": "第 1 页解析失败：模型输出被长度上限截断（内容太多），需要把这一批拆小。可以点击「重试」，或换一个更强的模型"
+    "detail": "AI 没能完整读懂第 1 页（已经自动重试过）；可以点「重试」，多次失败请联系管理员｜详情：第 1 页：模型输出被长度上限截断（内容太多）；finish_reason=length；max_tokens=8192；正文 111 字；思考 0 字"
   },
   {
     "feature": "故障：密钥失效",
-    "name": "服务商返回 401 → failed，提示「API Key 无效或没有权限」，不做无谓重试（只请求 1 次）",
+    "name": "服务商返回 401 → failed，提示「密钥无效或没有权限」并指路给管理员，不做无谓重试（只请求 1 次）",
     "pass": true,
-    "detail": "API Key 无效或没有权限（HTTP 401），请检查密钥与所选服务商是否匹配"
+    "detail": "AI 的密钥无效或没有权限，请联系管理员检查「设置 → 管理员设置 → AI 服务」｜详情：auth；HTTP 401；API Key 无效或没有权限（HTTP 401），请检查密钥与所选服务商是否匹配；{\"error\":{\"message\":\"Authentication Fails, invalid api key\"}}"
   },
   {
     "feature": "故障：密钥失效",
@@ -475,9 +475,9 @@
   },
   {
     "feature": "密钥安全",
-    "name": "服务商 400 响应里回显了密钥：papers.error 与 parse_runs.error 里都已脱敏（审核 P2-2）",
+    "name": "服务商 400 响应里回显了密钥：papers.error / error_detail 与 parse_runs.error 里都已脱敏（审核 P2-2）",
     "pass": true,
-    "detail": "请求被拒绝（HTTP 400）：{\"error\":{\"message\":\"Incorrect API key provided: ［密钥已隐藏］. You can find your API key at https://platform."
+    "detail": "bad_request；HTTP 400；请求被拒绝（HTTP 400）：{\"error\":{\"message\":\"Incorrect API key provided: ［密钥已隐藏］. You can find your API key"
   },
   {
     "feature": "跨批合并",
@@ -525,7 +525,7 @@
     "feature": "分阶段重试",
     "name": "「仅重新定位」不改动被复用的那条解析记录：它仍是同一条、状态仍是 done，审核页顶栏的提示词版本不会因此丢失或错位（复审 N4）",
     "pass": true,
-    "detail": "{\"id\":35,\"prompt_version\":\"v1.1\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-10-26 14:48:56\"}"
+    "detail": "{\"id\":35,\"prompt_version\":\"v2.0\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-10-27 12:56:25\"}"
   },
   {
     "feature": "分阶段重试",
@@ -543,7 +543,7 @@
     "feature": "分阶段重试",
     "name": "「从头重试」即使关了自动解析也会在提取后接着解析，最终回到待审核且 extracted_at 更新",
     "pass": true,
-    "detail": "2026-10-26 14:47:42 → 2026-10-26 14:48:58"
+    "detail": "2026-10-27 12:55:13 → 2026-10-27 12:56:26"
   },
   {
     "feature": "取消",
@@ -555,7 +555,7 @@
     "feature": "审核页",
     "name": "取消/失败的运行不会成为审核页顶栏显示的「解析记录」：取最近一次成功的，提示词版本与试卷记录一致（审核 P2-8）",
     "pass": true,
-    "detail": "{\"id\":37,\"prompt_version\":\"v1.1\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"fini"
+    "detail": "{\"id\":37,\"prompt_version\":\"v2.0\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"fini"
   },
   {
     "feature": "解析记录",
@@ -603,7 +603,7 @@
     "feature": "提示词版本",
     "name": "记录用的模型（仅视觉模型）与提示词版本",
     "pass": true,
-    "detail": "mock-vision-model / v1.1"
+    "detail": "mock-vision-model / v2.0"
   },
   {
     "feature": "bbox 位置",
@@ -621,7 +621,7 @@
     "feature": "提示词管理",
     "name": "改写后的 system 提示词下次解析就用上，并记录版本为「<版本>+自定义·哈希」",
     "pass": true,
-    "detail": "v1.1+自定义·b2a9a8"
+    "detail": "v2.0+自定义·4e0dca"
   },
   {
     "feature": "提示词管理",
@@ -661,9 +661,9 @@
   },
   {
     "feature": "审核页",
-    "name": "标黄的题背景是黄色（rgb(255, 251, 230)），普通题不是",
+    "name": "需要核对的题背景正好是设计令牌「易错浅底」（--ewb-red-soft 的计算值），普通题没有底色",
     "pass": true,
-    "detail": "rgb(240, 242, 255) | rgb(255, 251, 230)"
+    "detail": "rgba(0, 0, 0, 0) | rgba(214, 59, 83, 0.08) （令牌 rgba(214, 59, 83, 0.08)）"
   },
   {
     "feature": "审核页",
@@ -691,9 +691,9 @@
   },
   {
     "feature": "审核页",
-    "name": "进入审核页后主侧栏自动收起（给原卷页面让位）",
+    "name": "审核页的侧栏是窄图标栏：宽度 < 100px，图标栏的 6 个入口 + 设置 + 外观都在，每个入口图标下面有两字标签，画布占满其余宽度",
     "pass": true,
-    "detail": "80px"
+    "detail": "84px，8 个入口，标签 总览/试卷/队列/审核/看板/报告/设置/自动，画布 1100px"
   },
   {
     "feature": "审核页",
@@ -723,7 +723,7 @@
     "feature": "审核页",
     "name": "缩放 150% / 200%：页面按比例放大，框仍按归一化坐标贴在原位",
     "pass": true,
-    "detail": "445 → 668 → 890"
+    "detail": "505 → 758 → 1010"
   },
   {
     "feature": "审核页",
@@ -747,13 +747,13 @@
     "feature": "审核页",
     "name": "拖动框：松手后新位置写入数据库（右移约 50px ≈ 图宽的比例），来源标为 manual",
     "pass": true,
-    "detail": "0.128,0.44,0.431,0.026 → 0.24,0.457,0.431,0.026"
+    "detail": "0.128,0.44,0.431,0.024 → 0.227,0.455,0.431,0.024"
   },
   {
     "feature": "审核页",
     "name": "拖右下角手柄缩放：宽高增大且左上角不动",
     "pass": true,
-    "detail": "0.24,0.457,0.431,0.026 → 0.24,0.457,0.476,0.043"
+    "detail": "0.227,0.455,0.431,0.024 → 0.227,0.455,0.471,0.039"
   },
   {
     "feature": "审核页",
@@ -765,7 +765,7 @@
     "feature": "审核页",
     "name": "重启应用后重新打开审核页：题干、易错原因、拖动后的框、确认状态都还在",
     "pass": true,
-    "detail": "{\"stem\":\"Tom ____ a big farm. (E2E 改过) jk\",\"reason\":\"E2E：has 的第三人称\",\"attr\":\"0.169,0.415,0.596,0.113\",\"reviewed1\":\"1\"}"
+    "detail": "{\"stem\":\"Tom ____ a big farm. (E2E 改过) jk\",\"reason\":\"E2E：has 的第三人称\",\"attr\":\"0.163,0.419,0.579,0.099\",\"reviewed1\":\"1\"}"
   },
   {
     "feature": "审核页",
@@ -909,7 +909,7 @@
     "feature": "密钥安全",
     "name": "用户同时重新输入地址与密钥即可恢复正常",
     "pass": true,
-    "detail": "http://127.0.0.1:59714/v1"
+    "detail": "http://127.0.0.1:55035/v1"
   },
   {
     "feature": "密钥安全",

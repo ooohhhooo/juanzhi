@@ -19,3 +19,6 @@ coverage/
 
 # 打包产物
 release/
+
+# 设计参考图（第三方图片，不进公开仓库）
+.impeccable/refs/

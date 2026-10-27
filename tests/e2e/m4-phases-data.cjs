@@ -103,7 +103,7 @@ async function phasePack() {
   const names = Object.keys(z.files).filter(n => !z.files[n].dir)
   const man = JSON.parse(await z.file('manifest.json').async('string'))
   const dbBytes = await z.file('db.sqlite').async('nodebuffer')
-  check('数据包 内容', 'zip 里只有 manifest.json、db.sqlite 和 files/<uuid>/…；manifest 写明 schema v9、全部卷数和题数、导出时间、应用版本', names.every(n => n === 'manifest.json' || n === 'db.sqlite' || /^files\/[0-9a-f-]{36}\/(original\.\w+|page-\d+\.png|media\/\d+\.\w+)$/.test(n)) && man.format === 'ewb-pack' && man.schemaVersion === 9 && man.paperCount === NP && man.questionCount === NQ && /^\d{4}-\d{2}-\d{2}T/.test(man.exportedAt) && man.appVersion === require('../../package.json').version, JSON.stringify(man))
+  check('数据包 内容', 'zip 里只有 manifest.json、db.sqlite 和 files/<uuid>/…；manifest 写明 schema v10、全部卷数和题数、导出时间、应用版本', names.every(n => n === 'manifest.json' || n === 'db.sqlite' || /^files\/[0-9a-f-]{36}\/(original\.\w+|page-\d+\.png|media\/\d+\.\w+)$/.test(n)) && man.format === 'ewb-pack' && man.schemaVersion === 10 && man.paperCount === NP && man.questionCount === NQ && /^\d{4}-\d{2}-\d{2}T/.test(man.exportedAt) && man.appVersion === require('../../package.json').version, JSON.stringify(man))
   check('数据包 内容', '页面图在包里（C2、C5 两张卷子的 page-1.png）', names.filter(n => /page-1\.png$/.test(n)).length === 2)
   const keyPlain = Buffer.from(SECRET)
   const keyEnc = Buffer.from(JSON.parse(aKeyEnc))
@@ -214,7 +214,7 @@ async function phasePack() {
   check('数据包 备份', '设置页列出这份覆盖前备份（可打开 / 删除），并显示备份所在的完整路径', await waitFor(async () => (await T('backup-list').count()) > 0, 8000) && (await T('backup-list').innerText()).includes(path.join(dataDirOf(), 'backups', backups[0])), backups[0])
 
   // ── 恶意 / 不兼容的包：都拒绝，且没有写出任何文件、库没变 ──
-  const base = JSON.stringify({ format: 'ewb-pack', formatVersion: 1, schemaVersion: 9, appVersion: '0.4.0', exportedAt: '2026-10-26T00:00:00Z', paperCount: 1, questionCount: 1 })
+  const base = JSON.stringify({ format: 'ewb-pack', formatVersion: 1, schemaVersion: 10, appVersion: '0.4.0', exportedAt: '2026-10-26T00:00:00Z', paperCount: 1, questionCount: 1 })
   const dbOk = z0 => z0
   const goodDb = dbBytes
   const snapBefore = JSON.stringify([counts(), await statSnap()])

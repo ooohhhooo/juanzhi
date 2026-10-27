@@ -63,7 +63,7 @@ async function phaseMigration() {
     const nKps = d.prepare('SELECT COUNT(*) c FROM kps').get().c
     const tables = d.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name)
     const oth = d.prepare("SELECT 1 FROM qtypes WHERE code = 'OTHER'").get()
-    check('迁移 v5', '带数据的真实 v4 库升级到最新版本（现为 v9，M3 在 v5 之后新增了 v6、v7、v8，M4 新增 v9）：版本号、v5 的新列、新表齐全', uv === 9 && ['ord', 'no_label', 'flags_json', 'bbox_source'].every(c => qcols.includes(c)) && ['materials', 'parse_runs', 'ai_usage'].every(t => tables.includes(t)), `v${uv}`)
+    check('迁移 v5', '带数据的真实 v4 库升级到最新版本（现为 v10，M3 在 v5 之后新增了 v6、v7、v8，M4 新增 v9，M6 新增 v10）：版本号、v5 的新列、新表齐全', uv === 10 && ['ord', 'no_label', 'flags_json', 'bbox_source'].every(c => qcols.includes(c)) && ['materials', 'parse_runs', 'ai_usage'].every(t => tables.includes(t)), `v${uv}`)
     check('迁移 v5', '旧题目与它的知识点标注原样保留（没有因重建表被外键级联清空）', q?.stem === '旧题干' && q.no === 7 && kpLink === 1)
     check('迁移 v5', '老师自建的知识点保留；与种子同代码的节点不被覆盖（INSERT OR IGNORE）；其余种子补齐', mine?.name === '老师自己建的节点' && mine.builtin === 0 && renamed?.name === '我改过名的复数' && nKps >= 140 && !!oth, `共 ${nKps} 个节点`)
   })
@@ -81,7 +81,7 @@ async function phaseSetup() {
     const kps = d.prepare('SELECT * FROM kps').all()
     const bad = kps.filter(k => k.level > 3 || (k.parent_code && !kps.some(p => p.code === k.parent_code)))
     const qts = d.prepare('SELECT * FROM qtypes').all()
-    check('知识点树', `全新库 v${uv}：种子树 ${kps.length} 个节点（80–150）、最多 3 层、父节点都存在、代码唯一`, uv === 9 && kps.length >= 80 && kps.length <= 150 && bad.length === 0 && new Set(kps.map(k => k.code)).size === kps.length, `${kps.length} 个`)
+    check('知识点树', `全新库 v${uv}：种子树 ${kps.length} 个节点（80–150）、最多 3 层、父节点都存在、代码唯一`, uv === 10 && kps.length >= 80 && kps.length <= 150 && bad.length === 0 && new Set(kps.map(k => k.code)).size === kps.length, `${kps.length} 个`)
     check('知识点树', '每个节点都有名称与引入年级；题型表含 OTHER 兜底与 6 种听力题型', kps.every(k => k.name && k.intro_grade >= 3) && qts.some(q => q.code === 'OTHER') && qts.filter(q => q.group === 'listening').length === 6, `${qts.length} 种题型`)
     ctx.kpCount0 = kps.length
   })
@@ -115,7 +115,7 @@ async function phaseSetup() {
   const dim = mock.requests.at(-1)?.imageDims?.[0]
   check('AI 设置', '视觉测试用的图是 128×128（1×1 的图会被部分服务商拒收，让人误以为配置错了）', !!dim && dim.w >= 64 && dim.h >= 64, JSON.stringify(dim))
   ctx.pv = (await page.evaluate(() => window.api.ai.prompts())).defaultVersion
-  check('提示词版本', '内置提示词版本号为 v1.1（示例代码换成树里真实代码后升了一版）', /^v1\.1$/.test(ctx.pv), ctx.pv)
+  check('提示词版本', '内置提示词版本号为 v2.0（M6：分读者版本、规则只能来自证据、白话）', /^v2\.0$/.test(ctx.pv), ctx.pv)
   await page.locator('[data-testid=ai-key]').fill('sk-wrong-key')
   await page.locator('[data-testid=ai-test]').click()
   await page.waitForFunction(() => /失败/.test(document.querySelector('[data-testid=ai-test-result]')?.innerText || ''))
@@ -338,7 +338,8 @@ async function phaseFailures() {
   await page.evaluate(() => { location.hash = '#/' })
   await page.waitForSelector('[data-testid=dropzone]')
   await page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 15000 }).catch(() => {})
-  await page.locator('tbody tr').first().locator('.anticon-edit').click()
+  await page.locator('tbody tr').first().locator('[data-testid=more-menu]').click()
+  await page.locator('.ant-dropdown:not(.ant-dropdown-hidden) [data-testid=edit-paper]').click()   // 试卷库每行只有一个主操作，其余在「更多」里
   await page.waitForSelector('.ant-modal [data-testid=ai-guess]')
   const modalGuess = await page.locator('.ant-modal [data-testid=ai-guess]').count()
   await page.keyboard.press('Escape')
@@ -358,7 +359,9 @@ async function phaseFailures() {
   await page.locator('tr', { hasText: '自填教材' }).first().waitFor().catch(() => {})
   await page.screenshot({ path: path.join(shots, 'm2-04-library-ai-guess.png') })
   const guessTags = await page.locator('[data-testid=ai-guess]').count()
-  check('元数据', '试卷库里 AI 预填的字段带「AI 猜测」标记', guessTags >= 3, `${guessTags} 个标记`)
+  const guessRow = page.locator('tr', { hasText: parsed.title }).first()
+  const guessTitle = (await guessRow.locator('[data-testid=ai-guess]').first().getAttribute('title').catch(() => '')) || ''
+  check('元数据', '试卷库里有 AI 预填字段的卷子，整行只带一个「AI 猜测」标记，悬停说明里写出是哪几项（学年 / 类型 / 总分 / 标题等）', guessTags >= 1 && (await guessRow.locator('[data-testid=ai-guess]').count()) === 1 && /读出来的：[^，]*(年级|学年|类型|总分|标题|教材|学期)/.test(guessTitle), `${guessTags} 个标记；${guessTitle.slice(0, 40)}`)
 
   // 通用：运行一次带故障脚本的解析
   const bad = x => !/Error|undefined|\[object|at .*\(/.test(x) && /[一-龥]/.test(x)
@@ -373,7 +376,7 @@ async function phaseFailures() {
 
   // 空 content
   let o = await run('empty×6', [{ type: 'empty', times: 6 }])
-  check('故障：空内容', '模型连续返回空 content：先同参数重试、再对半拆小重试，仍不行 → failed，原因是中文提示', o.p.status === 'failed' && /空内容/.test(o.p.error) && bad(o.p.error) && o.p.error_stage === 'parse', `${o.p.error}（${o.reqs.length} 次请求）`)
+  check('故障：空内容', '模型连续返回空 content：先同参数重试、再对半拆小重试，仍不行 → failed，原因是白话提示（技术原因「空内容」收在详情里）', o.p.status === 'failed' && /没能完整读懂第 1 页.*重试/.test(o.p.error) && /空内容/.test(o.p.error_detail) && !/空内容|token|HTTP/.test(o.p.error) && bad(o.p.error) && o.p.error_stage === 'parse', `${o.p.error}｜详情：${o.p.error_detail}（${o.reqs.length} 次请求）`)
   // 在队列页看到错误并用界面重试
   await page.evaluate(() => { location.hash = '#/queue' })
   await page.getByText(/需处理/).first().click()
@@ -381,11 +384,11 @@ async function phaseFailures() {
   await errRow.locator('[data-testid=paper-error]').waitFor({ timeout: 10000 })
   const uiErr = await errRow.locator('[data-testid=paper-error]').innerText()
   await page.screenshot({ path: path.join(shots, 'm2-05-queue-failed.png') })
-  check('故障：空内容', '队列页展示失败原因（含失败阶段）与「重试」入口', /AI 解析失败：.*空内容/.test(uiErr) && (await errRow.locator('[data-testid=retry-parse]').count()) === 1 && (await errRow.locator('[data-testid=retry-menu]').count()) === 1, uiErr.replace(/\n/g, ' '))
+  check('故障：空内容', '队列页展示失败原因（含失败阶段）与「重试」入口', /没能完整读懂第 1 页.*重试/.test(uiErr) && (await errRow.locator('[data-testid=retry-parse]').count()) === 1 && (await errRow.locator('[data-testid=retry-menu]').count()) === 1, uiErr.replace(/\n/g, ' '))
   mock.clearScript()
   await errRow.locator('[data-testid=retry-parse]').click()
   const again = await waitStatus(page, 'g4-2026-meta.pdf', ['reviewing', 'failed'], 60000)
-  check('故障：空内容', '点「重试 AI 解析」（不重新提取）后成功，回到待审核', again.status === 'reviewing' && again.error === null)
+  check('故障：空内容', '点「重试」（不重新提取）后成功，回到待审核', again.status === 'reviewing' && again.error === null)
 
   o = await run('empty×2', [{ type: 'empty', times: 2 }])
   const halves = o.reqs.filter(r => /已拆小/.test(r.batchLine))
@@ -393,7 +396,7 @@ async function phaseFailures() {
 
   // 非法 JSON
   o = await run('badjson×8', [{ type: 'badjson', times: 8 }])
-  check('故障：非法 JSON', '模型连续返回非法 JSON → failed，提示「输出不是合法的 JSON」并指出哪一页', o.p.status === 'failed' && /不是合法的 JSON/.test(o.p.error) && /第 1 页/.test(o.p.error) && bad(o.p.error) && !/position|Unterminated|Unexpected/.test(o.p.error), o.p.error)
+  check('故障：非法 JSON', '模型连续返回非法 JSON → failed，白话提示并指出哪一页，技术原因「输出不是合法的 JSON」收在详情里', o.p.status === 'failed' && /不是合法的 JSON/.test(o.p.error_detail) && /第 1 页/.test(o.p.error) && /第 1 页/.test(o.p.error_detail) && bad(o.p.error) && !/position|Unterminated|Unexpected|JSON/.test(o.p.error), `${o.p.error}｜详情：${o.p.error_detail}`)
   // 审核 P1-1：解析失败的试卷再拖进同一个文件，不能被当作「提取失败」删掉（页面、旧题目、审核成果都在）
   const qBeforeRe = (await getQs(page, id)).questions.length
   await dropFiles(page, [metaFile])
@@ -413,7 +416,7 @@ async function phaseFailures() {
   await page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 15000 }).catch(() => {})
   // N10（M4 统一入口）：试卷库里失败的卷子和处理队列用同一组重试入口；「从头重试」在下拉里（以前是单独的「重新提取」图标）
   await page.locator('tbody tr').first().locator('[data-testid=retry-menu]').click()
-  await page.getByText('从头重试（重新提取文字再解析）').click()
+  await page.getByText('从头来（重新读取文件，再让 AI 整理）').click()
   const dlg1 = await page.waitForSelector('[data-testid=discard-confirm]', { timeout: 8000 }).catch(() => null)
   const dlg1Txt = dlg1 ? await dlg1.innerText() : ''
   await page.getByRole('button', { name: /取\s*消/ }).click().catch(() => {})
@@ -423,7 +426,7 @@ async function phaseFailures() {
   await page.evaluate(() => { location.hash = '#/queue' })
   await page.getByText(/需处理/).first().click()
   await page.locator('tr', { hasText: 'g4-2026-meta.pdf' }).locator('[data-testid=retry-menu]').click()
-  await page.getByText('从头重试（重新提取文字再解析）').click()
+  await page.getByText('从头来（重新读取文件，再让 AI 整理）').click()
   const dlg2 = await page.waitForSelector('[data-testid=discard-confirm]', { timeout: 8000 }).catch(() => null)
   const dlg2Txt = dlg2 ? await dlg2.innerText() : ''
   await page.getByRole('button', { name: /取\s*消/ }).click().catch(() => {})
@@ -435,7 +438,7 @@ async function phaseFailures() {
 
   // 结构不符
   o = await run('schema×8', [{ type: 'schema', times: 8 }])
-  check('故障：结构不符', '模型返回的 JSON 不符合 Schema（难度 9）→ failed，提示具体字段 questions[0].difficulty', o.p.status === 'failed' && /结构不符合要求/.test(o.p.error) && /questions\[0\]\.difficulty/.test(o.p.error) && bad(o.p.error), o.p.error.replace(/\n/g, ' '))
+  check('故障：结构不符', '模型返回的 JSON 不符合 Schema（难度 9）→ failed，用户看到白话提示，具体字段 questions[0].difficulty 收在详情里', o.p.status === 'failed' && /没能完整读懂第 1 页.*重试/.test(o.p.error) && /结构不符合要求/.test(o.p.error_detail) && /questions\[0\]\.difficulty/.test(o.p.error_detail) && bad(o.p.error), `${o.p.error}｜详情：${String(o.p.error_detail).replace(/\n/g, ' ')}`)
   await recover()
   o = await run('schema×1', [{ type: 'schema', times: 1 }])
   check('故障：结构不符', 'zod 校验失败时带着错误信息重试一次 → 成功', o.p.status === 'reviewing' && o.reqs.length === 2 && /questions\[0\]\.difficulty/.test(o.reqs[1].retryFeedback), `${o.reqs.length} 次`)
@@ -444,7 +447,7 @@ async function phaseFailures() {
   o = await run('429×1', [{ type: '429', times: 1, retryAfter: 1 }])
   check('故障：429', '遇到一次 429：按 Retry-After 退避后自动重试成功，用户无感', o.p.status === 'reviewing' && o.reqs.length === 2)
   o = await run('429×10', [{ type: '429', times: 10, retryAfter: 1 }])
-  check('故障：429', '429 持续：重试 3 次（共 4 次请求）后 failed，提示「请求太频繁/额度不足（HTTP 429）」', o.p.status === 'failed' && o.reqs.length === 4 && /429/.test(o.p.error) && /太频繁/.test(o.p.error) && bad(o.p.error), o.p.error)
+  check('故障：429', '429 持续：重试 3 次（共 4 次请求）后 failed，白话提示「AI 服务太忙，或账户额度不够了」，HTTP 429 收在详情里', o.p.status === 'failed' && o.reqs.length === 4 && /太忙|额度/.test(o.p.error) && /429/.test(o.p.error_detail) && !/429|HTTP/.test(o.p.error) && bad(o.p.error), `${o.p.error}｜详情：${o.p.error_detail}`)
   await recover()
   o = await run('503×1', [{ type: '503', times: 1 }])
   check('故障：5xx', '服务端 503 一次：指数退避后重试成功', o.p.status === 'reviewing' && o.reqs.length === 2)
@@ -454,7 +457,7 @@ async function phaseFailures() {
   o = await run('hang×1', [{ type: 'hang', times: 1, ms: 8000 }])
   check('故障：超时', '一次请求挂起超过超时时间：自动重试，成功', o.p.status === 'reviewing' && o.reqs.length === 2)
   o = await run('hang×6', [{ type: 'hang', times: 6, ms: 8000 }])
-  check('故障：超时', '持续无响应：重试用尽（4 次）后 failed，提示「模型响应超时」', o.p.status === 'failed' && o.reqs.length === 4 && /超时/.test(o.p.error) && bad(o.p.error), o.p.error)
+  check('故障：超时', '持续无响应：重试用尽（4 次）后 failed，白话提示「AI 等了太久没有回应」，「模型响应超时」收在详情里', o.p.status === 'failed' && o.reqs.length === 4 && /等了太久/.test(o.p.error) && /超时/.test(o.p.error_detail) && bad(o.p.error), `${o.p.error}｜详情：${o.p.error_detail}`)
   await saveCfg(page, cfgFor(mock, { auto_parse: false }))
   await recover()
 
@@ -462,13 +465,13 @@ async function phaseFailures() {
   o = await run('truncated×1', [{ type: 'truncated', times: 1 }])
   check('故障：批次被截断', '输出被长度上限截断（finish_reason=length）：不硬解析残缺 JSON，把批次对半拆小重试 → 成功', o.p.status === 'reviewing' && o.reqs.length === 3 && o.reqs[1].pages.join() === '1' && o.reqs[2].pages.join() === '2' && (await getQs(page, id)).questions.length === 36, o.reqs.map(r => r.pages.join('-')).join(' / '))
   o = await run('truncated×10', [{ type: 'truncated', times: 10 }])
-  check('故障：批次被截断', '单页也被截断 → failed，提示「输出被长度上限截断」并指明页码', o.p.status === 'failed' && /第 1 页/.test(o.p.error) && /长度上限/.test(o.p.error) && bad(o.p.error), o.p.error)
+  check('故障：批次被截断', '单页也被截断 → failed，白话提示并指明页码，「长度上限」这类技术原因收在详情里', o.p.status === 'failed' && /第 1 页/.test(o.p.error) && /长度上限/.test(o.p.error_detail) && !/长度上限|token/.test(o.p.error) && bad(o.p.error), `${o.p.error}｜详情：${o.p.error_detail}`)
   await recover()
 
   // 鉴权失败
   mock.apiKey = 'sk-rotated-by-provider'
   o = await run('401', [])
-  check('故障：密钥失效', '服务商返回 401 → failed，提示「API Key 无效或没有权限」，不做无谓重试（只请求 1 次）', o.p.status === 'failed' && /API Key 无效/.test(o.p.error) && o.reqs.length === 1, o.p.error)
+  check('故障：密钥失效', '服务商返回 401 → failed，提示「密钥无效或没有权限」并指路给管理员，不做无谓重试（只请求 1 次）', o.p.status === 'failed' && /密钥无效/.test(o.p.error) && /API Key 无效/.test(o.p.error_detail) && o.reqs.length === 1, `${o.p.error}｜详情：${o.p.error_detail}`)
   const okAfter = await recover()
   check('故障：密钥失效', '密钥恢复后点重试即成功', okAfter === 'ok')
 
@@ -480,7 +483,7 @@ async function phaseFailures() {
   // 服务商在 400 里回显密钥：展示给用户、写进库的文案都不能含密钥
   o = await run('400echo', [{ type: '400echo', times: 1 }])
   const leakRows = withDb(ctx.ud, d => ({ pe: d.prepare('SELECT error FROM papers WHERE id = ?').get(id).error, re: d.prepare("SELECT error FROM parse_runs WHERE paper_id = ? ORDER BY id DESC LIMIT 1").get(id).error }))
-  check('密钥安全', '服务商 400 响应里回显了密钥：papers.error 与 parse_runs.error 里都已脱敏（审核 P2-2）', o.p.status === 'failed' && !JSON.stringify(leakRows).includes(SECRET) && /已隐藏/.test(o.p.error), o.p.error.slice(0, 120))
+  check('密钥安全', '服务商 400 响应里回显了密钥：papers.error / error_detail 与 parse_runs.error 里都已脱敏（审核 P2-2）', o.p.status === 'failed' && !JSON.stringify(leakRows).includes(SECRET) && !String(o.p.error_detail).includes(SECRET) && /已隐藏/.test(o.p.error_detail), String(o.p.error_detail).slice(0, 120))
   await recover()
 
   // 题目被批次边界切开
@@ -712,8 +715,10 @@ async function phaseReview() {
   const n = await items().count()
   const warnIdx = await page.$$eval('[data-testid=q-item]', els => els.map((e, i) => (e.getAttribute('data-warn') === '1' ? i + 1 : 0)).filter(Boolean))
   check('审核页', '三栏布局：左侧列出 36 道题；低置信度/有待处理建议的题标黄（Q22 有新增知识点建议、Q30 知识点代码无效）', n === 36 && warnIdx.join() === '22,30', `题数 ${n}，标黄 ${warnIdx}`)
-  const bg = await page.$$eval('[data-testid=q-item]', els => [els[0], els[21]].map(e => getComputedStyle(e).backgroundColor))
-  check('审核页', '标黄的题背景是黄色（rgb(255, 251, 230)），普通题不是', bg[1].includes('255, 251, 230') || bg[1].includes('255, 241, 184'), bg.join(' | '))
+  await page.mouse.move(0, 0); await sleep(250)   // 鼠标若停在某道题上会带悬停底色，先移开再取色
+  const bg = await page.$$eval('[data-testid=q-item]', els => [els[2], els[21]].map(e => getComputedStyle(e).backgroundColor))   // 第 3 题（没选中、没告警）对比第 22 题；第 1 题是当前选中的题，有主色浅底
+  const redSoft = await page.evaluate(() => { const d = document.createElement('div'); d.style.background = 'var(--ewb-red-soft)'; document.body.appendChild(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c })
+  check('审核页', '需要核对的题背景正好是设计令牌「易错浅底」（--ewb-red-soft 的计算值），普通题没有底色', bg[1] === redSoft && /^rgba\(\d+, \d+, \d+, 0\.\d+\)$/.test(redSoft) && bg[0] === 'rgba(0, 0, 0, 0)', `${bg.join(' | ')} （令牌 ${redSoft}）`)
   check('审核页', '默认选中第一道待确认的题，右侧表单显示它的标注', /第 1 题/.test(await title()))
   await page.screenshot({ path: path.join(shots, 'm2-06-review.png') })
 
@@ -744,8 +749,12 @@ async function phaseReview() {
   check('审核页', 'Enter 确认当前题并跳到下一题；确认状态写入数据库', /第 2 题/.test(afterEnter) && dbq(1).reviewed === 1, afterEnter)
 
   // 左栏筛选 / 侧栏自动收起 / 翻页与滚动 / 其他题的框 / 材料折叠 / 缩放
-  const siderW = (await page.locator('.ant-layout-sider').boundingBox()).width
-  check('审核页', '进入审核页后主侧栏自动收起（给原卷页面让位）', siderW < 100, `${Math.round(siderW)}px`)
+  const siderW = (await page.locator('.ewb-sider').boundingBox()).width
+  const iconLinks = await page.locator('.ewb-sider .ewb-contents__link').count()
+  const iconTags = await page.locator('.ewb-sider .ewb-contents__tag').allInnerTexts()
+  const mainW = (await page.locator('.ewb-main').boundingBox()).width
+  check('审核页', '审核页的侧栏是窄图标栏：宽度 < 100px，图标栏的 6 个入口 + 设置 + 外观都在，每个入口图标下面有两字标签，画布占满其余宽度',
+    siderW < 100 && iconLinks >= 8 && ['总览', '试卷', '队列', '审核', '看板', '报告'].every(t => iconTags.includes(t)) && mainW > 1000, `${Math.round(siderW)}px，${iconLinks} 个入口，标签 ${iconTags.join('/')}，画布 ${Math.round(mainW)}px`)
   await page.getByText(/需关注 \d+/).first().click()
   const nAttn = await items().count()
   await page.getByText(/待确认 \d+/).first().click()
@@ -787,8 +796,8 @@ async function phaseReview() {
   check('审核页', '在输入框里敲 j / k 只是输入文字，不会切换题目', /第 9 题/.test(await title()))
   await page.locator('[data-testid=f-difficulty] li.ant-rate-star').nth(4).click()
   await page.locator('[data-testid=f-qtype]').click()
-  await page.keyboard.type('FILL')
-  await page.locator('.ant-select-item-option', { hasText: '填空（FILL）' }).first().click()
+  await page.keyboard.type('FILL')   // 下拉里默认只显示中文名，但打代码也能搜到（管理员排查时用）
+  await page.locator('.ant-select-item-option').filter({ has: page.getByText('填空', { exact: true }) }).first().click()
   await page.locator('[data-testid=f-kp-main]').click()
   await page.keyboard.type('不规则动词过去式')
   await page.locator('.ant-select-tree-node-content-wrapper', { hasText: '不规则动词过去式' }).first().click()

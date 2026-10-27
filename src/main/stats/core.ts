@@ -10,9 +10,10 @@
  *  - 分值为空的题不进分值统计，同时给出「分值覆盖 x/y 题」；
  *  - 难度、易错是 AI/老师估计，界面一律标「估计」。
  */
+import { safeKpName } from '../../shared/code-guard.ts'
 import { CLOSURE_CTE, NO_SEMESTER, paperScope, yearLabel } from './filter.ts'
 import type { PaperScope, StatsFilter, YearSpec } from './filter.ts'
-import { classifyChange, deltaPoints, limitedSides } from './compare-math.ts'
+import { classifyChange, deltaPoints, insufficientSides, limitedSides } from './compare-math.ts'
 import { emptyReason } from '../../shared/emptyReason.ts'
 import type { ChangeKind } from './compare-math.ts'
 
@@ -80,7 +81,8 @@ export interface NodeStat extends KpRow {
 }
 
 export function loadKps(db: Db): KpRow[] {
-  return db.prepare('SELECT code, parent_code, name, level, intro_grade, sort FROM kps ORDER BY sort, code').all() as KpRow[]
+  // 名称过 safeKpName：任何统计、报告、提示词里的知识点名都不会是内部代码
+  return (db.prepare('SELECT code, parent_code, name, level, intro_grade, sort FROM kps ORDER BY sort, code').all() as KpRow[]).map(k => ({ ...k, name: safeKpName(k.name) }))
 }
 
 /** 范围内每个知识点节点（向上汇总后）的统计；只返回有题的节点。
@@ -218,6 +220,8 @@ export interface ScopeNotes {
   includeDuplicates: boolean
   /** 计入统计但没有填学年的份数（不参与同比） */
   noYear: number
+  /** 疑似重复 / 部分重复、默认没计入的卷子份数（老师选「确实是新卷」后才计入；打开「包含重复导入」时为 0） */
+  similarSuspects: number
 }
 
 /** 轻量的「范围说明」：每个页面都显示，只做几次计数，不做任何知识点聚合 */
@@ -228,13 +232,17 @@ export function scopeNotes(db: Db, f: StatsFilter): ScopeNotes {
   const counted = paperScope(f)
   const all = paperScope({ ...f, includeDuplicates: true })
   const dedup = paperScope({ ...f, includeDuplicates: false })
-  const duplicates = cnt(all) - cnt(dedup)
+  // 「同一文件导入多份」只数文件哈希相同的那种：疑似重复（内容像）是另一回事，单独算在 similarSuspects 里，两类不能互相算进对方
+  const allNoSuspect: PaperScope = { where: `${all.where} AND (p.similar_state IS NULL OR p.similar_state <> 'suspect')`, params: all.params }
+  const duplicates = cnt(allNoSuspect) - cnt(dedup)
   const noYear = (db.prepare(`SELECT COUNT(*) c FROM papers p WHERE ${counted.where} AND p.school_year_start IS NULL`).get(...counted.params) as any).c as number
   const reviewingCounted = f.includeReviewing
     ? (db.prepare(`SELECT COUNT(*) c FROM papers p WHERE ${counted.where} AND p.status = 'reviewing'`).get(...counted.params) as any).c as number
     : 0
   const reviewingSuperseded = f.includeReviewing ? reviewing - reviewingCounted : 0
-  return { pendingReviewing: pending, reviewing, reviewingCounted, reviewingSuperseded, duplicates, includeDuplicates: !!f.includeDuplicates, noYear }
+  // 跟随当前筛选范围（年级 / 学期 / 学年 / 教材 …，以及「含待审核」）：看五年级的报告时，不提示四年级有疑似重复的卷子
+  const similarSuspects = f.includeDuplicates ? 0 : (db.prepare(`SELECT COUNT(*) c FROM papers p WHERE ${all.where} AND p.similar_state = 'suspect'`).get(...all.params) as any).c as number
+  return { pendingReviewing: pending, reviewing, reviewingCounted, reviewingSuperseded, duplicates, includeDuplicates: !!f.includeDuplicates, noYear, similarSuspects }
 }
 
 // ───────────────────────── 双向细目表 ─────────────────────────
@@ -482,6 +490,8 @@ export interface CompareResult {
   base: CompareSide
   /** 样本有限的一侧（试卷数 < 5） */
   limited: Array<'target' | 'base'>
+  /** 样本不足的一侧（试卷数 < 3）：新增 / 消失默认折叠，P2 不展开分析 */
+  insufficient: Array<'target' | 'base'>
   /** 两侧合起来混入了多个年级 / 考试类型，或学期构成不一致（每条接在「两侧」后面读） */
   mixed: string[]
   /** 学期对齐：on = 基线只取目标学年里出现过的学期；dropped = 因此没参与比较的基线卷子数；两侧各学期的份数 */
@@ -620,6 +630,7 @@ export function compare(db: Db, f: StatsFilter, target: number, base: { eq: numb
     base: { label: 'eq' in base ? yearLabel(base.eq) : `${yearLabel(target)}之前的全部学年`, years: baseYears, papers: cB.papers, textbooks: textbookDist(db, sB) },
     align: { on: aligning, targetSemesters: semT, baseSemesters: semB, dropped: droppedBase, requested: alignSemester },
     limited: limitedSides(cT.papers, cB.papers),
+    insufficient: empty ? [] : insufficientSides(cT.papers, cB.papers),
     mixed,
     added: pick('added', 'aT'), removed: pick('removed', 'aB'), up: pick('up', 'delta'), down: pick('down', 'delta'),
     availableYears: years,
@@ -634,8 +645,10 @@ export interface OverviewResult {
   cards: { papers: number; questions: number; kps: number; pending: number }
   coverage: Coverage
   top: Array<{ code: string; name: string; path: string; papers: number; rate: number; questions: number }>
-  newThisYear: { year: number | null; items: Array<{ code: string; name: string; aT: number; nT: number }>; basePapers: number; targetPapers: number; limited: Array<'target' | 'base'>; mixed: string[]; reason: string | null }
-  recent: Array<{ id: string; title: string; status: string; grade: string | null; school_year_start: number | null; created_at: string; questions: number }>
+  /** 范围内只有 1–2 份卷子时：Top 10 没有区分度（全是 100%），改成「每份都考 / 只考了一份」两组；否则为 null */
+  topGroups: { everyPaper: OverviewResult['top']; somePapers: OverviewResult['top'] } | null
+  newThisYear: { year: number | null; items: Array<{ code: string; name: string; aT: number; nT: number }>; basePapers: number; targetPapers: number; limited: Array<'target' | 'base'>; insufficient: Array<'target' | 'base'>; mixed: string[]; reason: string | null }
+  recent: Array<{ id: string; title: string; status: string; grade: string | null; school_year_start: number | null; created_at: string; questions: number; /** 疑似重复（suspect）/ 老师确认过（accepted）/ 没有（null）：「最近导入」里要写「疑似重复 · 没计入统计」 */ similar_state: 'suspect' | 'accepted' | null }>
   pendingReviewing: number
   duplicates: number
   includeDuplicates: boolean
@@ -648,9 +661,10 @@ export function overview(db: Db, f: StatsFilter): OverviewResult {
   const c = scopeCounts(db, scope)
   const kps = new Map(loadKps(db).map(k => [k.code, k]))
   const nodes = nodeStats(db, scope, 2)
-  const top = nodes.filter(n => n.level === 2)
-    .sort((a, b) => b.papers - a.papers || b.questions - a.questions || (a.code < b.code ? -1 : 1)).slice(0, 10)
+  const allTop = nodes.filter(n => n.level === 2)
+    .sort((a, b) => b.papers - a.papers || b.questions - a.questions || (a.code < b.code ? -1 : 1))
     .map(n => ({ code: n.code, name: n.name, path: pathOf(kps, n.code), papers: n.papers, rate: c.papers > 0 ? n.papers / c.papers : 0, questions: n.questions }))
+  const top = allTop.slice(0, 10)
   // 具体被直接标注过的知识点数（按有效节点去重）
   const kpCount = (db.prepare(`${withCte()}
     SELECT COUNT(DISTINCT c.anc) n FROM papers p CROSS JOIN questions q ON q.paper_id = p.id CROSS JOIN question_kps k ON k.question_id = q.id
@@ -662,26 +676,27 @@ export function overview(db: Db, f: StatsFilter): OverviewResult {
   const years = availableYears(db, f)
   const yearsInScope = (db.prepare(`SELECT DISTINCT p.school_year_start y FROM papers p WHERE ${scope.where} AND p.school_year_start IS NOT NULL ORDER BY y`).all(...scope.params) as any[]).map(r => r.y as number)
   const targetYear = f.school_year_start ?? (yearsInScope.length ? yearsInScope[yearsInScope.length - 1] : null)
-  let newThisYear: OverviewResult['newThisYear'] = { year: targetYear, items: [], basePapers: 0, targetPapers: 0, limited: [], mixed: [], reason: null }
+  let newThisYear: OverviewResult['newThisYear'] = { year: targetYear, items: [], basePapers: 0, targetPapers: 0, limited: [], insufficient: [], mixed: [], reason: null }
   if (targetYear === null) newThisYear.reason = '范围内的试卷都没有填写学年'
   else {
     const cmp = compare(db, f, targetYear, { lt: targetYear }, 2, 0)
     newThisYear = {
-      year: targetYear, basePapers: cmp.base.papers, targetPapers: cmp.target.papers, limited: cmp.limited, mixed: cmp.mixed,
+      year: targetYear, basePapers: cmp.base.papers, targetPapers: cmp.target.papers, limited: cmp.limited, insufficient: cmp.insufficient, mixed: cmp.mixed,
       items: cmp.added.map(i => ({ code: i.code, name: i.name, aT: i.aT, nT: i.nT })),
       reason: emptyReason({ targetLabel: '该学年', baseLabel: '更早的学年', targetPapers: cmp.target.papers, basePapers: cmp.base.papers, alignOn: cmp.align.on, dropped: cmp.align.dropped, targetSemesters: cmp.align.targetSemesters.map(x => x.name + (x.name === '未填' ? '' : '学期')).join('、'), where: 'overview' })
     }
   }
   void years
   const dimsAll = paperScope({ ...f, includeDuplicates: true }, undefined, ['imported', 'extracting', 'extracted', 'parsing', 'reviewing', 'done', 'failed'])
-  const recent = (db.prepare(`SELECT p.id, p.title, p.status, p.grade, p.school_year_start, p.created_at,
+  const recent = (db.prepare(`SELECT p.id, p.title, p.status, p.grade, p.school_year_start, p.created_at, p.similar_state,
       (SELECT COUNT(*) FROM questions q WHERE q.paper_id = p.id) AS questions
     FROM papers p WHERE ${dimsAll.where} ORDER BY p.created_at DESC, p.rowid DESC LIMIT 8`).all(...dimsAll.params) as any[])
-    .map(r => ({ id: r.id, title: r.title, status: r.status, grade: r.grade, school_year_start: r.school_year_start, created_at: r.created_at, questions: r.questions }))
+    .map(r => ({ id: r.id, title: r.title, status: r.status, grade: r.grade, school_year_start: r.school_year_start, created_at: r.created_at, questions: r.questions, similar_state: r.similar_state ?? null }))
   return {
     cards: { papers: c.papers, questions: c.questions, kps: kpCount, pending },
     coverage: { scored: c.scored, questions: c.questions, tagged: c.tagged },
-    top, newThisYear, recent, includeReviewing: !!f.includeReviewing, ...scopeNotes(db, f)
+    top, topGroups: c.papers > 0 && c.papers < 3 ? { everyPaper: allTop.filter(t => t.papers === c.papers).slice(0, 10), somePapers: allTop.filter(t => t.papers < c.papers).slice(0, 10) } : null,
+    newThisYear, recent, includeReviewing: !!f.includeReviewing, ...scopeNotes(db, f)
   }
 }
 

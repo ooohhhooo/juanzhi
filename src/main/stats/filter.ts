@@ -61,6 +61,8 @@ export function paperScope(f: StatsFilter, year?: YearSpec | 'ignore', statuses?
     } else {
       parts.push(f.includeReviewing ? `${a}.status IN ('done','reviewing')` : `${a}.status = 'done'`)
     }
+    // 疑似重复 / 部分重复的卷子（A4）默认不计入；老师确认「确实是新卷」（accepted）后才计入。打开「包含重复导入」时一并计入
+    if (!f.includeDuplicates) parts.push(`(${a}.similar_state IS NULL OR ${a}.similar_state <> 'suspect')`)
     if (f.grade) { parts.push(`${a}.grade = ?`); params.push(f.grade) }
     if (f.semester) { parts.push(`${a}.semester = ?`); params.push(f.semester) }
     if (f.exam_type) { parts.push(`${a}.exam_type = ?`); params.push(f.exam_type) }

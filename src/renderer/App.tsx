@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { Suspense, lazy, useEffect, useRef } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider, App as AntApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
@@ -18,7 +18,13 @@ import { installChunkListener } from './stats/analysisStore'
 import { installReportChunkListener } from './stats/reportStore'
 import Report from './pages/Report'
 import Guide from './pages/Guide'
+import Help from './pages/Help'
 import RestartGate from './components/RestartGate'
+
+// 设计预览（隐藏路由 /design、/design/overview）：只在开发模式（或 VITE_EWB_DESIGN=1 的预览构建）里存在。
+// 生产构建里这个条件是常量 false，路由、样板页和样张图片（design/assets/*.png）都不会进入 out/ 和安装包。
+const SHOW_DESIGN = import.meta.env.DEV || import.meta.env.VITE_EWB_DESIGN === '1'
+const DesignRoutes = SHOW_DESIGN ? lazy(() => import('./design/DesignRoutes')) : null
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,17 +94,8 @@ function GlobalDrop() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider
-        locale={zhCN}
-        theme={{
-          token: {
-            colorPrimary: '#1e2952',
-            borderRadius: 6,
-            colorBgContainer: '#ffffff',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
-          }
-        }}
-      >
+      {/* 配色、字体、AntD token 由 main.tsx 里的 design/ThemeProvider 统一提供，这里只补语言包 */}
+      <ConfigProvider locale={zhCN}>
         <AntApp>
           <StatsFilterProvider>
           <HashRouter>
@@ -106,6 +103,7 @@ export default function App() {
             <GlobalDrop />
             <RestartGate />
             <Routes>
+              {DesignRoutes && <Route path="/design/*" element={<Suspense fallback={null}><DesignRoutes /></Suspense>} />}
               <Route element={<AppLayout />}>
                 <Route path="/" element={<PaperLibrary />} />
                 <Route path="/paper/:id" element={<PaperDetail />} />
@@ -117,6 +115,7 @@ export default function App() {
                 <Route path="/review/:id" element={<ReviewPage />} />
                 <Route path="/report" element={<Report />} />
                 <Route path="/guide" element={<Guide />} />
+                <Route path="/help" element={<Help />} />
               </Route>
             </Routes>
           </HashRouter>

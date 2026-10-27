@@ -248,7 +248,7 @@ const Q = (code, score = 2) => ({ kp: code, qtype: 'MC', score, difficulty: 3 })
     const rows = Object.fromEntries(d.prepare("SELECT code, name, note FROM kps WHERE code LIKE 'GR.TENSE.U%'").all().map(r => [r.code, r]))
     d.close()
     assert.deepEqual([rows['GR.TENSE.U1'].name, rows['GR.TENSE.U1'].note], ['旧 名 称', '第一行 第二行 说明'], '导出端把名称 / 说明折成一行：导出的包永远合规')
-    assert.equal(rows['GR.TENSE.U2'].name, 'GR.TENSE.U2', '名称折完是空 → 用代码顶上')
+    assert.equal(rows['GR.TENSE.U2'].name, '待命名的考点', '名称折完是空 → 写「待命名的考点」（以前用代码顶上，会把内部代码带进界面）')
     assert.equal(prep(ex.dbPath).kpTextFolded, 0, '新导出的包导入端什么都不用整理')
   }
   // 旧版本导出的、没折平的包（M5 之前的导出）：导入端宽容归一化，而不是整包拒绝；并告知整理了几个

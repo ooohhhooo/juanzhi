@@ -15,8 +15,14 @@ export interface ReportEntry {
   text: string
   refs: CitationRef[]
   message?: string
+  /** 技术详情（给管理员看，收在「查看详情」里） */
+  detail?: string
   code?: string
   filterDesc: string
+  reader: ReportReader
+  startedAt: number
+  thinking?: boolean
+  retried?: boolean
 }
 
 let entry: ReportEntry | null = null
@@ -51,27 +57,29 @@ export function installReportChunkListener(queryClient: QueryClient): () => void
     if (ev.type === 'start') setEntry({ ...entry, refs: ev.refs })
     else if (ev.type === 'delta') setEntry({ ...entry, text: entry.text + ev.text })
     else if (ev.type === 'reset') setEntry({ ...entry, text: '' })
+    else if (ev.type === 'thinking') setEntry({ ...entry, thinking: true })
+    else if (ev.type === 'retry') setEntry({ ...entry, retried: true })
     else if (ev.type === 'cancelled') { activeId = null; setEntry({ ...entry, status: 'cancelled', text: ev.partial }) }
-    else if (ev.type === 'error') { activeId = null; setEntry({ ...entry, status: 'error', text: ev.partial, message: ev.message, code: ev.code }) }
+    else if (ev.type === 'error') { activeId = null; setEntry({ ...entry, status: 'error', text: ev.partial, message: ev.message, detail: ev.detail, code: ev.code }) }
     else if (ev.type === 'done') finishOk(ev.id, ev.reportId)
   })
   return () => { unsub?.(); unsub = null }
 }
 
-export async function startReport(filter: StatsFilter, filterDesc: string): Promise<void> {
+export async function startReport(filter: StatsFilter, filterDesc: string, reader: ReportReader = 'full'): Promise<void> {
   if (entry?.status === 'running') return
   const requestId = crypto.randomUUID()
   activeId = requestId
-  setEntry({ requestId, status: 'running', text: '', refs: [], filterDesc })
+  setEntry({ requestId, status: 'running', text: '', refs: [], filterDesc, reader, startedAt: Date.now() })
   try {
-    const r = await window.api.report.generate(filter, requestId)
+    const r = await window.api.report.generate(filter, requestId, reader)
     const cur = entry as ReportEntry | null
     if (!cur || cur.requestId !== requestId) return
     if (r.ok) { finishOk(requestId, r.reportId); return }
     activeId = null
     if (cur.status !== 'running') return          // 事件已经先到并处理过了
     if (r.cancelled) setEntry({ ...cur, status: 'cancelled', text: r.partial ?? cur.text })
-    else setEntry({ ...cur, status: 'error', text: r.partial ?? cur.text, message: r.message ?? '生成失败', code: r.code })
+    else setEntry({ ...cur, status: 'error', text: r.partial ?? cur.text, message: r.message ?? '生成失败', detail: r.detail, code: r.code })
   } catch (e) {
     const cur = entry as ReportEntry | null
     activeId = null

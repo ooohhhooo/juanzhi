@@ -1,3 +1,4 @@
+import { safeKpName } from '../../shared/code-guard'
 import { getDb } from '../db'
 import { flatKpText } from '../pack/kp-rules.ts'
 
@@ -12,6 +13,11 @@ export interface KpRecord {
   merged_into: string | null
   note: string | null
   builtin: number
+  /** 白话释义（一句话说清考什么）、例句（英文 / 中文，英文里用 ** 标出关键词）、例词；内置节点有，自建节点可在知识点编辑器里填 */
+  plain: string | null
+  example_en: string | null
+  example_zh: string | null
+  hint_words: string | null
 }
 
 export interface QtypeRecord {
@@ -24,8 +30,8 @@ export interface QtypeRecord {
 
 export function listKps(includeDeprecated = false): KpRecord[] {
   return getDb().prepare(
-    `SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin FROM kps ${includeDeprecated ? '' : 'WHERE deprecated = 0'} ORDER BY sort, code`
-  ).all() as unknown as KpRecord[]
+    `SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words FROM kps ${includeDeprecated ? '' : 'WHERE deprecated = 0'} ORDER BY sort, code`
+  ).all().map((k: any) => ({ ...k, name: safeKpName(k.name) })) as unknown as KpRecord[]
 }
 
 export function listQtypes(): QtypeRecord[] {
@@ -35,7 +41,7 @@ export function listQtypes(): QtypeRecord[] {
 export interface TaxonomyContext {
   kps: Set<string>
   qtypes: Set<string>
-  /** {{KNOWLEDGE_TREE}}：代码 | 路径名称 | 常见引入年级 | 说明 */
+  /** {{KNOWLEDGE_TREE}}：代码 | 路径名称 | 常见引入年级 | 说明 | 白话 */
   treeText: string
   /** {{QUESTION_TYPES}}：代码 | 名称 | 说明 */
   qtypeText: string
@@ -53,7 +59,7 @@ export function loadTaxonomy(): TaxonomyContext {
     while (p) { names.unshift(flat(p.name)); p = p.parent_code ? byCode.get(p.parent_code) : undefined }
     return names.join('/')
   }
-  const treeText = kps.map(k => `${k.code} | ${pathName(k)} | ${k.intro_grade ?? '-'} | ${flat(k.note ?? '')}`).join('\n')
+  const treeText = kps.map(k => `${k.code} | ${pathName(k)} | ${k.intro_grade ?? '-'} | ${flat(k.note ?? '')} | ${flat(k.plain ?? '') || '—'}`).join('\n')
   const qts = listQtypes()
   const qtypeText = qts.map(q => `${q.code} | ${q.name} | ${q.note ?? ''}`).join('\n')
   return { kps: new Set(kps.map(k => k.code)), qtypes: new Set(qts.map(q => q.code)), treeText, qtypeText }

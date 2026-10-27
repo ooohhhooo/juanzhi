@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
+import '../design/page-review.css'
 
 type Box = [number, number, number, number]
 
@@ -17,9 +18,9 @@ type Mode = 'move' | 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w'
 
 /**
  * 可拖动的题目框。位置/大小用 0–1 的归一化坐标，渲染成百分比，所以跟着图片缩放。
- * 父元素必须是 position: relative 且恰好包住图片。
+ * 父元素必须是 position: relative 且恰好包住图片。颜色用「纸面常量」--rev-primary（原卷是白纸，深色模式下也不变，见 design/page-review.css）。
  */
-export function BoxEditor({ bbox, onChange, onCommit, color = '#fa8c16' }: Props) {
+export function BoxEditor({ bbox, onChange, onCommit, color = 'var(--rev-primary, var(--ewb-primary))' }: Props) {
   const drag = useRef<{ mode: Mode; startX: number; startY: number; box: Box; rect: DOMRect } | null>(null)
   const latest = useRef<Box>(bbox)
   const [active, setActive] = useState(false)
@@ -71,7 +72,7 @@ export function BoxEditor({ bbox, onChange, onCommit, color = '#fa8c16' }: Props
     <div
       data-testid={`box-handle-${mode}`}
       onPointerDown={begin(mode)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
-      style={{ position: 'absolute', width: 9, height: 9, background: '#fff', border: `2px solid ${color}`, borderRadius: 2, cursor, touchAction: 'none', ...style }}
+      style={{ position: 'absolute', width: 9, height: 9, background: 'var(--ewb-sheet)', border: `2px solid ${color}`, borderRadius: 2, cursor, touchAction: 'none', ...style }}
     />
   )
 
@@ -82,7 +83,7 @@ export function BoxEditor({ bbox, onChange, onCommit, color = '#fa8c16' }: Props
       onPointerDown={begin('move')} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
       style={{
         position: 'absolute', left: `${bbox[0] * 100}%`, top: `${bbox[1] * 100}%`, width: `${bbox[2] * 100}%`, height: `${bbox[3] * 100}%`,
-        border: `2px solid ${color}`, background: active ? 'rgba(250,140,22,0.22)' : 'rgba(250,140,22,0.14)', borderRadius: 3,
+        border: `2px solid ${color}`, background: `color-mix(in srgb, ${color} ${active ? 22 : 14}%, transparent)`, borderRadius: 3,
         cursor: 'move', touchAction: 'none', boxSizing: 'border-box'
       }}
     >

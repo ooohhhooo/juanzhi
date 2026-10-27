@@ -8,6 +8,8 @@ import crypto from 'node:crypto'
 import { net, nativeImage } from 'electron'
 import { getDb, getFilesDir } from '../db'
 import { chat, AiError } from '../ai/client'
+import { effectiveMaxTokens, modelProfile } from '../ai/providers'
+import { RETRY_HINT, friendlyAiError } from '../ai/friendly'
 import type { ChatMessage } from '../ai/client'
 import { loadConfig, recordUsage } from '../ai/config'
 import { getApiKey } from '../ai/secret'
@@ -25,6 +27,8 @@ import { mergeBatch, newMergeState, buildPrevContext } from './merge'
 import type { MergeState, MergedQuestion, Mode } from './merge'
 import { locateAll } from './locate'
 import type { PageGeom, LocateResult } from './locate'
+import { detectSimilar } from './similar'
+import { refinePaperBoxes } from './refine-run'
 import { normalizeKps, normalizeQtype, scoreConfidence, metaToPaperFields, pickPrefill, knownMetaText } from './validate'
 import type { JobProgress } from '../types'
 
@@ -34,9 +38,12 @@ export type FromStage = 'ai' | 'locate'
 /** 面向用户的解析错误：message 直接展示；stage 记到 papers.error_stage 之外的 parse_stage */
 export class ParseError extends Error {
   stage: ParseStage
-  constructor(stage: ParseStage, message: string) {
+  /** 技术详情（给管理员看，界面收在「查看详情」里） */
+  detail: string
+  constructor(stage: ParseStage, message: string, detail = '') {
     super(message)
     this.stage = stage
+    this.detail = detail
   }
 }
 
@@ -160,6 +167,8 @@ async function runAiStage(
 
   const plan = planBatches(prepared.inputs, { ...DEFAULT_LIMITS, maxPages: cfg.batch_pages, maxVisionPages: Math.min(cfg.batch_pages, 3) })
   const totalBatches = plan.length
+  let curProgress = 8
+  const say = (message: string) => ctx.onProgress({ paperId, stage: 'parse:ai', progress: curProgress, message })
 
   const sysText = promptText('p1_text', 'system')
   const sysVision = promptText('p1_vision', 'system')
@@ -197,6 +206,8 @@ async function runAiStage(
     const base = await buildMessages(batch, seqNo, plannedNo)
     let feedback: { raw: string; error: string } | null = null
     let lastProblem = ''
+    let lastDetail = ''
+    const lim = effectiveMaxTokens(cfg, model)
 
     for (let round = 0; round < 2; round++) {
       checkAbort(ctx)
@@ -206,18 +217,34 @@ async function runAiStage(
           { role: 'user', content: `你上一次的输出不符合要求：\n${feedback.error}\n请严格按 system 中的 Schema 重新输出完整的 JSON 对象（只输出 JSON，不要解释）。` }]
         : base
       let r
+      // 等 AI 的时候，处理队列里每秒更新一次「AI 正在思考 · 已用 N 秒」，不报时间用户只会看着转圈圈干等
+      const t0 = Date.now()
+      let retried = false
+      const word = modelProfile(model).reasoning ? '思考' : '处理'
+      const secs = () => Math.round((Date.now() - t0) / 1000)
+      say(`AI 正在${word} · 已用 0 秒（通常 2–3 分钟）`)
+      const tick = setInterval(() => say(retried ? `输出内容较长，AI 正在自动加长篇幅重试一次（不需要操作）· 已用 ${secs()} 秒` : `AI 正在${word} · 已用 ${secs()} 秒（通常 2–3 分钟）`), 1000)
       try {
         r = await chat({
-          baseUrl: cfg.base_url, apiKey: key, model, messages, temperature: 0.1, maxTokens: cfg.max_tokens, jsonMode: true,
+          baseUrl: cfg.base_url, apiKey: key, model, messages, temperature: 0.1, maxTokens: lim.maxTokens, jsonMode: true,
+          // 流式读取：超时按「多久没收到数据」算（思考内容也算数据），而不是一次请求的总时长——
+          // 推理模型在 32768 的上限下一次写好几分钟，按总时长计的 180 秒会先到，而「写不完自动加长重试」永远轮不到
+          stream: true,
           timeoutMs: cfg.timeout_sec * 1000, signal: ctx.signal, fetchImpl: net.fetch as unknown as typeof fetch,
+          // 推理模型先思考再作答：处理队列里要看得到「AI 正在思考」，不然用户只会看着转圈圈干等
+          escalateOnLength: { ceiling: lim.ceiling }, maxTokensFallback: lim.fallback,
+          onRetry: () => { retried = true; say(`输出内容较长，AI 正在自动加长篇幅重试一次（不需要操作）· 已用 ${secs()} 秒`) },
           onAttempt: a => { recordUsage({ paperId, kind: 'parse-' + batch.mode, model, usage: a.usage, ok: a.ok }) }
         })
       } catch (e) {
         if (e instanceof AiError && (e.code === 'truncated' || e.code === 'empty')) {
           lastProblem = e.message
+          lastDetail = e.detail
           break
         }
         throw e
+      } finally {
+        clearInterval(tick)
       }
       dumpCall(paperId, seqNo, messages, r.content, { model, attempts: r.attempts, usage: r.usage, finish: r.finishReason })
 
@@ -248,8 +275,9 @@ async function runAiStage(
       mergeBatch(state, { ...z.data, questions, materials: z.data.materials, sections: z.data.sections }, { batch: seqNo, mode: batch.mode })
       used.push({ mode: batch.mode, pages: batch.pages, attempts: r.attempts })
       finished++
+      curProgress = Math.min(90, 10 + Math.round((finished / Math.max(totalBatches, finished)) * 70))
       ctx.onProgress({
-        paperId, stage: 'parse:ai', progress: Math.min(90, 10 + Math.round((finished / Math.max(totalBatches, finished)) * 70)),
+        paperId, stage: 'parse:ai', progress: curProgress,
         message: `AI 解析中：已完成第 ${batch.pages[0]}${batch.pages.length > 1 ? '–' + batch.pages[batch.pages.length - 1] : ''} 页（${finished}/${Math.max(totalBatches, finished)} 批）`
       })
       return
@@ -260,7 +288,8 @@ async function runAiStage(
       for (const h of halves) await runBatch(h, null)
       return
     }
-    throw new ParseError('ai', `第 ${batch.pages[0]} 页解析失败：${lastProblem || '模型输出不可用'}。可以点击「重试」，或换一个更强的模型`)
+    // 给用户看的是白话（已经自动加大上限重试过、也拆小过）；技术原因放进详情
+    throw new ParseError('ai', `AI 没能完整读懂第 ${batch.pages[0]} 页（已经自动重试过）；${RETRY_HINT}`, `第 ${batch.pages[0]} 页：${lastProblem || '模型输出不可用'}${lastDetail ? `；${lastDetail}` : ''}`)
   }
 
   for (let i = 0; i < plan.length; i++) await runBatch(plan[i], i + 1)
@@ -353,7 +382,7 @@ function saveResults(
     }
     const sets = Object.keys(fields).map(k => `${k} = ?`)
     db.prepare(`
-      UPDATE papers SET status = 'reviewing', error = NULL, error_stage = NULL, parse_stage = 'done', ai_model = ?, prompt_version = ?,
+      UPDATE papers SET status = 'reviewing', error = NULL, error_detail = NULL, error_stage = NULL, parse_stage = 'done', ai_model = ?, prompt_version = ?,
         parsed_at = datetime('now','localtime'), ai_meta_json = ?${sets.length ? ', ' + sets.join(', ') : ''}
       WHERE id = ?
     `).run(meta.model, meta.promptVersion, JSON.stringify(aiFields), ...Object.values(fields), paperId)
@@ -385,7 +414,7 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
     ctx.onProgress({ paperId, stage: `parse:${s}`, progress, message })
   }
 
-  db.prepare("UPDATE papers SET status = 'parsing', error = NULL, error_stage = NULL WHERE id = ?").run(paperId)
+  db.prepare("UPDATE papers SET status = 'parsing', error = NULL, error_detail = NULL, error_stage = NULL WHERE id = ?").run(paperId)
   stage('prepare', 2, '准备输入…')
 
   let state: MergeState
@@ -444,5 +473,9 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
   checkAbort(ctx)
   stage('save', 97, '保存到数据库…')
   saveResults(paperId, runId, state, finals, { model: usedModel, promptVersion: version, usageNote }, notes)
+  // 题目截图的框用页面墨迹修准（带出邻题题号、残字、上下一行的字脚）；失败不影响解析结果
+  try { refinePaperBoxes(paperId) } catch (e) { console.warn(`[parse] 修正截图框失败: ${(e as Error).message}`) }
+  // 疑似重复 / 部分重复：和已有卷子比题目文字（失败不影响解析结果）
+  try { detectSimilar(db, paperId) } catch (e) { console.warn(`[parse] 相似卷比对失败: ${(e as Error).message}`) }
   ctx.onProgress({ paperId, stage: 'reviewing', progress: 100, message: `已拆出 ${finals.length} 道题，等待审核` })
 }

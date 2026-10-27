@@ -1,43 +1,24 @@
-import React, { useState } from 'react'
-import { Layout, Menu } from 'antd'
-import {
-  FileTextOutlined,
-  DashboardOutlined,
-  UnorderedListOutlined,
-  CheckSquareOutlined,
-  FileSearchOutlined,
-  SettingOutlined,
-  HomeOutlined
-} from '@ant-design/icons'
+import React from 'react'
+import { Upload } from 'lucide-react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Badge } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import FilterBar from '../stats/StatsFilter'
+import { useImportFlow } from '../hooks/useImportFlow'
+import { Btn, Contents, NAV_FOOTER, NAV_ITEMS } from '../design'
 
-const { Sider, Content } = Layout
-
-const menuItems = (active: number, reviewing: number) => [
-  { key: '/overview', icon: <HomeOutlined />, label: '总览' },
-  { key: '/', icon: <FileTextOutlined />, label: '试卷库' },
-  { key: '/queue', icon: <UnorderedListOutlined />, label: <span>处理队列 {active > 0 && <Badge count={active} size="small" color="#1677ff" data-testid="badge-queue" />}</span> },
-  { key: '/review', icon: <CheckSquareOutlined />, label: <span>审核 {reviewing > 0 && <Badge count={reviewing} size="small" color="#faad14" data-testid="badge-review" />}</span> },
-  { key: '/dashboard', icon: <DashboardOutlined />, label: '分析看板' },
-  { key: '/report', icon: <FileSearchOutlined />, label: 'AI 报告' },
-  { type: 'divider' as const },
-  { key: '/settings', icon: <SettingOutlined />, label: '设置' }
-]
-
+/**
+ * 应用外框（设计系统第二版）：浅灰底 + 窄图标侧栏（84px，图标 + 两字标签）+ 浮起的白色大画布。
+ * 保留的测试钩子：.ewb-sider（审核页断言侧栏仍是窄栏）、data-testid=badge-queue / badge-review（只含数字）。
+ * 侧栏恒为窄栏，不需要像旧版那样在审核页自动收起：原卷页面直接占满画布宽度。
+ */
 export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [collapsed, setCollapsed] = useState(false)
+  const { importPaths } = useImportFlow()
 
   const { data: papers = [] } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
   const active = papers.filter(p => ['imported', 'extracting', 'parsing'].includes(p.status)).length
   const reviewing = papers.filter(p => p.status === 'reviewing').length
-
-  // 审核页要给原卷页面多留地方：自动收起侧栏（点折叠按钮仍可手动展开）
-  const reviewMode = /^\/review\/.+/.test(location.pathname)
 
   const selectedKey = location.pathname.startsWith('/paper/')
     ? '/'
@@ -45,46 +26,25 @@ export default function AppLayout() {
       ? '/review'
       : location.pathname
 
+  const importFromOverview = async () => {
+    const paths = await window.api.dialog.openFiles()
+    if (paths.length) { navigate('/'); await importPaths(paths) }
+  }
+  const showFilter = location.pathname === '/overview' || location.pathname === '/dashboard' || location.pathname === '/report'
+
   return (
-    <Layout style={{ height: '100vh' }}>
-      <Sider
-        collapsible
-        collapsed={collapsed || reviewMode}
-        onCollapse={setCollapsed}
-        theme="light"
-        width={200}
-        style={{
-          borderRight: '1px solid #f0f0f0',
-          background: '#fafafa'
-        }}
-      >
-        <div style={{
-          height: 48,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed || reviewMode ? 'center' : 'flex-start',
-          padding: collapsed || reviewMode ? 0 : '0 16px',
-          fontWeight: 700,
-          fontSize: collapsed || reviewMode ? 16 : 14,
-          color: '#1e2952',
-          borderBottom: '1px solid #f0f0f0',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden'
-        }}>
-          {collapsed || reviewMode ? '英' : '英语校考分析'}
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={menuItems(active, reviewing)}
-          onClick={({ key }) => navigate(key)}
-          style={{ border: 'none', background: 'transparent' }}
-        />
-      </Sider>
-      <Content style={{ overflow: 'auto', background: '#fff', height: '100vh' }}>
-        {(location.pathname === '/overview' || location.pathname === '/dashboard' || location.pathname === '/report') && <FilterBar />}
+    <div className="ewb-shell" data-testid="app-shell">
+      <aside className="ewb-sider">
+        <Contents items={NAV_ITEMS(active, reviewing)} footerItems={NAV_FOOTER} activeKey={selectedKey} onNavigate={navigate} />
+      </aside>
+      <main className="ewb-main" data-testid="app-main">
+        {showFilter && (
+          <div className="ewb-page ewb-page--filter">
+            <FilterBar actions={location.pathname === '/overview' ? <Btn tone="primary" icon={Upload} data-testid="overview-import" onClick={importFromOverview}>导入试卷</Btn> : undefined} />
+          </div>
+        )}
         <Outlet />
-      </Content>
-    </Layout>
+      </main>
+    </div>
   )
 }

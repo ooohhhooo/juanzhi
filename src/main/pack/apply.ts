@@ -38,6 +38,8 @@ export interface Staged {
 export interface ImportReport {
   mode: 'merge' | 'overwrite'
   papersAdded: number
+  /** 合并导入新增的试卷 id（导入后对它们的截图框再修一遍；覆盖导入为空，整库重修） */
+  newPaperIds?: string[]
   /** 包里已经在本机的（同一个 id）：跳过 */
   papersSkipped: number
   /** 新增的试卷里，文件内容和本机另一份相同（file_hash 相同、id 不同）的份数——统计时只算一份 */
@@ -101,7 +103,7 @@ function mergeKps(db: any): { map: Map<string, string>; added: number; remapped:
   const taken = new Set<string>([...dst.keys(), ...src.map(k => k.code)])
   const map = new Map<string, string>()
   const resolved = (c: string | null) => (c == null || c === '' ? null : map.get(c) ?? c)
-  const ins = db.prepare(`INSERT INTO main.kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  const ins = db.prepare(`INSERT INTO main.kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
   const placed = new Set<string>(dst.keys())
   let added = 0, remapped = 0
   const pending: Array<{ k: any; code: string }> = []
@@ -139,7 +141,8 @@ function mergeKps(db: any): { map: Map<string, string>; added: number; remapped:
     }
     if (level > 3) throw new PackError('bad_content', `数据包里的知识点「${k.name}」合并之后会超过 3 层，已拒绝导入`)
     ins.run(code, parent, k.name, level, k.intro_grade ?? null, k.sort ?? 0,
-      k.deprecated ? 1 : 0, mergedInto && (placed.has(mergedInto) || pending.some(p => p.code === mergedInto)) ? mergedInto : null, k.note ?? null, 0)   // 包里新出现的节点一律当自建（builtin = 0）：不信任包里的内置标志，否则一个节点被标成内置就删不掉、移不动了
+      k.deprecated ? 1 : 0, mergedInto && (placed.has(mergedInto) || pending.some(p => p.code === mergedInto)) ? mergedInto : null, k.note ?? null, 0,
+      k.plain ?? null, k.example_en ?? null, k.example_zh ?? null, k.hint_words ?? null)   // 包里新出现的节点一律当自建（builtin = 0）：不信任包里的内置标志，否则一个节点被标成内置就删不掉、移不动了
     placed.add(code)
     levelOf.set(code, level)
     added++
@@ -314,6 +317,7 @@ export function applyMerge(deps: ApplyDeps, staged: Staged): ImportReport {
     }
     if (deps.fault === 'after-swap') throw new Error('测试注入的故障：改名之后')
     db.exec('COMMIT'); inTx = false
+    report.newPaperIds = newIds
     return report
   } catch (e) {
     if (inTx) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } }
@@ -382,7 +386,7 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     db.exec('INSERT INTO temp.local_builtin SELECT code FROM main.kps WHERE builtin = 1')
     const lacking = count(db, 'SELECT COUNT(*) c FROM temp.local_builtin WHERE code NOT IN (SELECT code FROM pk.kps)')
     if (lacking > 0) throw new PackError('bad_content', `数据包里的知识点树缺少 ${lacking} 个内置节点（数据包不完整或被改过），为了不丢掉本机的知识点树，已拒绝覆盖导入`)
-    db.exec(`DELETE FROM main.papers; DELETE FROM main.reports; DELETE FROM main.ai_analyses; DELETE FROM main.ai_usage; DELETE FROM main.kps; DELETE FROM main.qtypes;`)
+    db.exec(`DELETE FROM main.papers; DELETE FROM main.reports; DELETE FROM main.ai_analyses; DELETE FROM main.ai_drafts; DELETE FROM main.ai_usage; DELETE FROM main.kps; DELETE FROM main.qtypes;`)
 
     report.kpsAdded = copyRows(db, 'kps', { force: { builtin: 'CASE WHEN s.code IN (SELECT code FROM temp.local_builtin) THEN 1 ELSE 0 END' } })
     copyRows(db, 'qtypes')

@@ -178,7 +178,7 @@ export function reprocessPaper(paperId: string, parseAfter = false): void {
     db.prepare("UPDATE parse_runs SET result_json = NULL, status = CASE WHEN status IN ('done','ai_done','running') THEN 'superseded' ELSE status END WHERE paper_id = ?").run(paperId)
     db.prepare('DELETE FROM pages WHERE paper_id = ?').run(paperId)
     db.prepare('DELETE FROM paper_assets WHERE paper_id = ?').run(paperId)
-    db.prepare(`UPDATE papers SET status = 'imported', error = NULL, error_stage = NULL, parse_stage = NULL, warning = NULL, page_count = 0,
+    db.prepare(`UPDATE papers SET status = 'imported', error = NULL, error_detail = NULL, error_stage = NULL, parse_stage = NULL, warning = NULL, page_count = 0,
       extracted_at = NULL, parsed_at = NULL, prompt_version = NULL WHERE id = ?`).run(paperId)
     db.exec('COMMIT')
   } catch (e) {

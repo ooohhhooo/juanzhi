@@ -22,7 +22,7 @@ export function useDiscardGuard() {
             {kind === 'extract'
               ? '页面会重新生成，基于旧页面的题目和你在审核页做的修改（题干、知识点、框的位置、确认状态）都会被清掉。'
               : '你在审核页做的修改（题干、知识点、框的位置、确认状态）都会被新的解析结果替换。'}
-            {paper.status === 'failed' && <div style={{ marginTop: 6, color: '#cf1322' }}>这份试卷上次 AI 解析失败，但旧题目还保留着；继续就会丢掉它们。</div>}
+            {paper.status === 'failed' && <div style={{ marginTop: 6, color: 'var(--ewb-red-ink)' }}>这份试卷上次 AI 解析失败，但旧题目还保留着；继续就会丢掉它们。</div>}
           </div>
         ),
         okText: kind === 'extract' ? '清掉并重新提取' : '仍然重新解析',

@@ -16,23 +16,34 @@ export const CJK_FONT_STACK = '"PingFang SC", "Microsoft YaHei", "Noto Sans CJK 
 export interface HtmlOptions {
   /** 引用 token → 要放进页面的 HTML（截图卡片）；返回 null 表示当普通文字 */
   cite?: (token: string) => string | null
+  /** 引用 token → 截图卡片，**放在这一段 / 这一条的后面**（句子里只留 token 文字）；给了它就不再用 cite */
+  citeAfter?: (token: string) => string | null
 }
 
-function inline(items: Inline[], o: HtmlOptions): string {
+/** after：citeAfter 模式下，收集这一段里的截图卡片（调用方放在段落后面） */
+function inline(items: Inline[], o: HtmlOptions, after?: string[]): string {
   return items.map(it => {
     if (it.type === 'text') return esc(it.text)
     if (it.type === 'bold') return `<b>${esc(it.text)}</b>`
+    if (o.citeAfter && after) {
+      const card = o.citeAfter(it.token)
+      if (card) after.push(card)
+      return esc(it.token)
+    }
     return o.cite?.(it.token) ?? esc(it.token)
   }).join('')
 }
+const cites = (after: string[]): string => (after.length ? `<div class="cites">${after.join('')}</div>` : '')
+/** 一段 / 一条：文字 + 它后面的截图卡片 */
+const withCites = (items: Inline[], o: HtmlOptions): string => { const after: string[] = []; const t = inline(items, o, after); return t + cites(after) }
 
 export function blocksToHtml(blocks: Block[], o: HtmlOptions = {}): string {
   const out: string[] = []
   for (const b of blocks) {
     switch (b.type) {
       case 'heading': out.push(`<h${Math.min(b.level, 4)}>${esc(b.text)}</h${Math.min(b.level, 4)}>`); break
-      case 'ul': out.push(`<ul>${b.items.map(it => `<li>${inline(it, o)}</li>`).join('')}</ul>`); break
-      case 'ol': out.push(`<ol>${b.items.map(it => `<li>${inline(it, o)}</li>`).join('')}</ol>`); break
+      case 'ul': out.push(`<ul>${b.items.map(it => `<li>${withCites(it, o)}</li>`).join('')}</ul>`); break
+      case 'ol': out.push(`<ol>${b.items.map(it => `<li>${withCites(it, o)}</li>`).join('')}</ol>`); break
       case 'quote': out.push(`<blockquote>${b.lines.map(l => `<div>${inline(l, o)}</div>`).join('')}</blockquote>`); break
       case 'hr': out.push('<hr>'); break
       case 'code': out.push(`<pre>${esc(b.text)}</pre>`); break
@@ -42,7 +53,7 @@ export function blocksToHtml(blocks: Block[], o: HtmlOptions = {}): string {
           b.rows.map(r => `<tr>${b.header.map((_, i) => `<td${al(i)}>${inline(r[i] ?? [], o)}</td>`).join('')}</tr>`).join('')}</tbody></table>`)
         break
       }
-      default: out.push(`<p>${inline(b.inline, o)}</p>`)
+      default: { const after: string[] = []; out.push(`<p>${inline(b.inline, o, after)}</p>${cites(after)}`) }
     }
   }
   return out.join('\n')
@@ -71,6 +82,7 @@ export function reportHtmlPage(opts: { title: string; bodyHtml: string; footer?:
   th { background: #f0f2f8; }
   pre { background: #f6f6f6; padding: 8pt; font-size: 9pt; white-space: pre-wrap; word-break: break-all; }
   hr { border: 0; border-top: 0.5pt solid #ddd; }
+  .cites { margin: 2pt 0 6pt; }
   .cite { display: inline-block; vertical-align: top; margin: 2pt 4pt 2pt 0; padding: 3pt; border: 0.5pt solid #adc6ff; border-radius: 3pt; background: #f7faff; max-width: 52mm; page-break-inside: avoid; }
   .cite .cap { font-size: 7.5pt; color: #1d39c4; margin-bottom: 2pt; }
   .cite img { width: 100%; display: block; }

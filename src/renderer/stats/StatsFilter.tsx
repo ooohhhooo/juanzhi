@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Popconfirm, Segmented, Select, Space, Switch, Tooltip } from 'antd'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Popconfirm, Segmented, Select, Switch, Tooltip } from 'antd'
+import { Btn, ScopeBar, ScopeField, UsageNote } from '../design'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 /** 全局筛选条件（总览与分析看板共用）。存在设置里（ui_stats_filter），重启后记住。 */
@@ -88,60 +89,98 @@ export const filterLabel = (f: StatsFilter): string => {
   return parts.length ? parts.join(' · ') : '全部试卷'
 }
 
-export default function FilterBar() {
-  const { filter, set, reset } = useStatsFilter()
+/** 范围条是否展开：切页后记住（模块级变量）。默认收起，顶栏只剩一行范围句，和设计样张一致 */
+let scopeOpenMemo = false
+
+// ── 书眉的首尾词条：各页面用 useScopeGuide(first, last) 告诉范围条「本页第一个 / 最后一个词条是谁」 ──
+let guide: { first?: string; last?: string } = {}
+const guideSubs = new Set<() => void>()
+const setGuide = (g: { first?: string; last?: string }) => { guide = g; guideSubs.forEach(f => f()) }
+const useGuide = () => useSyncExternalStore(cb => { guideSubs.add(cb); return () => { guideSubs.delete(cb) } }, () => guide)
+/** 页面调用：把本页首尾词条名交给顶栏书眉（「名词复数 — 连词成句」）。离开页面时自动清掉 */
+export function useScopeGuide(first?: string, last?: string): void {
+  useEffect(() => { setGuide({ first, last }); return () => setGuide({}) }, [first, last])
+}
+
+/** 范围句：没选筛选时也写成完整的一句（「看的是全部 2 份四年级试卷」），选了就写成「看的是 四年级 · 期末（3 份）」 */
+export function scopeSentence(f: StatsFilter, count: number | null, grades: string[]): string {
+  const n = count == null ? '' : `${count} 份`
+  const dimsOn = Object.keys(f).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample')
+  const src = f.sample ? '示例数据里的' : ''
+  if (dimsOn) return `看的是${src} ${filterLabel(f)}${n ? `（${n}）` : ''}`
+  if (count === 0) return f.sample ? '示例数据里还没有可统计的试卷' : '还没有可统计的试卷'
+  const g = grades.length === 1 ? GRADE_LABEL[Number(grades[0])] : ''
+  return `看的是${src}全部${n ? ' ' + n : ''}${g}试卷${grades.length > 1 ? `（${grades.map(x => GRADE_LABEL[Number(x)]).join('、')}）` : ''}`
+}
+
+/**
+ * 筛选栏（设计系统第二版）：书眉式范围句 +「修改范围」展开的筛选面板（默认收起）。
+ * 逻辑、数据和所有 data-testid 与旧版相同；只换外观。右上角的操作区由页面传入（总览放「导入试卷」）。
+ */
+export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
+  const { filter, set, reset, ready } = useStatsFilter()
+  const g = useGuide()
   const qc = useQueryClient()
+  const [open, setOpen] = useState(scopeOpenMemo)
   const { data: sampleSt, isFetching: sampleFetching } = useQuery({ queryKey: ['data', 'sample'], queryFn: () => window.api.data.sampleStatus(), staleTime: 5_000 })
   // 示例数据被清除了，筛选里却还停在"示例数据"：自动切回真实数据，免得看到一个空看板还不知道为什么
   // （正在重新取数时不判断：刚加载完示例数据、缓存里还是旧的"没有示例数据"，不能据此把筛选切回去）
   useEffect(() => { if (sampleSt && !sampleFetching && !sampleSt.loaded && filter.sample) set({ sample: false }) }, [sampleSt?.loaded, sampleFetching, filter.sample])
   const { data: opts } = useQuery({ queryKey: ['stats', 'filterOptions', !!filter.includeReviewing, !!filter.sample], queryFn: () => window.api.stats.filterOptions({ includeReviewing: filter.includeReviewing, sample: filter.sample }), staleTime: 10_000 })
   const { data: notes } = useQuery({ queryKey: ['stats', 'notes', filter], queryFn: () => window.api.stats.notes(filter) })
-  const w = 108
-  const sel = (testid: string, placeholder: string, value: unknown, options: Array<{ value: any; label: string }>, key: keyof StatsFilter, width = w) => (
-    <Select data-testid={testid} placeholder={placeholder} allowClear value={value as any} style={{ width }} options={options} onChange={v => set({ [key]: v })} popupMatchSelectWidth={false} />
+  const { data: ov } = useQuery({ queryKey: ['stats', 'overview', filter], queryFn: () => window.api.stats.overview(filter), enabled: ready, staleTime: 10_000 })
+  const { data: allPapers = [] } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  const grades = Array.from(new Set(allPapers.filter(p => p.status === 'done' && !!p.is_sample === !!filter.sample && p.grade).map(p => p.grade as string))).sort()
+  const sel = (label: string, testid: string, placeholder: string, value: unknown, options: Array<{ value: any; label: string }>, key: keyof StatsFilter, width = 120) => (
+    <ScopeField label={label}>
+      <Select data-testid={testid} placeholder={placeholder} allowClear value={value as any} style={{ width }} options={options} onChange={v => set({ [key]: v })} popupMatchSelectWidth={false} />
+    </ScopeField>
   )
   const any = Object.keys(filter).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample')
   const pending = notes?.reviewing ?? 0
   const counted = notes?.reviewingCounted ?? 0
   const superseded = notes?.reviewingSuperseded ?? 0
   return (
-    <div data-testid="filter-bar" style={{ position: 'sticky', top: 0, zIndex: 20, background: '#fff', borderBottom: '1px solid #f0f0f0', padding: '10px 20px 8px' }}>
-      <Space wrap size={[8, 8]} align="center">
-        <span style={{ color: '#888', fontSize: 12 }}>筛选</span>
-        {sel('filter-grade', '年级', filter.grade, GRADES.map(g => ({ value: g, label: GRADE_LABEL[Number(g)] })), 'grade', 96)}
-        {sel('filter-semester', '学期', filter.semester, SEMESTERS.map(s => ({ value: s, label: `${s}学期` })), 'semester', 96)}
-        {sel('filter-year', '学年', filter.school_year_start, (opts?.years ?? []).map(y => ({ value: y, label: `${y}-${y + 1}` })), 'school_year_start', 124)}
-        {sel('filter-exam', '考试类型', filter.exam_type, EXAMS.map(e => ({ value: e, label: e })), 'exam_type', 116)}
-        {sel('filter-textbook', '教材', filter.textbook, (opts?.textbooks ?? []).map(t => ({ value: t, label: t })), 'textbook', 130)}
-        {sel('filter-region', '地区', filter.region, (opts?.regions ?? []).map(t => ({ value: t, label: t })), 'region', 110)}
-        <Button size="small" data-testid="filter-reset" disabled={!any} onClick={reset}>清除筛选</Button>
+    <div data-testid="filter-bar">
+      <ScopeBar scope={scopeSentence(filter, ov ? ov.cards.papers : null, grades)} first={g.first} last={g.last} actions={actions} open={open} onOpenChange={v => { scopeOpenMemo = v; setOpen(v) }}>
+        {sel('年级', 'filter-grade', '全部', filter.grade, GRADES.map(g => ({ value: g, label: GRADE_LABEL[Number(g)] })), 'grade', 112)}
+        {sel('学期', 'filter-semester', '全部', filter.semester, SEMESTERS.map(s => ({ value: s, label: `${s}学期` })), 'semester', 112)}
+        {sel('学年', 'filter-year', '全部', filter.school_year_start, (opts?.years ?? []).map(y => ({ value: y, label: `${y}-${y + 1}` })), 'school_year_start', 136)}
+        {sel('考试类型', 'filter-exam', '全部', filter.exam_type, EXAMS.map(e => ({ value: e, label: e })), 'exam_type', 128)}
+        {sel('教材', 'filter-textbook', '全部', filter.textbook, (opts?.textbooks ?? []).map(t => ({ value: t, label: t })), 'textbook', 140)}
+        {sel('地区', 'filter-region', '全部', filter.region, (opts?.regions ?? []).map(t => ({ value: t, label: t })), 'region', 120)}
+        <Btn tone="secondary" size="small" data-testid="filter-reset" disabled={!any} onClick={reset}>清除筛选</Btn>
         {sampleSt?.loaded && (
           <Tooltip title="示例数据是内置的合成演示卷，和你的真实数据分开统计、互不混淆。">
-            <Segmented size="small" data-testid="filter-dataset" value={filter.sample ? 'sample' : 'real'} onChange={v => set({ sample: v === 'sample' })}
+            <Segmented data-testid="filter-dataset" value={filter.sample ? 'sample' : 'real'} onChange={v => set({ sample: v === 'sample' })}
               options={[{ label: '真实数据', value: 'real' }, { label: '示例数据', value: 'sample' }]} />
           </Tooltip>
         )}
-        <span style={{ borderLeft: '1px solid #eee', height: 20 }} />
-        <Tooltip title="默认只统计老师已确认（已完成）的试卷。打开后，AI 解析完但还没确认的试卷也会计入，数字可能随审核变化。">
-          <span><Switch size="small" data-testid="filter-reviewing" checked={!!filter.includeReviewing} onChange={v => set({ includeReviewing: v })} /> <span style={{ fontSize: 12 }}>含待审核{pending > 0 ? `（${pending} 份）` : ''}</span></span>
-        </Tooltip>
-        <Tooltip title="同一个文件导入了多份（导入时选了「仍然导入」）时，默认只算一份：在当前状态与筛选下可见的几份里，先取已确认的，同状态再取最早导入的。打开后每一份都算，同一份卷子会被重复计数、抬高出现率。">
-          <span><Switch size="small" data-testid="filter-dup" checked={!!filter.includeDuplicates} onChange={v => set({ includeDuplicates: v })} /> <span style={{ fontSize: 12 }}>包含重复导入（会重复计数）</span></span>
-        </Tooltip>
-      </Space>
+        <div className="ewb-scope__switches">
+          <Tooltip title="默认只统计老师已确认（已完成）的试卷。打开后，AI 解析完但还没确认的试卷也会计入，数字可能随审核变化。">
+            <label><Switch size="small" data-testid="filter-reviewing" checked={!!filter.includeReviewing} onChange={v => set({ includeReviewing: v })} /><span>含待审核{pending > 0 ? `（${pending} 份）` : ''}</span></label>
+          </Tooltip>
+          <Tooltip title="同一个文件导入了多份（导入时选了「仍然导入」）时，默认只算一份；被标成“疑似重复”的卷子默认也不计入。打开后每一份都算，同一份卷子会被重复计数、抬高“考了几份卷子”的比例。">
+            <label><Switch size="small" data-testid="filter-dup" checked={!!filter.includeDuplicates} onChange={v => set({ includeDuplicates: v })} /><span>包含重复导入（会重复计数）</span></label>
+          </Tooltip>
+        </div>
+      </ScopeBar>
       {filter.sample && (
-        <Alert data-testid="sample-banner" type="info" showIcon style={{ marginTop: 8, padding: '4px 12px' }}
-          message={<span><b>当前看的是示例数据</b>（内置的合成演示卷，不是任何真实考情）。它不会混进你的真实数据的统计。
-            <a style={{ marginLeft: 8 }} data-testid="sample-back" onClick={() => set({ sample: false })}>切回真实数据</a>
+        <UsageNote kind="caution" data-testid="sample-banner"
+          actions={<>
+            <Btn tone="quiet" size="small" data-testid="sample-back" onClick={() => set({ sample: false })}>切回真实数据</Btn>
             <Popconfirm title="清除全部示例数据？" description="示例卷、它们的页面图，以及基于示例数据生成的报告都会删除；你的真实数据不受影响。" okText="清除" cancelText="取消"
               onConfirm={async () => { await window.api.data.clearSample(); qc.setQueryData(['data', 'sample'], { loaded: false, papers: 0, questions: 0 }); set({ sample: false }); qc.invalidateQueries({ queryKey: ['data'] }) }}>
-              <a style={{ marginLeft: 12 }} data-testid="sample-clear">清除示例数据</a>
-            </Popconfirm></span>} />
+              <Btn tone="danger" size="small" data-testid="sample-clear">清除示例数据</Btn>
+            </Popconfirm>
+          </>}>
+          <b>当前看的是示例数据</b>（内置的合成演示卷，不是任何真实考情）。它不会混进你的真实数据的统计。
+        </UsageNote>
       )}
       {filter.includeReviewing && (
-        <Alert data-testid="reviewing-banner" type="warning" showIcon style={{ marginTop: 8, padding: '4px 12px' }}
-          message={<span><b>当前统计包含尚未确认的 AI 结果</b>（{counted} 份待审核的试卷已计入{superseded > 0 ? `；另有 ${superseded} 份待审核的卷子因同一文件已有别的代表卷（比如已确认的副本）而没有重复计入` : ''}）。这些数字可能随审核修改而变化，定稿前请先把试卷审核确认。</span>} />
+        <UsageNote kind="caution" data-testid="reviewing-banner">
+          <span><b>当前统计包含尚未确认的 AI 结果</b>（{counted} 份待审核的试卷已计入{superseded > 0 ? `；另有 ${superseded} 份待审核的卷子因同一文件已有别的代表卷（比如已确认的副本）而没有重复计入` : ''}）。这些数字可能随审核修改而变化，定稿前请先把试卷审核确认。</span>
+        </UsageNote>
       )}
     </div>
   )

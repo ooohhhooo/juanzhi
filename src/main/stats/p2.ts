@@ -9,17 +9,19 @@ import type { CompareItem, CompareResult, HotResult, QuestionCard } from './core
 import type { StatsFilter } from './filter.ts'
 import { yearLabel } from './filter.ts'
 
-export const P2_PLACEHOLDERS = ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT'] as const
+export const P2_PLACEHOLDERS = ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT', 'EVIDENCE'] as const
 
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').replace(/\|/g, '／').trim()
 const pctText = (v: number | null) => (v === null ? '—' : `${(Math.round(v * 1000) / 10).toString()}%`)
 const GRADE = ['', '一', '二', '三', '四', '五', '六']
 
 /** 筛选条件的白话描述（{{FILTER_DESC}}） */
-export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResult): string {
+export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResult, grades?: string[]): string {
   const parts: string[] = []
   if (f.sample) parts.push('示例数据（合成的演示卷，不是真实考情）')
-  parts.push(f.grade ? `${GRADE[Number(f.grade)]}年级` : '全部年级')
+  // 没选年级时按范围里实际有的年级写（只有四年级的卷子就写「四年级」），不再一概写「全部年级」；真是六个年级都有才写「全部年级」
+  const gs = [...new Set(grades ?? [])].filter(g => /^[1-6]$/.test(g)).sort()
+  parts.push(f.grade ? `${GRADE[Number(f.grade)]}年级` : gs.length > 0 && gs.length < 6 ? `${gs.map(g => GRADE[Number(g)]).join('、')}年级` : '全部年级')
   if (f.semester) parts.push(`${f.semester}学期`)
   if (f.exam_type) parts.push(f.exam_type)
   if (f.textbook) parts.push(f.textbook)
@@ -29,7 +31,7 @@ export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResul
   if (f.includeDuplicates) parts.push('重复导入的试卷重复计数')
   if (cmp) {
     const sem = (d: Array<{ name: string }>) => (d.length ? d.map(x => `${x.name}${x.name === '未填' ? '' : '学期'}`).join('、') : '无')
-    parts.push(`学期范围：目标学年 ${sem(cmp.align.targetSemesters)}；基线${cmp.align.on ? '已按学期对齐，只取' : '未按学期对齐，含'} ${sem(cmp.align.baseSemesters)}${cmp.align.on && cmp.align.dropped > 0 ? `（另有 ${cmp.align.dropped} 份其他学期的基线卷子未参与比较）` : ''}`)
+    parts.push(`学期范围：今年 ${sem(cmp.align.targetSemesters)}；去年及以前${cmp.align.on ? '已按学期对齐，只取' : '未按学期对齐，含'} ${sem(cmp.align.baseSemesters)}${cmp.align.on && cmp.align.dropped > 0 ? `（另有 ${cmp.align.dropped} 份其他学期的基线卷子未参与比较）` : ''}`)
   }
   return parts.join(' · ')
 }
@@ -81,16 +83,20 @@ export class TokenRegistry {
 const dist = (d: Array<{ name: string; papers: number }>) => (d.length ? d.map(x => `${x.name} ${x.papers} 份`).join('、') : '（无）')
 
 export function sampleWarning(cmp: CompareResult): string {
+  const few: string[] = []
+  if (cmp.insufficient?.includes('target')) few.push(`今年只有 ${cmp.target.papers} 份卷子`)
+  if (cmp.insufficient?.includes('base')) few.push(`去年及以前只有 ${cmp.base.papers} 份卷子`)
   const bits: string[] = []
-  if (cmp.limited.includes('target')) bits.push(`目标学年只有 ${cmp.target.papers} 份卷子`)
-  if (cmp.limited.includes('base')) bits.push(`基线学年只有 ${cmp.base.papers} 份卷子`)
+  if (cmp.limited.includes('target')) bits.push(`今年只有 ${cmp.target.papers} 份卷子`)
+  if (cmp.limited.includes('base')) bits.push(`去年及以前只有 ${cmp.base.papers} 份卷子`)
   const out: string[] = []
-  if (bits.length) out.push(`样本偏小：${bits.join('，')}（不足 5 份），出现率的变化可能只是一两份卷子的差别`)
-  if (cmp.mixed.length) out.push(`两侧${cmp.mixed.join('，')}，对比时请注意口径不一致`)
+  if (few.length) out.push(`样本不足：${few.join('，')}（少于 3 份），暂不比较新增和消失，也不要把只在一份卷子里出现的知识点写成难点或趋势`)
+  if (bits.length) out.push(`样本偏小：${bits.join('，')}（不足 5 份），“考了几份卷子”的差别可能只是一两份卷子的事`)
+  if (cmp.mixed.length) out.push(`两侧${cmp.mixed.join('，').replace(/目标学年/g, '今年').replace(/基线/g, '去年及以前')}，对比时请注意口径不一致`)
   if (!out.length) return '无'
   // 样本说明里也写清学期范围（协调方要求）：模型据此判断「消失」「新增」是不是只是学期没覆盖到
   const sem = (d: Array<{ name: string }>) => d.map(x => `${x.name}${x.name === '未填' ? '' : '学期'}`).join('、') || '无'
-  out.push(`学期范围：目标学年 ${sem(cmp.align.targetSemesters)}；基线${cmp.align.on ? '已按学期对齐，只取' : '未按学期对齐，含'} ${sem(cmp.align.baseSemesters)}`)
+  out.push(`学期范围：今年 ${sem(cmp.align.targetSemesters)}；去年及以前${cmp.align.on ? '已按学期对齐，只取' : '未按学期对齐，含'} ${sem(cmp.align.baseSemesters)}`)
   return out.join('；') + '。'
 }
 
@@ -103,7 +109,12 @@ export interface P2Input {
   fingerprint: string
 }
 
-export function buildP2Input(cmp: CompareResult, hotRes: HotResult, filter: StatsFilter): P2Input {
+/** P2 输入里出现的知识点代码（证据只收这些知识点的） */
+export function p2Codes(cmp: CompareResult, hotRes: HotResult): string[] {
+  return [...new Set([...cmp.added, ...cmp.removed, ...cmp.up, ...cmp.down].map(i => i.code).concat(hotRes.rows.map(h => h.code)))]
+}
+
+export function buildP2Input(cmp: CompareResult, hotRes: HotResult, filter: StatsFilter, evidenceText = '（无）', grades?: string[]): P2Input {
   const hot = hotRes.rows
   const reg = new TokenRegistry()
   const grade = (i: CompareItem) => (i.intro_grade ?? '-')
@@ -115,7 +126,7 @@ export function buildP2Input(cmp: CompareResult, hotRes: HotResult, filter: Stat
     [h.code, h.name, `${h.papers}/${hotRes.papers}`, h.questions, h.errorCount, h.reasons.length ? h.reasons.slice(0, 2).map(r => oneLine(r.reason)).join('；') : '无', reg.sampleCell(h.typical)].join(' | '))
   const block = (rows: string[]) => (rows.length ? rows.join('\n') : '（无）')
   const placeholders = {
-    FILTER_DESC: describeFilter(filter, cmp.level, cmp),
+    FILTER_DESC: describeFilter(filter, cmp.level, cmp, grades),
     TARGET_YEAR: yearLabel(cmp.target.years[0]),
     TARGET_PAPERS: String(cmp.target.papers),
     BASE_YEARS: cmp.base.years.length ? cmp.base.years.map(yearLabel).join('、') : '（无）',
@@ -123,9 +134,9 @@ export function buildP2Input(cmp: CompareResult, hotRes: HotResult, filter: Stat
     TARGET_TEXTBOOKS: dist(cmp.target.textbooks),
     BASE_TEXTBOOKS: dist(cmp.base.textbooks),
     SAMPLE_WARNING: sampleWarning(cmp),
-    ADDED: block(added), REMOVED: block(removed), CHANGED: block(changed), HOT: block(hotRows)
+    ADDED: block(added), REMOVED: block(removed), CHANGED: block(changed), HOT: block(hotRows), EVIDENCE: evidenceText
   }
-  const codes = [...new Set([...cmp.added, ...cmp.removed, ...cmp.up, ...cmp.down].map(i => i.code).concat(hot.map(h => h.code)))]
+  const codes = p2Codes(cmp, hotRes)
   const fingerprint = crypto.createHash('sha256').update(JSON.stringify(P2_PLACEHOLDERS.map(k => [k, placeholders[k]]))).digest('hex')
   return { placeholders, refs: [...reg.refs.values()], codes, fingerprint }
 }

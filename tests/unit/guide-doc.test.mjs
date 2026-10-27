@@ -43,7 +43,7 @@ assert.match(allText, /xattr -cr \/Applications\/英语校考分析工作台\.ap
   const ui = [...walk('src/renderer'), ...walk('src/main')].map(f => fs.readFileSync(f, 'utf8')).join('\n')
   const checklist = fs.readFileSync('docs/Windows验收清单.md', 'utf8')
   // 文档里点名的界面文字：每个都必须能在应用源码里找到原文（改了应用文案而忘了改文档会失败）
-  const labels = ['数据包（换电脑 / 备份）', '示例数据', '数据存储', '文字识别（OCR）', 'AI 服务', '导出数据包…', '导入数据包…', '更改数据目录…', '加载示例数据', '清除示例数据', '恢复默认位置', '重试 AI 解析',
+  const labels = ['数据包（换电脑 / 备份）', '示例数据', '数据存储', '文字识别（OCR）', 'AI 服务', '导出数据包…', '导入数据包…', '更改数据目录…', '加载示例数据', '清除示例数据', '恢复默认位置', '重试',
     '测试连接', '开始导入', '立即重启', '复制数据并切换', '开始使用：三步就能出第一份分析', '当前看的是示例数据', '内置的合成演示卷，不是任何真实考情', '这一页的 OCR 没有成功', '待 OCR（当前平台不支持）', 'OCR 失败',
     '生成报告', '导出 PDF', '导出 Markdown', '查看安装指南', '这是一个空文件夹', 'OCR 使用 ']
   for (const l of labels) assert.ok(ui.includes(l), `文档里用到的界面文字「${l}」在应用源码里找不到（文案改了？）`)

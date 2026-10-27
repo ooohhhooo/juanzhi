@@ -1,7 +1,7 @@
 {
   "platform": "darwin",
   "arch": "arm64",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "results": [
     {
       "feature": "打包事实",
@@ -11,15 +11,15 @@
     },
     {
       "feature": "打包事实",
-      "name": "版本号 = package.json（1.0.0），应用名固定为 english-exam-workbench（与 productName 无关，userData 路径不随打包版名字变）",
+      "name": "版本号 = package.json（1.1.0），应用名固定为 english-exam-workbench（与 productName 无关，userData 路径不随打包版名字变）",
       "pass": true,
-      "detail": "1.0.0 english-exam-workbench"
+      "detail": "1.1.0 english-exam-workbench"
     },
     {
       "feature": "打包事实",
       "name": "userData 就是测试指定的临时目录（EWB_USER_DATA_DIR 生效，没碰真实数据目录）",
       "pass": true,
-      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/userData"
+      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/userData"
     },
     {
       "feature": "打包事实",
@@ -91,7 +91,7 @@
       "feature": "AI（mock）",
       "name": "连接测试通过（打包版里的网络请求通往本机 mock，没有走真实 AI）",
       "pass": true,
-      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，57 毫秒）\",\"latencyMs\":57,\"model\":\"mock-text-model\"}"
+      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，63 毫秒）\",\"latencyMs\":63,\"model\":\"mock-text-model\"}"
     },
     {
       "feature": "PDF 提取 + AI 解析",
@@ -121,43 +121,43 @@
       "feature": "报告",
       "name": "用 mock 生成报告成功并进入历史",
       "pass": true,
-      "detail": "{\"ok\":true,\"markdown\":\"# 全部年级 考情分析报告\\n> 说明：难度与易错点为 AI 估计，非学生成绩统计。样本偏小：当前范围内只有 2 份卷子（不足 5 份），出现率等比例可能只是一两份卷子的差别；年度变化的样本偏小：目标学年只有 1 份，基线学年只有 1 份（不足 5 份）。结论仅供参考。\\n\\n## 样本概览\\n卷子 2 份，题目 72 道；覆盖学年：2024-2025"
+      "detail": "{\"ok\":true,\"markdown\":\"# 四年级 下学期 2024–2026学年 期末 考情分析报告（完整数据版）· 2026-10-27\\n\\n> 说明：难度与易错点为 AI 估计，非学生成绩统计。只有 2 份卷子，样本太少：只能说“这几份卷子里是这样”，不下“难点”结论，不能当规律；年度变化：2025-2026学年只有 1 份，2024-2025学年只有 1 份，比较只能当线索。结论仅"
     },
     {
       "feature": "报告 导出",
       "name": "Markdown 导出成功，文件存在且含中文标题",
       "pass": true,
-      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/report/报告\",\"images\":10,\"m"
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/report/报告\",\"images\":10,\"m"
     },
     {
       "feature": "报告 导出",
       "name": "PDF 导出成功：%PDF 头，体积合理（>5 KB）",
       "pass": true,
-      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-qq1YCA/report/报告.pdf\",\"bytes\":598261,\"images\":10} %PDF-"
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/report/报告.pdf\",\"bytes\":559852,\"images\":10} %PDF-"
     },
     {
       "feature": "报告 导出",
       "name": "PDF 里有中文文字（共 4 页）",
       "pass": true,
-      "detail": "全部年级 考情分析报告说明：难度与易错点为 AI 估计，⾮学⽣成绩统计。样本偏⼩：当前范围内只有 2 份卷⼦（不⾜ 5份），出现率等⽐例可能只是⼀两份卷⼦的差别"
+      "detail": "四年级 下学期 2024–2026学年 期末 考情分析报告（完整数据版）· 2026-10-27说明：难度与易错点为 AI 估计，⾮学⽣成绩统计。只有 2 份卷"
     },
     {
       "feature": "报告 导出",
-      "name": "PDF 嵌入了能画中文的字体：AAAAAA+PingFangSC-Semibold, BAAAAA+PingFangSC-Regular, CAAAAA+HiraginoSansGB-W3, DAAAAA+Helvetica",
+      "name": "PDF 嵌入了能画中文的字体：AAAAAA+PingFangSC-Semibold, BAAAAA+PingFangSC-Regular, CAAAAA+Helvetica, DAAAAA+HiraginoSansGB-W3",
       "pass": true,
-      "detail": "AAAAAA+PingFangSC-Semibold, BAAAAA+PingFangSC-Regular, CAAAAA+HiraginoSansGB-W3, DAAAAA+Helvetica"
+      "detail": "AAAAAA+PingFangSC-Semibold, BAAAAA+PingFangSC-Regular, CAAAAA+Helvetica, DAAAAA+HiraginoSansGB-W3"
     },
     {
       "feature": "数据包导出",
       "name": "导出成功：manifest 写明应用版本和 4 份卷子，zip 里有 db.sqlite 和 files/<uuid>/…，没有 API 密钥",
       "pass": true,
-      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":9,\"appVersion\":\"1.0.0\",\"exportedAt\":\"2026-10-26T06:59:51.230Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
+      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":10,\"appVersion\":\"1.1.0\",\"exportedAt\":\"2026-10-27T05:29:17.761Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
     },
     {
       "feature": "安装指南",
       "name": "打包版里的 /guide 页显示完整正文（docs/安装指南.md 的每个二级标题都在）",
       "pass": true,
-      "detail": "9 个标题；正文 4739 字；缺少：无"
+      "detail": "9 个标题；正文 4817 字；缺少：无"
     },
     {
       "feature": "运行期",

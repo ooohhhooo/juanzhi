@@ -2,9 +2,43 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { app } from 'electron'
 import { buildKpRows, QTYPE_SEEDS_V1 } from './seed/taxonomy'
+import { KP_PLAIN } from './seed/kp-plain'
+import { backupBeforeUpgrade, dbHasData, restoreBackup } from './db-backup'
+import { repairKpNames } from './db-repair'
 import { configuredDataDir, defaultDataDir } from './datadir'
 import { recoverImportJournalDetailed, startupNoticeOf } from './pack/journal'
 import type { StartupNotice } from './pack/journal'
+
+/**
+ * 迁移 v10 用的「把挤进下一题题号的框缩回去」：这里冻结一份当时的算法（和 shared/crop.ts 的 repairNeighborEdges 当时一致）。
+ * 迁移不能依赖以后还会改的函数——有人改了 crop.ts，还没升级的库在 v10 里的行为就变了。
+ */
+function repairNeighborEdgesV10(rows: Array<{ id: string; page: number; bbox: number[] | null; source?: string | null }>): Array<{ id: string; bbox: number[] }> {
+  const SEAM = 0.008
+  const out: Array<{ id: string; bbox: number[] }> = []
+  const byPage = new Map<number, typeof rows>()
+  for (const r of rows) if (r.bbox && r.bbox.length === 4 && r.bbox[2] > 0 && r.bbox[3] > 0) {
+    if (!byPage.has(r.page)) byPage.set(r.page, [])
+    byPage.get(r.page)!.push(r)
+  }
+  for (const list of byPage.values()) {
+    for (const a of list) {
+      if (a.source === 'manual') continue
+      const [ax, ay, aw, ah] = a.bbox as number[]
+      let right = ax + aw
+      for (const b of list) {
+        if (b === a) continue
+        const [bx, by, , bh] = b.bbox as number[]
+        const overlap = Math.min(ay + ah, by + bh) - Math.max(ay, by)
+        if (overlap < Math.min(ah, bh) * 0.5) continue
+        if (bx <= ax + 0.02 || bx >= right + 0.02) continue
+        right = Math.min(right, bx - SEAM)
+      }
+      if (right < ax + aw - 1e-6 && right > ax + 0.02) out.push({ id: a.id, bbox: [ax, ay, Math.round((right - ax) * 1000) / 1000, ah] })
+    }
+  }
+  return out
+}
 
 export const MIGRATIONS: Array<(db: any) => void> = [
   // v0 → v1: 初始 schema
@@ -356,6 +390,71 @@ export const MIGRATIONS: Array<(db: any) => void> = [
         WHEN OLD.status IN ('done','reviewing') OR NEW.status IN ('done','reviewing') BEGIN UPDATE data_rev SET rev = rev + 1 WHERE id = 1; END;
       UPDATE data_rev SET rev = rev + 1 WHERE id = 1;
     `)
+  },
+
+  // v9 → v10（M6）：让不懂英语的人也能用。
+  //  - kps：白话释义 plain、例句 example_en / example_zh、例词 hint_words（内置节点由 seed/kp-plain 写入；自建节点可在知识点编辑器里填，空着就不显示）；
+  //  - papers：error_detail（失败的技术详情，界面收在「查看详情」里）、similar_to / similar_ratio / similar_state（疑似重复或部分重复：
+  //    suspect = 默认不计入统计，accepted = 老师确认「确实是新卷」后计入）；papers 的修订号触发器把 similar_state 也列进去；
+  //  - reports：reader（full 完整数据版 / boss 老板版 / parent 家长版 / teacher 老师版；旧报告都是 full）、confirmed_at（家长版「我已核对」）、
+  //    verify_json（事实核对里没对上证据的句子；ai_analyses 也有一列）；
+  //  - ai_drafts：P2 / P3 失败时保留的「未完成草稿」；
+  //  - settings.ai_config：输出上限「自动」。旧默认 8192（等于旧版内置默认，视为用户没改过）→ 自动（按模型取默认，推理模型 32768）；
+  //    其余数值视为用户手改过，保留并关闭自动。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    for (const c of ['plain', 'example_en', 'example_zh', 'hint_words']) addCol('kps', c, 'TEXT')
+    addCol('papers', 'error_detail', 'TEXT')
+    addCol('papers', 'similar_to', 'TEXT')
+    addCol('papers', 'similar_ratio', 'REAL')
+    addCol('papers', 'similar_state', 'TEXT')
+    addCol('reports', 'reader', "TEXT NOT NULL DEFAULT 'full'")
+    addCol('reports', 'confirmed_at', 'TEXT')
+    addCol('reports', 'verify_json', 'TEXT')
+    addCol('ai_analyses', 'verify_json', 'TEXT')
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ai_drafts (
+        key TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        markdown TEXT NOT NULL DEFAULT '',
+        refs_json TEXT NOT NULL DEFAULT '[]',
+        message TEXT,
+        detail TEXT,
+        model TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_papers_similar ON papers(similar_state);
+      DROP TRIGGER IF EXISTS trg_rev_papers_u;
+      CREATE TRIGGER trg_rev_papers_u AFTER UPDATE OF status, grade, semester, school_year_start, exam_type, textbook, region, file_hash, created_at, title, is_sample, similar_state ON papers
+        WHEN OLD.status IN ('done','reviewing') OR NEW.status IN ('done','reviewing') BEGIN UPDATE data_rev SET rev = rev + 1 WHERE id = 1; END;
+    `)
+    const upd = db.prepare('UPDATE kps SET plain = ?, example_en = ?, example_zh = ?, hint_words = ? WHERE code = ? AND plain IS NULL')
+    for (const [code, v] of Object.entries(KP_PLAIN) as Array<[string, { plain: string; example_en: string; example_zh: string; hint_words: string }]>) upd.run(v.plain, v.example_en, v.example_zh, v.hint_words, code)
+    const row = db.prepare("SELECT value_json FROM settings WHERE key = 'ai_config'").get() as { value_json: string } | undefined
+    if (row) {
+      try {
+        const c = JSON.parse(row.value_json)
+        if (c && typeof c === 'object' && !Array.isArray(c) && !('max_tokens_auto' in c)) {
+          const legacy = c.max_tokens === undefined || c.max_tokens === 8192
+          c.max_tokens_auto = legacy
+          if (legacy) c.max_tokens = 32768
+          db.prepare("UPDATE settings SET value_json = ? WHERE key = 'ai_config'").run(JSON.stringify(c))
+        }
+      } catch { /* 损坏的配置：loadConfig 会回退默认值，不在迁移里处理 */ }
+    }
+    // 旧版本定位出来的框，在同一行挤着两道题时，前一题的右边会伸进后一题的题号（「16. … 17」）：把它缩回到后一题前面（手工画的框不动）
+    const boxRows = db.prepare("SELECT id, paper_id, page_idx, bbox_json, bbox_source FROM questions WHERE bbox_json IS NOT NULL AND (bbox_source IS NULL OR bbox_source <> 'manual')").all() as any[]
+    const byPaper = new Map<string, any[]>()
+    for (const r of boxRows) { if (!byPaper.has(r.paper_id)) byPaper.set(r.paper_id, []); byPaper.get(r.paper_id)!.push(r) }
+    const fixBox = db.prepare('UPDATE questions SET bbox_json = ? WHERE id = ?')
+    for (const list of byPaper.values()) {
+      const rows = list.map(r => { let b = null; try { b = JSON.parse(r.bbox_json) } catch { /* 坏数据不动 */ } return { id: r.id, page: r.page_idx ?? 0, bbox: Array.isArray(b) ? b : null, source: r.bbox_source } })
+      for (const f of repairNeighborEdgesV10(rows)) fixBox.run(JSON.stringify(f.bbox), f.id)
+    }
+    db.exec('UPDATE data_rev SET rev = rev + 1 WHERE id = 1')
   }
 ]
 
@@ -401,6 +500,14 @@ export function getDb(): any {
   return db
 }
 
+let upgradeScanPending = false
+/** 升级到 v10 的库里已有卷子：取走「需要补扫重复卷」的标记（只给一次）。启动时由 index.ts 在窗口创建后调用，后台扫描 */
+export function takeUpgradeScan(): boolean {
+  const v = upgradeScanPending
+  upgradeScanPending = false
+  return v
+}
+
 export async function initDatabase(): Promise<void> {
   const dataDir = getDataDir()
   fs.mkdirSync(dataDir, { recursive: true })
@@ -441,11 +548,33 @@ export async function initDatabase(): Promise<void> {
     )
   }
 
-  runMigrations(db, currentVersion)
+  // 升级前先备份（只对已有数据的库；全新的库没什么可备份）：迁移失败时回滚到这份，成功后保留最近几份，老师想退回去也有得退
+  // 「有数据」看 papers 表里有没有行，不看版本号：user_version = 0 的最老的库（M1 之前没有版本号）有数据时恰恰最需要备份；新建的空库没有表，什么都不做
+  const hadData = dbHasData(db)
+  let backupPath: string | null = null
+  if (hadData && currentVersion < targetVersion) {
+    backupPath = backupBeforeUpgrade(db, dbPath, currentVersion)
+  }
+  try {
+    runMigrations(db, currentVersion)
+  } catch (e) {
+    if (backupPath) {
+      try { db.close() } catch { /* 已经关了 */ }
+      db = null
+      restoreBackup(dbPath, backupPath)
+      throw new Error(`${(e as Error).message}（已恢复到升级前的数据，备份在 ${path.basename(backupPath)}）`)
+    }
+    throw e
+  }
 
   if (currentVersion < targetVersion) {
     console.log(`[db] schema 已升级到 v${targetVersion}`)
   }
+  // 名称就是内部代码的知识点（旧版本采纳 AI 建议时留下的）改成「待命名的考点」；只跑一次（settings 里有标记），原名记在 settings.kp_names_orig_v1
+  try { const n = repairKpNames(db); if (n) console.log(`[db] 修补了 ${n} 个名称是内部代码的知识点`) } catch (e) { console.warn(`[db] 修补知识点名称失败: ${(e as Error).message}`) }
+  // v10 之后重复卷才有检测：旧库里已有的卷子要补扫一遍。扫描不在这里跑（那会在窗口出现前卡住启动）：
+  // 记一个标记，主窗口创建后由 index.ts 调 takeUpgradeScan() 在后台启动（similar-runner.ts）
+  if (hadData && currentVersion < 10) upgradeScanPending = true
 
   // 上次覆盖导入如果在「换文件」和「提交」之间崩溃，这里把文件目录和数据库对齐（见 pack/journal.ts）
   // 结果记进 startupNotice，渲染端启动时通过 app:info 取走并弹窗——恢复失败不能只写一行控制台日志（M4 复审 P2-4）

@@ -72,6 +72,8 @@ async function launch({ appDir = root, userDataDir = userData } = {}) {
   // 监听器挂好之后整页重载一次，这样加载早期的 CSP 违规也不会漏掉
   await page.reload()
   await page.waitForSelector('[data-testid=dropzone]', { timeout: 30000 })
+  // 设置页的「管理员设置」默认收起；这套测试要看里面的文字识别状态等，启动后先展开（默认收起的行为由 run-m6.cjs 验证）
+  await page.evaluate(() => window.api.settings.set('admin_open', true)).catch(() => {})
   return { app, page, consoleErrors }
 }
 
@@ -80,6 +82,8 @@ async function dropFiles(page, paths, at) {
   await page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 15000 }).catch(() => {})
   let x, y
   if (at) { ({ x, y } = at) } else {
+    // 新外壳里页面在白色画布里滚动：先前的点击可能把拖放区滚出了视口，拖拽事件必须落在可见位置
+    await page.locator('[data-testid=dropzone]').scrollIntoViewIfNeeded()
     const box = await page.locator('[data-testid=dropzone]').boundingBox()
     x = box.x + box.width / 2
     y = box.y + box.height / 2
@@ -120,7 +124,7 @@ async function main() {
   dbm.close()
   const L1 = legacyRows.find(r => r.id.startsWith('1111'))
   const L2 = legacyRows.find(r => r.id.startsWith('2222'))
-  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v9（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9）', uv === 9, `user_version=${uv}`)
+  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v10（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10）', uv === 10, `user_version=${uv}`)
   check('迁移', '新增列与附件表齐全，旧数据保留',
     ['text', 'ocr_conf', 'ocr_error', 'text_layer_chars'].every(c => pageCols.includes(c)) &&
     ['extracted_at', 'warning', 'duplicate_of'].every(c => paperCols.includes(c)) && hasAssets && legacyPages.c === 1,
@@ -278,7 +282,8 @@ async function main() {
 
   // 重新提取
   const p26 = papers1.find(p => p.file_name === 'g4-2026.pdf')
-  await page.locator('tr', { hasText: 'g4-2026' }).locator('[data-testid=reprocess]').click()
+  await page.locator('tr', { hasText: 'g4-2026' }).locator('[data-testid=more-menu]').click()
+  await page.locator('.ant-dropdown:not(.ant-dropdown-hidden) [data-testid=reprocess]').click()   // 试卷库每行只有一个主操作，其余在「更多」里
   await sleep(500)
   await waitFor(async () => (await listPapers(page)).find(p => p.id === p26.id)?.status === 'extracted', 90000)
   const dbr = readDb()

@@ -164,6 +164,7 @@ async function phaseSample() {
   await waitFor(async () => Number(await T('col-added').getAttribute('data-count')) >= 1, 15000)
   check('示例数据 界面', '示例数据的同比页有内容：2025 学年相对更早学年有新增 / 消失（一般将来时新增；字母组合发音消失）', (await T('item-GR.TENSE.FUT').count()) === 1 && (await T('col-removed').locator('[data-testid^=item-]').count()) >= 1, `新增 ${await T('col-added').getAttribute('data-count')}`)
   await shot('13-sample-compare')
+  await ctx.page.locator('[data-testid=scope-bar] .ewb-scope__trigger[aria-expanded=false]').click().catch(() => {})   // 筛选面板默认收起，先展开
   await T('filter-dataset').getByText('真实数据').click()
   check('示例数据 界面', '切回"真实数据"：总览 18 份（和加载前一样）', await (async () => { await goto('#/overview'); return waitStat('card-papers', 18) })())
   check('示例数据 界面', '"清除筛选"不会悄悄切换真实 / 示例（它是范围开关，不是筛选条件）', await (async () => { await T('filter-dataset').getByText('示例数据').click(); await waitStat('card-papers', 12); await T('filter-reset').click().catch(() => {}); await sleep(300); return (await stat('card-papers')) === '12' })())

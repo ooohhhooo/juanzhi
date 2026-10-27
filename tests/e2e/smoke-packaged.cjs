@@ -217,7 +217,7 @@ async function main() {
 
     // ── 5. 看板有数据 ──
     await page.evaluate(() => { location.hash = '#/overview' })
-    const card = await waitFor(async () => (await T('card-papers').count()) > 0 && (await page.locator('[data-testid="card-papers"] .ant-statistic-content-value').first().innerText()).trim() === '2', 20000)
+    const card = await waitFor(async () => (await T('card-papers').count()) > 0 && (await page.locator('[data-testid="card-papers"]').first().innerText()).trim() === '2', 20000)
     const ov = await api(() => window.api.stats.overview({}))
     const dist = await api(() => window.api.stats.distribution({}))
     check('看板', '总览「试卷」卡片 = 2，题数与数据库一致，知识点分布有数据', !!card && ov.cards.papers === 2 && ov.cards.questions === questions && dist.nodes.length > 5, `${JSON.stringify(ov.cards)} nodes=${dist.nodes.length}`)
@@ -289,6 +289,8 @@ async function main() {
 async function dropFiles(page, paths) {
   await page.evaluate(() => { location.hash = '#/' })
   await page.waitForSelector('[data-testid=dropzone]')
+  // 新外壳里页面在白色画布里滚动：拖拽事件必须落在可见位置（与 lib.cjs 一致）
+  await page.locator('[data-testid=dropzone]').scrollIntoViewIfNeeded()
   await page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 15000 }).catch(() => {})
   const box = await page.locator('[data-testid=dropzone]').boundingBox()
   const cdp = await page.context().newCDPSession(page)

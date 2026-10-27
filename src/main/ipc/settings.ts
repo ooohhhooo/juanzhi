@@ -8,7 +8,9 @@ import { StatsFilterSchema } from '../stats/filter'
 // 它们只能通过 ai:* 接口读写，而且密钥没有任何读回的接口。
 // （数据目录的位置不在这里：它决定数据库放在哪，不能存在数据库里——见 datadir.ts / ewb-config.json）
 // M4：onboarding_done = 首次启动引导是否已关闭；default_textbook = 引导里选的教材版本（AI 没读出教材时作默认值）
-const ALLOWED_KEYS = new Set(['ui_theme', 'ui_language', 'ui_stats_filter', 'onboarding_done', 'default_textbook'])
+// 新增：show_internal_codes = 界面和报告里显示知识点 / 题型的内部代码（默认隐藏）；admin_open = 设置页的「管理员设置」是否展开；
+// role_guide_dismissed = 首页的「我是运营 / 我是辅导老师」引导是否已收起；role_guide_role = 上次选的角色
+const ALLOWED_KEYS = new Set(['ui_theme', 'ui_language', 'ui_stats_filter', 'onboarding_done', 'default_textbook', 'show_internal_codes', 'admin_open', 'role_guide_dismissed', 'role_guide_role'])
 
 const SettingsKeySchema = z.string().refine(
   k => ALLOWED_KEYS.has(k),
@@ -30,7 +32,8 @@ export function registerSettingsIpc(): void {
       const r = StatsFilterSchema.safeParse(value)
       if (!r.success) throw new Error('筛选条件格式不正确')
     }
-    if (key === 'onboarding_done' && typeof value !== 'boolean') throw new Error('设置值必须是布尔值')
+    if (['onboarding_done', 'show_internal_codes', 'admin_open', 'role_guide_dismissed'].includes(key) && typeof value !== 'boolean') throw new Error('设置值必须是布尔值')
+    if (key === 'role_guide_role' && !(value === null || value === 'ops' || value === 'tutor')) throw new Error('角色必须是 ops 或 tutor')
     if (key === 'default_textbook' && !(value === null || (typeof value === 'string' && value.length <= 100))) throw new Error('教材版本必须是不超过 100 字的文字')
     const json = JSON.stringify(value)
     if (json === undefined) throw new Error('设置值必须能序列化为 JSON')

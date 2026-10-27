@@ -1,15 +1,15 @@
-// 把 docs/prompts/v1-sonnet改写.md 里的提示词正文原样抽成资源文件（docs/prompts 本身不改）。
+// 把 docs/prompts/v2-分读者与事实核对.md 里的提示词正文原样抽成资源文件（v1 保留作历史，不再抽）。
 // 用法：node scripts/extract-prompts.cjs     输出：src/main/ai/prompts/<id>.<system|user>.txt
 // 提示词有改动时重新跑一次并同步更新 PROMPT_DEFAULT_VERSION（src/main/ai/prompts.ts）。
 const fs = require('node:fs')
 const path = require('node:path')
 
 const root = path.resolve(__dirname, '..')
-const src = fs.readFileSync(path.join(root, 'docs/prompts/v1-sonnet改写.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
+const src = fs.readFileSync(path.join(root, 'docs/prompts/v2-分读者与事实核对.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
 const outDir = path.join(root, 'src/main/ai/prompts')
 fs.mkdirSync(outDir, { recursive: true })
 
-const SECTION_ID = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report' }
+const SECTION_ID = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }
 let cur = null
 let part = null
 let inFence = false
@@ -34,4 +34,4 @@ for (const line of src) {
   }
 }
 console.log(written.join('\n'))
-if (written.length !== 8) { console.error(`期望 8 个文件，实际 ${written.length}`); process.exit(1) }
+if (written.length !== 16) { console.error(`期望 16 个文件，实际 ${written.length}`); process.exit(1) }

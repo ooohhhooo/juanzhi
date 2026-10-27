@@ -55,8 +55,14 @@ export interface Paper {
   extracted_at: string | null
   warning: string | null
   duplicate_of: string | null
-  /** 示例数据（M4）：不参与真实数据的统计 */
+  /** 示例数据：不参与真实数据的统计 */
   is_sample?: number
+  /** 疑似重复 / 部分重复：suspect = 默认不计入统计；accepted = 老师确认是新卷 */
+  similar_state?: 'suspect' | 'accepted' | null
+  similar_to?: string | null
+  similar_ratio?: number | null
+  similar_title?: string | null
+  error_detail?: string | null
 }
 
 export interface PageRecord {

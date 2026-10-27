@@ -132,13 +132,36 @@ export function squash(s: string): { str: string; map: number[] } {
   return { str, map }
 }
 
-/** 压缩串里的位置 → 行内横坐标（归一化）；碎片内按字符比例线性插值 */
+/**
+ * 字符在比例字体里的大致宽度（单位任意，只看相对大小）：窄的 i l t f . , ' 、宽的 m w、全角汉字、等宽的下划线……
+ * 一行里挤着两道题时（「16. Look at the ____ (sheep). 17. Those are …」），要靠它估计「17」从哪里开始；
+ * 以前按字符个数平均，估计会偏几个字，截图的右边就会切进下一题的题号。
+ */
+export function charWidth(ch: string): number {
+  const c = ch.codePointAt(0)!
+  if (c >= 0x2e80) return 2
+  if (ch === ' ') return 0.45
+  if ('iljtfr.,;:\'!|()[]'.includes(ch)) return 0.34
+  if ('mwMW'.includes(ch)) return 0.85
+  if (ch === '_') return 0.55
+  if (/[A-Z]/.test(ch)) return 0.66
+  if (/[0-9]/.test(ch)) return 0.56
+  if (ch === '-' ) return 0.36
+  return 0.52
+}
+
+/** 压缩串里的位置 → 行内横坐标（归一化）；碎片内按字符的大致宽度插值（不再按个数平均） */
 export function xAtOffset(row: Row, textOffset: number): number {
   if (!row.hasCoords || row.parts.length === 0) return row.x
   const part = row.parts.find(p => textOffset >= p.start && textOffset < p.end)
     ?? row.parts.reduce((best, p) => (Math.abs(p.start - textOffset) < Math.abs(best.start - textOffset) ? p : best), row.parts[0])
-  const len = Math.max(1, part.end - part.start)
-  const frac = Math.min(1, Math.max(0, (textOffset - part.start) / len))
+  const chars = [...row.text.slice(part.start, part.end)]
+  if (chars.length === 0) return part.x
+  const widths = chars.map(charWidth)
+  const total = widths.reduce((a, b) => a + b, 0) || 1
+  // textOffset 是 UTF-16 下标：按下标算已经过去了多少个字符
+  const upto = Math.min(chars.length, Math.max(0, [...row.text.slice(part.start, Math.max(part.start, Math.min(part.end, textOffset)))].length))
+  const frac = Math.min(1, Math.max(0, widths.slice(0, upto).reduce((a, b) => a + b, 0) / total))
   return part.x + part.w * frac
 }
 

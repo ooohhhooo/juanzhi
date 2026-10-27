@@ -12,11 +12,14 @@
  * 所有操作在一个事务里，一步失败整批回滚。修订号（data_rev）由 kps / question_kps 上的触发器自动推高，看板和 AI 缓存据此失效。
  */
 
-import { kpTextProblem, stripInvisible, KP_NAME_MAX, KP_NOTE_MAX } from '../pack/kp-rules.ts'
+import { kpNameProblem, kpTextProblem, stripInvisible, KP_NAME_MAX, KP_NOTE_MAX, KP_PLAIN_MAX, KP_EXAMPLE_EN_MAX, KP_EXAMPLE_ZH_MAX, KP_HINT_MAX } from '../pack/kp-rules.ts'
+
+/** 白话释义 / 例句 / 例词（B7）：可选填，空着就不显示 */
+export interface KpPlainFields { plain?: string | null; example_en?: string | null; example_zh?: string | null; hint_words?: string | null }
 
 export type TaxonomyOp =
-  | { op: 'add'; parent_code: string | null; name: string; note?: string; intro_grade?: number | null }
-  | { op: 'update'; code: string; name?: string; note?: string | null; intro_grade?: number | null }
+  | ({ op: 'add'; parent_code: string | null; name: string; note?: string; intro_grade?: number | null } & KpPlainFields)
+  | ({ op: 'update'; code: string; name?: string; note?: string | null; intro_grade?: number | null } & KpPlainFields)
   | { op: 'move'; code: string; parent_code: string | null }
   | { op: 'merge'; code: string; into: string }
   | { op: 'deprecate'; code: string; deprecated: boolean }
@@ -33,6 +36,10 @@ export interface KpRow {
   merged_into: string | null
   note: string | null
   builtin: number
+  plain?: string | null
+  example_en?: string | null
+  example_zh?: string | null
+  hint_words?: string | null
 }
 
 export class TaxonomyError extends Error {}
@@ -41,7 +48,7 @@ const MAX_LEVEL = 3
 const bad = (msg: string): never => { throw new TaxonomyError(msg) }
 
 function load(db: any): Map<string, KpRow> {
-  return new Map((db.prepare('SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin FROM kps').all() as KpRow[]).map(k => [k.code, k]))
+  return new Map((db.prepare('SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words FROM kps').all() as KpRow[]).map(k => [k.code, k]))
 }
 
 function childrenOf(all: Map<string, KpRow>, code: string): KpRow[] {
@@ -76,7 +83,7 @@ const cleanName = (n: unknown): string => {
   const s = typeof n === 'string' ? stripInvisible(n).trim() : ''   // 粘贴带来的零宽字符静默剔除
   if (!s) bad('名称不能为空')
   if (s.length > KP_NAME_MAX) bad(`名称不能超过 ${KP_NAME_MAX} 个字`)
-  const p = kpTextProblem(s)
+  const p = kpNameProblem(s)
   if (p) bad(`名称${p}`)
   return s
 }
@@ -89,6 +96,19 @@ const cleanNote = (n: unknown): string | null => {
   if (p) bad(`说明${p}`)
   return s
 }
+
+const FIELD_LABEL = { plain: '白话释义', example_en: '英文例句', example_zh: '例句的中文意思', hint_words: '例词' } as const
+const FIELD_MAX = { plain: KP_PLAIN_MAX, example_en: KP_EXAMPLE_EN_MAX, example_zh: KP_EXAMPLE_ZH_MAX, hint_words: KP_HINT_MAX } as const
+/** 白话 / 例句 / 例词：去首尾空白，空串 = 没有；超长、含换行 / 控制字符 / 竖线一律拒绝（它们会写进给 AI 的提示词和数据包） */
+const cleanPlainField = (field: keyof typeof FIELD_MAX, v: unknown): string | null => {
+  const s = typeof v === 'string' ? stripInvisible(v).trim() : ''
+  if (!s) return null
+  if (s.length > FIELD_MAX[field]) bad(`${FIELD_LABEL[field]}不能超过 ${FIELD_MAX[field]} 个字`)
+  const p = kpTextProblem(s)
+  if (p) bad(`${FIELD_LABEL[field]}${p}`)
+  return s
+}
+const PLAIN_FIELDS = ['plain', 'example_en', 'example_zh', 'hint_words'] as const
 
 function sameNameSibling(all: Map<string, KpRow>, parent: string | null, name: string, except?: string): KpRow | undefined {
   return [...all.values()].find(k => k.code !== except && (k.parent_code ?? null) === parent && k.deprecated === 0 && k.name === name)
@@ -121,9 +141,10 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
       const code = newCode(all, parent?.code ?? null)
       const sibs = [...all.values()].filter(k => (k.parent_code ?? null) === (parent?.code ?? null))
       const sort = (sibs.length ? Math.max(...sibs.map(s => s.sort)) : (parent?.sort ?? 0)) + 1
-      const row: KpRow = { code, parent_code: parent?.code ?? null, name, level, intro_grade: op.intro_grade ?? null, sort, deprecated: 0, merged_into: null, note: cleanNote(op.note), builtin: 0 }
-      db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 0)`)
-        .run(code, row.parent_code, name, level, row.intro_grade, sort, row.note)
+      const row: KpRow = { code, parent_code: parent?.code ?? null, name, level, intro_grade: op.intro_grade ?? null, sort, deprecated: 0, merged_into: null, note: cleanNote(op.note), builtin: 0,
+        plain: cleanPlainField('plain', op.plain), example_en: cleanPlainField('example_en', op.example_en), example_zh: cleanPlainField('example_zh', op.example_zh), hint_words: cleanPlainField('hint_words', op.hint_words) }
+      db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 0, ?, ?, ?, ?)`)
+        .run(code, row.parent_code, name, level, row.intro_grade, sort, row.note, row.plain ?? null, row.example_en ?? null, row.example_zh ?? null, row.hint_words ?? null)
       all.set(code, row)
       return
     }
@@ -137,6 +158,11 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
       if (op.note !== undefined) {
         const note = op.note === null ? null : cleanNote(op.note)
         db.prepare('UPDATE kps SET note = ? WHERE code = ?').run(note, n.code); n.note = note
+      }
+      for (const f of PLAIN_FIELDS) {
+        if (op[f] === undefined) continue
+        const v = cleanPlainField(f, op[f])
+        db.prepare(`UPDATE kps SET ${f} = ? WHERE code = ?`).run(v, n.code); n[f] = v
       }
       if (op.intro_grade !== undefined) {
         if (op.intro_grade !== null && !(Number.isInteger(op.intro_grade) && op.intro_grade >= 1 && op.intro_grade <= 6)) bad('引入年级必须是 1–6')
@@ -227,7 +253,7 @@ export interface TaxonomyResult {
   touched: string[]
 }
 
-const rowSig = (k: KpRow) => JSON.stringify([k.parent_code, k.name, k.level, k.intro_grade, k.deprecated, k.merged_into, k.note])
+const rowSig = (k: KpRow) => JSON.stringify([k.parent_code, k.name, k.level, k.intro_grade, k.deprecated, k.merged_into, k.note, k.plain ?? null, k.example_en ?? null, k.example_zh ?? null, k.hint_words ?? null])
 
 /** 一批操作放在一个事务里：任何一步不合规，整批回滚，错误里带第几步 */
 export function saveTaxonomy(db: any, ops: TaxonomyOp[]): TaxonomyResult {

@@ -88,8 +88,8 @@ async function phaseTaxonomy() {
   await pickNode('GR.NOUN.U1')
   await T('kp-merge').click()
   await T('kp-modal-target').click()
-  await page.keyboard.type('GR.NOUN.PLURAL）')
-  await page.locator('.ant-select-tree-title', { hasText: 'GR.NOUN.PLURAL）' }).first().click()
+  await page.keyboard.type('GR.NOUN.PLURAL')
+  await page.locator('.ant-select-tree-title', { hasText: '名词复数（教研组改名）' }).first().click()
   await shot('17-taxonomy-merge')
   await T('kp-modal-ok').click()
   const merged = await waitFor(async () => kpRow('GR.NOUN.U1').merged_into === 'GR.NOUN.PLURAL', 8000)
@@ -164,7 +164,7 @@ async function phaseMisc() {
     if (pg === 2) await page.locator('.ant-pagination-item-2').click().catch(() => {})
     if (await page.locator('tbody tr:has([data-testid=retry-menu])').count()) { libItems = await menuItems('tbody tr:has([data-testid=retry-menu])'); break }
   }
-  check('N10 失败卷入口', '下拉里的选项两处一致：重新 AI 解析 / 仅重新定位 / 从头重试', JSON.stringify(libItems) === JSON.stringify(queueItems) && libItems.length === 3 && /从头重试/.test(libItems[2]), JSON.stringify(libItems))
+  check('N10 失败卷入口', '下拉里的选项两处一致：重新让 AI 读一遍 / 只重新找题目位置 / 从头来', JSON.stringify(libItems) === JSON.stringify(queueItems) && libItems.length === 3 && /从头来/.test(libItems[2]), JSON.stringify(libItems))
   // 审核徽标（M2 缺口）：B 里有 2 份待审核（R1、K1）→ 侧栏"审核"旁显示 2
   const badge = await waitFor(async () => (await page.locator('[data-testid=badge-review]').count()) > 0, 8000)
   const nRev = withDb(ctx.ud, d => d.prepare("SELECT COUNT(*) c FROM papers WHERE status = 'reviewing'").get().c)
@@ -174,7 +174,7 @@ async function phaseMisc() {
   await T('about-card').waitFor()
   await waitFor(async () => (await txt('about-version')).includes(require('../../package.json').version), 8000)
   const ver = await txt('about-card')
-  check('设置 关于', '关于卡片：版本号读自 package.json、数据库版本 v9、运行环境（系统 / Electron / Chromium / Node）、数据目录', new RegExp('版本\\s*' + require('../../package.json').version.replace(/\./g, '\\.')).test(ver) && /数据库版本 v9/.test(ver) && !/M[1-5]|里程碑/.test(ver) && /Electron 45/.test(await txt('about-env')) && /darwin|win32|linux/.test(await txt('about-env')))
+  check('设置 关于', '关于卡片：版本号读自 package.json、数据库版本 v10、运行环境（系统 / Electron / Chromium / Node）、数据目录', new RegExp('版本\\s*' + require('../../package.json').version.replace(/\./g, '\\.')).test(ver) && /数据库版本 v10/.test(ver) && !/M[1-5]|里程碑/.test(ver) && /Electron 45/.test(await txt('about-env')) && /darwin|win32|linux/.test(await txt('about-env')))
   await shot('20-settings-about')
   await T('open-guide').click()
   // M5：安装指南页换成完整正文（和 docs/安装指南.md 是同一份文件，构建时内联）

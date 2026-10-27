@@ -9,6 +9,8 @@ import { StatsFilterSchema, LevelSchema, paperScope } from '../stats/filter'
 import * as S from '../stats/core'
 import { analysisState, cancelAnalysis, generateAnalysis } from '../stats/analysis'
 import { cancelReport } from '../report/service'
+import { cancelKpAnalysis, generateKpAnalysis, kpAnalysisState } from '../stats/kp-analysis'
+import type { KpScope } from '../stats/kp-analysis'
 import type { AnalysisScope } from '../stats/analysis'
 
 const yearNum = z.number().int().min(2000).max(2100)
@@ -25,6 +27,15 @@ const toScope = (raw: unknown): AnalysisScope => {
   // 同比自己决定学年：筛选里的学年在这里不生效，必须剔除——否则它会混进缓存的范围键，换个学年筛选就让 AI 分析「消失」
   const { school_year_start: _ignored, ...filter } = s.filter
   return { filter, target: s.target, base: baseSpec(s.target, s.base), level: s.level, align: s.align }
+}
+
+// 看板抽屉里「只讲这一个考点」的 AI 分析：code 必填；从同比页打开时带上 target / base（今年 / 去年及以前），否则只讲筛选范围内的情况
+const KpScopeSchema = z.object({ filter: FilterArg, code: CodeSchema, target: yearNum.nullish(), base: BaseSchema.nullish(), align: z.boolean().default(true) })
+const toKpScope = (raw: unknown): KpScope => {
+  const s = KpScopeSchema.parse(raw)
+  const { school_year_start: _ignored, ...filter } = s.filter
+  const hasYear = s.target != null && s.base != null
+  return { filter: hasYear ? filter : s.filter, code: s.code, target: hasYear ? s.target! : null, base: hasYear ? baseSpec(s.target!, s.base!) : null, align: s.align }
 }
 
 export function registerStatsIpc(): void {
@@ -84,8 +95,18 @@ export function registerStatsIpc(): void {
       ev => { if (!sender.isDestroyed()) sender.send('ai:chunk', ev) },
       cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } })
   })
+  // ── 单个考点的 AI 分析（抽屉）：只读状态不花钱；生成走 ai:chunk，取消用 ai:cancel ──
+  ipcMain.handle('ai:kpAnalysis', async (_e, raw: unknown) => kpAnalysisState(toKpScope(raw)))
+  ipcMain.handle('ai:analyzeKp', async (e, raw: unknown, rawRequestId: unknown) => {
+    const scope = toKpScope(raw)
+    const requestId = z.string().uuid().parse(rawRequestId)
+    const sender = e.sender
+    return generateKpAnalysis(scope, requestId,
+      ev => { if (!sender.isDestroyed()) sender.send('ai:chunk', ev) },
+      cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } })
+  })
   ipcMain.handle('ai:cancel', async (_e, rawRequestId: unknown) => {
     const id = z.string().uuid().parse(rawRequestId)
-    return cancelAnalysis(id) || cancelReport(id)   // P2 分析和 P3 报告共用同一个取消入口
+    return cancelAnalysis(id) || cancelReport(id) || cancelKpAnalysis(id)   // P2 分析、P3 报告、单个考点分析共用同一个取消入口
   })
 }
