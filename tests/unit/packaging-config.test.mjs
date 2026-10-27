@@ -126,8 +126,30 @@ for (const s of ['dist:mac', 'dist:win', 'dist', 'test:unit']) assert.ok(pkg.scr
 const wf = fs.readFileSync('.github/workflows/build.yml', 'utf8')
 for (const s of ['windows-latest', 'macos-latest', 'npm ci', 'npm run typecheck', 'npm run test:unit', 'smoke-packaged.cjs', 'upload-artifact']) assert.ok(wf.includes(s), `workflow 里缺 ${s}`)
 assert.match(wf, /从来没有真正运行过/, 'workflow 注释里写明从未运行过')
+// M7 命令行：workflow 里要有 Windows（PowerShell / cmd）和 Mac 的命令行检查，以及 OCR 诊断（区分脚本问题和环境问题）
+assert.ok(/OCR 诊断：对照图[\s\S]{0,200}continue-on-error: true/.test(wf), 'OCR 诊断步骤不能拦住后面的冒烟（continue-on-error）')
+assert.ok(/OCR 诊断结论（最后统一判定）[\s\S]{0,200}always\(\)/.test(wf), '最后统一判 OCR 诊断结论')
+for (const s of ['juanzhi.cmd', 'LASTEXITCODE', 'Start-Process', '--result-file', 'ocr-diagnose.ps1', 'shell: cmd']) assert.ok(wf.includes(s), `workflow 里缺命令行 / OCR 诊断检查：${s}`)
+assert.ok(fs.existsSync('tests/e2e/cli-smoke.cjs') && fs.readFileSync('tests/e2e/smoke-packaged.cjs', 'utf8').includes('cli-smoke.cjs'), '打包版冒烟里要跑命令行检查')
+const ocrDiag = fs.readFileSync('tests/e2e/ocr-diagnose.ps1')
+assert.equal(ocrDiag.subarray(0, 3).toString('hex'), 'efbbbf', 'ocr-diagnose.ps1 带 BOM')
+for (const verdict of ['ENV', 'SCRIPT', 'IMAGE', 'OK']) assert.ok(ocrDiag.includes(`'${verdict}'`), `OCR 诊断要能给出结论 ${verdict}`)
 // release/ 不进仓库
 assert.match(fs.readFileSync('.gitignore', 'utf8'), /^release\/$/m)
+
+// ── Windows OCR 对「透明背景」PNG 读出 0 行（CI run 40478002979）的根因与修复 ──
+{
+  const zlib = await import('node:zlib')
+  const png = fs.readFileSync('samples/g4-2025-page1.png')
+  let o = 8, ct = -1; const idat = []
+  while (o < png.length) { const len = png.readUInt32BE(o), type = png.subarray(o + 4, o + 8).toString('latin1'); if (type === 'IHDR') ct = png[o + 8 + 9]; if (type === 'IDAT') idat.push(png.subarray(o + 8, o + 8 + len)); o += 12 + len }
+  const raw = zlib.inflateSync(Buffer.concat(idat))
+  // 第一行第一个像素：任何滤波类型下它的原始字节就是像素值（左边和上边都是 0）
+  assert.equal(ct, 6, '样张是 RGBA PNG'); assert.equal(raw[1 + 3], 0, '样张左上角像素的 alpha = 0：背景是透明的（字是黑的），不铺白底就是一片黑')
+  const ps = fs.readFileSync('native/windows/ocr.ps1', 'utf8')
+  for (const must of ['Convert-ToOpaquePng', 'BitmapAlphaMode]::Ignore', 'System.Drawing', 'Format24bppRgb', '[System.Drawing.Color]::White']) assert.ok(ps.includes(must), `ocr.ps1 要先把带透明通道的图铺白底：缺 ${must}`)
+  assert.ok(ps.indexOf('Convert-ToOpaquePng $ImagePath') < ps.indexOf('GetSoftwareBitmapAsync('), '铺白底在识别之前')
+}
 
 // ── 5. userData 路径与 productName 无关（改 productName 不会让老师的数据「消失」）──
 const idx = fs.readFileSync('src/main/index.ts', 'utf8')

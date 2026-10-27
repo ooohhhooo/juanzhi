@@ -144,6 +144,13 @@ const api = {
     status: (): Promise<{ available: boolean; detail: string; lang?: string }> =>
       ipcRenderer.invoke('ocr:status'),
   },
+  /** 命令行工具（短命令 juanzhi）：看装没装、安装 */
+  cli: {
+    status: (): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }> =>
+      ipcRenderer.invoke('cli:status'),
+    install: (): Promise<{ ok: boolean; platform: string; path: string; dir: string; onPath: boolean; hint: string; warnings: string[] }> =>
+      ipcRenderer.invoke('cli:install'),
+  },
   dialog: {
     openFiles: (): Promise<string[]> =>
       ipcRenderer.invoke('dialog:openFiles'),

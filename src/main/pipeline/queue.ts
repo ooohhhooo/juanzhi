@@ -144,11 +144,13 @@ async function registerOne(filePath: string, allowDup: boolean): Promise<ImportR
  * 登记一批文件：复制原件、写入 imported 行并入队，登记完就返回；真正的提取在后台串行执行。
  * 内容相同的文件默认不导入，返回 code='duplicate'，由界面确认后用 allowDuplicates 重新调用。
  */
-export function registerImports(paths: string[], opts?: { allowDuplicates?: string[] }): Promise<ImportResult[]> {
+export function registerImports(paths: string[], opts?: { allowDuplicates?: string[]; parseAfter?: boolean }): Promise<ImportResult[]> {
   const allow = new Set(opts?.allowDuplicates ?? [])
   const job = importChain.then(async () => {
     const results: ImportResult[] = []
     for (const p of paths) results.push(await registerOne(p, allow.has(p)))
+    // 命令行导入：不管设置里有没有开「自动解析」，提取完都接着 AI 解析
+    if (opts?.parseAfter) for (const r of results) if (r.paperId) parseAfterExtract.add(r.paperId)
     notifyDataChanged('papers')
     void drain()
     return results

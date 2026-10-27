@@ -27,7 +27,7 @@
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-v2VwnV/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-mMEUcw/userData/workbench-data"
   },
   {
     "feature": "CSP",
@@ -147,7 +147,7 @@
     "feature": "重复导入",
     "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
     "pass": true,
-    "detail": "duplicate_of=d121cb61"
+    "detail": "duplicate_of=19a11d4f"
   },
   {
     "feature": "失败处理",
@@ -291,7 +291,7 @@
     "feature": "OCR 失败原因",
     "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
     "pass": true,
-    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-v2VwnV/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-mMEUcw/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
   },
   {
     "feature": "OCR 失败原因",
