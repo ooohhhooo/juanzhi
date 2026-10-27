@@ -1,0 +1,38 @@
+# 把某次 build 工作流产出的安装包挂到 Release 上（在 GitHub 内部传，不经过本机网络）。
+# 用法：Actions → release-assets → Run workflow，填 build 的 run id 和 tag。
+name: release-assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'build 工作流的 run id（安装包从这里取）'
+        required: true
+      tag:
+        description: 'Release 的 tag，例如 v1.2.0'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载安装包
+        uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: dist
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: 上传到 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          gh release upload "${{ inputs.tag }}" dist/Juanzhi-*.dmg dist/Juanzhi-*.exe --repo "${{ github.repository }}" --clobber
+          gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" --json assets -q '.assets[] | "\(.name) \(.size) \(.state)"'
