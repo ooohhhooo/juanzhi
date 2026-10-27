@@ -681,7 +681,7 @@
     "feature": "P2 故障",
     "name": "中途断流（3 次都断）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "易错 连不上 AI 服务，请检查网络；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） network；数据流中断：net::ERR_INCOMPLETE_CHUNKE（3 次请求，4.1 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 96；事件 delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,done,start,delta,delta,delta,delta,delta,cancelled,start,reset,reset,reset,error(96)）"
+    "detail": "易错 连不上 AI 服务，请检查网络；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） network；数据流中断：net::ERR_INCOMPLETE_CHUNKE（3 次请求，4.4 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 96；事件 delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,delta,done,start,delta,delta,delta,delta,delta,cancelled,start,reset,reset,reset,error(96)）"
   },
   {
     "feature": "P2 故障",
@@ -699,7 +699,7 @@
     "feature": "P2 故障",
     "name": "服务端正常关闭连接但没有结束标记（3 次都这样）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "易错 连不上 AI 服务，请检查网络；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） network；数据流意外结束（服务端提前关闭了连接，没有收到结束标记），已收到（3 次请求，4.1 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 96；事件 start,reset,delta,done,start,reset,reset,reset,error(96)）"
+    "detail": "易错 连不上 AI 服务，请检查网络；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） network；数据流意外结束（服务端提前关闭了连接，没有收到结束标记），已收到（3 次请求，4.5 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 96；事件 start,reset,delta,done,start,reset,reset,reset,error(96)）"
   },
   {
     "feature": "P2 故障",
@@ -723,7 +723,7 @@
     "feature": "P2 故障",
     "name": "模型返回空内容（重试一次仍为空）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "易错 AI 这次没有返回内容，已经自动重试过；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） empty；模型返回了空内容（重试后仍为空）；reasoning 0 字（2 次请求，1.1 秒；缓存未变 true，附加条件 true，partial 元素 0，entry 长度 0；事件 start,reset,delta,done,start,delta,done,start,error(0)）"
+    "detail": "易错 AI 这次没有返回内容，已经自动重试过；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） empty；模型返回了空内容（重试后仍为空）；reasoning 0 字（2 次请求，1.3 秒；缓存未变 true，附加条件 true，partial 元素 0，entry 长度 0；事件 start,reset,delta,done,start,delta,done,start,error(0)）"
   },
   {
     "feature": "P2 故障",
@@ -741,19 +741,19 @@
     "feature": "P2 故障",
     "name": "429：遵守 Retry-After（两次间隔约 1 秒，总耗时 ≥ 2 秒），共 3 次请求",
     "pass": true,
-    "detail": "3281 毫秒"
+    "detail": "3278 毫秒"
   },
   {
     "feature": "P2 故障",
     "name": "服务无响应（超时 2 秒）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "易错 AI 等了太久没有回应；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） timeout；模型响应超时（超过 2 秒没有返回） timeout；模型响应超时（超过（3 次请求，10.2 秒；缓存未变 true，附加条件 true，partial 元素 0，entry 长度 0；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0)）"
+    "detail": "易错 AI 等了太久没有回应；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） timeout；模型响应超时（超过 2 秒没有返回） timeout；模型响应超时（超过（3 次请求，10.6 秒；缓存未变 true，附加条件 true，partial 元素 0，entry 长度 0；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0)）"
   },
   {
     "feature": "P2 故障",
     "name": "流到一半不再有数据（空闲超时）：失败时给出中文原因，不入库、不影响已缓存的结果",
     "pass": true,
-    "detail": "易错 AI 等了太久没有回应；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） timeout；模型响应超时（超过 2 秒没有新数据） timeout；模型响应超时（超（3 次请求，10.3 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 72；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0),start,delta,reset,delta,reset,delta,reset,error(72)）"
+    "detail": "易错 AI 等了太久没有回应；可以点「重试」，多次失败请联系管理员 查看详情（给管理员看） timeout；模型响应超时（超过 2 秒没有新数据） timeout；模型响应超时（超（3 次请求，10.6 秒；缓存未变 true，附加条件 true，partial 元素 1，entry 长度 72；事件 start,reset,delta,done,start,delta,done,start,error(0),start,reset,reset,reset,error(0),start,reset,reset,reset,error(0),start,delta,reset,delta,reset,delta,reset,error(72)）"
   },
   {
     "feature": "P2 校验",
@@ -771,7 +771,7 @@
     "feature": "P2 过期",
     "name": "数据变了（C2 回到待审核，目标学年只剩 4 份）：界面自动刷新，缓存标「已过期，可重新生成」并说明原因",
     "pass": true,
-    "detail": "注意 已过期，可重新生成（统计数据或样本题有变化）。下面是 2026-10-27 15:32:15 生成的旧结果。"
+    "detail": "注意 已过期，可重新生成（统计数据或样本题有变化）。下面是 2026-10-27 20:53:40 生成的旧结果。"
   },
   {
     "feature": "P2 过期",
@@ -807,7 +807,7 @@
     "feature": "P2 过期",
     "name": "改了 P2 提示词：缓存标「已过期」，原因是「AI 的写作要求有更新」，同样不自动重算",
     "pass": true,
-    "detail": "注意 已过期，可重新生成（AI 的写作要求有更新）。下面是 2026-10-27 15:32:21 生成的旧结果。"
+    "detail": "注意 已过期，可重新生成（AI 的写作要求有更新）。下面是 2026-10-27 20:53:45 生成的旧结果。"
   },
   {
     "feature": "P2 过期",
@@ -831,7 +831,7 @@
     "feature": "P2 过期",
     "name": "换了模型：缓存仍有效（输出是旧模型写的，界面写着模型名），并提示「当前设置的模型已换」；不自动重算",
     "pass": true,
-    "detail": "已缓存 · 2026-10-27 15:32:21 · mock-text-model（当前设置的模型已换，想用新模型请重新生成）"
+    "detail": "已缓存 · 2026-10-27 20:53:45 · mock-text-model（当前设置的模型已换，想用新模型请重新生成）"
   },
   {
     "feature": "重难点",

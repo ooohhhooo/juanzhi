@@ -1,7 +1,7 @@
 {
   "platform": "darwin",
   "arch": "arm64",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "results": [
     {
       "feature": "打包事实",
@@ -11,15 +11,15 @@
     },
     {
       "feature": "打包事实",
-      "name": "版本号 = package.json（1.1.0），应用名固定为 english-exam-workbench（与 productName 无关，userData 路径不随打包版名字变）",
+      "name": "版本号 = package.json（1.2.0），应用名固定为 english-exam-workbench（与 productName 无关，userData 路径不随打包版名字变）",
       "pass": true,
-      "detail": "1.1.0 english-exam-workbench"
+      "detail": "1.2.0 english-exam-workbench"
     },
     {
       "feature": "打包事实",
       "name": "userData 就是测试指定的临时目录（EWB_USER_DATA_DIR 生效，没碰真实数据目录）",
       "pass": true,
-      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/userData"
+      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/userData"
     },
     {
       "feature": "打包事实",
@@ -71,7 +71,7 @@
     },
     {
       "feature": "图片 OCR",
-      "name": "图片走本机 OCR：text_source=ocr，识别出 46 行（>30）",
+      "name": "图片走本机 OCR：text_source=ocr，识别出 46 行（>30；Windows 只有英文引擎时 >= 15）",
       "pass": true,
       "detail": "ocr 46 行 "
     },
@@ -91,7 +91,7 @@
       "feature": "AI（mock）",
       "name": "连接测试通过（打包版里的网络请求通往本机 mock，没有走真实 AI）",
       "pass": true,
-      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，175 毫秒）\",\"latencyMs\":175,\"model\":\"mock-text-model\"}"
+      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，44 毫秒）\",\"latencyMs\":44,\"model\":\"mock-text-model\"}"
     },
     {
       "feature": "PDF 提取 + AI 解析",
@@ -127,13 +127,13 @@
       "feature": "报告 导出",
       "name": "Markdown 导出成功，文件存在且含中文标题",
       "pass": true,
-      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/report/报告\",\"images\":10,\"m"
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/report/报告\",\"images\":10,\"m"
     },
     {
       "feature": "报告 导出",
       "name": "PDF 导出成功：%PDF 头，体积合理（>5 KB）",
       "pass": true,
-      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/report/报告.pdf\",\"bytes\":559845,\"images\":10} %PDF-"
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/report/报告.pdf\",\"bytes\":559832,\"images\":10} %PDF-"
     },
     {
       "feature": "报告 导出",
@@ -151,13 +151,13 @@
       "feature": "数据包导出",
       "name": "导出成功：manifest 写明应用版本和 4 份卷子，zip 里有 db.sqlite 和 files/<uuid>/…，没有 API 密钥",
       "pass": true,
-      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":10,\"appVersion\":\"1.1.0\",\"exportedAt\":\"2026-10-27T07:56:17.792Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
+      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":10,\"appVersion\":\"1.2.0\",\"exportedAt\":\"2026-10-27T13:17:52.096Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
     },
     {
       "feature": "安装指南",
       "name": "打包版里的 /guide 页显示完整正文（docs/安装指南.md 的每个二级标题都在）",
       "pass": true,
-      "detail": "9 个标题；正文 4709 字；缺少：无"
+      "detail": "10 个标题；正文 5074 字；缺少：无"
     },
     {
       "feature": "运行期",
@@ -170,6 +170,72 @@
       "name": "应用里配置的 AI 服务地址是本机回环地址（127.0.0.1），并且本机 mock 收到了 4 个请求（含 P1 解析和 P3 报告）",
       "pass": true,
       "detail": "{\"host\":\"127.0.0.1\",\"total\":4,\"p1\":2,\"p3\":1}"
+    },
+    {
+      "feature": "CLI 数据目录",
+      "name": "命令行用的是传进去的临时数据目录（不是真实数据目录）",
+      "pass": true,
+      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/userData/workbench-data"
+    },
+    {
+      "feature": "CLI status",
+      "name": "打包版 `cli status`：退出码 0，stdout 一段 JSON，版本号对、AI 已配置、OCR 状态可读",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"version\":\"1.2.0\",\"platform\":\"darwin\",\"arch\":\"arm64\",\"schema\":10,\"dataDir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/userData/workbench-data\",\"papers\":{\"tot age.decryptStringAsync' instead.\n[juanzhi][debug] finish ok=true\n[juanzhi][debug] visibleWindows=0 totalWindows=0 dock=false\n[juanzhi][debug] exit(0)\n"
+    },
+    {
+      "feature": "CLI 退出码",
+      "name": "失败时退出码非 0、JSON 里 ok:false 带中文 message（`papers show not-an-id` → 2）",
+      "pass": true,
+      "detail": "2 {\"ok\":false,\"code\":\"usage\",\"message\":\"\\u8bd5\\u5377 id \\u7684\\u683c\\u5f0f\\u4e0d\\u5bf9\\uff08\\u5e94\\u5f53\\u662f\\u7c7b\\u4f3c 3f2a\\u2026\\u7684 36 \\u4f4d\\u7f16\\u53f7\\"
+    },
+    {
+      "feature": "CLI 导入",
+      "name": "`cli import <图片或 pdf> --wait`：提取（OCR / 文字层）+ mock AI 解析，等到「待审核」，返回 paperId 和题数",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"papers\":[{\"file\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/g4-2026-cli.pdf\",\"paperId\":\"053308ac-f677-4f27-8b7c-e29d40529677\",\"status\":\"reviewing\",\"title\":\"2025-2026\\u5b66\\u5e74\\u7b2c\\u4e8c\\u5b66\\ safeStorage.decryptStringAsync' instead.\n[juanzhi] 导入 1 份文件……\n[juanzhi] extracting\n[juanzhi][debug] finish ok=true\n[juanzhi][debug] visibleWindows=0 totalWindows=1 dock=false\n[juanzhi][debug] exit(0)\n"
+    },
+    {
+      "feature": "CLI 确认",
+      "name": "`papers confirm <id> --i-reviewed`：整份确认",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"id\":\"053308ac-f677-4f27-8b7c-e29d40529677\",\"previousStatus\":\"reviewing\",\"status\":\"done\",\"warning\":\"\\u5df2\\u8df3\\u8fc7\\u4eba\\u5de5\\u5ba1\\u683"
+    },
+    {
+      "feature": "CLI 报告",
+      "name": "`cli report generate --reader boss`：mock AI 生成，返回 id / markdown / unverified / warnings",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"id\":\"205a4698-1614-4b50-9457-217d5d851bba\",\"title\":\"\\u56db\\u5e74\\u7ea7 \\u4e0b\\u5b66\\u671f 2024\\u20132026\\u5b66\\u5e74 \\u671f\\u672b \\u8003\\u60  生成报告……\n[juanzhi] 报告生成中……已收到 0 字\n[juanzhi][debug] finish ok=true\n[juanzhi][debug] visibleWindows=0 totalWindows=0 dock=false\n[juanzhi][debug] exit(0)\n"
+    },
+    {
+      "feature": "CLI 家长版草稿",
+      "name": "家长版没有老师核对：返回 parentDraft = true 和「AI 草稿 · 未经老师核对，请勿直接发给家长」",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"id\":\"81501a4e-6bb9-4b4c-9575-0a319b51311c\",\"title\":\"\\u56db\\u5e74\\u7ea7 \\u4e0b\\u5b66\\u671f 2024\\u20132026\\u5b66\\u5e74 \\u671f\\u672b \\u8003\\u60"
+    },
+    {
+      "feature": "CLI 导出",
+      "name": "`cli report export <家长版> --format docx`：文件里有草稿标记，JSON 里 draft = true",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"id\":\"81501a4e-6bb9-4b4c-9575-0a319b51311c\",\"format\":\"docx\",\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/cli-parent-draft.docx\",\"dir\":null,\"images\":0,\"b"
+    },
+    {
+      "feature": "CLI 导出 PDF",
+      "name": "打包版用命令行导出 PDF（隐藏的离屏窗口 printToPDF）：成功，%PDF 头",
+      "pass": true,
+      "detail": "0 {\"ok\":true,\"data\":{\"id\":\"81501a4e-6bb9-4b4c-9575-0a319b51311c\",\"format\":\"pdf\",\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Nntylf/cli-pare"
+    },
+    {
+      "feature": "CLI 没有崩溃",
+      "name": "命令行的每个命令都正常结束（退出码在 0–255 之内，没有访问违规 0xC0000005 之类的崩溃），并且都有 JSON 输出",
+      "pass": true,
+      "detail": "0 | 2 | 0 | 0 | 0"
+    },
+    {
+      "feature": "CLI 密钥",
+      "name": "命令行的所有输出和导出的文件里没有 API Key，也没有 ai_key_enc 字样",
+      "pass": true,
+      "detail": ""
     }
   ]
 }
