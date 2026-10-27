@@ -6,7 +6,7 @@
 - 不用注册、不用登录。试卷和结果保存在你自己的电脑上；只有你让 AI 拆题、写报告时，试卷文字才会发给你自己选的 AI 服务商（见[第九部分](#九数据和隐私)）
 - 看不懂语法术语也能用：每个考点都配了一句白话解释和一个例句
 
-![卷知总览：每个考点是一个词条，有白话解释、例句和原卷截图](docs/screenshots/m6-overview-light.png)
+![卷知总览：每个考点是一个词条，有白话解释、例句和原卷截图](docs/screenshots/readme-overview.png)
 
 > **下载地址：[点这里打开下载页](https://github.com/ooohhhooo/juanzhi/releases/latest)**　｜　完整安装说明：[docs/安装指南.md](docs/安装指南.md)
 
@@ -59,7 +59,7 @@
 
 | 逐题审核 | 分析看板 | AI 报告 |
 |---|---|---|
-| ![审核页](docs/screenshots/m6-review-light.png) | ![分析看板](docs/screenshots/m6-dashboard-light.png) | ![报告页](docs/screenshots/m6-report-light.png) |
+| ![审核页](docs/screenshots/readme-review.png) | ![分析看板](docs/screenshots/readme-dashboard.png) | ![报告页](docs/screenshots/readme-report.png) |
 
 ---
 
