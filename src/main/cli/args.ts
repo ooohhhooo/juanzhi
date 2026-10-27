@@ -40,7 +40,12 @@ export interface CliOk { ok: true; data: unknown }
 export interface CliFail { ok: false; code: CliErrorCode; message: string; exit: number; data?: unknown }
 
 /** stdout 上的那一行 JSON（单行；`"ok":false` 这种写法 Windows 的包装脚本会用 findstr 查，不要加空格） */
-export const serializeResult = (r: CliOk | CliFail): string => JSON.stringify(r)
+export const serializeResult = (r: CliOk | CliFail): string => asciiJson(JSON.stringify(r))
+/**
+ * 把 JSON 文本里所有非 ASCII 字符写成 \uXXXX（仍是合法 JSON，任何 JSON 解析器读出来都是原来的中文）。
+ * 原因：Windows 上 PowerShell / cmd 按各自的控制台编码（中文系统是 GBK）解码子进程的输出字节，UTF-8 的中文会变成乱码；纯 ASCII 在任何编码下都不会乱。
+ */
+export const asciiJson = (json: string): string => json.replace(/[\u007f-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'))
 export const okResult = (data: unknown): CliOk => ({ ok: true, data })
 export function failResult(code: CliErrorCode, message: string, data?: unknown): CliFail {
   return data === undefined ? { ok: false, code, message, exit: EXIT_CODES[code] } : { ok: false, code, message, exit: EXIT_CODES[code], data }
@@ -80,11 +85,11 @@ export const COMMANDS: Record<string, CommandSpec> = {
   'report generate': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'reader'], summary: '生成报告' },
   'report list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '报告列表' },
   'report show': { args: { min: 1, max: 1, name: '<id>' }, flags: [], summary: '一份报告的详情' },
-  'report export': { args: { min: 1, max: 1, name: '<id>' }, flags: ['format', 'out'], summary: '导出报告文件（md / docx / pdf）' }
+  'report export': { args: { min: 1, max: 1, name: '<id>' }, flags: ['format', 'out', 'overwrite'], summary: '导出报告文件（md / docx / pdf）；目标文件已存在时要加 --overwrite 才覆盖' }
 }
 
 /** 不带值的参数（其余参数都要带一个值） */
-const BOOLEAN_FLAGS = new Set(['wait', 'i-reviewed', 'include-reviewing', 'include-duplicates', 'no-align', 'quiet', 'help'])
+const BOOLEAN_FLAGS = new Set(['wait', 'overwrite', 'i-reviewed', 'include-reviewing', 'include-duplicates', 'no-align', 'quiet', 'help'])
 /** 所有命令都接受的全局参数 */
 const GLOBAL_FLAGS = ['out', 'result-file', 'timeout', 'quiet', 'help']
 
@@ -102,6 +107,23 @@ export interface ParsedArgs {
 }
 
 const DEFAULT_TIMEOUT_SEC = 3600
+
+/**
+ * 不依赖命令能不能解析成功，先把 --result-file / --out（JSON 副本）从原始参数里找出来：
+ * 命令写错了（退出码 2）时，调用方指定的结果文件里也要有那段 ok:false 的 JSON。`report export` 里的 --out 是文档路径，不算。
+ */
+export function scanOutputFlags(args: string[]): { resultFile: string | null; jsonOut: string | null } {
+  const val = (name: string): string | null => {
+    let out: string | null = null
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === `--${name}` && args[i + 1] !== undefined && !args[i + 1].startsWith('--')) out = args[i + 1]
+      else if (args[i].startsWith(`--${name}=`)) out = args[i].slice(name.length + 3)
+    }
+    return out
+  }
+  const isExport = args.slice(0, 3).join(' ').startsWith('report export')
+  return { resultFile: val('result-file'), jsonOut: isExport ? null : val('out') }
+}
 const usage = (msg: string) => new CliError('usage', msg)
 
 /** 从进程参数里取出 cli 之后的部分；不是命令行模式返回 null。packaged：[exe, 'cli', …]；开发 / 测试：[electron, appDir, 'cli', …] */
@@ -140,8 +162,8 @@ export function parseArgs(args: string[]): ParsedArgs {
   // 命令名：先试两个词（papers list），再试一个词（status）
   let command = ''
   let used = 0
-  if (words.length >= 2 && COMMANDS[`${words[0]} ${words[1]}`]) { command = `${words[0]} ${words[1]}`; used = 2 }
-  else if (words.length >= 1 && COMMANDS[words[0]]) { command = words[0]; used = 1 }
+  if (words.length >= 2 && Object.hasOwn(COMMANDS, `${words[0]} ${words[1]}`)) { command = `${words[0]} ${words[1]}`; used = 2 }
+  else if (words.length >= 1 && Object.hasOwn(COMMANDS, words[0])) { command = words[0]; used = 1 }
   const help = flags.help === true
   if (!command) {
     if (help || words.length === 0) return { command: '', positionals: [], flags, resultFile: null, jsonOut: null, timeoutSec: DEFAULT_TIMEOUT_SEC, quiet: false, help: true }

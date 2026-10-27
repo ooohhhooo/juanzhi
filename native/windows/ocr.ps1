@@ -142,17 +142,20 @@ function Convert-ToOpaquePng([string]$path) {
     try {
         Add-Type -AssemblyName System.Drawing
         $img = [System.Drawing.Image]::FromFile($path)
+        $bmp = $null; $g = $null
         try {
             $bmp = New-Object System.Drawing.Bitmap $img.Width, $img.Height, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
             $g = [System.Drawing.Graphics]::FromImage($bmp)
             $g.Clear([System.Drawing.Color]::White)
             $g.DrawImage($img, 0, 0, $img.Width, $img.Height)
-            $g.Dispose()
             $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('ewb-ocr-' + [guid]::NewGuid().ToString('N') + '.png')
             $bmp.Save($tmp, [System.Drawing.Imaging.ImageFormat]::Png)
-            $bmp.Dispose()
             return $tmp
-        } finally { $img.Dispose() }
+        } finally {
+            if ($g) { $g.Dispose() }
+            if ($bmp) { $bmp.Dispose() }
+            $img.Dispose()
+        }
     } catch {
         Write-Diag "铺白底失败：$_"
         return $null
@@ -169,11 +172,19 @@ try {
     if ($decoder.BitmapAlphaMode -ne [Windows.Graphics.Imaging.BitmapAlphaMode]::Ignore) {
         $flatFile = Convert-ToOpaquePng $ImagePath
         if ($flatFile) {
-            $stream.Dispose()
-            $opened = Open-Decoder $flatFile
-            $stream = $opened.stream
-            $decoder = $opened.decoder
-            Write-Diag "原图有透明通道（alpha=Straight），已铺白底：$flatFile"
+            try {
+                $stream.Dispose()
+                $opened = Open-Decoder $flatFile
+                $stream = $opened.stream
+                $decoder = $opened.decoder
+                Write-Diag "原图有透明通道（alpha=Straight），已铺白底：$flatFile"
+            } catch {
+                # 铺白底的图打不开：退回原图继续识别（原图本身是能读的，只是透明背景可能读不出字）
+                Write-Diag "打开铺白底的图失败，退回原图：$_"
+                $opened = Open-Decoder $ImagePath
+                $stream = $opened.stream
+                $decoder = $opened.decoder
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 // M7 命令行：参数解析、筛选参数、退出码表、输出格式。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { parseArgs, cliArgvOf, statsFilterFromFlags, paperFilterFromFlags, readerFromFlags, exportFormatFromFlags, levelFromFlags, CliError, EXIT_CODES, COMMANDS, okResult, failResult, failFromError, serializeResult, helpData } from '../../src/main/cli/args.ts'
+import { parseArgs, cliArgvOf, statsFilterFromFlags, paperFilterFromFlags, readerFromFlags, exportFormatFromFlags, levelFromFlags, CliError, EXIT_CODES, COMMANDS, okResult, failResult, failFromError, serializeResult, helpData, asciiJson, scanOutputFlags } from '../../src/main/cli/args.ts'
 
 const fails = (args, re, code = 'usage') => assert.throws(() => parseArgs(args), e => e instanceof CliError && e.code === code && re.test(e.message), `${args.join(' ')} 应报错 ${re}`)
 
@@ -45,6 +45,8 @@ assert.deepEqual(parseArgs(['import', '--wait', '--', '--odd.pdf', '卷子 1.pdf
 
 // ── 缺参数 / 未知命令 / 未知参数 ──
 fails(['bogus'], /没有「bogus」这个命令/)
+// 命令名不能撞上 Object.prototype 上的名字（constructor / toString / __proto__ 要报 usage，不是 internal）
+for (const w of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'papers constructor']) fails(w.split(' '), /没有「/)
 fails(['papers'], /后面要接子命令/)
 fails(['papers', 'frobnicate'], /没有「papers frobnicate」/)
 fails(['import'], /需要 <文件…>/)
@@ -52,6 +54,8 @@ fails(['papers', 'show'], /需要 <id>/)
 fails(['papers', 'show', 'a', 'b'], /多了参数/)
 fails(['status', 'extra'], /多了参数/)
 fails(['status', '--bogus'], /不认识参数 --bogus/)
+assert.equal(parseArgs(['report', 'export', 'x', '--format', 'md', '--out', 'a.md', '--overwrite']).flags.overwrite, true)
+fails(['status', '--overwrite'], /不认识参数 --overwrite/)
 fails(['papers', 'list', '--wait'], /不认识参数 --wait/)
 fails(['import', 'a.pdf', '--grade', '4'], /不认识参数 --grade/)
 fails(['papers', 'list', '--grade'], /--grade 需要一个值/)
@@ -61,6 +65,11 @@ fails(['status', '--timeout', 'abc'], /秒数/)
 fails(['status', '--timeout', '0'], /秒数/)
 // 没有命令 / --help = 帮助
 assert.equal(parseArgs([]).help, true); assert.equal(parseArgs(['--help']).help, true)
+
+// ── 命令写错时也要能找到 --result-file / --out（错误 JSON 也要写进调用方指定的文件）──
+assert.deepEqual(scanOutputFlags(['bogus', '--result-file', 'r.json', '--out=o.json']), { resultFile: 'r.json', jsonOut: 'o.json' })
+assert.deepEqual(scanOutputFlags(['report', 'export', 'id', '--out', 'doc.md', '--result-file', 'r.json']), { resultFile: 'r.json', jsonOut: null }, 'report export 里 --out 是文档路径')
+assert.deepEqual(scanOutputFlags(['status']), { resultFile: null, jsonOut: null })
 
 // ── 筛选参数 → StatsFilter（和界面一致）──
 assert.deepEqual(statsFilterFromFlags({}), {})
@@ -84,8 +93,12 @@ assert.equal(levelFromFlags({}, 2), 2); assert.equal(levelFromFlags({ level: '3'
 
 // ── 输出格式 ──
 {
-  const ok = serializeResult(okResult({ a: 1, 中文: '值' }))
-  assert.equal(ok, '{"ok":true,"data":{"a":1,"中文":"值"}}'); assert.ok(!ok.includes('\n'), '单行')
+  const ok = serializeResult(okResult({ a: 1, 中文: '值', 表情: '😀' }))
+  assert.equal(ok, '{"ok":true,"data":{"a":1,"\\u4e2d\\u6587":"\\u503c","\\u8868\\u60c5":"\\ud83d\\ude00"}}'); assert.ok(!ok.includes('\n'), '单行')
+  // 输出是纯 ASCII（Windows 控制台按 GBK / OEM 解码也不会乱），但解析回来还是原来的中文
+  assert.ok(/^[\x00-\x7f]*$/.test(ok)); assert.deepEqual(JSON.parse(ok).data, { a: 1, 中文: '值', 表情: '😀' })
+  assert.ok(/^[\x00-\x7f]*$/.test(serializeResult(failResult('usage', '参数不对，请检查「筛选」'))))
+  assert.equal(JSON.parse(asciiJson(JSON.stringify({ m: '含 \u007f 和 \uffff 的字符' }))).m, '含 \u007f 和 \uffff 的字符')
   const f = failResult('app_running', '卷知窗口正在运行，请先关闭卷知窗口再用命令行')
   assert.deepEqual(f, { ok: false, code: 'app_running', message: '卷知窗口正在运行，请先关闭卷知窗口再用命令行', exit: 3 })
   assert.ok(serializeResult(f).includes('"ok":false'), 'Windows 包装脚本用 findstr 查 "ok":false，不能加空格')

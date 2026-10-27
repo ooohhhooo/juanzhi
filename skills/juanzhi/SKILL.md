@@ -22,11 +22,11 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 - Mac：`"/Applications/卷知.app/Contents/MacOS/卷知" cli <命令>`
 - Windows：`"<安装目录>\EnglishExamWorkbench.exe" cli <命令>`（直接运行 exe 拿不到输出：加 `--result-file <文件>`，用 `Start-Process -Wait -PassThru` 等它结束再读文件；用 `juanzhi` 短命令则没有这个问题）
 
-**stdout 只有一段 JSON**：成功 `{"ok":true,"data":…}`，失败 `{"ok":false,"code":"…","message":"中文白话","exit":N}`。进度写在 stderr，可以忽略。先解析 JSON 的 `ok`，失败时把 `message` 原样转告用户。
+**stdout 只有一段 JSON**：成功 `{"ok":true,"data":…}`，失败 `{"ok":false,"code":"…","message":"中文白话","exit":N}`。输出是纯 ASCII（中文写成 `\uXXXX`），**用 JSON 解析器读**，不要用文本方式直接读。进度写在 stderr，可以忽略。先解析 JSON 的 `ok`，失败时把 `message` 原样转告用户。
 
 ## 使用前提（先检查）
 
-1. **卷知窗口必须关闭。** 窗口开着时命令行报 `app_running`（退出码 3）：请用户先关闭卷知窗口，不要重试。
+1. **卷知必须已经退出。** 卷知开着时命令行报 `app_running`（退出码 3）：请用户先退出卷知（**Mac 上只关窗口不行，要按 Cmd+Q**；Windows 上关闭窗口就是退出），不要重试。
 2. **先跑 `juanzhi status`。** 看 `ai.configured`：为 `false` 时 `import` 和 `report generate` 会报 `ai_not_configured`（退出码 5）。这时让用户打开卷知窗口，到「设置 → AI 服务」里填写；**你不能也不应该设置或询问 API Key**。
 
 ## 命令清单
@@ -68,7 +68,7 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 | 0 | — | 成功 |
 | 1 | `internal` | 内部错误，把 message 转告用户 |
 | 2 | `usage` | 命令或参数不对，按 message 修正后重试 |
-| 3 | `app_running` | 卷知窗口开着：让用户先关闭窗口 |
+| 3 | `app_running` | 卷知开着：让用户先退出卷知（Mac 上要 Cmd+Q） |
 | 4 | `cli_busy` | 另一个命令行任务在跑：等它结束后重试 |
 | 5 | `ai_not_configured` | 让用户到窗口「设置 → AI 服务」里配置 |
 | 6 | `not_found` | id 不存在，用 `papers list` / `report list` 查 |
@@ -87,4 +87,5 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 - 不能设置、读取、询问 API Key；
 - 不能通过参数改数据目录；
 - 不能替老师点家长版的「我已核对」；
-- 不能在卷知窗口开着时使用命令行。
+- 不能在卷知开着时使用命令行；
+- 不能把结果文件或导出文件写进卷知的数据目录，已存在的文件不会被覆盖（导出要覆盖得加 `--overwrite`，要先问用户）。

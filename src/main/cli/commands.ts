@@ -8,11 +8,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { getDb, getDataDir, LATEST_SCHEMA } from '../db'
 import { isAiReady, loadConfig } from '../ai/config'
-import { registerImports } from '../pipeline/queue'
+import { extractQueueState, registerImports } from '../pipeline/queue'
+import { parseQueueState } from '../parse/queue'
 import { allowPath } from '../allowedPaths'
 import { safeKpName } from '../../shared/code-guard'
 import { exportBlock, exportReportTo, PARENT_DRAFT_WARNING } from '../report/export-run'
 import { getReport } from '../report/service'
+import { assertExportTarget } from './outfile'
 import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags } from './args'
 import type { ParsedArgs } from './args'
 
@@ -21,6 +23,8 @@ export type Invoke = (channel: string, ...args: unknown[]) => Promise<any>
 export type InvokeWithSender = (sender: unknown, channel: string, ...args: unknown[]) => Promise<any>
 export interface CliCtx {
   args: ParsedArgs
+  /** 不能写文件的目录（userData、数据目录） */
+  forbiddenDirs: string[]
   invoke: Invoke
   invokeWithSender: InvokeWithSender
   /** 进度 / 日志（写 stderr；--quiet 时不写） */
@@ -85,8 +89,17 @@ async function importCmd(ctx: CliCtx) {
   const deadline = Date.now() + ctx.args.timeoutSec * 1000
   let lastLog = 0
   let timedOut = false
-  while (ids.some(id => !DONE_STATES.has(paperState(id)?.status ?? 'failed'))) {
+  let idleSince = 0
+  const stalled = new Set<string>()
+  while (ids.some(id => !DONE_STATES.has(paperState(id)?.status ?? 'failed') && !stalled.has(id))) {
     if (Date.now() > deadline) { timedOut = true; break }
+    // 提取队列和解析队列都空了，却还有卷子停在「处理中」状态（比如某种原因没被入队）：不能傻等到超时，3 秒后把它们标成「没被处理」
+    const ex = extractQueueState(), ps = parseQueueState()
+    const idle = !ex.running && ex.waiting.length === 0 && ps.running.length === 0 && ps.waiting.length === 0
+    if (idle) {
+      if (!idleSince) idleSince = Date.now()
+      else if (Date.now() - idleSince > 3000) for (const id of ids) if (!DONE_STATES.has(paperState(id)?.status ?? 'failed')) stalled.add(id)
+    } else idleSince = 0
     if (Date.now() - lastLog > 5000) {
       lastLog = Date.now()
       ctx.log(ids.map(id => `${paperState(id)?.status ?? '?'}`).join(' / '))
@@ -99,6 +112,7 @@ async function importCmd(ctx: CliCtx) {
     if (!st) { o.status = 'failed'; continue }
     o.status = st.status; o.title = st.title; o.questions = st.questions
     if (st.status === 'failed') { o.error = st.error ?? '处理失败'; o.stage = st.stage ?? undefined }
+    else if (!DONE_STATES.has(st.status)) { o.status = 'failed'; o.error = `没有被处理完（停在「${st.status}」，处理队列已经空了）：请到卷知窗口的处理队列里重试`; o.stage = 'stalled' }
   }
   const failed = out.filter(o => o.status === 'failed' || o.status === 'rejected')
   const data = {
@@ -250,10 +264,13 @@ async function reportExport(ctx: CliCtx) {
   if (!r) throw new CliError('not_found', `找不到这份报告：${id}`)
   const why = exportBlock(r, { allowParentDraft: true })
   if (why) throw new CliError('export_blocked', why)
-  const outPath = path.resolve(out)
+  // 目标路径：补上扩展名之后检查（不在数据目录里；已经存在的文件不加 --overwrite 不覆盖；符号链接不跟随）
+  const withExt = path.resolve(out).toLowerCase().endsWith(`.${fmt}`) ? path.resolve(out) : `${path.resolve(out)}.${fmt}`
+  const outPath = assertExportTarget(withExt, ctx.forbiddenDirs, ctx.args.flags.overwrite === true)
   try { fs.mkdirSync(path.dirname(outPath), { recursive: true }) } catch { /* 下面写文件时会给出白话错误 */ }
   const o = await exportReportTo(r, fmt, outPath, { allowParentDraft: true })
-  return { id, format: fmt, path: o.path, dir: o.dir ?? null, images: o.images, bytes: o.bytes, draft: o.draft, ...(o.warning ? { warning: o.warning } : {}), reviewed: !!r.confirmedAt }
+  // draft = 没有老师在界面里点过「我已核对」（所有版本的导出都是 AI 草稿）；parentDraft = 家长版草稿（文件开头带了「请勿直接发给家长」标记）
+  return { id, format: fmt, path: o.path, dir: o.dir ?? null, images: o.images, bytes: o.bytes, draft: !r.confirmedAt, parentDraft: o.draft, ...(o.warning ? { warning: o.warning } : {}), reviewed: !!r.confirmedAt }
 }
 
 // ───────────────────────── 分发 ─────────────────────────

@@ -126,14 +126,26 @@ if (cliArgs) {
   })
 
   app.whenReady().then(async () => {
-    // 运行锁：命令行正在使用数据时，窗口不能同时打开（两边同时写同一份数据会损坏）
-    const lock = acquireRunLock(app.getPath('userData'), 'gui')
+    // 运行锁：命令行正在使用数据时，窗口不能同时打开（两边同时写同一份数据会损坏）。锁是「持有者活着才持有」，不会有陈旧锁挡住窗口
+    let lock = await acquireRunLock(app.getPath('userData'), 'gui')
     if (!lock.ok) {
+      const h = lock.holder
+      const who = h?.pid ? `进程 ${h.pid}${h.startedAt ? `，开始于 ${h.startedAt}` : ''}` : '进程未知'
       const msg = '卷知命令行正在使用数据，请等它结束后再打开窗口'
-      if (process.env.EWB_NO_DIALOG === '1') process.stderr.write(`[卷知] ${msg}\n`)
-      else dialog.showMessageBoxSync({ type: 'info', title: PRODUCT_NAME, message: msg, detail: '命令行任务（比如导入试卷、生成报告）做完后会自动释放；稍等片刻再打开卷知即可。', buttons: ['好'] })
-      app.exit(3)
-      return
+      if (process.env.EWB_NO_DIALOG === '1') { process.stderr.write(`[卷知] ${msg}（${who}）\n`); app.exit(3); return }
+      const pick = dialog.showMessageBoxSync({
+        type: 'warning', title: PRODUCT_NAME, message: msg,
+        detail: `${who}。命令行任务（比如导入试卷、生成报告）做完后会自动释放，稍等片刻再打开卷知即可。\n\n如果它卡住了（比如在等钥匙串授权），可以点「结束命令行任务并打开」，或在任务管理器 / 活动监视器里结束进程${h?.pid ? ` ${h.pid}` : ''}。`,
+        buttons: ['好', '结束命令行任务并打开'], defaultId: 0, cancelId: 0
+      })
+      if (pick === 1 && h?.pid) {
+        for (const sig of ['SIGTERM', 'SIGKILL'] as const) {
+          try { process.kill(h.pid, sig) } catch { /* 已经结束了 */ }
+          for (let i = 0; i < 25 && !lock.ok; i++) { await new Promise(r => setTimeout(r, 200)); lock = await acquireRunLock(app.getPath('userData'), 'gui'); if (lock.ok) break }
+          if (lock.ok) break
+        }
+      }
+      if (!lock.ok) { app.exit(3); return }
     }
     releaseRunLock = lock.release
     // macOS：中文应用菜单（关于 / 隐藏 / 退出 都用产品名）；Windows / Linux 沿用默认菜单

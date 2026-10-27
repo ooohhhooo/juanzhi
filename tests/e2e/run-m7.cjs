@@ -17,14 +17,15 @@ const cleanEnv = extra => { const e = { ...process.env, ...extra }; for (const k
 const allOutput = []
 
 /** 跑一条命令行命令：返回 { code, out, err, json, lines, ms }。ud = 数据（userData）目录 */
-function runCli(ud, args, { env = {}, timeout = 240000 } = {}) {
+function runCli(ud, args, { env = {}, timeout = 240000, onSpawn } = {}) {
   return new Promise(resolve => {
     const t0 = Date.now()
     const p = spawn(electronBin, [root, 'cli', ...args], { env: cleanEnv({ EWB_USER_DATA_DIR: ud, ...env }), cwd: root })
+    onSpawn?.(p)
     let out = '', err = ''
     p.stdout.on('data', d => { out += d }); p.stderr.on('data', d => { err += d })
     const timer = setTimeout(() => p.kill('SIGKILL'), timeout)
-    p.on('exit', code => {
+    p.on('close', code => {   // close：stdout / stderr 读完才算结束
       clearTimeout(timer)
       allOutput.push(out, err)
       const lines = out.split('\n').filter(l => l.trim())
@@ -34,6 +35,15 @@ function runCli(ud, args, { env = {}, timeout = 240000 } = {}) {
     })
   })
 }
+/** 等一个命令行进程在 stderr 里打出某行（说明它已经拿到锁、开始干活了；不要用别的命令去探测——探测命令自己会抢到锁） */
+const waitStderr = (getProc, re, ms = 60000) => new Promise(resolve => {
+  const t0 = Date.now(); let seen = false
+  const iv = setInterval(() => {
+    const p = getProc()
+    if (p && !p.__hooked) { p.__hooked = true; p.stderr.on('data', d => { if (re.test(String(d))) seen = true }) }
+    if (seen || Date.now() - t0 > ms) { clearInterval(iv); resolve(seen) }
+  }, 100)
+})
 const okOne = r => r.lines.length === 1 && r.json && typeof r.json.ok === 'boolean' && r.out.endsWith('\n')
 const failed = (r, code, exit) => r.code === exit && r.json && r.json.ok === false && r.json.code === code && r.json.exit === exit && typeof r.json.message === 'string' && /[一-龥]/.test(r.json.message)
 const brief = r => JSON.stringify({ code: r.code, json: r.json ? { ok: r.json.ok, code: r.json.code, message: r.json.message } : r.out.slice(0, 200), err: r.err.slice(-200) })
@@ -200,7 +210,7 @@ async function main() {
     for (const [r, id] of [['boss', bossId], ['teacher', gen.teacher.json.data.id], ['full', gen.full.json.data.id]]) {
       const e = await exp(id, 'md', `${r}.md`)
       const t = fs.readFileSync(path.join(outDir, `${r}.md`), 'utf8')
-      check(`M7 导出 ${r}`, `${r} 导出 Markdown：成功，不带家长版的草稿标记，开头来源注释写明「AI 草稿 · 请老师核对」`, e.code === 0 && e.json.data.draft === false && !t.includes(BANNER) && /^<!-- .*AI 草稿/.test(t), brief(e))
+      check(`M7 导出 ${r}`, `${r} 导出 Markdown：成功，不带家长版的草稿标记（parentDraft = false），但 draft = true（没有老师核对过，都是 AI 草稿），开头来源注释写明「AI 草稿 · 请老师核对」`, e.code === 0 && e.json.data.draft === true && e.json.data.parentDraft === false && !t.includes(BANNER) && /^<!-- .*AI 草稿/.test(t), brief(e))
     }
     const noExt = await runCli(udA, ['report', 'export', bossId, '--format', 'md', '--out', path.join(outDir, 'noext')])
     check('M7 导出 扩展名', '--out 没写扩展名：自动补 .md', noExt.code === 0 && fs.existsSync(path.join(outDir, 'noext.md')), brief(noExt))
@@ -222,39 +232,92 @@ async function main() {
     check('M7 退出码 11', '家长版内容太少（只剩 1 条）：命令行也拒绝导出，退出码 11、export_blocked（把关在命令行路径上照样生效）', failed(blocked, 'export_blocked', 11) && /建议重新生成/.test(blocked.json.message) && !fs.existsSync(path.join(outDir, 'parent-blocked.md')), brief(blocked))
   }
 
+  // ───────────────────────── 阶段 4b：文件安全、输出编码 ─────────────────────────
+  {
+    const dbFile = path.join(udA, 'workbench-data', 'db.sqlite')
+    const dbBefore = fs.readFileSync(dbFile)
+    // 结果文件指向数据库 / 数据目录 / userData：拒绝（退出码 2），库没被动
+    const r1 = await runCli(udA, ['status', '--result-file', dbFile])
+    const r2 = await runCli(udA, ['status', '--out', path.join(udA, 'workbench-data', 'x.json')])
+    const r3 = await runCli(udA, ['status'], { env: { JUANZHI_RESULT_FILE: path.join(udA, 'ewb-config.json') } })
+    check('M7 结果文件不能覆盖数据库', '--result-file / --out / JUANZHI_RESULT_FILE 指向数据库、数据目录或 userData：退出码 2，数据库一个字节都没变', [r1, r2, r3].every(r => failed(r, 'usage', 2)) && /数据目录/.test(r1.json.message) && fs.readFileSync(dbFile).equals(dbBefore), brief(r1))
+    const notes = path.join(work, 'my-notes.txt'); fs.writeFileSync(notes, '我自己的笔记')
+    const r4 = await runCli(udA, ['status', '--result-file', notes])
+    check('M7 不覆盖别人的文件', '结果文件已经存在、而且不是卷知以前写的结果文件：拒绝（退出码 2），原文件不变；扩展名不是 .json / .txt 也拒绝', failed(r4, 'usage', 2) && fs.readFileSync(notes, 'utf8') === '我自己的笔记' && failed(await runCli(udA, ['status', '--result-file', path.join(work, 'x.db')]), 'usage', 2), brief(r4))
+    const prev = path.join(work, 'prev-result.json')
+    await runCli(udA, ['status', '--result-file', prev])
+    const r5 = await runCli(udA, ['status', '--result-file', prev])
+    check('M7 可以覆盖自己的结果', '卷知以前写的结果文件可以直接覆盖（反复运行同一条命令不用先删文件）', r5.code === 0 && fs.readFileSync(prev, 'utf8').trim() === r5.out.trim())
+    // 命令写错（解析失败）时，--result-file 里也有那段 ok:false
+    const badOut = path.join(work, 'bad-command-result.json')
+    const r6 = await runCli(udA, ['bogus', '--result-file', badOut])
+    check('M7 命令写错也写结果文件', '命令写错（退出码 2）时，--result-file 指定的文件里也有 {ok:false,…}', failed(r6, 'usage', 2) && fs.existsSync(badOut) && JSON.parse(fs.readFileSync(badOut, 'utf8')).code === 'usage', brief(r6))
+    check('M7 命令名不撞原型', 'constructor / toString 这类名字当命令：退出码 2（usage），不是内部错误', failed(await runCli(udA, ['constructor']), 'usage', 2) && failed(await runCli(udA, ['toString']), 'usage', 2))
+    // 导出：目标已存在默认不覆盖；--overwrite 才行；不能导出到数据目录里
+    const bossId2 = gen.boss.json.data.id
+    const target = path.join(outDir, 'exists.md'); fs.writeFileSync(target, '旧文件')
+    const e1 = await runCli(udA, ['report', 'export', bossId2, '--format', 'md', '--out', target])
+    const e2 = await runCli(udA, ['report', 'export', bossId2, '--format', 'md', '--out', target, '--overwrite'])
+    const e3 = await runCli(udA, ['report', 'export', bossId2, '--format', 'md', '--out', path.join(udA, 'workbench-data', 'leak.md')])
+    check('M7 导出不静默覆盖', 'report export 目标已存在：默认拒绝（退出码 2、旧文件不变），加 --overwrite 才覆盖；不能导出到数据目录里', failed(e1, 'usage', 2) && /--overwrite/.test(e1.json.message) && e2.code === 0 && /^<!--/.test(fs.readFileSync(target, 'utf8')) && failed(e3, 'usage', 2) && !fs.existsSync(path.join(udA, 'workbench-data', 'leak.md')), brief(e1))
+    // 输出编码：stdout 是纯 ASCII（Windows 控制台不会乱码），解析回来是原来的中文
+    const shAscii = await runCli(udA, ['report', 'show', bossId2])
+    check('M7 stdout 纯 ASCII', 'stdout 里的 JSON 是纯 ASCII（中文写成 \\uXXXX），Windows 的 PowerShell / cmd 在任何控制台编码下都不会乱码；解析回来 markdown 还是中文；写给 --result-file 的也是 ASCII', /^[\x00-\x7f]*$/.test(shAscii.out) && /\\u[0-9a-f]{4}/.test(shAscii.out) && /[\u4e00-\u9fa5]/.test(shAscii.json.data.markdown) && /^[\x00-\x7f]*$/.test(fs.readFileSync(prev, 'utf8')), shAscii.out.slice(0, 80))
+    // 命令行不允许调用白名单以外的通道：这里只能间接验证——所有命令用到的通道都在白名单里（跑通了上面所有命令）
+  }
+
   // ───────────────────────── 阶段 5：互斥 ─────────────────────────
   {
     // 窗口在运行 → 命令行退出码 3
     await open(udA)
     const r3 = await runCli(udA, ['status'])
-    check('M7 退出码 3', '卷知窗口正在运行时：命令行退出码 3、app_running，「请先关闭卷知窗口再用命令行」', failed(r3, 'app_running', 3) && /请先关闭卷知窗口再用命令行/.test(r3.json.message), brief(r3))
+    check('M7 退出码 3', '卷知窗口正在运行时：命令行退出码 3、app_running，提示先退出卷知（Mac 上要 Cmd+Q，只关窗口不行）', failed(r3, 'app_running', 3) && /请先退出卷知/.test(r3.json.message) && /Cmd\+Q/.test(r3.json.message), brief(r3))
     const stillOk = await ctx.page.evaluate(() => window.api.papers.list()).then(l => l.length >= 1).catch(() => false)
     check('M7 窗口不受影响', '命令行被拒绝的同时，正在运行的窗口照常工作（命令行没有碰它的数据，也没有抢焦点）', stillOk)
     await closeApp()
     const free = await runCli(udA, ['status'])
-    check('M7 窗口关闭后', '窗口关闭后命令行又能用（运行锁已释放）', free.code === 0 && !fs.existsSync(path.join(udA, 'ewb-run.lock')), brief(free))
+    check('M7 窗口关闭后', '窗口关闭后命令行又能用（运行锁已释放）', free.code === 0, brief(free))
 
-    // 另一个命令行在运行（锁被活着的进程持有）→ 命令行退出码 4；窗口打不开
-    const lockFile = path.join(udA, 'ewb-run.lock')
-    fs.writeFileSync(lockFile, JSON.stringify({ pid: process.pid, mode: 'cli', startedAt: new Date().toISOString() }))
-    const r4 = await runCli(udA, ['status'])
-    check('M7 退出码 4', '另一个命令行任务正在运行：第二个命令行退出码 4、cli_busy（报错，不会同时改数据）', failed(r4, 'cli_busy', 4), brief(r4))
+    // ── 真实的「另一个命令行在运行」：用会写数据的命令（import）持有锁 ──
+    const mk = name => L.copyWithTag(path.join(root, 'samples/g4-2026.pdf'), path.join(work, name), name)
+    const impA = mk('g4-2026-hold-A.pdf'), impB = mk('g4-2026-hold-B.pdf')
+    mock.delayMs = 9000   // AI 解析要等 9 秒：A 在这期间一直持有运行锁
+    let holderProc = null
+    const holder = runCli(udA, ['import', impA, '--wait', '--timeout', '600'], { onSpawn: p => { holderProc = p } })
+    // 等 A 真的拿到锁、开始导入（它在 stderr 里打出「导入 N 份文件」）
+    const aStarted = await waitStderr(() => holderProc, /导入 \d+ 份文件/)
+    const probe = await runCli(udA, ['status'])
+    check('M7 退出码 4', '另一个命令行（import，会写数据）正在运行：第二个命令行退出码 4、cli_busy，message 里有对方的进程号', aStarted && failed(probe, 'cli_busy', 4) && /进程 \d+/.test(probe.json.message), brief(probe))
+    // 同时再来一个会写数据的 import：也被拒绝，没有同时写
+    const impSecond = await runCli(udA, ['import', impB, '--wait', '--timeout', '600'])
+    check('M7 不会同时写数据', '另一个 import 同时启动：被拒绝（退出码 4），没有导入任何东西', failed(impSecond, 'cli_busy', 4) && withWriteDb(udA, d => d.prepare("SELECT COUNT(*) c FROM papers WHERE file_name = ?").get('g4-2026-hold-B.pdf').c) === 0, brief(impSecond))
+    // 窗口打不开
     const gui = await new Promise(resolve => {
       const p = spawn(electronBin, [root], { env: cleanEnv({ EWB_USER_DATA_DIR: udA, EWB_NO_DIALOG: '1' }), cwd: root })
       let err = ''; p.stderr.on('data', d => { err += d })
       const t = setTimeout(() => p.kill('SIGKILL'), 60000)
-      p.on('exit', code => { clearTimeout(t); resolve({ code, err }) })
+      p.on('close', code => { clearTimeout(t); resolve({ code, err }) })
     })
-    check('M7 窗口被拦', '命令行正在运行时打开窗口：不启动，提示「卷知命令行正在使用数据，请等它结束后再打开窗口」（测试里用 EWB_NO_DIALOG 改成写 stderr，退出码 3）', gui.code === 3 && /卷知命令行正在使用数据/.test(gui.err), `${gui.code} ${gui.err.slice(-200)}`)
-    fs.unlinkSync(lockFile)
+    check('M7 窗口被拦', '命令行正在运行时打开窗口：不启动，提示「卷知命令行正在使用数据，请等它结束后再打开窗口」并带对方的进程号（测试里用 EWB_NO_DIALOG 改成写 stderr，退出码 3）', gui.code === 3 && /卷知命令行正在使用数据/.test(gui.err) && /进程 \d+/.test(gui.err), `${gui.code} ${gui.err.slice(-200)}`)
+    const heldDone = await holder
+    mock.delayMs = 0
+    check('M7 持有者不受影响', '被拒绝的命令没有打扰正在运行的那个：import 照常做完，卷子进入待审核', heldDone.code === 0 && heldDone.json?.data?.papers?.[0]?.status === 'reviewing', brief(heldDone))
 
-    // 陈旧锁（持有者已经不在了）清掉
-    const dead = spawn(process.execPath, ['-e', '0']); await new Promise(r => dead.on('exit', r))
-    fs.writeFileSync(lockFile, JSON.stringify({ pid: dead.pid, mode: 'gui', startedAt: 'x' }))
-    const st = await runCli(udA, ['status'])
-    check('M7 陈旧锁', '锁文件的持有者进程已经不在（窗口崩溃过）：命令行清掉陈旧锁继续运行', st.code === 0 && st.json.ok === true, brief(st))
+    // ── 崩溃（被强杀）后锁自动释放，下一个命令行能用，并且把「中断的导入」收拾好 ──
+    mock.delayMs = 20000
+    const impC = mk('g4-2026-hold-C.pdf')
+    let victim = null
+    const crashRun = runCli(udA, ['import', impC, '--wait', '--timeout', '600'], { onSpawn: p => { victim = p } })
+    await waitStderr(() => victim, /导入 \d+ 份文件/)
+    await sleep(1500)   // 让它真的进入「等 AI」
+    victim.kill('SIGKILL')
+    const killed = await crashRun
+    mock.delayMs = 0
+    const after = await runCli(udA, ['papers', 'list'])
+    const orphan = after.json?.data?.papers?.find(x => x.fileName === 'g4-2026-hold-C.pdf')
+    check('M7 崩溃后自动释放', '命令行被强杀（kill -9）后：锁自动释放（下一个命令行马上能用，不用等、不用手动删文件），被中断的卷子退回「已提取」或失败，没有留在「处理中」', killed.code !== 0 && after.code === 0 && !!orphan && ['extracted', 'failed'].includes(orphan.status), `${killed.code} ${after.code} ${orphan && orphan.status}`)
 
-    // 两个命令行同时启动：不会损坏数据（要么排开各自成功，要么第二个得到退出码 4）
+    // ── 两个命令行同时启动（各自马上拿锁）：数据库完整，要么先后各自成功、要么第二个得到退出码 4 ──
     const [x, y] = await Promise.all([runCli(udA, ['papers', 'list']), runCli(udA, ['status'])])
     const okCodes = [x, y].every(r => (r.code === 0 && r.json.ok) || (r.code === 4 && r.json.code === 'cli_busy'))
     const integrity = withWriteDb(udA, d => d.prepare('PRAGMA integrity_check').get().integrity_check)

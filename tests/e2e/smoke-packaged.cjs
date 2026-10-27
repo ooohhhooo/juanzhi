@@ -290,14 +290,14 @@ async function main() {
     check('运行期', `应用里配置的 AI 服务地址是本机回环地址（${host}），并且本机 mock 收到了 ${mock.requests.length} 个请求（含 P1 解析和 P3 报告）`, ['127.0.0.1', 'localhost', '[::1]'].includes(host) && mock.requests.length >= 3 && mock.p1Requests.length >= 2 && mock.p3Requests.length >= 1, JSON.stringify({ host, total: mock.requests.length, p1: mock.p1Requests.length, p3: mock.p3Requests.length }))
 
     // ── 9. 命令行（M7）：窗口关掉之后，用同一份数据（mock AI 还活着）跑 `cli status`、导入、确认、生成报告、导出；Windows 再验证 PowerShell / cmd 里的输出和退出码 ──
-    // 安装短命令：Windows 一定装（CI 机器上无所谓）；Mac 只在 CI 里装（本机跑冒烟不改自己的 ~/.local/bin）
-    const installShim = isWin || process.env.CI === 'true' || process.env.EWB_SMOKE_INSTALL_CLI === '1'
+    // 安装短命令：只在 CI 里装（或显式设置 EWB_SMOKE_INSTALL_CLI=1）：本机跑冒烟不改自己的 ~/.local/bin / 用户 PATH / %LOCALAPPDATA%\Juanzhi
+    const installShim = process.env.CI === 'true' || process.env.EWB_SMOKE_INSTALL_CLI === '1'
     const inst = installShim ? await api(() => window.api.cli.install()).catch(e => ({ ok: false, error: e.message })) : null
     if (installShim) check('CLI 安装', '设置里的「安装命令行工具」（IPC cli:install）在打包版里能写出短命令脚本' + (isWin ? '并加进用户 PATH' : ''), inst?.ok === true && fs.existsSync(inst.path), JSON.stringify(inst).slice(0, 240))
     await app.close()
     await sleep(1500)   // 等运行锁释放
     await require('./cli-smoke.cjs')({
-      exe, preArgs: isMac ? ['--use-mock-keychain'] : [], env: {}, check, work, isWin, isMac, mock, pkgVersion: pkg.version,
+      exe, preArgs: isMac ? ['--use-mock-keychain'] : [], env: { EWB_USER_DATA_DIR: userData, EWB_CLI_DEBUG: '1' }, userData, check, work, isWin, isMac, mock, pkgVersion: pkg.version,
       shim: inst?.path ?? null, sample: copyTagged(path.join(root, 'samples/g4-2026.pdf'), path.join(work, 'g4-2026-cli.pdf'), 'cli')   // 不同字节（不触发重复导入）；mock AI 按文件名里的 g4-2026 找标准答案，所以文件名要带它
     })
   } catch (e) {

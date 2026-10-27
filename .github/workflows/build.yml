@@ -114,11 +114,38 @@ jobs:
         shell: pwsh
         run: ./tests/e2e/ocr-diagnose.ps1 -OcrScript release/win-unpacked/resources/native/windows/ocr.ps1 -Sample samples/g4-2025-page1.png -OutDir smoke-artifacts
 
+      # ── 安装命令行工具会改用户 PATH：先放一个带 %USERPROFILE% 的 REG_EXPAND_SZ 值，冒烟里装完之后核对它的类型和原值一字不变、只多一个目录 ──
+      - name: Windows｜准备用户 PATH（REG_EXPAND_SZ，带 %USERPROFILE%）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+          $orig = [string]$k.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+          $mine = if ($orig) { $orig.TrimEnd(';') + ';%USERPROFILE%\ewb-path-test' } else { '%USERPROFILE%\ewb-path-test' }
+          $k.SetValue('Path', $mine, [Microsoft.Win32.RegistryValueKind]::ExpandString)
+          $k.Close()
+          Set-Content -Path $env:RUNNER_TEMP\path-before.txt -Value $mine -NoNewline
+
       - name: 打包版冒烟 E2E
         run: node tests/e2e/smoke-packaged.cjs
 
       # ── 命令行（M7）：smoke-packaged.cjs 里已经用 Node 跑过一遍（导入 / 报告 / 导出）并装好了短命令 juanzhi；
       #    这里用 runner 自带的原生 shell 再验证一次「GUI 子系统程序能不能拿到输出和退出码」——这是 Windows 上最容易出问题的地方。
+      - name: Windows｜核对用户 PATH：类型和原值不变，只多一个目录，原值有备份
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+          $now = [string]$k.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+          $kind = $k.GetValueKind('Path'); $k.Close()
+          $before = Get-Content -Raw $env:RUNNER_TEMP\path-before.txt
+          Write-Host "kind=$kind"; Write-Host "before=$before"; Write-Host "now=$now"
+          if ($kind -ne 'ExpandString') { throw "Path 的类型被改成了 $kind（应该保持 ExpandString）" }
+          if (-not $now.StartsWith($before)) { throw 'PATH 原来的内容被改动了（%USERPROFILE% 之类被展开，或顺序变了）' }
+          $extra = $now.Substring($before.Length).TrimStart(';')
+          if ($extra -ne (Join-Path $env:LOCALAPPDATA 'Juanzhi\bin')) { throw "多出来的不是 juanzhi 目录：$extra" }
+          if (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'Juanzhi\path-backup.txt'))) { throw '没有 PATH 备份文件' }
+
       - name: Windows｜命令行：PowerShell 里拿 stdout 和退出码
         if: runner.os == 'Windows'
         shell: pwsh
@@ -151,11 +178,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          "%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd" status > cli-status.json
+          call "%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd" status > cli-status.json
           if errorlevel 1 exit /b 1
           type cli-status.json
           findstr /C:"\"ok\":true" cli-status.json || exit /b 1
-          "%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd" bogus > cli-bogus.json
+          call "%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd" bogus > cli-bogus.json
           if errorlevel 3 exit /b 3
           if not errorlevel 2 exit /b 4
           type cli-bogus.json
