@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { acquireRunLock, inspectRunLock, lockEndpoint, processLooksLikeJuanzhi } from '../../src/main/cli/lock.ts'
+import { acquireRunLock, inspectRunLock, lockEndpoint, processLooksLikeJuanzhi, pidIsJuanzhi, __setNameCheck } from '../../src/main/cli/lock.ts'
 
 const LOCK_TS = fileURLToPath(new URL('../../src/main/cli/lock.ts', import.meta.url))
 const mkdir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-lock-'))
@@ -104,6 +104,7 @@ if (process.platform !== 'win32') {
 }
 
 // ── 退路（沙箱里不能监听套接字，用锁文件）：互相看得见；拿不到开机时间也不能崩 ──
+__setNameCheck(() => null)   // 这一段不依赖 ps：进程名判断不了
 {
   const dir = mkdir()
   // 套接字持有者（窗口）同时写了锁文件：沙箱里的命令行（noSocket 模拟）看得见，拿不到
@@ -136,6 +137,41 @@ if (process.platform !== 'win32') {
   other.kill('SIGKILL'); await new Promise(r => other.on('exit', r))
   fs.rmSync(dir, { recursive: true, force: true })
 }
+
+// ── N3-P1-1：套接字持有者被强杀后留下的伴随锁文件，pid 被无关进程复用，不能把后来的进程挡在外面 ──
+{
+  const dir = mkdir()
+  const unrelated = spawn(process.execPath, ['-e', 'setTimeout(()=>{}, 60000)'], { stdio: 'ignore' })
+  const seed = () => fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: unrelated.pid, mode: 'gui', startedAt: new Date().toISOString(), socket: true }))
+  // 能监听套接字的进程：listen 成功就说明没有活着的套接字持有者，带 socket 标记的锁文件一定是陈旧的 → 拿到锁，并把文件换成自己的
+  seed()
+  const a = await acquireRunLock(dir, 'cli'); assert.ok(a.ok, 'pid 指向无关活进程、带 socket 标记的锁文件，不能挡住能监听的进程')
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'ewb-run.lock'), 'utf8')).pid, process.pid); a.release()
+  assert.equal(await inspectRunLock(dir), null)
+  // 只看锁的人也不被陈旧文件骗：没有套接字监听时，带 socket 标记的文件视为陈旧
+  seed(); assert.equal(await inspectRunLock(dir), null, 'inspect 也不能被 pid 复用骗到')
+  // 沙箱里的命令行（不能监听）：连不上套接字 → 再按 pid + 进程名判断
+  seed(); __setNameCheck(() => false)    // 进程名判断得了，而且不是卷知：pid 被复用，陈旧
+  const sb1 = await acquireRunLock(dir, 'cli', process.pid + 7, { noSocket: true }); assert.ok(sb1.ok, 'pid 被复用（进程名不是卷知）：沙箱里的命令行也能拿到'); sb1.release()
+  seed(); __setNameCheck(() => null)     // 判断不了进程名：只能按 pid——活着就当被占用（保守）
+  const sb2 = await acquireRunLock(dir, 'cli', process.pid + 7, { noSocket: true }); assert.equal(sb2.ok, false, '判断不了进程名时保守地当作被占用')
+  fs.unlinkSync(path.join(dir, 'ewb-run.lock'))
+  // 「只有文件」的锁（沙箱里的命令行写的，没有 socket 标记）活着时，能监听的进程也要被挡住
+  const sbHold = await acquireRunLock(dir, 'cli', process.pid, { noSocket: true }); assert.ok(sbHold.ok)
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'ewb-run.lock'), 'utf8')).socket, undefined, '只有文件的锁没有 socket 标记')
+  const w = await acquireRunLock(dir, 'gui', process.pid + 9); assert.equal(w.ok, false, '文件锁持有者活着，窗口拿不到'); assert.equal(w.holder.mode, 'cli')
+  sbHold.release()
+  unrelated.kill('SIGKILL'); await new Promise(r => unrelated.on('exit', r))
+  __setNameCheck(null)
+  fs.rmSync(dir, { recursive: true, force: true })
+}
+// pidIsJuanzhi：真实判断（假执行器）
+assert.equal(pidIsJuanzhi(5, 'darwin', () => '/Applications/卷知.app/Contents/MacOS/卷知'), true)
+assert.equal(pidIsJuanzhi(5, 'darwin', () => '/usr/bin/vim'), false)
+assert.equal(pidIsJuanzhi(5, 'darwin', () => ''), null, 'ps 没输出：不下结论')
+assert.equal(pidIsJuanzhi(5, 'win32', () => '"EnglishExamWorkbench.exe","5","Console"'), true)
+assert.equal(pidIsJuanzhi(5, 'win32', () => '"chrome.exe","5","Console"'), false)
+assert.equal(pidIsJuanzhi(5, 'darwin', () => { throw new Error('denied') }), null)
 // ── 杀进程前核对进程名（假执行器）──
 assert.equal(processLooksLikeJuanzhi(123, 'darwin', () => '/Applications/卷知.app/Contents/MacOS/卷知 cli import a.pdf'), true)
 assert.equal(processLooksLikeJuanzhi(123, 'darwin', () => '/usr/bin/vim notes.txt'), false, '被复用成别的程序')

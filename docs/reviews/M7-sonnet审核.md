@@ -220,3 +220,56 @@
 2. 建议同时修 N-P2-1（杀进程前重新确认）、N-P2-4（锁异常不能让窗口打不开）、N-P2-5（认旧标记），其余按需。
 3. 下一次 CI 要看：Windows 的 `ci-smoke-result-win32.json` 里「CLI 没有崩溃」「CLI Windows 输出编码」两项、PATH 核对步骤是否通过、cmd 步骤是否真的执行到最后（`smoke-artifacts/cli-windows-cmd.txt` 存在）。
 4. 说明：HEAD 提交里带进去的是我第一版审核报告；这一节「复审」是新追加的，还没有被提交。
+
+---
+
+## 三审复核
+
+复核对象：`git show HEAD`（`37fc5dc`，第三轮）。仍然只读：没有改源码，没有 git 写操作，没有跑 build / E2E / dist。做过的验证：`cli-lock / cli-shim / cli-args / cli-outfile / packaging-config` 单测通过（锁的单测要能监听本地套接字，所以在沙箱外跑）；并用**真实**的受限环境复现了 N-P1-1：本次复审的沙箱里 `listen(unix 套接字)` 和 `os.uptime()` 都真的返回 EPERM，正好是命令行要面对的那类环境。Windows 部分（命名管道、注册表、.cmd、tasklist）仍是读代码推断，需要 CI 确认。
+
+### 结论：仍然不通过——没有 P0，还剩 1 个 P1（N3-P1-1，第三轮新引入）
+
+N-P1-1 本身已修好；但「套接字持有者同时写锁文件」这个办法让锁文件的陈旧判断（只看 pid）重新进了主路径，带回了一个窄版的「崩溃后 pid 被复用就打不开」。
+
+### 一、N-P1-1 与上轮建议本轮修的 P2
+
+| 条目 | 状态 | 复核 |
+|---|---|---|
+| N-P1-1(a) 退路与套接字互相看不见 | **已修** | 套接字持有者监听成功后原子地（`linkSync`）写一份锁文件（`writeCompanionLock`），释放时删；监听不了的命令行先 `probe` 套接字，再看锁文件。实测（真实沙箱，不是模拟）：沙箱外进程以 `gui` 持有，沙箱里的 `acquireRunLock` 返回 `ok:false, holder:{mode:'gui', pid:…}`，`inspectRunLock` 也能看见。反方向（沙箱命令行持有、窗口来抢）由单测覆盖，通过。 |
+| N-P1-1(b) `os.uptime()` 抛异常 | **已修** | `bootTimeMs()` 加了 try/catch，拿不到就只用 pid。实测（真实 EPERM）：预置一份持有者已死的锁文件，沙箱里 `acquireRunLock` 返回 `ok:true`（之前会抛异常）。单测里还有「启动时间早于开机 = 陈旧」「uptime 抛异常时活着的持有者仍被识别」。 |
+| N-P2-1 「结束命令行任务」误杀 | **已修** | 点击后先 `inspectRunLock` 重新确认：pid 和 `startedAt` 都要与弹框时一致，再用 `processLooksLikeJuanzhi` 核对进程名（Mac：`ps` 的命令行含卷知 / english-exam-workbench / Electron 且带 `cli`；Windows：`tasklist` 含 `EnglishExamWorkbench.exe`），判断不了就当不是；对不上就弹说明并退出，不杀；探测时命令行已结束就直接再抢一次锁。只有 `mode:'cli'` 的持有者才显示这个按钮。三样核对都在，单测覆盖了进程名判断。残留的小点见 N3-P2-2。 |
+| N-P2-2 `release()` 多余的 unlink | **已修** | 删掉了；实测释放后目录里 `ewb-run.sock` 和 `ewb-run.lock` 都没了。 |
+| N-P2-3 守卫陈旧清理的理论竞态 | **未修（接受）** | 触发条件是「守卫目录由崩溃留下、且两个竞争者同时判定过期」，概率极低，同意不修。 |
+| N-P2-4 抢锁异常让窗口打不开 | **已修** | `index.ts` 整段包在 try/catch 里，出错只写日志，窗口照常打开。代价是此时命令行互斥暂时失效，已在日志里写明，可以接受。 |
+| N-P2-5 旧开发版 shim | **已修** | `isOurShim`：带 `JUANZHI-SHIM`、或旧版的「由「卷知」生成」、或指向卷知 / EnglishExamWorkbench.exe 且带 `cli` 参数且小于 4000 字节。单测覆盖旧版 sh / cmd 脚本，以及「只是提到卷知、没有 cli 调用」的用户脚本仍被拒绝。第三个条件略宽，见 N3-P2-1。 |
+| N-P2-6 广播失败误报 | **已修** | 广播部分单独 `try/catch`，失败输出 `added-nobroadcast`，`installCliShim` 把它当成功并给一条警告；PowerShell 转义我又读了一遍，没问题。 |
+| N-P2-7 ocr-diagnose 误判 | **已修** | 逻辑逐支推演过：「极简读不出、ocr.ps1 读得出」只加一条说明继续往下判；「两边都读不出且 ocr.ps1 退出码 2/3 或 0 行」= ENV；「极简读得出、ocr.ps1 读不出」= SCRIPT；「极简读不出且 ocr.ps1 也以别的方式失败」= SCRIPT。诊断步骤 `continue-on-error: true`，最后一步 `if: always()` 统一判，只有 SCRIPT 才 `throw`；`ocr-diagnose.json` 不存在只发警告。 |
+| N-P2-8 `&` 参数的文档 | **已修** | 改成「PowerShell 里加引号；经 `juanzhi.cmd` 转发含 `&` 的参数不可靠，请直接调用 exe 并用 `--result-file`」。 |
+| N-P2-9 /tmp 退路路径可被占位 | **未修（接受）** | 只在 userData 路径超过约 100 字节时才用，影响很小。 |
+| N-P2-10 读用户 shell PATH | **已修** | 输出前加换行、只取最后一行。 |
+| N-P2-11 持有者未知时的措辞 | **部分修** | 命令行一侧改成了中性措辞（「卷知（窗口或另一个命令行任务）正在使用数据」）；窗口一侧 `h?.mode === 'cli' \|\| !h` 时仍写「卷知命令行正在使用数据」。小问题。 |
+| §13 里「不再给 stdout 挂 error 监听」与代码不一致 | **未修（只是文档）** | `run.ts:97` 仍然挂了，因为 `exit()` 幂等，行为没问题；§14 没提，改文档即可。 |
+
+### 二、第三轮新增代码的问题
+
+#### N3-P1-1 套接字持有者写的「伴随锁文件」只按 pid 判活，崩溃后 pid 被复用会重新把窗口 / 命令行挡在主路径外
+`src/main/cli/lock.ts:111-116, 158-159, 176-190`
+
+- 问题：第三轮让每个套接字持有者（窗口、不在沙箱里的命令行）都写一份 `ewb-run.lock`。持有者被强杀 / 崩溃 / 工具超时杀掉后，这份文件留下；之后**任何**抢锁（包括能监听套接字的）都先走 `acquireRunLock` 开头的 `fl && fl.pid !== pid && fileLockAlive(fl)` 检查，只要锁里的 pid 现在被某个无关进程占用（且启动时间晚于本次开机），就直接返回「被占用」，根本不会去试套接字。套接字本来就是为了消灭「陈旧锁 + pid 复用」，现在这个问题从主路径的后门回来了：不再是重启后几乎必撞（开机时间判断挡住了那种），但同一次开机内 pid 被复用就会撞（Windows 上 pid 回收很快，Agent 工具超时杀命令行是最常见的触发方式）。
+- 复现（沙箱外）：预置一份 `{"pid": <一个无关的活进程>, "mode": "gui", "startedAt": <现在>}` 的 `ewb-run.lock`，没有任何套接字持有者，能监听套接字的命令行 `acquireRunLock` 返回 `ok:false, holder:{pid:…, mode:'gui'}`；窗口这边弹的是「卷知已经在运行（锁被另一个窗口进程持有）」，只有一个「好」按钮（`canKill` 只对 `mode:'cli'` 开），用户没有出路，只能重启电脑或自己找到并删除文件。
+- 修法（小改动）：
+  1. 伴随锁文件里多记一个字段，例如 `socket: true`（只有套接字持有者写的才有）。
+  2. 能监听套接字的进程：**先试套接字**（在守卫里 `listen`）。`listen` 成功 = 没有活着的套接字持有者，此时如果锁文件带 `socket:true`，它一定是陈旧的，直接清掉（`writeCompanionLock` 本来就会覆盖）；只有锁文件**不带** `socket:true`（沙箱里的命令行写的、没有套接字）时才用 pid 判活并拒绝。
+  3. 沙箱里（`listen` 不了）的进程：看到带 `socket:true` 的锁文件，先 `probe`：`alive:false`（连得上套接字路径但被拒绝）→ 陈旧；`alive:null`（连接也被禁）→ 只能按 pid 判，这是信息不足时的保守选择，可以接受。
+  4. 补一个单测：「锁文件带 `socket:true`、pid 是无关的活进程、没有套接字持有者 → 能监听的进程拿到锁并覆盖锁文件」。
+
+#### N3-P2（新增，均不阻塞）
+1. **`isOurShim` 第三个条件偏宽**（`shim.ts:isOurShim`）：用户自己写的、里面有 `卷知.app` 路径和 `cli` 字样的小脚本（比如加了代理环境变量的包装）会被认作卷知的并被覆盖。可以接受，但安装前最好把旧文件备份成 `juanzhi.bak-<时间>`。
+2. **杀进程的第二阶段没有再核对**（`index.ts` 里 `SIGTERM` → 等 5 秒 → `SIGKILL`）：到 `SIGKILL` 时进程一般还活着（否则锁已经拿到、循环已经 break），风险很小；严格做的话 `SIGKILL` 前再 `inspectRunLock` 一次确认 pid 没变。
+3. **窗口一侧持有者未知时措辞**（见上表 N-P2-11）。
+4. **`writeCompanionLock` 失败是静默的**（目录只读之类）：这时沙箱里的命令行看不到窗口，互斥退化为只靠套接字。可以接受，但最好 `console.warn` 一行，方便排查。
+
+### 三、下一步
+1. 修 N3-P1-1（锁文件带 `socket:true`，能监听的进程先试套接字、认定带这个标记的陈旧锁文件可以清；补单测）。
+2. N3-P2 按需；顺手把 §13 那句文档改一下。
+3. 下一次 CI 要看的清单不变：Windows 的「CLI 没有崩溃」「CLI Windows 输出编码」、PATH 核对步骤、`smoke-artifacts/cli-windows-cmd.txt` 是否存在、最后一步「OCR 诊断结论」。

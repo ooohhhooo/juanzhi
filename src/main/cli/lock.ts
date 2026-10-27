@@ -19,7 +19,11 @@ import crypto from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 
 export type LockMode = 'gui' | 'cli'
-export interface LockInfo { pid: number; mode: LockMode; startedAt: string }
+export interface LockInfo {
+  pid: number; mode: LockMode; startedAt: string
+  /** 套接字持有者写的「伴随」锁文件带这个标记：能监听套接字的进程只要自己 listen 成功，就说明没有活着的套接字持有者，带标记的锁文件一定是陈旧的（不按 pid 判，pid 可能被别的进程复用） */
+  socket?: boolean
+}
 
 /** 套接字路径：Windows 用命名管道；其余放在 userData 里（不受 TMPDIR 之类环境变量影响，路径太长时退回 /tmp 下按目录哈希命名） */
 export function lockEndpoint(dir: string, platform: NodeJS.Platform = process.platform): string {
@@ -108,15 +112,37 @@ function readFileLock(dir: string): LockInfo | null {
     return j && Number.isInteger(j.pid) && (j.mode === 'gui' || j.mode === 'cli') ? j : null
   } catch { return null }
 }
-/** 锁文件的持有者还算不算活着：进程在，并且启动时间不早于本次开机（挡住「重启后 pid 被无关进程占用」） */
+/**
+ * 这个 pid 现在是不是卷知的进程：true / false；判断不了（没有 ps / tasklist、沙箱不让跑）返回 null。
+ * 判断得了而且不是卷知 = pid 已经被别的程序复用，锁文件是陈旧的。
+ */
+export function pidIsJuanzhi(pid: number, platform: NodeJS.Platform = process.platform, run: (cmd: string, args: string[]) => string = (c, a) => execFileSync(c, a, { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] })): boolean | null {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    if (platform === 'win32') {
+      const out = run('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'])
+      return /EnglishExamWorkbench\.exe|Juanzhi/i.test(out)
+    }
+    const cmd = run('ps', ['-p', String(pid), '-o', 'command=']).trim()
+    if (!cmd) return null   // ps 没输出：进程刚退出或 ps 被限制，不下结论
+    return /卷知|english-exam-workbench|EnglishExamWorkbench|Electron|Juanzhi/i.test(cmd)
+  } catch { return null }
+}
+let nameCheck: (pid: number) => boolean | null = pid => pidIsJuanzhi(pid)
+/** 单测用：替换「这个 pid 是不是卷知」的判断 */
+export function __setNameCheck(fn: ((pid: number) => boolean | null) | null): void { nameCheck = fn ?? (pid => pidIsJuanzhi(pid)) }
+
+/** 锁文件的持有者还算不算活着：进程在、启动时间不早于本次开机、进程名（判断得了的话）确实是卷知——挡住「重启 / 崩溃后 pid 被无关进程占用」 */
 function fileLockAlive(i: LockInfo): boolean {
   const started = Date.parse(i.startedAt)
   const boot = bootTimeMs()
   if (boot !== null && Number.isFinite(started) && started < boot - 5000) return false
-  return pidAlive(i.pid)
+  if (!pidAlive(i.pid)) return false
+  return nameCheck(i.pid) !== false
 }
 /** 套接字持有者同时写一份锁文件（best-effort，原子地带着完整内容创建）：让「禁止监听套接字的沙箱里的命令行」也能看见持有者。返回清理函数 */
-function writeCompanionLock(dir: string, info: LockInfo): () => void {
+function writeCompanionLock(dir: string, info0: LockInfo): () => void {
+  const info: LockInfo = { ...info0, socket: true }
   const file = path.join(dir, FILE_LOCK)
   const tmp = path.join(dir, `ewb-run.${info.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`)
   try {
@@ -153,9 +179,10 @@ export async function acquireRunLock(dir: string, mode: LockMode, pid = process.
   const info: LockInfo = { pid, mode, startedAt: new Date().toISOString() }
   const guard = path.join(dir, 'ewb-run.guard')
   return withGuard(guard, async (): Promise<AcquireResult> => {
-    // 先看有没有「锁文件」形式的活持有者（上一个被禁止监听套接字的进程留下的）
+    // 先看有没有「只有锁文件」的活持有者（被禁止监听套接字的沙箱里的命令行写的，没有 socket 标记）。带 socket 标记的伴随锁文件这里不看：
+    // 能监听的进程只要 listen 成功，就说明没有活着的套接字持有者，那份文件一定是陈旧的（按 pid 判会被「pid 被复用」卡住）
     const fl = readFileLock(dir)
-    if (fl && fl.pid !== pid && fileLockAlive(fl)) return { ok: false, holder: fl }
+    if (fl && !fl.socket && fl.pid !== pid && fileLockAlive(fl)) return { ok: false, holder: fl }
     for (let attempt = 0; attempt < 4; attempt++) {
       let s: net.Server | 'busy'
       try {
@@ -168,6 +195,7 @@ export async function acquireRunLock(dir: string, mode: LockMode, pid = process.
           // 本进程不能监听套接字（沙箱）。先看有没有套接字持有者（连接有时不受沙箱限制）；连不了就靠持有者同时写的锁文件
           const pr = await probe(endpoint)
           if (pr.alive === true) return { ok: false, holder: pr.info }
+          // 连不上（没人监听，或沙箱不让连）：带 socket 标记的伴随锁文件和只有文件的锁一样，按 pid + 启动时间 + 进程名判断
           return acquireFileLock(dir, info)
         }
         throw e
@@ -197,7 +225,10 @@ export async function inspectRunLock(dir: string): Promise<LockInfo | null> {
   const p = await probe(lockEndpoint(dir))
   if (p.alive === true) return p.info ?? { pid: 0, mode: 'cli', startedAt: '' }
   const fl = readFileLock(dir)
-  return fl && fileLockAlive(fl) ? fl : null
+  if (!fl) return null
+  // 能确定「没人监听」（p.alive === false）时，带 socket 标记的伴随锁文件就是陈旧的
+  if (fl.socket && p.alive === false) return null
+  return fileLockAlive(fl) ? fl : null
 }
 
 
@@ -213,3 +244,6 @@ export function processLooksLikeJuanzhi(pid: number, platform: NodeJS.Platform =
     return /卷知|english-exam-workbench|EnglishExamWorkbench|Electron/i.test(cmd) && /\bcli\b/.test(cmd)
   } catch { return false }
 }
+
+/** 删掉锁文件（给「仍要打开」用：用户确认没有命令行在运行时清掉可能陈旧的伴随锁文件）；套接字不动 */
+export function clearLockFile(dir: string): void { try { fs.unlinkSync(path.join(dir, FILE_LOCK)) } catch { /* 没有 */ } }
