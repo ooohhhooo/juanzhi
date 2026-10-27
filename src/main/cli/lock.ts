@@ -16,6 +16,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 
 export type LockMode = 'gui' | 'cli'
 export interface LockInfo { pid: number; mode: LockMode; startedAt: string }
@@ -34,12 +35,13 @@ export function lockEndpoint(dir: string, platform: NodeJS.Platform = process.pl
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
 
 /** 连上去问一句「谁在持有」：连得上 = 活着的持有者（返回它的信息）；连不上（没人监听 / 文件是陈旧的）= null */
-function probe(endpoint: string, timeoutMs = 1500): Promise<{ alive: boolean; info: LockInfo | null }> {
+function probe(endpoint: string, timeoutMs = 1500): Promise<{ alive: boolean | null; info: LockInfo | null }> {
   return new Promise(resolve => {
     const s = net.connect(endpoint)
     let buf = ''
     let settled = false
-    const done = (alive: boolean) => {
+    // alive: true = 连上了（持有者活着）；false = 没人监听；null = 连不了（沙箱禁止连接 / 权限），不知道
+    const done = (alive: boolean | null) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
@@ -56,8 +58,8 @@ function probe(endpoint: string, timeoutMs = 1500): Promise<{ alive: boolean; in
     s.on('close', () => { if (buf) done(true) })
     s.on('error', e => {
       const code = (e as NodeJS.ErrnoException).code
-      // ECONNREFUSED / ENOENT = 没人监听（陈旧文件或根本没有）；其他错误（权限、繁忙）保守地当作活着
-      done(!(code === 'ECONNREFUSED' || code === 'ENOENT'))
+      // ECONNREFUSED / ENOENT = 没人监听（陈旧文件或根本没有）；EPERM / EACCES = 沙箱不让连接，不知道（null）；其他错误保守地当作活着
+      done(code === 'ECONNREFUSED' || code === 'ENOENT' ? false : code === 'EPERM' || code === 'EACCES' ? null : true)
     })
   })
 }
@@ -94,7 +96,8 @@ async function withGuard<T>(guardDir: string, fn: () => Promise<T>): Promise<T> 
 // ── 退路：套接字被禁止时（有的沙箱不让监听本地套接字）退回「锁文件」。内容用 link 原子地带着完整内容创建；
 //    是不是陈旧看 pid 是否活着 + 启动时间是否早于本次开机；所有清理都在守卫目录里串行进行，所以没有「删掉别人新锁」的竞态。 ──
 const FILE_LOCK = 'ewb-run.lock'
-const bootTimeMs = (): number => Date.now() - os.uptime() * 1000
+/** 本次开机时间；拿不到（有的沙箱里 os.uptime() 抛 EPERM）返回 null——调用方只用 pid 判断，不能因为这个抛异常 */
+const bootTimeMs = (): number | null => { try { return Date.now() - os.uptime() * 1000 } catch { return null } }
 function pidAlive(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) return false
   try { process.kill(pid, 0); return true } catch (e) { return (e as NodeJS.ErrnoException).code === 'EPERM' }
@@ -108,9 +111,22 @@ function readFileLock(dir: string): LockInfo | null {
 /** 锁文件的持有者还算不算活着：进程在，并且启动时间不早于本次开机（挡住「重启后 pid 被无关进程占用」） */
 function fileLockAlive(i: LockInfo): boolean {
   const started = Date.parse(i.startedAt)
-  if (Number.isFinite(started) && started < bootTimeMs() - 5000) return false
+  const boot = bootTimeMs()
+  if (boot !== null && Number.isFinite(started) && started < boot - 5000) return false
   return pidAlive(i.pid)
 }
+/** 套接字持有者同时写一份锁文件（best-effort，原子地带着完整内容创建）：让「禁止监听套接字的沙箱里的命令行」也能看见持有者。返回清理函数 */
+function writeCompanionLock(dir: string, info: LockInfo): () => void {
+  const file = path.join(dir, FILE_LOCK)
+  const tmp = path.join(dir, `ewb-run.${info.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`)
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(info))
+    try { fs.unlinkSync(file) } catch { /* 没有旧文件 */ }   // 能走到这里说明没有活着的文件持有者（调用方已检查），旧的是陈旧文件
+    fs.linkSync(tmp, file)
+  } catch { /* 目录只读之类：没有锁文件，套接字照样有效 */ } finally { try { fs.unlinkSync(tmp) } catch { /* 忽略 */ } }
+  return () => { const cur = readFileLock(dir); if (cur && cur.pid === info.pid) { try { fs.unlinkSync(file) } catch { /* 已经没了 */ } } }
+}
+
 function acquireFileLock(dir: string, info: LockInfo): AcquireResult {
   const file = path.join(dir, FILE_LOCK)
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -131,7 +147,7 @@ function acquireFileLock(dir: string, info: LockInfo): AcquireResult {
 export type AcquireResult = { ok: true; release: () => void; endpoint: string } | { ok: false; holder: LockInfo | null }
 
 /** 拿锁。已有活着的持有者返回 { ok:false, holder }（holder 为 null = 连得上但对方没回信息）；拿到后一直持有到 release() 或进程结束 */
-export async function acquireRunLock(dir: string, mode: LockMode, pid = process.pid): Promise<AcquireResult> {
+export async function acquireRunLock(dir: string, mode: LockMode, pid = process.pid, opts: { noSocket?: boolean } = {}): Promise<AcquireResult> {
   fs.mkdirSync(dir, { recursive: true })
   const endpoint = lockEndpoint(dir)
   const info: LockInfo = { pid, mode, startedAt: new Date().toISOString() }
@@ -142,24 +158,33 @@ export async function acquireRunLock(dir: string, mode: LockMode, pid = process.
     if (fl && fl.pid !== pid && fileLockAlive(fl)) return { ok: false, holder: fl }
     for (let attempt = 0; attempt < 4; attempt++) {
       let s: net.Server | 'busy'
-      try { s = await listen(endpoint, info) } catch (e) {
+      try {
+        if (opts.noSocket) throw Object.assign(new Error('测试：模拟沙箱禁止监听套接字'), { code: 'EPERM' })   // 只给单测用
+        s = await listen(endpoint, info)
+      } catch (e) {
         // 不让监听（沙箱）：退回锁文件
         const code = (e as NodeJS.ErrnoException).code
-        if (code === 'EPERM' || code === 'EACCES' || code === 'ENOTSUP' || code === 'EAFNOSUPPORT') return acquireFileLock(dir, info)
+        if (code === 'EPERM' || code === 'EACCES' || code === 'ENOTSUP' || code === 'EAFNOSUPPORT') {
+          // 本进程不能监听套接字（沙箱）。先看有没有套接字持有者（连接有时不受沙箱限制）；连不了就靠持有者同时写的锁文件
+          const pr = await probe(endpoint)
+          if (pr.alive === true) return { ok: false, holder: pr.info }
+          return acquireFileLock(dir, info)
+        }
         throw e
       }
       if (s !== 'busy') {
         let released = false
+        const dropCompanion = writeCompanionLock(dir, info)
         const release = () => {
           if (released) return
           released = true
-          try { s.close() } catch { /* 已关闭 */ }
-          if (process.platform !== 'win32') { try { fs.unlinkSync(endpoint) } catch { /* 已经没了 */ } }
+          dropCompanion()
+          try { s.close() } catch { /* 已关闭 */ }   // unix 套接字文件由 close() 一起删掉；这里不再手动 unlink（可能删到下一个持有者刚建的）
         }
         return { ok: true, release, endpoint }
       }
       const p = await probe(endpoint)
-      if (p.alive) return { ok: false, holder: p.info }
+      if (p.alive !== false) return { ok: false, holder: p.info }   // true = 活着；null = 连不了（不知道）：保守地当作被占用
       // 连不上：陈旧的套接字文件（上一个持有者崩溃了）。守卫保证此刻没有别的竞争者在清理 / 抢锁
       try { fs.unlinkSync(endpoint) } catch { /* 已经没了 */ }
     }
@@ -170,8 +195,21 @@ export async function acquireRunLock(dir: string, mode: LockMode, pid = process.
 /** 只读地看现在是谁持有（不抢锁）：没人持有返回 null */
 export async function inspectRunLock(dir: string): Promise<LockInfo | null> {
   const p = await probe(lockEndpoint(dir))
-  if (p.alive) return p.info ?? { pid: 0, mode: 'cli', startedAt: '' }
+  if (p.alive === true) return p.info ?? { pid: 0, mode: 'cli', startedAt: '' }
   const fl = readFileLock(dir)
   return fl && fileLockAlive(fl) ? fl : null
 }
 
+
+/**
+ * 这个 pid 现在是不是卷知的进程（杀进程之前用：pid 可能已经被别的程序复用）。Mac：命令行里有「卷知」「english-exam-workbench」或 electron 且带 cli；
+ * Windows：tasklist 里是 EnglishExamWorkbench.exe（免安装版是 Juanzhi-*-portable.exe 解压出来的同一个 exe 名）。查不到 / 判断不了返回 false（宁可不杀）。
+ */
+export function processLooksLikeJuanzhi(pid: number, platform: NodeJS.Platform = process.platform, run: (cmd: string, args: string[]) => string = (c, a) => execFileSync(c, a, { encoding: 'utf8', timeout: 4000 })): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    if (platform === 'win32') return /EnglishExamWorkbench\.exe/i.test(run('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH']))
+    const cmd = run('ps', ['-p', String(pid), '-o', 'command='])
+    return /卷知|english-exam-workbench|EnglishExamWorkbench|Electron/i.test(cmd) && /\bcli\b/.test(cmd)
+  } catch { return false }
+}

@@ -114,20 +114,28 @@ try { $caps = (Get-WindowsCapability -Online | Where-Object Name -like 'Language
 # 判定（评审 P2-6）：脚本崩溃（lines = -1 / 退出码不是 0）和「读了但 0 行」要分开；极简代码能读而 ocr.ps1 读不出，永远是脚本的问题
 $psBroken = { param($r) $r.exitCode -ne 0 -or $r.lines -lt 0 }
 $minimalReadsControl = $mControl.textLength -gt 0
-if (-not $minimalReadsControl -and (($rControl.exitCode -in @(2, 3)) -or ($rControl.exitCode -eq 0 -and $rControl.lines -eq 0))) {
-    # 极简代码读不出对照图，ocr.ps1 也是「引擎 / 语言包不可用」（退出码 2 / 3）或「跑成功但 0 行」：引擎本身不工作
+$psReadsControl = ($rControl.exitCode -eq 0) -and ($rControl.lines -gt 0)
+$note = ''
+if (-not $minimalReadsControl -and $psReadsControl) {
+    # 极简对照代码读不出，但 ocr.ps1 读得出对照图：对照代码自己有问题（比如用户语言引擎和 ocr.ps1 选的不同），ocr.ps1 是好的——只记一条说明，继续看样张
+    $note = "（说明：极简对照代码读不出不透明对照图，但 ocr.ps1 读出了 $($rControl.lines) 行：问题在对照代码这一边，不是 ocr.ps1 的错）"
+}
+if (-not $minimalReadsControl -and -not $psReadsControl -and (($rControl.exitCode -in @(2, 3)) -or ($rControl.exitCode -eq 0 -and $rControl.lines -eq 0))) {
+    # 两边都读不出对照图，ocr.ps1 是「引擎 / 语言包不可用」（退出码 2 / 3）或「跑成功但 0 行」：引擎本身不工作
     $verdict = 'ENV'; $why = '极简识别代码和 ocr.ps1 连白底黑字的大号英文（不透明对照图）都读不出来：这台机器上的 OCR 引擎不工作，是环境限制，不是 ocr.ps1 的错；这一项不能算 OCR 通过，要在 Windows 真机上验证'
 }
-elseif ($minimalReadsControl -and (((& $psBroken $rControl)) -or ($rControl.lines -eq 0))) {
+elseif ($minimalReadsControl -and -not $psReadsControl) {
+    # 只有「极简代码读得出而 ocr.ps1 读不出」才是脚本的问题
     $verdict = 'SCRIPT'; $why = "极简代码能读出对照图（$($mControl.textLength) 个字符），但 ocr.ps1 读它失败（退出码 $($rControl.exitCode)，$($rControl.lines) 行）：ocr.ps1 本身有问题"
 }
-elseif (-not $minimalReadsControl) {
-    $verdict = 'SCRIPT'; $why = "极简代码读不出对照图，而 ocr.ps1 的退出码是 $($rControl.exitCode)（$($rControl.lines) 行）：脚本或引擎的行为不一致，按脚本问题处理，请看日志"
+elseif (-not $minimalReadsControl -and -not $psReadsControl) {
+    $verdict = 'SCRIPT'; $why = "极简代码读不出对照图，而 ocr.ps1 也失败了（退出码 $($rControl.exitCode)，$($rControl.lines) 行，不是引擎不可用的那种）：按脚本问题处理，请看日志"
 }
 elseif ((& $psBroken $rSample) -or (& $psBroken $rControlT)) { $verdict = 'SCRIPT'; $why = "ocr.ps1 处理样张 / 透明背景对照图时崩溃（退出码 $($rSample.exitCode) / $($rControlT.exitCode)）" }
 elseif ($rSample.lines -gt 0 -and $rControlT.lines -gt 0) { $verdict = 'OK'; $why = "ocr.ps1 识别出样张 $($rSample.lines) 行、透明背景对照图 $($rControlT.lines) 行（极简代码对透明背景对照图读出 $($mControlT.textLength) 个字符、对样张 $($mSample.textLength) 个字符——为 0 就证实了透明背景是根因）" }
 elseif ($rFlat.lines -gt 0) { $verdict = 'SCRIPT'; $why = 'ocr.ps1 读不出带透明通道的图，但铺白底后的样张能读：脚本处理透明通道有问题' }
 else { $verdict = 'IMAGE'; $why = '对照图能读，但样张（拍平前后）都读不出：引擎读不出这张样张（字太小 / 版面）' }
+if ($note) { $why = "$why $note" }
 
 $summary = [ordered]@{ verdict = $verdict; why = $why; sample = $sampleInfo; capabilities = $caps; minimal = @($mControl, $mControlT, $mSample); ocrPs1 = @($rControl, $rControlT, $rSample, $rFlat) }
 $summary | ConvertTo-Json -Depth 6 | Out-File (Join-Path $OutDir 'ocr-diagnose.json') -Encoding utf8

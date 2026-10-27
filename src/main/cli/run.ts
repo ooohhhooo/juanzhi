@@ -116,7 +116,8 @@ export function startCliMode(rawArgs: string[]): void {
       const got = await acquireRunLock(app.getPath('userData'), 'cli')
       if (!got.ok) {
         if (got.holder?.mode === 'gui') throw new CliError('app_running', '卷知窗口正在运行，请先退出卷知再用命令行（Mac 上要按 Cmd+Q 退出，只关闭窗口不行；Windows 上关闭窗口就是退出）')
-        throw new CliError('cli_busy', `另一个卷知命令行任务${got.holder?.pid ? `（进程 ${got.holder.pid}）` : ''}正在使用数据，请等它结束后再试`)
+        if (!got.holder) throw new CliError('cli_busy', '卷知（窗口或另一个命令行任务）正在使用数据，请等它结束后再试；如果一直这样，请退出卷知窗口后再试')
+        throw new CliError('cli_busy', `另一个卷知命令行任务（进程 ${got.holder.pid}）正在使用数据，请等它结束后再试`)
       }
       release = got.release
       debug('lock acquired')

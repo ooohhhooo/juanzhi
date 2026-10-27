@@ -25,7 +25,7 @@ import { APP_ID, PRODUCT_NAME, WINDOW_TITLE } from './brand'
 import { buildMacMenuTemplate } from './menu-template'
 import { cliArgvOf } from './cli/args'
 import { startCliMode } from './cli/run'
-import { acquireRunLock } from './cli/lock'
+import { acquireRunLock, inspectRunLock, processLooksLikeJuanzhi } from './cli/lock'
 
 // 数据目录固定为 <appData>/english-exam-workbench，与启动方式、productName 无关。
 // EWB_USER_DATA_DIR 仅供自动化测试隔离数据，正常使用不要设置。
@@ -127,27 +127,44 @@ if (cliArgs) {
 
   app.whenReady().then(async () => {
     // 运行锁：命令行正在使用数据时，窗口不能同时打开（两边同时写同一份数据会损坏）。锁是「持有者活着才持有」，不会有陈旧锁挡住窗口
-    let lock = await acquireRunLock(app.getPath('userData'), 'gui')
-    if (!lock.ok) {
-      const h = lock.holder
-      const who = h?.pid ? `进程 ${h.pid}${h.startedAt ? `，开始于 ${h.startedAt}` : ''}` : '进程未知'
-      const msg = '卷知命令行正在使用数据，请等它结束后再打开窗口'
-      if (process.env.EWB_NO_DIALOG === '1') { process.stderr.write(`[卷知] ${msg}（${who}）\n`); app.exit(3); return }
-      const pick = dialog.showMessageBoxSync({
-        type: 'warning', title: PRODUCT_NAME, message: msg,
-        detail: `${who}。命令行任务（比如导入试卷、生成报告）做完后会自动释放，稍等片刻再打开卷知即可。\n\n如果它卡住了（比如在等钥匙串授权），可以点「结束命令行任务并打开」，或在任务管理器 / 活动监视器里结束进程${h?.pid ? ` ${h.pid}` : ''}。`,
-        buttons: ['好', '结束命令行任务并打开'], defaultId: 0, cancelId: 0
-      })
-      if (pick === 1 && h?.pid) {
-        for (const sig of ['SIGTERM', 'SIGKILL'] as const) {
-          try { process.kill(h.pid, sig) } catch { /* 已经结束了 */ }
-          for (let i = 0; i < 25 && !lock.ok; i++) { await new Promise(r => setTimeout(r, 200)); lock = await acquireRunLock(app.getPath('userData'), 'gui'); if (lock.ok) break }
-          if (lock.ok) break
+    // 锁子系统本身出故障（目录只读、抢锁超时……）不能让窗口打不开：写日志后照常打开
+    try {
+      const userDataDir = app.getPath('userData')
+      let lock = await acquireRunLock(userDataDir, 'gui')
+      if (!lock.ok) {
+        const h = lock.holder
+        const who = h?.pid ? `进程 ${h.pid}${h.startedAt ? `，开始于 ${h.startedAt}` : ''}` : '进程未知'
+        const msg = h?.mode === 'cli' || !h ? '卷知命令行正在使用数据，请等它结束后再打开窗口' : '卷知已经在运行（锁被另一个窗口进程持有）'
+        if (process.env.EWB_NO_DIALOG === '1') { process.stderr.write(`[卷知] ${msg}（${who}）\n`); app.exit(3); return }
+        const canKill = !!h?.pid && h.mode === 'cli'
+        const pick = dialog.showMessageBoxSync({
+          type: 'warning', title: PRODUCT_NAME, message: msg,
+          detail: `${who}。命令行任务（比如导入试卷、生成报告）做完后会自动释放，稍等片刻再打开卷知即可。\n\n如果它卡住了（比如在等钥匙串授权），可以点「结束命令行任务并打开」，或在任务管理器 / 活动监视器里结束进程${h?.pid ? ` ${h.pid}` : ''}。`,
+          buttons: canKill ? ['好', '结束命令行任务并打开'] : ['好'], defaultId: 0, cancelId: 0
+        })
+        if (pick === 1 && canKill) {
+          // 弹框期间那个进程可能已经结束、pid 被别的程序复用：杀之前重新确认持有者还是同一个（pid + 启动时间一致），并且进程名确实是卷知
+          const now = await inspectRunLock(userDataDir)
+          const same = !!now && now.pid === h!.pid && now.startedAt === h!.startedAt
+          if (!now) { /* 命令行已经结束：下面直接再抢一次锁 */ }
+          else if (!same || !processLooksLikeJuanzhi(h!.pid)) {
+            dialog.showMessageBoxSync({ type: 'info', title: PRODUCT_NAME, message: '没有结束任何进程', detail: `持有者已经变了，或者进程 ${h!.pid} 看起来不是卷知的命令行。为了不误伤别的程序，卷知没有结束它。请稍后再试，或手动处理。`, buttons: ['好'] })
+            app.exit(3); return
+          } else {
+            for (const sig of ['SIGTERM', 'SIGKILL'] as const) {
+              try { process.kill(h!.pid, sig) } catch { /* 已经结束了 */ }
+              for (let i = 0; i < 25; i++) { await new Promise(r => setTimeout(r, 200)); lock = await acquireRunLock(userDataDir, 'gui'); if (lock.ok) break }
+              if (lock.ok) break
+            }
+          }
+          if (!lock.ok) lock = await acquireRunLock(userDataDir, 'gui')
         }
+        if (!lock.ok) { app.exit(3); return }
       }
-      if (!lock.ok) { app.exit(3); return }
+      releaseRunLock = lock.release
+    } catch (e) {
+      console.warn(`[lock] 运行锁出错，照常打开窗口（命令行互斥暂时不可用）：${(e as Error).message}`)
     }
-    releaseRunLock = lock.release
     // macOS：中文应用菜单（关于 / 隐藏 / 退出 都用产品名）；Windows / Linux 沿用默认菜单
     if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate(buildMacMenuTemplate({ dev: !app.isPackaged }) as Electron.MenuItemConstructorOptions[]))
     registerProtocol()

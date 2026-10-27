@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { buildShellShim, buildCmdShim, shQuote, installCliShim, shimPath, writeShimSafely, SHIM_MARK, WINDOWS_PATH_SCRIPT } from '../../src/main/cli/shim.ts'
+import { buildShellShim, buildCmdShim, shQuote, installCliShim, shimPath, writeShimSafely, isOurShim, SHIM_MARK, WINDOWS_PATH_SCRIPT } from '../../src/main/cli/shim.ts'
 
 // ── shell 脚本 ──
 {
@@ -50,6 +50,13 @@ assert.ok(!/SetEnvironmentVariable|GetEnvironmentVariable\('Path'/.test(WINDOWS_
   writeShimSafely(f, buildShellShim('/x'), 0o755); assert.ok(fs.readFileSync(f, 'utf8').includes(SHIM_MARK))
   writeShimSafely(f, buildShellShim('/y'), 0o755); assert.ok(fs.readFileSync(f, 'utf8').includes("'/y'"), '自己写的可以重新安装（更新路径）')
   assert.deepEqual(fs.readdirSync(d), ['juanzhi'], '没有留下临时文件')
+  // 旧开发版写的脚本（没有 JUANZHI-SHIM 标记）也认得出来，可以更新；用户自己的脚本不行
+  const oldSh = path.join(d, 'old-juanzhi')
+  fs.writeFileSync(oldSh, '#!/bin/sh\n# 由「卷知」生成：juanzhi 命令（设置 → 管理员设置 → 安装命令行工具）。卷知被移动或卸载后，请重新安装命令行工具。\nexec \'/Applications/卷知.app/Contents/MacOS/卷知\' cli "$@"\n')
+  assert.ok(isOurShim(fs.readFileSync(oldSh, 'utf8'))); writeShimSafely(oldSh, buildShellShim('/new'), 0o755); assert.ok(fs.readFileSync(oldSh, 'utf8').includes(SHIM_MARK), '旧版脚本被更新')
+  assert.ok(isOurShim('@echo off\r\nstart "" /wait "C:\\x\\EnglishExamWorkbench.exe" cli %*\r\n'), '旧版 cmd 脚本')
+  assert.equal(isOurShim('#!/bin/sh\nexec /usr/local/bin/other-tool "$@"\n'), false)
+  assert.equal(isOurShim('#!/bin/sh\n# my wrapper around 卷知.app\nopen -a 卷知.app\n'), false, '只是提到卷知、没有 cli 调用')
   // 符号链接：不跟随
   const real = path.join(d, 'other-real'); fs.writeFileSync(real, 'REAL CONTENT')
   const link = path.join(d, 'link-juanzhi'); fs.symlinkSync(real, link)
@@ -83,6 +90,10 @@ assert.ok(!/SetEnvironmentVariable|GetEnvironmentVariable\('Path'/.test(WINDOWS_
   const r = await installCliShim({ platform: 'win32', home, localAppData: path.join(home, 'AppData', 'Local'), exePath: 'C:\\x\\EnglishExamWorkbench.exe', portable: false, runPowerShell: ps })
   assert.ok(r.path.endsWith(path.join('Juanzhi', 'bin', 'juanzhi.cmd'))); assert.ok(fs.readFileSync(r.path, 'utf8').includes('set "JZ_EXE=C:\\x\\EnglishExamWorkbench.exe"'))
   assert.equal(r.onPath, true); assert.equal(calls.length, 1); assert.equal(calls[0].env.JZ_BIN_DIR, r.dir); assert.deepEqual(r.warnings, [])
+  // 广播失败（受限的 PowerShell）：PATH 已经写好，不能报成安装失败，只给警告
+  const nb = await installCliShim({ platform: 'win32', home, exePath: 'C:\\x\\a.exe', portable: false, runPowerShell: async () => 'added-nobroadcast' })
+  assert.equal(nb.onPath, true); assert.ok(nb.warnings.some(w => /没能通知系统刷新/.test(w)))
+  assert.ok(WINDOWS_PATH_SCRIPT.indexOf('SendMessageTimeout') > WINDOWS_PATH_SCRIPT.indexOf('try {') && WINDOWS_PATH_SCRIPT.includes("'added-nobroadcast'"), '广播在 try 里')
   // 免安装版：写明限制
   const p = await installCliShim({ platform: 'win32', home, exePath: 'D:\\tools\\Juanzhi-1.2.0-win-x64-portable.exe', portable: true, runPowerShell: ps })
   assert.ok(p.warnings.some(w => /免安装版的限制/.test(w) && /退出码/.test(w)))

@@ -111,6 +111,7 @@ jobs:
       # 区分「脚本的问题」和「环境的问题」：对照图（现场画的白底黑字）能识别而样张不能 → 脚本 / 样张；对照图都识别不出 → 环境。SCRIPT 结论会让这一步失败
       - name: Windows｜OCR 诊断：对照图 / 样张 / 拍平的样张
         if: runner.os == 'Windows'
+        continue-on-error: true   # 诊断失败也不拦后面的冒烟和命令行步骤：一轮 CI 要拿到全部信息；SCRIPT 结论由最后的「OCR 诊断结论」步骤统一判失败
         shell: pwsh
         run: ./tests/e2e/ocr-diagnose.ps1 -OcrScript release/win-unpacked/resources/native/windows/ocr.ps1 -Sample samples/g4-2025-page1.png -OutDir smoke-artifacts
 
@@ -199,6 +200,17 @@ jobs:
           set +e; juanzhi bogus > cli-bogus.json; code=$?; set -e
           test "$code" = "2" || { echo "失败的命令退出码应是 2，实际 $code"; exit 1; }
           mkdir -p smoke-artifacts && cp cli-status.json smoke-artifacts/cli-macos-status.json
+
+      # 所有步骤跑完之后，统一判 OCR 诊断：只有 SCRIPT（ocr.ps1 读不出而极简代码读得出）才算失败；ENV / IMAGE 是警告
+      - name: Windows｜OCR 诊断结论（最后统一判定）
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $f = 'smoke-artifacts/ocr-diagnose.json'
+          if (-not (Test-Path $f)) { Write-Host '::warning::没有 ocr-diagnose.json（诊断步骤没跑完）'; exit 0 }
+          $j = Get-Content $f -Raw | ConvertFrom-Json
+          Write-Host "OCR 诊断结论：$($j.verdict) —— $($j.why)"
+          if ($j.verdict -eq 'SCRIPT') { throw "OCR 诊断判定为脚本问题：$($j.why)" }
 
       - name: 上传冒烟截图 / 结果（失败时也上传）
         if: always()

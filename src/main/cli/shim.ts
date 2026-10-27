@@ -91,10 +91,13 @@ export const WINDOWS_PATH_SCRIPT = [
   "  Add-Content -LiteralPath $bk -Value (\"[{0}] kind={1}`r`n{2}`r`n\" -f (Get-Date -Format s), $kind, $raw) -Encoding UTF8",
   "  $new = if ($raw) { $raw.TrimEnd(';') + ';' + $d } else { $d }",
   '  $k.SetValue(\'Path\', $new, $kind)',
-  "  Add-Type -Namespace Juanzhi -Name Native -MemberDefinition '[DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'",
-  '  $res = [UIntPtr]::Zero',
-  "  [void][Juanzhi.Native]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$res)",
-  "  Write-Output 'added'",
+  "  $broadcast = 'added'",
+  '  try {',
+  "    Add-Type -Namespace Juanzhi -Name Native -MemberDefinition '[DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'",
+  '    $res = [UIntPtr]::Zero',
+  "    [void][Juanzhi.Native]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref]$res)",
+  '  } catch { $broadcast = \'added-nobroadcast\' }',
+  '  Write-Output $broadcast',
   '} finally { $k.Close() }'
 ].join('\n')
 
@@ -140,7 +143,7 @@ function defaultPowerShell(script: string, env: Record<string, string>): Promise
 function defaultReadShellPath(): Promise<string | null> {
   return new Promise(resolve => {
     const shell = process.env.SHELL || '/bin/zsh'
-    execFile(shell, ['-ilc', 'printf %s "$PATH"'], { timeout: 4000 }, (err, stdout) => resolve(err ? null : String(stdout).trim() || null))
+    execFile(shell, ['-ilc', 'printf "\\n%s" "$PATH"'], { timeout: 4000 }, (err, stdout) => resolve(err ? null : String(stdout).trim().split('\n').pop()?.trim() || null))   // 取最后一行：rc 文件里的欢迎信息不会污染
   })
 }
 
@@ -155,6 +158,16 @@ export function shimPath(env: Pick<InstallEnv, 'platform' | 'home' | 'localAppDa
 }
 
 /**
+ * 是不是卷知自己写的包装脚本：带 JUANZHI-SHIM 标记，或者是旧开发版写的（没有标记，但写着「由「卷知」生成」，或者指向卷知 / EnglishExamWorkbench 的程序并带 cli 参数）。
+ * 不满足的一律当成用户自己的文件，不覆盖。
+ */
+export function isOurShim(content: string): boolean {
+  if (content.includes('JUANZHI-SHIM')) return true
+  if (/由「卷知」生成/.test(content)) return true
+  return /(卷知\.app|EnglishExamWorkbench\.exe)/.test(content) && /\bcli\b/.test(content) && content.length < 4000
+}
+
+/**
  * 安全地写包装脚本：目标已存在时，符号链接拒绝（不写穿到别处）、不带我们的标记的文件拒绝（不覆盖用户自己的 juanzhi）；其余用临时文件 + 改名原子替换。
  */
 export function writeShimSafely(file: string, content: string, mode?: number): void {
@@ -165,7 +178,7 @@ export function writeShimSafely(file: string, content: string, mode?: number): v
     if (!st.isFile()) throw new Error(`${file} 已经存在而且不是普通文件，卷知不会覆盖它`)
     let old = ''
     try { old = fs.readFileSync(file, 'utf8') } catch { /* 读不了就当不是我们的 */ }
-    if (!old.includes('JUANZHI-SHIM')) throw new Error(`已经有一个不是卷知生成的 ${path.basename(file)}（${file}），卷知不会覆盖它。请先把它改名或删除，再重新安装命令行工具`)
+    if (!isOurShim(old)) throw new Error(`已经有一个不是卷知生成的 ${path.basename(file)}（${file}），卷知不会覆盖它。请先把它改名或删除，再重新安装命令行工具`)
   }
   const tmp = `${file}.${process.pid}.tmp`
   try {
@@ -192,6 +205,7 @@ export async function installCliShim(env: InstallEnv, currentPath: string = proc
     try {
       const out = await (env.runPowerShell ?? defaultPowerShell)(WINDOWS_PATH_SCRIPT, { JZ_BIN_DIR: dir, JZ_BACKUP_FILE: path.join(path.dirname(dir), 'path-backup.txt') })
       added = /added|already/.test(out)
+      if (/added-nobroadcast/.test(out)) warnings.push('用户 PATH 已经写好，但没能通知系统刷新环境变量（受限的 PowerShell 环境）：新开的终端可能要注销重新登录后才生效')
     } catch (e) { warnings.push(`没能把 ${dir} 加进用户 PATH：${(e as Error).message}。请手动把这个目录加进 PATH，或直接用完整路径运行 ${file}`) }
     if (env.portable) warnings.push('免安装版的限制：短命令指向免安装版文件本身（移动或删除它会失效）；每次运行都要先解压，慢几秒；它的外层启动器不一定传递退出码（命令行会把退出码也写进结果文件，短命令以它为准）。长期给 Agent 用建议装安装版。')
     return { ok: true, platform: 'win32', path: file, dir, onPath: added, warnings,

@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { acquireRunLock, inspectRunLock, lockEndpoint } from '../../src/main/cli/lock.ts'
+import { acquireRunLock, inspectRunLock, lockEndpoint, processLooksLikeJuanzhi } from '../../src/main/cli/lock.ts'
 
 const LOCK_TS = fileURLToPath(new URL('../../src/main/cli/lock.ts', import.meta.url))
 const mkdir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-lock-'))
@@ -102,5 +102,47 @@ if (process.platform !== 'win32') {
     p.kill('SIGKILL'); await new Promise(r => p.on('exit', r))
   })
 }
+
+// ── 退路（沙箱里不能监听套接字，用锁文件）：互相看得见；拿不到开机时间也不能崩 ──
+{
+  const dir = mkdir()
+  // 套接字持有者（窗口）同时写了锁文件：沙箱里的命令行（noSocket 模拟）看得见，拿不到
+  const win = await acquireRunLock(dir, 'gui'); assert.ok(win.ok)
+  assert.ok(fs.existsSync(path.join(dir, 'ewb-run.lock')), '套接字持有者同时写锁文件')
+  const sandboxed = await acquireRunLock(dir, 'cli', process.pid + 1, { noSocket: true })
+  assert.equal(sandboxed.ok, false, '窗口开着时，沙箱里的命令行必须被拒绝'); assert.equal(sandboxed.holder.mode, 'gui')
+  win.release()
+  assert.ok(!fs.existsSync(path.join(dir, 'ewb-run.lock')), '释放后锁文件也删了')
+  // 沙箱里的命令行拿到文件锁；窗口（有套接字）在它活着时也要被拒绝
+  const sb = await acquireRunLock(dir, 'cli', process.pid, { noSocket: true }); assert.ok(sb.ok)
+  const win2 = await acquireRunLock(dir, 'gui', process.pid + 1); assert.equal(win2.ok, false); assert.equal(win2.holder.mode, 'cli')
+  sb.release()
+  // os.uptime() 抛异常（沙箱里会）：陈旧锁文件仍能被清掉、活着的持有者仍然被识别，不抛异常
+  const realUptime = os.uptime
+  os.uptime = () => { throw Object.assign(new Error('uv_uptime returned EPERM'), { code: 'EPERM' }) }
+  try {
+    const dead = spawn(process.execPath, ['-e', '0']); await new Promise(r => dead.on('exit', r))
+    fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: dead.pid, mode: 'cli', startedAt: new Date().toISOString() }))
+    const a = await acquireRunLock(dir, 'cli', process.pid, { noSocket: true }); assert.ok(a.ok, 'uptime 抛异常时陈旧锁文件也能清掉'); a.release()
+    const live = spawn(process.execPath, ['-e', 'setTimeout(()=>{}, 30000)'], { stdio: 'ignore' })
+    fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: live.pid, mode: 'cli', startedAt: '2020-01-01T00:00:00Z' }))
+    const b = await acquireRunLock(dir, 'cli', process.pid, { noSocket: true }); assert.equal(b.ok, false, '拿不到开机时间时只看 pid：活着就是被占用')
+    live.kill('SIGKILL'); await new Promise(r => live.on('exit', r))
+  } finally { os.uptime = realUptime }
+  // 启动时间早于本次开机的锁文件（重启后 pid 被别的进程占用）：陈旧
+  const other = spawn(process.execPath, ['-e', 'setTimeout(()=>{}, 30000)'], { stdio: 'ignore' })
+  fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: other.pid, mode: 'gui', startedAt: new Date(Date.now() - os.uptime() * 1000 - 3600_000).toISOString() }))
+  const c = await acquireRunLock(dir, 'cli', process.pid, { noSocket: true }); assert.ok(c.ok, '启动时间早于开机 = 陈旧，即使 pid 现在被别的进程占着'); c.release()
+  other.kill('SIGKILL'); await new Promise(r => other.on('exit', r))
+  fs.rmSync(dir, { recursive: true, force: true })
+}
+// ── 杀进程前核对进程名（假执行器）──
+assert.equal(processLooksLikeJuanzhi(123, 'darwin', () => '/Applications/卷知.app/Contents/MacOS/卷知 cli import a.pdf'), true)
+assert.equal(processLooksLikeJuanzhi(123, 'darwin', () => '/usr/bin/vim notes.txt'), false, '被复用成别的程序')
+assert.equal(processLooksLikeJuanzhi(123, 'darwin', () => '/Applications/卷知.app/Contents/MacOS/卷知'), false, '没有 cli 参数（那是窗口）')
+assert.equal(processLooksLikeJuanzhi(123, 'win32', () => '"EnglishExamWorkbench.exe","123","Console"'), true)
+assert.equal(processLooksLikeJuanzhi(123, 'win32', () => 'INFO: No tasks are running which match the specified criteria.'), false)
+assert.equal(processLooksLikeJuanzhi(123, 'darwin', () => { throw new Error('boom') }), false, '判断不了就当不是')
+assert.equal(processLooksLikeJuanzhi(0), false)
 fs.rmSync(childFile, { force: true })
 console.log('cli-lock.test ✓')

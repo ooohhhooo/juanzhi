@@ -127,6 +127,8 @@ const wf = fs.readFileSync('.github/workflows/build.yml', 'utf8')
 for (const s of ['windows-latest', 'macos-latest', 'npm ci', 'npm run typecheck', 'npm run test:unit', 'smoke-packaged.cjs', 'upload-artifact']) assert.ok(wf.includes(s), `workflow 里缺 ${s}`)
 assert.match(wf, /从来没有真正运行过/, 'workflow 注释里写明从未运行过')
 // M7 命令行：workflow 里要有 Windows（PowerShell / cmd）和 Mac 的命令行检查，以及 OCR 诊断（区分脚本问题和环境问题）
+assert.ok(/OCR 诊断：对照图[\s\S]{0,200}continue-on-error: true/.test(wf), 'OCR 诊断步骤不能拦住后面的冒烟（continue-on-error）')
+assert.ok(/OCR 诊断结论（最后统一判定）[\s\S]{0,200}always\(\)/.test(wf), '最后统一判 OCR 诊断结论')
 for (const s of ['juanzhi.cmd', 'LASTEXITCODE', 'Start-Process', '--result-file', 'ocr-diagnose.ps1', 'shell: cmd']) assert.ok(wf.includes(s), `workflow 里缺命令行 / OCR 诊断检查：${s}`)
 assert.ok(fs.existsSync('tests/e2e/cli-smoke.cjs') && fs.readFileSync('tests/e2e/smoke-packaged.cjs', 'utf8').includes('cli-smoke.cjs'), '打包版冒烟里要跑命令行检查')
 const ocrDiag = fs.readFileSync('tests/e2e/ocr-diagnose.ps1')
