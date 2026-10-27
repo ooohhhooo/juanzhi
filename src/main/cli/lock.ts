@@ -116,7 +116,9 @@ function readFileLock(dir: string): LockInfo | null {
  * 这个 pid 现在是不是卷知的进程：true / false；判断不了（没有 ps / tasklist、沙箱不让跑）返回 null。
  * 判断得了而且不是卷知 = pid 已经被别的程序复用，锁文件是陈旧的。
  */
-export function pidIsJuanzhi(pid: number, platform: NodeJS.Platform = process.platform, run: (cmd: string, args: string[]) => string = (c, a) => execFileSync(c, a, { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] })): boolean | null {
+/** 命令行里出现卷知的程序（.app 里的可执行文件、Windows 的 exe）或开发 / 测试时的 Electron 本体；不匹配任意带项目路径的进程 */
+const PROCESS_NAME_RE = /卷知\.app\/Contents\/MacOS\/|\/MacOS\/卷知|EnglishExamWorkbench\.exe|Juanzhi|Electron\.app\/Contents\/MacOS\/Electron/i
+export function pidIsJuanzhi(pid: number, platform: NodeJS.Platform = process.platform, run: (cmd: string, args: string[]) => string = (c, a) => execFileSync(c, a, { encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] })): boolean | null {
   if (!Number.isInteger(pid) || pid <= 0) return false
   try {
     if (platform === 'win32') {
@@ -125,7 +127,7 @@ export function pidIsJuanzhi(pid: number, platform: NodeJS.Platform = process.pl
     }
     const cmd = run('ps', ['-p', String(pid), '-o', 'command=']).trim()
     if (!cmd) return null   // ps 没输出：进程刚退出或 ps 被限制，不下结论
-    return /卷知|english-exam-workbench|EnglishExamWorkbench|Electron|Juanzhi/i.test(cmd)
+    return PROCESS_NAME_RE.test(cmd)
   } catch { return null }
 }
 let nameCheck: (pid: number) => boolean | null = pid => pidIsJuanzhi(pid)
@@ -153,7 +155,7 @@ function writeCompanionLock(dir: string, info0: LockInfo): () => void {
   return () => { const cur = readFileLock(dir); if (cur && cur.pid === info.pid) { try { fs.unlinkSync(file) } catch { /* 已经没了 */ } } }
 }
 
-function acquireFileLock(dir: string, info: LockInfo): AcquireResult {
+function acquireFileLock(dir: string, info: LockInfo, socketGone = false): AcquireResult {
   const file = path.join(dir, FILE_LOCK)
   for (let attempt = 0; attempt < 4; attempt++) {
     const tmp = path.join(dir, `ewb-run.${info.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`)
@@ -164,7 +166,8 @@ function acquireFileLock(dir: string, info: LockInfo): AcquireResult {
     }
     const holder = readFileLock(dir)
     if (holder && holder.pid === info.pid) { fs.writeFileSync(file, JSON.stringify(info)); return { ok: true, endpoint: file, release: () => { const cur = readFileLock(dir); if (cur && cur.pid === info.pid) { try { fs.unlinkSync(file) } catch { /* */ } } } } }
-    if (holder && fileLockAlive(holder)) return { ok: false, holder }
+    // socketGone = 刚探测过、确定没人监听套接字：带 socket 标记的伴随锁文件（套接字持有者写的）一定是陈旧的，和 inspectRunLock 一致
+    if (holder && !(socketGone && holder.socket) && fileLockAlive(holder)) return { ok: false, holder }
     try { fs.unlinkSync(file) } catch { /* 已经没了 */ }   // 陈旧或损坏：在守卫里清掉再抢
   }
   return { ok: false, holder: readFileLock(dir) }
@@ -196,7 +199,7 @@ export async function acquireRunLock(dir: string, mode: LockMode, pid = process.
           const pr = await probe(endpoint)
           if (pr.alive === true) return { ok: false, holder: pr.info }
           // 连不上（没人监听，或沙箱不让连）：带 socket 标记的伴随锁文件和只有文件的锁一样，按 pid + 启动时间 + 进程名判断
-          return acquireFileLock(dir, info)
+          return acquireFileLock(dir, info, pr.alive === false)
         }
         throw e
       }
@@ -241,9 +244,31 @@ export function processLooksLikeJuanzhi(pid: number, platform: NodeJS.Platform =
   try {
     if (platform === 'win32') return /EnglishExamWorkbench\.exe/i.test(run('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH']))
     const cmd = run('ps', ['-p', String(pid), '-o', 'command='])
-    return /卷知|english-exam-workbench|EnglishExamWorkbench|Electron/i.test(cmd) && /\bcli\b/.test(cmd)
+    return PROCESS_NAME_RE.test(cmd) && /\bcli\b/.test(cmd)
   } catch { return false }
 }
 
 /** 删掉锁文件（给「仍要打开」用：用户确认没有命令行在运行时清掉可能陈旧的伴随锁文件）；套接字不动 */
 export function clearLockFile(dir: string): void { try { fs.unlinkSync(path.join(dir, FILE_LOCK)) } catch { /* 没有 */ } }
+
+/**
+ * 窗口没拿到锁（点了「仍要打开」、或抢锁出错）时在后台每隔几秒再抢一次：抢到就交给 onAcquired（调用方挂上 releaseRunLock），然后停止。
+ * 这样窗口会话里命令行的互斥只缺席「命令行还在跑」的那一段，之后自动恢复。返回停止函数。
+ */
+export function keepTryingRunLock(dir: string, mode: LockMode, onAcquired: (release: () => void) => void, intervalMs = 2500, pid = process.pid): () => void {
+  let stopped = false
+  let busy = false
+  const timer = setInterval(async () => {
+    if (stopped || busy) return
+    busy = true
+    try {
+      const r = await acquireRunLock(dir, mode, pid)
+      if (r.ok) {
+        if (stopped) r.release()
+        else { stopped = true; clearInterval(timer); onAcquired(r.release) }
+      }
+    } catch { /* 下一轮再试 */ } finally { busy = false }
+  }, intervalMs)
+  timer.unref?.()
+  return () => { stopped = true; clearInterval(timer) }
+}

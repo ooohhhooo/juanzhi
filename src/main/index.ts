@@ -25,7 +25,7 @@ import { APP_ID, PRODUCT_NAME, WINDOW_TITLE } from './brand'
 import { buildMacMenuTemplate } from './menu-template'
 import { cliArgvOf } from './cli/args'
 import { startCliMode } from './cli/run'
-import { acquireRunLock, clearLockFile, inspectRunLock, processLooksLikeJuanzhi } from './cli/lock'
+import { acquireRunLock, clearLockFile, inspectRunLock, keepTryingRunLock, processLooksLikeJuanzhi } from './cli/lock'
 
 // 数据目录固定为 <appData>/english-exam-workbench，与启动方式、productName 无关。
 // EWB_USER_DATA_DIR 仅供自动化测试隔离数据，正常使用不要设置。
@@ -137,20 +137,23 @@ if (cliArgs) {
         const msg = !h ? '卷知（窗口或命令行）正在使用数据，请等它结束后再打开窗口' : h.mode === 'cli' ? '卷知命令行正在使用数据，请等它结束后再打开窗口' : '卷知已经在运行（锁被另一个窗口进程持有）'
         if (process.env.EWB_NO_DIALOG === '1') { process.stderr.write(`[卷知] ${msg}（${who}）\n`); app.exit(3); return }
         const canKill = !!h?.pid && h.mode === 'cli'
-        const labels = canKill ? ['好', '结束命令行任务并打开', '仍要打开（有风险）'] : ['好', '仍要打开（有风险）']
+        // 「仍要打开」只在持有者未知（判断不了是谁）时给；持有者明确是活着的命令行时只有「好」和更安全的「结束命令行任务并打开」
+        const labels = canKill ? ['好', '结束命令行任务并打开'] : !h ? ['好', '仍要打开（有风险）'] : ['好']
         const pick = labels[dialog.showMessageBoxSync({
           type: 'warning', title: PRODUCT_NAME, message: msg,
           detail: `${who}。命令行任务（比如导入试卷、生成报告）做完后会自动释放，稍等片刻再打开卷知即可。\n\n`
             + (canKill ? `如果它卡住了（比如在等钥匙串授权），可以点「结束命令行任务并打开」，或在任务管理器 / 活动监视器里结束进程${h?.pid ? ` ${h.pid}` : ''}。\n\n` : '')
-            + '如果你确定现在没有命令行在运行（比如上一次异常退出留下了记录），可以点「仍要打开」。风险：要是命令行其实还在写数据，同时打开窗口可能损坏数据。',
+            + (!h ? '无法确认是谁在使用数据。如果你确定现在没有命令行在运行，可以点「仍要打开」。风险：要是命令行其实还在运行，它正在做的导入或解析会被打断，相关试卷会被标成失败，需要重新导入；窗口打开期间，命令行在它结束之前不会被挡住，卷知会在它结束后自动恢复保护。' : ''),
           buttons: labels, defaultId: 0, cancelId: 0
         })]
         if (pick === '仍要打开（有风险）') {
           // 用户确认没有命令行在运行：清掉可能陈旧的锁文件再抢一次；还是抢不到（持有者真的活着）就不带锁打开，命令行互斥暂时不可用
           clearLockFile(userDataDir)
           lock = await acquireRunLock(userDataDir, 'gui')
-          if (!lock.ok) console.warn('[lock] 用户选择「仍要打开」：运行锁仍被占用，窗口不带锁打开（命令行互斥暂时不可用）')
-          else releaseRunLock = lock.release
+          if (!lock.ok) {
+            console.warn('[lock] 用户选择「仍要打开」：运行锁仍被占用，窗口先不带锁打开，并在后台继续尝试拿锁（拿到之后命令行才会被挡住）')
+            keepTryingRunLock(userDataDir, 'gui', rel => { releaseRunLock = rel })
+          } else releaseRunLock = lock.release
         } else if (pick === '结束命令行任务并打开' && canKill) {
           // 弹框期间那个进程可能已经结束、pid 被别的程序复用：杀之前重新确认持有者还是同一个（pid + 启动时间一致），并且进程名确实是卷知
           const now = await inspectRunLock(userDataDir)
@@ -172,7 +175,8 @@ if (cliArgs) {
       }
       if (lock.ok) releaseRunLock = lock.release
     } catch (e) {
-      console.warn(`[lock] 运行锁出错，照常打开窗口（命令行互斥暂时不可用）：${(e as Error).message}`)
+      console.warn(`[lock] 运行锁出错，照常打开窗口，并在后台继续尝试拿锁（拿到之前命令行互斥不可用）：${(e as Error).message}`)
+      keepTryingRunLock(app.getPath('userData'), 'gui', rel => { releaseRunLock = rel })
     }
     // macOS：中文应用菜单（关于 / 隐藏 / 退出 都用产品名）；Windows / Linux 沿用默认菜单
     if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate(buildMacMenuTemplate({ dev: !app.isPackaged }) as Electron.MenuItemConstructorOptions[]))

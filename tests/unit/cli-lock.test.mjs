@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { acquireRunLock, inspectRunLock, lockEndpoint, processLooksLikeJuanzhi, pidIsJuanzhi, __setNameCheck } from '../../src/main/cli/lock.ts'
+import { acquireRunLock, inspectRunLock, lockEndpoint, processLooksLikeJuanzhi, pidIsJuanzhi, keepTryingRunLock, __setNameCheck } from '../../src/main/cli/lock.ts'
 
 const LOCK_TS = fileURLToPath(new URL('../../src/main/cli/lock.ts', import.meta.url))
 const mkdir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-lock-'))
@@ -142,7 +142,7 @@ __setNameCheck(() => null)   // 这一段不依赖 ps：进程名判断不了
 {
   const dir = mkdir()
   const unrelated = spawn(process.execPath, ['-e', 'setTimeout(()=>{}, 60000)'], { stdio: 'ignore' })
-  const seed = () => fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: unrelated.pid, mode: 'gui', startedAt: new Date().toISOString(), socket: true }))
+  const seed = (socket = true) => fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: unrelated.pid, mode: 'gui', startedAt: new Date().toISOString(), ...(socket ? { socket: true } : {}) }))
   // 能监听套接字的进程：listen 成功就说明没有活着的套接字持有者，带 socket 标记的锁文件一定是陈旧的 → 拿到锁，并把文件换成自己的
   seed()
   const a = await acquireRunLock(dir, 'cli'); assert.ok(a.ok, 'pid 指向无关活进程、带 socket 标记的锁文件，不能挡住能监听的进程')
@@ -151,9 +151,9 @@ __setNameCheck(() => null)   // 这一段不依赖 ps：进程名判断不了
   // 只看锁的人也不被陈旧文件骗：没有套接字监听时，带 socket 标记的文件视为陈旧
   seed(); assert.equal(await inspectRunLock(dir), null, 'inspect 也不能被 pid 复用骗到')
   // 沙箱里的命令行（不能监听）：连不上套接字 → 再按 pid + 进程名判断
-  seed(); __setNameCheck(() => false)    // 进程名判断得了，而且不是卷知：pid 被复用，陈旧
+  seed(false); __setNameCheck(() => false)    // 进程名判断得了，而且不是卷知：pid 被复用，陈旧
   const sb1 = await acquireRunLock(dir, 'cli', process.pid + 7, { noSocket: true }); assert.ok(sb1.ok, 'pid 被复用（进程名不是卷知）：沙箱里的命令行也能拿到'); sb1.release()
-  seed(); __setNameCheck(() => null)     // 判断不了进程名：只能按 pid——活着就当被占用（保守）
+  seed(false); __setNameCheck(() => null)     // 只有文件的锁（没有 socket 标记），判断不了进程名：只能按 pid——活着就当被占用（保守）
   const sb2 = await acquireRunLock(dir, 'cli', process.pid + 7, { noSocket: true }); assert.equal(sb2.ok, false, '判断不了进程名时保守地当作被占用')
   fs.unlinkSync(path.join(dir, 'ewb-run.lock'))
   // 「只有文件」的锁（沙箱里的命令行写的，没有 socket 标记）活着时，能监听的进程也要被挡住
@@ -165,6 +165,46 @@ __setNameCheck(() => null)   // 这一段不依赖 ps：进程名判断不了
   __setNameCheck(null)
   fs.rmSync(dir, { recursive: true, force: true })
 }
+
+// ── N4-P1-1：窗口不带锁打开（点「仍要打开」/ 抢锁出错）后，在后台重试：持有者结束 → 窗口拿到锁 → 新的命令行被拒绝 ──
+{
+  const dir = mkdir()
+  const holder = runChild(dir, 'cli', 2500, 0)    // 一个真的在持锁的命令行
+  await sleep(1000)
+  assert.equal((await acquireRunLock(dir, 'gui', process.pid + 3)).ok, false, '起点：窗口被挡住')
+  let got = null
+  const stop = keepTryingRunLock(dir, 'gui', rel => { got = rel }, 200, process.pid)
+  await sleep(600); assert.equal(got, null, '持有者还在时不会拿到')
+  await holder                                       // 持有者结束
+  for (let i = 0; i < 50 && !got; i++) await sleep(100)
+  assert.ok(got, '持有者结束后，窗口在下一轮重试里拿到锁')
+  const cli = await acquireRunLock(dir, 'cli', process.pid + 5)
+  assert.equal(cli.ok, false, '窗口拿到锁之后，新起的命令行被拒绝'); assert.equal(cli.holder.mode, 'gui')
+  stop(); got(); fs.rmSync(dir, { recursive: true, force: true })
+}
+// 重试可以中途停掉；拿到之后不再重试
+{
+  const dir = mkdir()
+  let n = 0
+  const stop = keepTryingRunLock(dir, 'gui', rel => { n++; rel() }, 50)
+  await sleep(500); assert.equal(n, 1, '拿到后只通知一次、不再重试'); stop()
+  fs.rmSync(dir, { recursive: true, force: true })
+}
+// N4-P2-1：沙箱里探测得到「确定没人监听」时，带 socket 标记的伴随锁文件直接视为陈旧（即使判断不了进程名）
+{
+  const dir = mkdir()
+  const alive = spawn(process.execPath, ['-e', 'setTimeout(()=>{}, 30000)'], { stdio: 'ignore' })
+  __setNameCheck(() => null)
+  fs.writeFileSync(path.join(dir, 'ewb-run.lock'), JSON.stringify({ pid: alive.pid, mode: 'gui', startedAt: new Date().toISOString(), socket: true }))
+  // noSocket 模拟 listen 被禁；这个目录里确实没人监听套接字，探测得到 false
+  const r = await acquireRunLock(dir, 'cli', process.pid + 11, { noSocket: true }); assert.ok(r.ok, '确定没人监听时，带 socket 标记的文件是陈旧的'); r.release()
+  __setNameCheck(null); alive.kill('SIGKILL'); await new Promise(r => alive.on('exit', r))
+  fs.rmSync(dir, { recursive: true, force: true })
+}
+// 进程名正则：不匹配带项目路径的无关进程
+assert.equal(pidIsJuanzhi(5, 'darwin', () => 'node /Users/x/english-exam-workbench/scripts/foo.js'), false)
+assert.equal(pidIsJuanzhi(5, 'darwin', () => '/x/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron /x/app cli status'), true, '开发 / 测试用的 Electron 本体')
+assert.equal(pidIsJuanzhi(5, 'darwin', () => '/Applications/卷知.app/Contents/MacOS/卷知'), true)
 // pidIsJuanzhi：真实判断（假执行器）
 assert.equal(pidIsJuanzhi(5, 'darwin', () => '/Applications/卷知.app/Contents/MacOS/卷知'), true)
 assert.equal(pidIsJuanzhi(5, 'darwin', () => '/usr/bin/vim'), false)
