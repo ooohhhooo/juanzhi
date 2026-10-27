@@ -35,5 +35,6 @@ export const READONLY_CHANNELS = new Set([
   'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:reveal',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示
   'settings:get', 'settings:getDataDir', 'settings:openDataDir',
   'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
-  'taxonomy:tree'
+  'taxonomy:tree',
+  'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

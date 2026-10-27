@@ -17,11 +17,15 @@ import { registerReportIpc } from './ipc/report'
 import { registerDataIpc } from './ipc/data'
 import { installIpcGuards } from './restart'
 import { registerTaxonomyIpc } from './ipc/taxonomy'
+import { registerCliIpc } from './ipc/cli'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
 import { APP_ID, PRODUCT_NAME, WINDOW_TITLE } from './brand'
 import { buildMacMenuTemplate } from './menu-template'
+import { cliArgvOf } from './cli/args'
+import { startCliMode } from './cli/run'
+import { acquireRunLock } from './cli/lock'
 
 // 数据目录固定为 <appData>/english-exam-workbench，与启动方式、productName 无关。
 // EWB_USER_DATA_DIR 仅供自动化测试隔离数据，正常使用不要设置。
@@ -104,7 +108,13 @@ function createWindow(): void {
   })
 }
 
-if (!app.requestSingleInstanceLock()) {
+// 命令行模式（`<程序> cli <命令>`）：不创建窗口、不占 Electron 单实例锁（以免打扰正在运行的窗口），见 cli/run.ts
+const cliArgs = cliArgvOf(process.argv, app.isPackaged)
+let releaseRunLock: (() => void) | null = null
+
+if (cliArgs) {
+  startCliMode(cliArgs)
+} else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
@@ -116,6 +126,16 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(async () => {
+    // 运行锁：命令行正在使用数据时，窗口不能同时打开（两边同时写同一份数据会损坏）
+    const lock = acquireRunLock(app.getPath('userData'), 'gui')
+    if (!lock.ok) {
+      const msg = '卷知命令行正在使用数据，请等它结束后再打开窗口'
+      if (process.env.EWB_NO_DIALOG === '1') process.stderr.write(`[卷知] ${msg}\n`)
+      else dialog.showMessageBoxSync({ type: 'info', title: PRODUCT_NAME, message: msg, detail: '命令行任务（比如导入试卷、生成报告）做完后会自动释放；稍等片刻再打开卷知即可。', buttons: ['好'] })
+      app.exit(3)
+      return
+    }
+    releaseRunLock = lock.release
     // macOS：中文应用菜单（关于 / 隐藏 / 退出 都用产品名）；Windows / Linux 沿用默认菜单
     if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate(buildMacMenuTemplate({ dev: !app.isPackaged }) as Electron.MenuItemConstructorOptions[]))
     registerProtocol()
@@ -161,6 +181,7 @@ if (!app.requestSingleInstanceLock()) {
     registerReportIpc()
     registerDataIpc()
     registerTaxonomyIpc()
+    registerCliIpc()
     createWindow()
     // 升级后给库里已有的卷子补扫一遍重复卷：后台分片跑，不挡窗口（失败只写日志）
     if (takeUpgradeScan()) startSimilarScan().then(r => console.log(`[db] 升级后扫描重复试卷：检查 ${r.checked} 份，疑似重复 ${r.suspects} 份`), e => console.warn(`[db] 升级后扫描重复试卷失败: ${(e as Error).message}`))
@@ -180,5 +201,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     destroyPdfRenderer()
     closeDatabase()
+    releaseRunLock?.()
   })
+  process.on('exit', () => releaseRunLock?.())
 }

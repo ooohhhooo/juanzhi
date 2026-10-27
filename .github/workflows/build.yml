@@ -108,8 +108,70 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps1 -Check 2>&1 | Tee-Object smoke-artifacts/ocr-check.txt
           powershell -NoProfile -ExecutionPolicy Bypass -File $ps1 samples/g4-2025-page1.png 2>&1 | Tee-Object smoke-artifacts/ocr-sample.json | Select-Object -First 3
 
+      # 区分「脚本的问题」和「环境的问题」：对照图（现场画的白底黑字）能识别而样张不能 → 脚本 / 样张；对照图都识别不出 → 环境。SCRIPT 结论会让这一步失败
+      - name: Windows｜OCR 诊断：对照图 / 样张 / 拍平的样张
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/e2e/ocr-diagnose.ps1 -OcrScript release/win-unpacked/resources/native/windows/ocr.ps1 -Sample samples/g4-2025-page1.png -OutDir smoke-artifacts
+
       - name: 打包版冒烟 E2E
         run: node tests/e2e/smoke-packaged.cjs
+
+      # ── 命令行（M7）：smoke-packaged.cjs 里已经用 Node 跑过一遍（导入 / 报告 / 导出）并装好了短命令 juanzhi；
+      #    这里用 runner 自带的原生 shell 再验证一次「GUI 子系统程序能不能拿到输出和退出码」——这是 Windows 上最容易出问题的地方。
+      - name: Windows｜命令行：PowerShell 里拿 stdout 和退出码
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $shim = Join-Path $env:LOCALAPPDATA 'Juanzhi\bin\juanzhi.cmd'
+          if (-not (Test-Path $shim)) { throw "没有安装短命令：$shim（冒烟里的「安装命令行工具」没成功）" }
+          # 1) juanzhi.cmd：同步等待，stdout 是 JSON，$LASTEXITCODE 是退出码
+          $out = & $shim status
+          $code = $LASTEXITCODE
+          Write-Host "juanzhi status -> exit $code"; Write-Host $out
+          if ($code -ne 0) { throw "juanzhi status 退出码 $code" }
+          $j = ($out | Out-String).Trim() | ConvertFrom-Json
+          if (-not $j.ok) { throw 'ok 不是 true' }
+          if ($j.data.version -ne (Get-Content package.json | ConvertFrom-Json).version) { throw '版本号不对' }
+          $null = & $shim bogus
+          if ($LASTEXITCODE -ne 2) { throw "失败的命令退出码应是 2，实际 $LASTEXITCODE" }
+          # 2) 直接调用 exe：Start-Process -Wait -PassThru + --result-file
+          $exe = (Resolve-Path 'release/win-unpacked/EnglishExamWorkbench.exe').Path
+          $rf = Join-Path $env:RUNNER_TEMP 'direct-result.json'
+          $p = Start-Process -FilePath $exe -ArgumentList 'cli','status','--result-file',$rf -Wait -PassThru -WindowStyle Hidden
+          if ($p.ExitCode -ne 0) { throw "直接调用 exe 退出码 $($p.ExitCode)" }
+          if (-not (Get-Content $rf -Raw | ConvertFrom-Json).ok) { throw '结果文件里 ok 不是 true' }
+          # 3) 直接调用 exe 再接管道：只记录（软检查）
+          $piped = & $exe cli status | Out-String
+          Write-Host "直接调用 + 管道 stdout: [$($piped.Trim())]"
+          New-Item -ItemType Directory -Force smoke-artifacts | Out-Null
+          "pwsh: shim exit=$code; direct exit=$($p.ExitCode); piped='$($piped.Trim())'" | Out-File smoke-artifacts/cli-windows-pwsh.txt
+
+      - name: Windows｜命令行：cmd 里拿 stdout 和退出码
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          "%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd" status > cli-status.json
+          if errorlevel 1 exit /b 1
+          type cli-status.json
+          findstr /C:"\"ok\":true" cli-status.json || exit /b 1
+          "%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd" bogus > cli-bogus.json
+          if errorlevel 3 exit /b 3
+          if not errorlevel 2 exit /b 4
+          type cli-bogus.json
+          findstr /C:"\"ok\":false" cli-bogus.json || exit /b 5
+          echo cmd 检查通过 > smoke-artifacts\cli-windows-cmd.txt
+
+      - name: macOS｜命令行：短命令 juanzhi
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          juanzhi status | tee cli-status.json
+          python3 -c "import json; j=json.load(open('cli-status.json')); assert j['ok'] and j['data']['version']"
+          set +e; juanzhi bogus > cli-bogus.json; code=$?; set -e
+          test "$code" = "2" || { echo "失败的命令退出码应是 2，实际 $code"; exit 1; }
+          mkdir -p smoke-artifacts && cp cli-status.json smoke-artifacts/cli-macos-status.json
 
       - name: 上传冒烟截图 / 结果（失败时也上传）
         if: always()

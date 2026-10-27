@@ -115,6 +115,10 @@ interface ElectronAPI {
   ocr: {
     status(): Promise<{ available: boolean; detail: string; lang?: string }>
   }
+  cli: {
+    status(): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }>
+    install(): Promise<{ ok: boolean; platform: string; path: string; dir: string; onPath: boolean; hint: string; warnings: string[] }>
+  }
   dialog: {
     openFiles(): Promise<string[]>
   }

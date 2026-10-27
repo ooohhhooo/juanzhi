@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AiSettings from './AiSettings'
 import PromptSettings from './PromptSettings'
 import DataSettings from './DataSettings'
+import CliSettings from './CliSettings'
 import TaxonomySettings from './TaxonomySettings'
 import { useAdminOpen, useShowCodes } from '../hooks/useUiPrefs'
 import { Btn, Glossary, Page, Panel, StatusLabel, UsageNote, useTheme } from '../design'
@@ -151,6 +152,7 @@ export default function Settings() {
               <p className="ewb-rep-note"><Glossary term="文字识别">文字识别</Glossary>（OCR）把卷子图片里的字读出来，让电脑能处理。</p>
             </Panel>
           </div>
+          <CliSettings />
           <PromptSettings />
           <DataSettings part="admin" />
           <div className="ewb-set-panel">

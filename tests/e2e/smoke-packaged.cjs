@@ -33,6 +33,15 @@ function check(feature, name, pass, detail = '') {
   results.push({ feature, name, pass: !!pass, detail: String(detail).slice(0, 600) })
   console.log(`${pass ? '✅' : '❌'} [${feature}] ${name}${detail ? '  — ' + String(detail).slice(0, 300) : ''}`)
 }
+/** 环境限制导致没法验证的项：如实标「跳过」，不算通过，也不让冒烟失败（要在真机上验证） */
+function skip(feature, name, detail = '') {
+  results.push({ feature, name: `【跳过：环境限制】${name}`, pass: false, skipped: true, detail: String(detail).slice(0, 600) })
+  console.log(`⏭️ [${feature}] 【跳过：环境限制】${name}${detail ? '  — ' + String(detail).slice(0, 300) : ''}`)
+}
+/** CI 上 ocr-diagnose.ps1 的结论（ENV = 这台 Windows 的 OCR 引擎连不透明的白底黑字对照图都读不出）；没有这个文件返回 null */
+function ocrVerdict() {
+  try { return JSON.parse(fs.readFileSync(path.join(outDir, 'ocr-diagnose.json'), 'utf8').replace(/^\uFEFF/, '')).verdict } catch { return null }
+}
 async function waitFor(fn, ms = 120000, step = 400) {
   const t0 = Date.now()
   for (;;) {
@@ -180,7 +189,10 @@ async function main() {
     const lines = pg ? JSON.parse(pg.lines_json || '[]') : []
     if (isMac || ocr.available) {
       const ok = pg?.text_source === 'ocr' && lines.length > 30
-      check('图片 OCR', `图片走本机 OCR：text_source=ocr，识别出 ${lines.length} 行（>30）`, ok || (isWin && pg?.text_source === 'ocr' && lines.length > 0), `${pg?.text_source} ${lines.length} 行 ${pPng?.warning ?? ''}`)
+      // Windows 只有 en-US 引擎时读不出中文标题，样张里的英文行也只有 20 多行：>= 15 行就算识别出来了
+      const winOk = isWin && pg?.text_source === 'ocr' && lines.length >= 15
+      if (isWin && ocrVerdict() === 'ENV' && !winOk) skip('图片 OCR', `Windows 图片 OCR 识别出 ${lines.length} 行：OCR 诊断（ocr-diagnose.ps1）判定这台机器的 OCR 引擎不工作（连白底黑字的对照图都读不出）`, `${pg?.text_source} ${pPng?.warning ?? ''}`)
+      else check('图片 OCR', `图片走本机 OCR：text_source=ocr，识别出 ${lines.length} 行（>30；Windows 只有英文引擎时 >= 15）`, ok || winOk, `${pg?.text_source} ${lines.length} 行 ${pPng?.warning ?? ''}`)
       if (isWin) check('图片 OCR', 'Windows：若 OCR 回退到非中文引擎，试卷上必须带「没有中文」之类的提示（不能悄悄给出一堆乱码）', !pg || pg.text_source !== 'ocr' || /中文|语言/.test(pPng?.warning ?? '') || /^zh/i.test(ocr.lang ?? '') || ocr.detail.includes('zh'), `${pPng?.warning ?? ''} / ${ocr.detail}`)
     } else {
       // 本机没有 OCR（Windows 缺语言包 / 组件）：页面必须标成 ocr_failed / needs_ocr，并给出原因
@@ -276,6 +288,18 @@ async function main() {
     const savedCfg = await api(() => window.api.ai.getConfig())
     const host = (() => { try { return new URL(savedCfg.cfg?.base_url ?? savedCfg.base_url).hostname } catch { return '' } })()
     check('运行期', `应用里配置的 AI 服务地址是本机回环地址（${host}），并且本机 mock 收到了 ${mock.requests.length} 个请求（含 P1 解析和 P3 报告）`, ['127.0.0.1', 'localhost', '[::1]'].includes(host) && mock.requests.length >= 3 && mock.p1Requests.length >= 2 && mock.p3Requests.length >= 1, JSON.stringify({ host, total: mock.requests.length, p1: mock.p1Requests.length, p3: mock.p3Requests.length }))
+
+    // ── 9. 命令行（M7）：窗口关掉之后，用同一份数据（mock AI 还活着）跑 `cli status`、导入、确认、生成报告、导出；Windows 再验证 PowerShell / cmd 里的输出和退出码 ──
+    // 安装短命令：Windows 一定装（CI 机器上无所谓）；Mac 只在 CI 里装（本机跑冒烟不改自己的 ~/.local/bin）
+    const installShim = isWin || process.env.CI === 'true' || process.env.EWB_SMOKE_INSTALL_CLI === '1'
+    const inst = installShim ? await api(() => window.api.cli.install()).catch(e => ({ ok: false, error: e.message })) : null
+    if (installShim) check('CLI 安装', '设置里的「安装命令行工具」（IPC cli:install）在打包版里能写出短命令脚本' + (isWin ? '并加进用户 PATH' : ''), inst?.ok === true && fs.existsSync(inst.path), JSON.stringify(inst).slice(0, 240))
+    await app.close()
+    await sleep(1500)   // 等运行锁释放
+    await require('./cli-smoke.cjs')({
+      exe, preArgs: isMac ? ['--use-mock-keychain'] : [], env: {}, check, work, isWin, isMac, mock, pkgVersion: pkg.version,
+      shim: inst?.path ?? null, sample: copyTagged(path.join(root, 'samples/g4-2026.pdf'), path.join(work, 'g4-2026-cli.pdf'), 'cli')   // 不同字节（不触发重复导入）；mock AI 按文件名里的 g4-2026 找标准答案，所以文件名要带它
+    })
   } catch (e) {
     console.error('冒烟异常：', e)
     check('冒烟', '脚本没有异常退出', false, e && e.message)
@@ -284,6 +308,12 @@ async function main() {
     try { await app.close() } catch { /* 已关闭 */ }
     try { await mock.stop() } catch { /* 已关闭 */ }
   }
+}
+
+/** 同样内容、不同字节的副本（避免触发「重复导入」） */
+function copyTagged(src, dest, tag) {
+  fs.writeFileSync(dest, Buffer.concat([fs.readFileSync(src), Buffer.from(`\n% ${tag}\n`)]))
+  return dest
 }
 
 async function dropFiles(page, paths) {
@@ -300,9 +330,10 @@ async function dropFiles(page, paths) {
 }
 
 main().then(() => {
-  const failed = results.filter(r => !r.pass)
+  const skipped = results.filter(r => r.skipped)
+  const failed = results.filter(r => !r.pass && !r.skipped)
   const file = path.join(outDir, `${prefix}smoke-result-${process.platform}.json`)
   fs.writeFileSync(file, JSON.stringify({ platform: process.platform, arch: process.arch, version: pkg.version, results }, null, 2))
-  console.log(`\n==== 打包版冒烟：${results.length - failed.length}/${results.length} 通过（${process.platform}-${process.arch}）====`)
+  console.log(`\n==== 打包版冒烟：${results.length - failed.length - skipped.length}/${results.length} 通过${skipped.length ? `，${skipped.length} 项因环境限制跳过（不算通过，需要真机验证）` : ''}（${process.platform}-${process.arch}）====`)
   process.exit(failed.length ? 1 : 0)
 }, e => { console.error(e); process.exit(1) })
