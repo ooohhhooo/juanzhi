@@ -20,7 +20,7 @@ import { registerTaxonomyIpc } from './ipc/taxonomy'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
-import { APP_ID, PRODUCT_NAME } from './brand'
+import { APP_ID, PRODUCT_NAME, WINDOW_TITLE } from './brand'
 import { buildMacMenuTemplate } from './menu-template'
 
 // 数据目录固定为 <appData>/english-exam-workbench，与启动方式、productName 无关。
@@ -75,7 +75,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: PRODUCT_NAME,
+    title: WINDOW_TITLE,
     backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),

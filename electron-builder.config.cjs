@@ -12,8 +12,8 @@ const isWin = process.platform === 'win32'
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId: 'cn.edu.english-exam-workbench',
-  productName: '英语校考分析工作台',
-  copyright: '占位版权信息 · 英语校考分析工作台',
+  productName: '卷知',
+  copyright: 'Copyright © 2026 ooohhhooo',
   directories: { output: process.env.EWB_BUILD_DIR || 'release', buildResources: 'build' },
   asar: true,
   // 不重建原生模块（本应用没有；也避免交叉打包时去编译 @napi-rs/canvas）
@@ -50,9 +50,9 @@ module.exports = {
     gatekeeperAssess: false,
     notarize: false,
     minimumSystemVersion: '13.0', // Vision 的中文识别需要 macOS 13+
-    artifactName: 'EnglishExamWorkbench-${version}-mac-${arch}.${ext}',
+    artifactName: 'Juanzhi-${version}-mac-${arch}.${ext}',
     extraResources: [{ from: 'native/macos/bin/ewb-ocr', to: 'native/macos/bin/ewb-ocr' }],
-    extendInfo: { NSHumanReadableCopyright: '占位版权信息' }
+    extendInfo: { NSHumanReadableCopyright: 'Copyright © 2026 ooohhhooo' }
   },
   dmg: {
     title: '${productName} ${version}',
@@ -71,7 +71,7 @@ module.exports = {
     // 在 Windows 上（含 GitHub Actions 的 windows-latest）用 electron-builder 自带的 rcedit；在 Mac 上没有 Wine，改由 afterPack 里的 resedit 完成
     signAndEditExecutable: isWin,
     extraResources: [{ from: 'native/windows/ocr.ps1', to: 'native/windows/ocr.ps1' }],
-    legalTrademarks: '占位版权信息'
+    legalTrademarks: 'Copyright © 2026 ooohhhooo'
   },
   nsis: {
     oneClick: false,
@@ -79,15 +79,15 @@ module.exports = {
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: '英语校考分析工作台',
-    uninstallDisplayName: '英语校考分析工作台',
+    shortcutName: '卷知',
+    uninstallDisplayName: '卷知',
     language: '2052',
     installerLanguages: ['zh_CN'],
     // 卸载时不删老师的数据（试卷、数据库都在 %APPDATA%\english-exam-workbench 里，安装目录之外）
     deleteAppDataOnUninstall: false,
-    artifactName: 'EnglishExamWorkbench-${version}-win-x64-setup.${ext}'
+    artifactName: 'Juanzhi-${version}-win-x64-setup.${ext}'
   },
   portable: {
-    artifactName: 'EnglishExamWorkbench-${version}-win-x64-portable.${ext}'
+    artifactName: 'Juanzhi-${version}-win-x64-portable.${ext}'
   }
 }

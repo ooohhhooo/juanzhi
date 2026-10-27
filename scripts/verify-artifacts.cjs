@@ -79,7 +79,7 @@ async function verifyWindows(file, kind) {
     const vi = R.Resource.VersionInfo.fromEntries(res.entries)[0]
     const sv = vi ? vi.getStringValues(vi.getAllLanguagesForStringValues()[0]) : {}
     const groups = R.Resource.IconGroupEntry.fromEntries(res.entries)
-    check(feature, `exe 的版本信息已写入（ProductName / FileVersion = ${version}）、图标是我们的 ico（${groups[0]?.icons?.length ?? 0} 个尺寸）`, sv.ProductName === '英语校考分析工作台' && sv.FileVersion === version && (groups[0]?.icons?.length ?? 0) >= 6, JSON.stringify(sv).slice(0, 200))
+    check(feature, `exe 的版本信息已写入（ProductName / FileVersion = ${version}）、图标是我们的 ico（${groups[0]?.icons?.length ?? 0} 个尺寸）`, sv.ProductName === '卷知' && sv.FileVersion === version && (groups[0]?.icons?.length ?? 0) >= 6, JSON.stringify(sv).slice(0, 200))
   } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
 }
 
@@ -96,8 +96,8 @@ function verifyMac(file, arch) {
   check(feature, 'dmg 能挂载并通过镜像校验（hdiutil attach -nobrowse，不跳过校验，用完卸载）', att.status === 0, att.stderr || att.stdout.split('\n').pop())
   try {
     if (att.status !== 0) return
-    const app = path.join(mnt, '英语校考分析工作台.app')
-    check(feature, 'dmg 里有「英语校考分析工作台.app」和指向 /Applications 的快捷方式', fs.existsSync(app) && fs.existsSync(path.join(mnt, 'Applications')))
+    const app = path.join(mnt, '卷知.app')
+    check(feature, 'dmg 里有「卷知.app」和指向 /Applications 的快捷方式', fs.existsSync(app) && fs.existsSync(path.join(mnt, 'Applications')))
     const cs = sh('codesign', ['-dv', '--verbose=2', app])
     const txt = cs.stderr + cs.stdout
     check(feature, 'codesign -dv：ad-hoc 签名（Signature=adhoc）', /Signature=adhoc/.test(txt) && /flags=0x2\(adhoc\)/.test(txt), txt.split('\n').filter(l => /Signature|flags|Identifier/.test(l)).join(' | '))
@@ -110,8 +110,8 @@ function verifyMac(file, arch) {
     const hmode = fs.statSync(helper).mode
     check(feature, `OCR helper 在 dmg 里带执行位（mode ${(hmode & 0o777).toString(8)}，要求含 0o111：没有执行位 Mac 上图片 OCR 全坏）`, (hmode & 0o111) === 0o111, (hmode & 0o777).toString(8))
     const plist = sh('plutil', ['-p', path.join(app, 'Contents/Info.plist')]).stdout
-    check(feature, `Info.plist：版本 ${version}、最低系统 13.0、应用名`, plist.includes(`"CFBundleShortVersionString" => "${version}"`) && plist.includes('"LSMinimumSystemVersion" => "13.0"') && plist.includes('"CFBundleName" => "英语校考分析工作台"'))
-    const main = sh('lipo', ['-archs', path.join(app, 'Contents/MacOS/英语校考分析工作台')]).stdout.trim()
+    check(feature, `Info.plist：版本 ${version}、最低系统 13.0、应用名`, plist.includes(`"CFBundleShortVersionString" => "${version}"`) && plist.includes('"LSMinimumSystemVersion" => "13.0"') && plist.includes('"CFBundleName" => "卷知"'))
+    const main = sh('lipo', ['-archs', path.join(app, 'Contents/MacOS/卷知')]).stdout.trim()
     check(feature, `主程序架构 = ${arch === 'arm64' ? 'arm64' : 'x86_64'}`, main === (arch === 'arm64' ? 'arm64' : 'x86_64'), main)
     const sp = sh('spctl', ['--assess', '--type', 'execute', '-vv', app])
     // 未公证：Gatekeeper 拒绝是预期结果（安装指南里讲了怎么放行）。这里只如实记录。
@@ -124,11 +124,11 @@ function verifyMac(file, arch) {
 
 ;(async () => {
   console.log(`检查 ${dir}（版本 ${version}）`)
-  await verifyWindows(`EnglishExamWorkbench-${version}-win-x64-setup.exe`, 'setup')
-  await verifyWindows(`EnglishExamWorkbench-${version}-win-x64-portable.exe`, 'portable')
+  await verifyWindows(`Juanzhi-${version}-win-x64-setup.exe`, 'setup')
+  await verifyWindows(`Juanzhi-${version}-win-x64-portable.exe`, 'portable')
   if (process.platform === 'darwin') {
-    verifyMac(`EnglishExamWorkbench-${version}-mac-arm64.dmg`, 'arm64')
-    verifyMac(`EnglishExamWorkbench-${version}-mac-x64.dmg`, 'x64')
+    verifyMac(`Juanzhi-${version}-mac-arm64.dmg`, 'arm64')
+    verifyMac(`Juanzhi-${version}-mac-x64.dmg`, 'x64')
   } else console.log('⚠️ 非 macOS：跳过 dmg 检查')
   const failed = results.filter(r => !r.pass)
   console.log(`\n==== 产物检查：${results.length - failed.length}/${results.length} 通过 ====`)

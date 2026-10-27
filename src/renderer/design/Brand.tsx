@@ -4,7 +4,7 @@
  */
 import React from 'react'
 
-export default function BrandMark({ size = 48, title = '英语校考分析工作台' }: { size?: number; title?: string }) {
+export default function BrandMark({ size = 48, title = '卷知' }: { size?: number; title?: string }) {
   return (
     <svg viewBox="0 0 48 48" width={size} height={size} role="img" aria-label={title} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
       <title>{title}</title>

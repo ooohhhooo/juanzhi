@@ -1,14 +1,21 @@
 #!/usr/bin/env node
-// 生成占位应用图标（纯 JS 光栅化，不依赖任何图形库）：build/icon.png（1024）、build/icon.ico（Windows）、build/icon.icns（macOS，需要 iconutil）。
-// 这是「占位图标，可由设计替换」：替换 build/icon.png 之后重新运行本脚本（或直接替换 icns / ico）即可。
-// 图案：蓝紫渐变圆角底 + 白色试卷 + 三根递增的柱状图（最高的一根用橙色强调）+ 两行示意文字。
+// 生成应用图标：build/icon.png（1024）、build/icon.ico（Windows，16/24/32/48/64/128/256）、build/icon.icns（macOS，需要 sips + iconutil）。
+//
+// 用法：
+//   node scripts/make-icons.cjs                  有 build/icon-source.png（1024×1024 的源图）就用它生成全套图标；没有就画占位图标（后备）
+//   node scripts/make-icons.cjs --src 路径.png   指定源图（必须是 1024×1024 的 PNG）
+//   node scripts/make-icons.cjs --out 目录       输出到别的目录（默认 build/；试跑时用，不会动 build/ 里的图标）
+// 源图的小尺寸（16/32……）按 Lanczos3 缩小（半透明边缘用预乘 alpha，不会出黑边）；macOS 上 icns 里的各尺寸用 sips 缩放，ico 里的用本脚本的纯 JS 缩放。
+// 占位图案（没有源图时）：蓝紫渐变圆角底 + 白色试卷 + 三根递增的柱状图（最高的一根用橙色强调）+ 两行示意文字。
 'use strict'
 const fs = require('node:fs')
 const path = require('node:path')
 const zlib = require('node:zlib')
 const { execFileSync } = require('node:child_process')
 
-const OUT = path.join(__dirname, '..', 'build')
+const arg = name => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : null }
+const OUT = path.resolve(arg('--out') || path.join(__dirname, '..', 'build'))
+const SRC = path.resolve(arg('--src') || process.env.EWB_ICON_SOURCE || path.join(__dirname, '..', 'build', 'icon-source.png'))
 
 // ── 极小的 SDF 光栅器 ──
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
@@ -84,7 +91,108 @@ function encodePng(rgba, S) {
   const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(S, 0); ihdr.writeUInt32BE(S, 4); ihdr[8] = 8; ihdr[9] = 6
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))])
 }
-const pngOf = size => encodePng(render(size), size)
+
+// ── PNG 解码（源图用）：8/16 位的灰度、灰度+透明、RGB、RGBA、调色板；不支持隔行扫描 ──
+function decodePng(buf) {
+  if (buf.subarray(0, 8).toString('latin1') !== '\x89PNG\r\n\x1a\n') throw new Error('不是 PNG 文件')
+  let o = 8, w = 0, h = 0, depth = 0, ctype = 0, interlace = 0
+  const idat = [], plte = [], trns = []
+  while (o < buf.length) {
+    const len = buf.readUInt32BE(o), type = buf.subarray(o + 4, o + 8).toString('latin1'), data = buf.subarray(o + 8, o + 8 + len)
+    if (type === 'IHDR') { w = data.readUInt32BE(0); h = data.readUInt32BE(4); depth = data[8]; ctype = data[9]; interlace = data[12] }
+    else if (type === 'PLTE') plte.push(data)
+    else if (type === 'tRNS') trns.push(data)
+    else if (type === 'IDAT') idat.push(data)
+    else if (type === 'IEND') break
+    o += 12 + len
+  }
+  if (interlace) throw new Error('不支持隔行扫描（Adam7）的 PNG，请重新导出成普通 PNG')
+  if (![8, 16].includes(depth) && ctype !== 3) throw new Error(`不支持 ${depth} 位的 PNG，请导出成 8 位`)
+  const ch = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[ctype]
+  if (!ch) throw new Error(`不支持的 PNG 颜色类型 ${ctype}`)
+  const bpp = Math.max(1, (ch * depth) >> 3), stride = (w * ch * depth + 7) >> 3
+  const raw = zlib.inflateSync(Buffer.concat(idat))
+  const px = Buffer.alloc(h * stride)
+  for (let y = 0; y < h; y++) {
+    const f = raw[y * (stride + 1)], src = y * (stride + 1) + 1, dst = y * stride
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? px[dst + x - bpp] : 0, b = y > 0 ? px[dst - stride + x] : 0, c = x >= bpp && y > 0 ? px[dst - stride + x - bpp] : 0
+      let v = raw[src + x]
+      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1
+      else if (f === 4) { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c }
+      px[dst + x] = v & 255
+    }
+  }
+  const pal = plte.length ? plte[0] : null, tr = trns.length ? trns[0] : null
+  const out = Buffer.alloc(w * h * 4)
+  const sample = (y, i) => (depth === 16 ? px[y * stride + i * 2] : px[y * stride + i])   // 16 位取高字节
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const d = (y * w + x) * 4
+    let r, g, b, a = 255
+    if (ctype === 6) { r = sample(y, x * 4); g = sample(y, x * 4 + 1); b = sample(y, x * 4 + 2); a = sample(y, x * 4 + 3) }
+    else if (ctype === 2) { r = sample(y, x * 3); g = sample(y, x * 3 + 1); b = sample(y, x * 3 + 2) }
+    else if (ctype === 0) { r = g = b = sample(y, x) }
+    else if (ctype === 4) { r = g = b = sample(y, x * 2); a = sample(y, x * 2 + 1) }
+    else {
+      let idx
+      if (depth === 8) idx = px[y * stride + x]
+      else { const bit = x * depth, byte = px[y * stride + (bit >> 3)]; idx = (byte >> (8 - depth - (bit & 7))) & ((1 << depth) - 1) }
+      if (!pal) throw new Error('调色板 PNG 缺少 PLTE')
+      r = pal[idx * 3]; g = pal[idx * 3 + 1]; b = pal[idx * 3 + 2]; a = tr && idx < tr.length ? tr[idx] : 255
+    }
+    out[d] = r; out[d + 1] = g; out[d + 2] = b; out[d + 3] = a
+  }
+  return { w, h, rgba: out }
+}
+
+// ── Lanczos3 缩放（预乘 alpha，两趟：先横后竖）──
+const lanczos = x => { x = Math.abs(x); if (x < 1e-8) return 1; if (x >= 3) return 0; const p = Math.PI * x; return (3 * Math.sin(p) * Math.sin(p / 3)) / (p * p) }
+function resizeAxis(src, sw, sh, dstLen, horizontal) {
+  const srcLen = horizontal ? sw : sh, scale = srcLen / dstLen, support = Math.max(1, scale) * 3, fs_ = Math.max(1, scale)
+  const outW = horizontal ? dstLen : sw, outH = horizontal ? sh : dstLen
+  const out = new Float32Array(outW * outH * 4)
+  for (let d = 0; d < dstLen; d++) {
+    const center = (d + 0.5) * scale
+    const lo = Math.max(0, Math.floor(center - support)), hi = Math.min(srcLen - 1, Math.ceil(center + support))
+    const wts = []; let sum = 0
+    for (let i = lo; i <= hi; i++) { const wv = lanczos((i + 0.5 - center) / fs_); wts.push(wv); sum += wv }
+    const lines = horizontal ? sh : sw
+    for (let l = 0; l < lines; l++) {
+      let r = 0, g = 0, b = 0, a = 0
+      for (let i = lo; i <= hi; i++) {
+        const wv = wts[i - lo] / sum
+        const si = horizontal ? (l * sw + i) * 4 : (i * sw + l) * 4
+        r += src[si] * wv; g += src[si + 1] * wv; b += src[si + 2] * wv; a += src[si + 3] * wv
+      }
+      const di = horizontal ? (l * outW + d) * 4 : (d * outW + l) * 4
+      out[di] = r; out[di + 1] = g; out[di + 2] = b; out[di + 3] = a
+    }
+  }
+  return out
+}
+function resize(img, size) {
+  if (img.w === size && img.h === size) return img.rgba
+  const pre = new Float32Array(img.w * img.h * 4)
+  for (let i = 0; i < img.w * img.h; i++) { const a = img.rgba[i * 4 + 3] / 255; pre[i * 4] = img.rgba[i * 4] * a; pre[i * 4 + 1] = img.rgba[i * 4 + 1] * a; pre[i * 4 + 2] = img.rgba[i * 4 + 2] * a; pre[i * 4 + 3] = img.rgba[i * 4 + 3] }
+  const h1 = resizeAxis(pre, img.w, img.h, size, true)
+  const v1 = resizeAxis(h1, size, img.h, size, false)
+  const out = Buffer.alloc(size * size * 4)
+  for (let i = 0; i < size * size; i++) {
+    const a = Math.min(255, Math.max(0, v1[i * 4 + 3])), k = a > 0 ? 255 / a : 0
+    out[i * 4] = Math.min(255, Math.max(0, Math.round(v1[i * 4] * k))); out[i * 4 + 1] = Math.min(255, Math.max(0, Math.round(v1[i * 4 + 1] * k))); out[i * 4 + 2] = Math.min(255, Math.max(0, Math.round(v1[i * 4 + 2] * k))); out[i * 4 + 3] = Math.round(a)
+  }
+  return out
+}
+
+// ── 选择图标来源：有源图用源图，没有就画占位 ──
+let source = null, sourceBytes = null
+if (fs.existsSync(SRC)) {
+  sourceBytes = fs.readFileSync(SRC)
+  source = decodePng(sourceBytes)
+  if (source.w !== 1024 || source.h !== 1024) { console.error(`源图必须是 1024×1024 的 PNG，现在是 ${source.w}×${source.h}：${SRC}`); process.exit(1) }
+  console.log(`使用源图 ${SRC}`)
+} else console.log(`没有源图（${SRC}），画占位图标`)
+const pngOf = size => (source ? encodePng(resize(source, size), size) : encodePng(render(size), size))
 
 // ── ICO（PNG 内嵌，Vista 以上都支持）──
 function encodeIco(sizes) {
@@ -102,19 +210,25 @@ function encodeIco(sizes) {
 }
 
 fs.mkdirSync(OUT, { recursive: true })
-fs.writeFileSync(path.join(OUT, 'icon.png'), pngOf(1024))
+// icon.png：有源图就原样用源图（不重新编码，保持原样）
+fs.writeFileSync(path.join(OUT, 'icon.png'), sourceBytes ?? pngOf(1024))
 fs.writeFileSync(path.join(OUT, 'icon.ico'), encodeIco([16, 24, 32, 48, 64, 128, 256]))
-console.log('build/icon.png, build/icon.ico 已生成')
+console.log('icon.png, icon.ico 已生成：' + OUT)
 
-// ── ICNS：用 macOS 自带的 iconutil（其它系统跳过，仓库里已有生成好的 build/icon.icns）──
+// ── ICNS：用 macOS 自带的 sips（缩放）+ iconutil（打包）；其它系统跳过，仓库里已有生成好的 build/icon.icns ──
 if (process.platform === 'darwin') {
   const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'ewb-iconset-'))
   const set = path.join(tmp, 'icon.iconset')
   fs.mkdirSync(set)
+  const srcFile = path.join(tmp, 'source-1024.png')
+  fs.writeFileSync(srcFile, sourceBytes ?? pngOf(1024))
   for (const [name, px] of [['icon_16x16', 16], ['icon_16x16@2x', 32], ['icon_32x32', 32], ['icon_32x32@2x', 64], ['icon_128x128', 128], ['icon_128x128@2x', 256], ['icon_256x256', 256], ['icon_256x256@2x', 512], ['icon_512x512', 512], ['icon_512x512@2x', 1024]]) {
-    fs.writeFileSync(path.join(set, `${name}.png`), pngOf(px))
+    const dst = path.join(set, `${name}.png`)
+    if (source) {
+      try { execFileSync('sips', ['-z', String(px), String(px), srcFile, '--out', dst], { stdio: 'ignore' }) } catch { fs.writeFileSync(dst, pngOf(px)) }   // sips 不可用时退回 JS 缩放
+    } else fs.writeFileSync(dst, pngOf(px))
   }
   execFileSync('iconutil', ['-c', 'icns', set, '-o', path.join(OUT, 'icon.icns')])
   fs.rmSync(tmp, { recursive: true, force: true })
-  console.log('build/icon.icns 已生成')
+  console.log('icon.icns 已生成：' + OUT)
 } else console.log('非 macOS：跳过 icon.icns')

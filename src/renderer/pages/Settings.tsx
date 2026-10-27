@@ -98,7 +98,7 @@ export default function Settings() {
       <div className="ewb-set-panel">
         <Panel title="关于" data-testid="about-card">
           <Descriptions column={1} size="small">
-            <Descriptions.Item label="软件">英语校考分析工作台 —— 帮助教师分析试卷中的知识点分布和考频趋势（离线桌面软件，数据只存在这台电脑上，没有服务器、不用登录）</Descriptions.Item>
+            <Descriptions.Item label="软件">卷知 · 小学英语试卷分析 —— 帮助教师分析试卷中的知识点分布和考频趋势（离线桌面软件，数据只存在这台电脑上，没有服务器、不用登录）</Descriptions.Item>
             <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）</Descriptions.Item>
             {adminOpen && <Descriptions.Item label="运行环境"><span data-testid="about-env">{about ? `${about.platform} ${about.arch} · Electron ${about.electron} · Chromium ${about.chrome} · Node ${about.node}` : '…'}</span></Descriptions.Item>}
             {adminOpen && <Descriptions.Item label="数据目录"><code className="ewb-rep-code">{about?.dataDir}</code></Descriptions.Item>}

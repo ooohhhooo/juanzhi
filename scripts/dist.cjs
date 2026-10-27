@@ -54,7 +54,7 @@ if (which === 'win' || which === 'all') run(nodeBin('electron-builder'), ['--win
 if (outDir !== release) {
   fs.mkdirSync(release, { recursive: true })
   for (const f of fs.readdirSync(outDir)) {
-    if (/^EnglishExamWorkbench-.*\.(dmg|exe|zip|blockmap)$/.test(f) && !f.endsWith('.blockmap')) {
+    if (/^Juanzhi-.*\.(dmg|exe|zip|blockmap)$/.test(f) && !f.endsWith('.blockmap')) {
       fs.copyFileSync(path.join(outDir, f), path.join(release, f))
       console.log(`[dist] 已拷贝 ${f} → release/`)
     }

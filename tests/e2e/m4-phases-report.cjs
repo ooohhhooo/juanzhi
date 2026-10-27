@@ -247,7 +247,7 @@ async function phaseExport() {
   const dir = path.join(out, '考情报告')
   const links = [...text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map(m => decodeURIComponent(m[1]))
   const files = links.map(l => path.join(out, l))
-  check('导出 Markdown', '文件存在，内容是这份报告（标题含年级 / 学年 / 版本 / 日期，表格里没有「代码」列），文首有来源注释', wrote && /^<!-- 由「英语校考分析工作台」导出/.test(text) && /# 四年级 2023–2026学年 考情分析报告（完整数据版）· \d{4}-\d{2}-\d{2}/.test(text) && /\| 层级 \| 名称 \|/.test(text) && !/\| 代码 \|/.test(text), text.slice(0, 80))
+  check('导出 Markdown', '文件存在，内容是这份报告（标题含年级 / 学年 / 版本 / 日期，表格里没有「代码」列），文首有来源注释', wrote && /^<!-- 由「卷知」导出/.test(text) && /# 四年级 2023–2026学年 考情分析报告（完整数据版）· \d{4}-\d{2}-\d{2}/.test(text) && /\| 层级 \| 名称 \|/.test(text) && !/\| 代码 \|/.test(text), text.slice(0, 80))
   check('导出 Markdown', '引用的题目截图导成同名文件夹「考情报告/」下的真实 PNG：文档里每个图片链接指向的文件都存在、都是有效 PNG（至少 1 张）', links.length >= 1 && files.every(f => fs.existsSync(f) && isPng(f)) && links.every(l => /^考情报告\/q-\d{3}\.png$/.test(l)) && fs.readdirSync(dir).length === new Set(links).size, `${links.length} 个链接：${links.slice(0, 3).join(', ')}`)
   // 截图内容正确：C2 第 1 题的裁切图 OCR 出 skirt，且不含相邻题
   // 截图现在放在这一段的后面，不再紧跟在引用后面：按图片的说明文字找

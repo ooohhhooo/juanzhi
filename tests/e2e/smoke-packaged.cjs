@@ -54,8 +54,8 @@ function findApp() {
     } else if (isMac) {
       const sub = process.arch === 'arm64' ? ['mac-arm64', 'mac'] : ['mac', 'mac-arm64']
       for (const s of sub) {
-        const app = path.join(d, s, '英语校考分析工作台.app')
-        const exe = path.join(app, 'Contents/MacOS/英语校考分析工作台')
+        const app = path.join(d, s, '卷知.app')
+        const exe = path.join(app, 'Contents/MacOS/卷知')
         if (fs.existsSync(exe)) return exe
       }
     }
@@ -157,13 +157,13 @@ async function main() {
       title: BrowserWindow.getAllWindows()[0]?.getTitle()
     }))
     fs.writeFileSync(path.join(outDir, `${prefix}menu-${process.platform}.json`), JSON.stringify({ ...uiNames, appName: facts.name, pageTitle: await page.title() }, null, 2))
-    check('产品名', `窗口标题和页面标题都是「英语校考分析工作台」（不是内部名 ${facts.name}，也不是第三个名字）`, uiNames.title === '英语校考分析工作台' && (await page.title()) === '英语校考分析工作台', `${uiNames.title} / ${await page.title()}`)
+    check('产品名', `窗口标题和页面标题都是「卷知 · 小学英语试卷分析」（不是内部名 ${facts.name}，也不是第三个名字）`, uiNames.title === '卷知 · 小学英语试卷分析' && (await page.title()) === '卷知 · 小学英语试卷分析', `${uiNames.title} / ${await page.title()}`)
     if (isMac) {
       const flat = JSON.stringify(uiNames.menu)
       const appMenu = uiNames.menu[0]
-      check('产品名', 'macOS 应用菜单：第一项和「关于 / 隐藏 / 退出」都用产品名，菜单里没有 english-exam-workbench；有编辑菜单（Cmd+C / V）', appMenu?.label === '英语校考分析工作台' && appMenu.items.includes('关于英语校考分析工作台') && appMenu.items.includes('退出英语校考分析工作台') && appMenu.items.includes('隐藏英语校考分析工作台') && !flat.includes('english-exam-workbench') && uiNames.menu.some(m => m.label === '编辑' && m.items.includes('粘贴')) && !uiNames.menu.some(m => m.label === '视图'), flat.slice(0, 300))
+      check('产品名', 'macOS 应用菜单：第一项和「关于 / 隐藏 / 退出」都用产品名，菜单里没有 english-exam-workbench；有编辑菜单（Cmd+C / V）', appMenu?.label === '卷知' && appMenu.items.includes('关于卷知') && appMenu.items.includes('退出卷知') && appMenu.items.includes('隐藏卷知') && !flat.includes('english-exam-workbench') && uiNames.menu.some(m => m.label === '编辑' && m.items.includes('粘贴')) && !uiNames.menu.some(m => m.label === '视图'), flat.slice(0, 300))
       const plist = require('node:child_process').spawnSync('plutil', ['-p', path.join(path.dirname(facts.resources), 'Info.plist')], { encoding: 'utf8' }).stdout
-      check('产品名', 'Info.plist 的 CFBundleName / CFBundleDisplayName（Dock 和「强制退出」列表里的名字）是产品名', /"CFBundleName" => "英语校考分析工作台"/.test(plist), plist.split('\n').filter(l => /CFBundle(Name|DisplayName)/.test(l)).join(' '))
+      check('产品名', 'Info.plist 的 CFBundleName / CFBundleDisplayName（Dock 和「强制退出」列表里的名字）是产品名', /"CFBundleName" => "卷知"/.test(plist), plist.split('\n').filter(l => /CFBundle(Name|DisplayName)/.test(l)).join(' '))
     }
     const ocr = await api(() => window.api.ocr.status())
     check('OCR', `OCR 状态可读：${ocr.available ? '可用' : '不可用'} — ${ocr.detail}`, typeof ocr.available === 'boolean' && typeof ocr.detail === 'string', JSON.stringify(ocr))

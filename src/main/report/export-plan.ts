@@ -91,6 +91,6 @@ export const exportTitle = (report: { reader: string; title: string }): string =
  * 导出的 Markdown 文件抬头（HTML 注释）。没有截图（没有引用、或一张都裁不出）时不写「截图在同名文件夹里」——那个文件夹不存在。
  */
 export function mdHeader(report: { confirmedAt: string | null }, stem: string, writtenImages: number, dataNote = ''): string {
-  return `<!-- 由「英语校考分析工作台」导出（${reviewNote(report)}${dataNote ? `；${dataNote}` : ''}）${writtenImages > 0 ? `；引用的题目截图在同名文件夹「${stem}」里` : ''} -->\n\n`
+  return `<!-- 由「卷知」导出（${reviewNote(report)}${dataNote ? `；${dataNote}` : ''}）${writtenImages > 0 ? `；引用的题目截图在同名文件夹「${stem}」里` : ''} -->\n\n`
 }
 

@@ -35,7 +35,7 @@ const must = [
 ]
 for (const [topic, ...res] of must) for (const re of res) assert.match(allText, re, `安装指南缺少「${topic}」：${re}`)
 // 命令块里的 xattr 路径和产品名一致
-assert.match(allText, /xattr -cr \/Applications\/英语校考分析工作台\.app/)
+assert.match(allText, /xattr -cr \/Applications\/卷知\.app/)
 // ── M5 审核 P2-4/P2-5/P2-2：文档里的界面文字必须和应用里的一致；隐私、安装向导的描述要如实 ──
 {
   const path = await import('node:path')

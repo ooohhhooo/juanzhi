@@ -1,5 +1,5 @@
 ---
-name: 英语校考分析工作台
+name: 卷知
 description: 学习词典第二版：浅灰周边里浮起一块白色大画布，每个考点都是一条词条，长春花紫做词头，玫红只给易错。
 colors:
   primary: "#5B57D1"
@@ -162,7 +162,7 @@ components:
     rounded: "{rounded.lg}"
 ---
 
-# Design System: 英语校考分析工作台
+# Design System: 卷知
 
 > 依据构建出来的代码写成（2026-10-27）：`src/renderer/design/tokens.ts`、`design.css`、`page-*.css`、`components/AppLayout.tsx`，以及 `index.html` 里的方向契约（种子 `ba0d512d`，词典方向第二版）。计划文档与代码不一致处，一律以代码为准，并在正文标出。
 > 前置 frontmatter 里的颜色都是浅色（词典内页）值；`night-` 开头的是深色（夜读版）里对应的值，完整对照在 `.impeccable/design.json` 的 `colorMeta`。

@@ -11,7 +11,7 @@ const cfg = require(path.join(root, 'electron-builder.config.cjs'))
 
 // ── 1. 基本信息 ──
 assert.match(pkg.version, /^\d+\.\d+\.\d+$/, '版本号是 x.y.z')
-assert.equal(pkg.productName, '英语校考分析工作台')
+assert.equal(pkg.productName, '卷知')
 assert.equal(cfg.productName, pkg.productName, '配置里的 productName 和 package.json 一致')
 assert.match(cfg.appId, /^[a-z0-9.-]+$/i)
 assert.equal(cfg.asar, true, 'asar 打包')
@@ -105,6 +105,19 @@ const names = {
 const fill = (t, extra = {}) => t.replace('${version}', pkg.version).replace('${ext}', extra.ext ?? '').replace('${arch}', extra.arch ?? '')
 const expected = [fill(names.mac, { arch: 'arm64', ext: 'dmg' }), fill(names.mac, { arch: 'x64', ext: 'dmg' }), fill(names.setup, { ext: 'exe' }), fill(names.portable, { ext: 'exe' })]
 assert.ok(expected.every(n => /^[\x20-\x7e]+$/.test(n)), '产物文件名全是 ASCII（下载和 CI 上传不会遇到中文名问题）：' + expected)
+assert.deepEqual(expected, ['Juanzhi-' + pkg.version + '-mac-arm64.dmg', 'Juanzhi-' + pkg.version + '-mac-x64.dmg', 'Juanzhi-' + pkg.version + '-win-x64-setup.exe', 'Juanzhi-' + pkg.version + '-win-x64-portable.exe'], '安装包文件名')
+// 开源许可：MIT，版权行写明
+assert.equal(pkg.license, 'MIT')
+assert.match(fs.readFileSync('LICENSE', 'utf8'), /^MIT License[\s\S]*Copyright \(c\) 2026 ooohhhooo/)
+assert.equal(cfg.copyright, 'Copyright © 2026 ooohhhooo')
+assert.ok(!/占位/.test(JSON.stringify(cfg)), 'electron-builder 配置里没有占位版权文字')
+// 旧名「英语校考分析工作台」在界面、帮助、安装指南、配置里都换掉（docs 里的历史交付说明和审核记录不改）
+{
+  const w = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.name.startsWith('._') ? [] : e.isDirectory() ? w(path.join(d, e.name)) : [path.join(d, e.name)])
+  const files = [...w('src'), 'package.json', 'electron-builder.config.cjs', 'docs/安装指南.md', 'docs/验收清单.md', 'docs/Windows验收清单.md', 'scripts/verify-artifacts.cjs', 'tests/e2e/smoke-packaged.cjs']
+  const left = files.filter(f => /\.(ts|tsx|html|json|cjs|md)$/.test(f) && fs.readFileSync(f, 'utf8').includes('英语校考分析工作台'))
+  assert.deepEqual(left, [], '还留着旧名的文件')
+}
 // 安装指南里写的文件名必须和实际产物名一致
 const guide = fs.readFileSync('docs/安装指南.md', 'utf8')
 for (const n of expected) assert.ok(guide.includes(n), `安装指南里要写明文件名 ${n}`)
@@ -123,7 +136,7 @@ assert.match(idx, /app\.setName\('english-exam-workbench'\)/)
 assert.equal(pkg.name, 'english-exam-workbench')
 // ── 6. 老师看到的名字（M5 审核 P2-8）：app.name 是内部名，菜单 / 关于面板 / 窗口标题 / 任务栏标识不能依赖它 ──
 {
-  const { PRODUCT_NAME, APP_ID } = await import(path.join(root, 'src/main/brand.ts'))
+  const { PRODUCT_NAME, APP_ID, WINDOW_TITLE } = await import(path.join(root, 'src/main/brand.ts'))
   const { buildMacMenuTemplate } = await import(path.join(root, 'src/main/menu-template.ts'))
   assert.equal(PRODUCT_NAME, pkg.productName, 'brand.PRODUCT_NAME = package.json productName')
   assert.equal(APP_ID, cfg.appId, 'brand.APP_ID = electron-builder appId（NSIS 快捷方式的任务栏标识）')
@@ -141,8 +154,9 @@ assert.equal(pkg.name, 'english-exam-workbench')
     assert.equal(t.some(m => m.label === '视图'), dev, '开发者工具只在开发版里')
   }
   const idx2 = fs.readFileSync(path.join(root, 'src/main/index.ts'), 'utf8')
-  assert.match(idx2, /app\.setAppUserModelId\(APP_ID\)/); assert.match(idx2, /title: PRODUCT_NAME/); assert.match(idx2, /Menu\.setApplicationMenu/)
-  assert.match(fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8'), new RegExp(`<title>${PRODUCT_NAME}</title>`), '页面标题 = 产品名')
+  assert.match(idx2, /app\.setAppUserModelId\(APP_ID\)/); assert.match(idx2, /title: WINDOW_TITLE/); assert.match(idx2, /Menu\.setApplicationMenu/)
+  assert.match(fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8'), new RegExp(`<title>${WINDOW_TITLE}</title>`), '页面标题 = 窗口标题「卷知 · 小学英语试卷分析」')
+  assert.equal(WINDOW_TITLE, '卷知 · 小学英语试卷分析')
 }
 // ── 7. 用户看得到的文案里不能留开发里程碑的字样（M1–M5、「后续里程碑」、「占位」）──
 {

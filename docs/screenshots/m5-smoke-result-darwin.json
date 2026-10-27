@@ -7,7 +7,7 @@
       "feature": "打包事实",
       "name": "app.isPackaged 为真，应用代码在 app.asar 里",
       "pass": true,
-      "detail": "/Users/xiaoming-/.ewb-build/mac-arm64/英语校考分析工作台.app/Contents/Resources/app.asar"
+      "detail": "/Users/xiaoming-/.ewb-build/mac-arm64/卷知.app/Contents/Resources/app.asar"
     },
     {
       "feature": "打包事实",
@@ -19,13 +19,13 @@
       "feature": "打包事实",
       "name": "userData 就是测试指定的临时目录（EWB_USER_DATA_DIR 生效，没碰真实数据目录）",
       "pass": true,
-      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/userData"
+      "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/userData"
     },
     {
       "feature": "打包事实",
       "name": "OCR 组件在 resources/native 里（ewb-ocr），不在 asar 里",
       "pass": true,
-      "detail": "/Users/xiaoming-/.ewb-build/mac-arm64/英语校考分析工作台.app/Contents/Resources/native/macos/bin/ewb-ocr"
+      "detail": "/Users/xiaoming-/.ewb-build/mac-arm64/卷知.app/Contents/Resources/native/macos/bin/ewb-ocr"
     },
     {
       "feature": "打包事实",
@@ -37,25 +37,25 @@
       "feature": "打包事实",
       "name": "asar 里有 pdf.js 需要的文件（legacy/build 两个 .mjs、cmaps、standard_fonts），没有多余的原生模块 @napi-rs，也没有只给渲染端用的 antd",
       "pass": true,
-      "detail": "{\"dir\":\"/Users/xiaoming-/.ewb-build/mac-arm64/英语校考分析工作台.app/Contents/Resources/app.asar/node_modules/pdfjs-dist\",\"missing\":[],\"pkg\":true,\"canvas\":false,\"antd\":false}"
+      "detail": "{\"dir\":\"/Users/xiaoming-/.ewb-build/mac-arm64/卷知.app/Contents/Resources/app.asar/node_modules/pdfjs-dist\",\"missing\":[],\"pkg\":true,\"canvas\":false,\"antd\":false}"
     },
     {
       "feature": "产品名",
-      "name": "窗口标题和页面标题都是「英语校考分析工作台」（不是内部名 english-exam-workbench，也不是第三个名字）",
+      "name": "窗口标题和页面标题都是「卷知 · 小学英语试卷分析」（不是内部名 english-exam-workbench，也不是第三个名字）",
       "pass": true,
-      "detail": "英语校考分析工作台 / 英语校考分析工作台"
+      "detail": "卷知 · 小学英语试卷分析 / 卷知 · 小学英语试卷分析"
     },
     {
       "feature": "产品名",
       "name": "macOS 应用菜单：第一项和「关于 / 隐藏 / 退出」都用产品名，菜单里没有 english-exam-workbench；有编辑菜单（Cmd+C / V）",
       "pass": true,
-      "detail": "[{\"label\":\"英语校考分析工作台\",\"items\":[\"关于英语校考分析工作台\",\"—\",\"隐藏英语校考分析工作台\",\"隐藏其他\",\"全部显示\",\"—\",\"退出英语校考分析工作台\"]},{\"label\":\"编辑\",\"items\":[\"撤销\",\"重做\",\"—\",\"剪切\",\"复制\",\"粘贴\",\"全选\"]},{\"label\":\"窗口\",\"items\":[\"最小化\",\"缩放\",\"—\",\"前置全部窗口\",\"关闭窗口\"]}]"
+      "detail": "[{\"label\":\"卷知\",\"items\":[\"关于卷知\",\"—\",\"隐藏卷知\",\"隐藏其他\",\"全部显示\",\"—\",\"退出卷知\"]},{\"label\":\"编辑\",\"items\":[\"撤销\",\"重做\",\"—\",\"剪切\",\"复制\",\"粘贴\",\"全选\"]},{\"label\":\"窗口\",\"items\":[\"最小化\",\"缩放\",\"—\",\"前置全部窗口\",\"关闭窗口\"]}]"
     },
     {
       "feature": "产品名",
       "name": "Info.plist 的 CFBundleName / CFBundleDisplayName（Dock 和「强制退出」列表里的名字）是产品名",
       "pass": true,
-      "detail": "  \"CFBundleDisplayName\" => \"英语校考分析工作台\"   \"CFBundleName\" => \"英语校考分析工作台\""
+      "detail": "  \"CFBundleDisplayName\" => \"卷知\"   \"CFBundleName\" => \"卷知\""
     },
     {
       "feature": "OCR",
@@ -91,7 +91,7 @@
       "feature": "AI（mock）",
       "name": "连接测试通过（打包版里的网络请求通往本机 mock，没有走真实 AI）",
       "pass": true,
-      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，63 毫秒）\",\"latencyMs\":63,\"model\":\"mock-text-model\"}"
+      "detail": "{\"ok\":true,\"message\":\"连接成功（mock-text-model，175 毫秒）\",\"latencyMs\":175,\"model\":\"mock-text-model\"}"
     },
     {
       "feature": "PDF 提取 + AI 解析",
@@ -127,13 +127,13 @@
       "feature": "报告 导出",
       "name": "Markdown 导出成功，文件存在且含中文标题",
       "pass": true,
-      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/report/报告\",\"images\":10,\"m"
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/report/报告.md\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/report/报告\",\"images\":10,\"m"
     },
     {
       "feature": "报告 导出",
       "name": "PDF 导出成功：%PDF 头，体积合理（>5 KB）",
       "pass": true,
-      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-3zfdrA/report/报告.pdf\",\"bytes\":559852,\"images\":10} %PDF-"
+      "detail": "{\"saved\":true,\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-smoke-Y920pd/report/报告.pdf\",\"bytes\":559845,\"images\":10} %PDF-"
     },
     {
       "feature": "报告 导出",
@@ -151,13 +151,13 @@
       "feature": "数据包导出",
       "name": "导出成功：manifest 写明应用版本和 4 份卷子，zip 里有 db.sqlite 和 files/<uuid>/…，没有 API 密钥",
       "pass": true,
-      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":10,\"appVersion\":\"1.1.0\",\"exportedAt\":\"2026-10-27T05:29:17.761Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
+      "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":10,\"appVersion\":\"1.1.0\",\"exportedAt\":\"2026-10-27T07:56:17.792Z\",\"paperCount\":4,\"questionCount\":72,\"pageCount\":6,\"fileCount\":10,\"platform\":\"darwin\"}"
     },
     {
       "feature": "安装指南",
       "name": "打包版里的 /guide 页显示完整正文（docs/安装指南.md 的每个二级标题都在）",
       "pass": true,
-      "detail": "9 个标题；正文 4817 字；缺少：无"
+      "detail": "9 个标题；正文 4709 字；缺少：无"
     },
     {
       "feature": "运行期",

@@ -51,7 +51,7 @@ Turn a pile of school exam papers (PDF, photos, Word) into knowledge-point evide
 
 ## Brand Commitments
 
-- None. The user said to design freely ("没有，自由设计"). The product name is 「英语校考分析工作台」.
+- None. The user said to design freely ("没有，自由设计"). The product name is 「卷知」.
 - The user explicitly rejects (corrected answer):
   - the **old-style admin back office**: grey ground, blue buttons, full-screen tables, which is what it looks like now;
   - the **kindergarten-cartoon** look: candy colours and round mascot illustrations that read as unprofessional.
