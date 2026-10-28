@@ -2,6 +2,7 @@
 // 检查 release/ 里的安装包（M5 验收用，可重复运行）：
 //   Windows 产物（任何系统上都能查）：exe 存在、大小合理；解开 setup / portable 里内嵌的 app-64.7z，核对 app.asar 里的关键文件、没有多余的原生模块、
 //     resources/native/windows/ocr.ps1 在且字节和源文件完全一致（BOM 没丢）、exe 的图标和版本信息已改过。
+//   Windows / Mac 的主程序都要关掉 RunAsNode 熔丝（用 @electron/fuses 读出来核对）：否则 WorkBuddy、VS Code 终端这类带着 ELECTRON_RUN_AS_NODE=1 的环境里，`juanzhi` 会被当成普通 Node 运行。
 //   Mac 产物（只在 macOS 上查）：dmg 能挂载；.app 存在；codesign 是 ad-hoc 签名；OCR helper 在 Resources/native 里、是 arm64+x86_64 通用二进制且已签名；Info.plist 的版本；
 //     spctl 的结果如实记录（没有公证，会被 Gatekeeper 拒绝——这是预期）。
 // 用法：node scripts/verify-artifacts.cjs [release 目录]      退出码 0 = 全部通过
@@ -37,6 +38,20 @@ function find7z() {
   }
   throw new Error('找不到 7-Zip：安装 7zz / 7za，或用 EWB_7ZA 指定')
 }
+/**
+ * RunAsNode 熔丝必须是「关」（electron-builder.config.cjs 的 electronFuses.runAsNode = false）：
+ * 开着的话，环境里有 ELECTRON_RUN_AS_NODE=1（基于 Electron 的 Agent 常见）就会让卷知变成普通 Node，命令行全坏。
+ * target：Mac 传 .app 目录，Windows 传 exe。另外把 inspect 参数那个熔丝的状态记下来（只记录，不计入通过数；Playwright 冒烟要用，保持默认）。
+ */
+async function checkRunAsNodeOff(feature, target) {
+  const { getCurrentFuseWire, FuseV1Options } = req('@electron/fuses')
+  const DISABLED = 0x30   // '0'：@electron/fuses 里 FuseState.DISABLE（index 没有导出它）
+  let wire = null, err = ''
+  try { wire = await getCurrentFuseWire(target) } catch (e) { err = String(e && e.message || e) }
+  const st = wire ? wire[FuseV1Options.RunAsNode] : undefined
+  check(feature, `RunAsNode 熔丝已关闭（ELECTRON_RUN_AS_NODE=1 对打包版无效）`, st === DISABLED, wire ? `RunAsNode=0x${Number(st).toString(16)}（0x30=关，0x31=开）` : err)
+  if (wire) note(feature, `其余熔丝保持默认：EnableNodeCliInspectArguments=0x${Number(wire[FuseV1Options.EnableNodeCliInspectArguments]).toString(16)}（0x31=开，Playwright 冒烟需要）`)
+}
 const sh = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * MB, ...opts })
 
 async function verifyWindows(file, kind) {
@@ -60,6 +75,7 @@ async function verifyWindows(file, kind) {
     const app = path.join(tmp, 'b')
     const exe = path.join(app, 'EnglishExamWorkbench.exe')
     check(feature, '解包后有 EnglishExamWorkbench.exe 和 resources/app.asar', fs.existsSync(exe) && fs.existsSync(path.join(app, 'resources/app.asar')), r.stderr)
+    if (fs.existsSync(exe)) await checkRunAsNodeOff(feature, exe)
     const asar = req('@electron/asar')
     const list = asar.listPackage(path.join(app, 'resources/app.asar')).map(x => x.replace(/\\/g, '/'))
     const need = ['/out/main/index.js', '/out/preload/index.js', '/out/renderer/index.html', '/package.json',
@@ -83,7 +99,7 @@ async function verifyWindows(file, kind) {
   } finally { fs.rmSync(tmp, { recursive: true, force: true }) }
 }
 
-function verifyMac(file, arch) {
+async function verifyMac(file, arch) {
   const f = path.join(dir, file)
   const feature = `macOS ${arch}`
   const ok = fs.existsSync(f)
@@ -103,6 +119,7 @@ function verifyMac(file, arch) {
     check(feature, 'codesign -dv：ad-hoc 签名（Signature=adhoc）', /Signature=adhoc/.test(txt) && /flags=0x2\(adhoc\)/.test(txt), txt.split('\n').filter(l => /Signature|flags|Identifier/.test(l)).join(' | '))
     const ver = sh('codesign', ['--verify', '--deep', '--strict', app])
     check(feature, 'codesign --verify --deep --strict 通过（签名完整）', ver.status === 0, ver.stderr)
+    await checkRunAsNodeOff(feature, app)
     const helper = path.join(app, 'Contents/Resources/native/macos/bin/ewb-ocr')
     const hs = sh('codesign', ['-dv', helper])
     const lipo = sh('lipo', ['-info', helper])
@@ -127,8 +144,8 @@ function verifyMac(file, arch) {
   await verifyWindows(`Juanzhi-${version}-win-x64-setup.exe`, 'setup')
   await verifyWindows(`Juanzhi-${version}-win-x64-portable.exe`, 'portable')
   if (process.platform === 'darwin') {
-    verifyMac(`Juanzhi-${version}-mac-arm64.dmg`, 'arm64')
-    verifyMac(`Juanzhi-${version}-mac-x64.dmg`, 'x64')
+    await verifyMac(`Juanzhi-${version}-mac-arm64.dmg`, 'arm64')
+    await verifyMac(`Juanzhi-${version}-mac-x64.dmg`, 'x64')
   } else console.log('⚠️ 非 macOS：跳过 dmg 检查')
   const failed = results.filter(r => !r.pass)
   console.log(`\n==== 产物检查：${results.length - failed.length}/${results.length} 通过 ====`)

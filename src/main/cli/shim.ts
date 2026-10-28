@@ -9,16 +9,21 @@ import { execFile } from 'node:child_process'
 import { asciiJson } from './args.ts'
 
 /** 包装脚本里的标记：安装时靠它判断「这个文件是不是我们以前写的」 */
-export const SHIM_MARK = 'JUANZHI-SHIM v2'
+export const SHIM_MARK = 'JUANZHI-SHIM v3'   // v3：运行前清掉 ELECTRON_RUN_AS_NODE（旧版 / 开发版的可执行文件还认它）；isOurShim 只认前缀 JUANZHI-SHIM，所以 v2 的脚本照样能被更新
 
 /** 单引号包起来的 shell 字符串（路径里有单引号也安全） */
 export const shQuote = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`
 
-/** Mac / Linux：~/.local/bin/juanzhi */
+/**
+ * Mac / Linux：~/.local/bin/juanzhi。
+ * 先 unset ELECTRON_RUN_AS_NODE：WorkBuddy、VS Code 终端等基于 Electron 的程序会把它设成 1，Electron 看到它就当普通 Node 运行（找不到 cli 模块）。
+ * 1.2.1 起打包版已经关掉了这个熔丝，这里是给旧版 / 开发版的双保险。
+ */
 export function buildShellShim(exePath: string): string {
   return [
     '#!/bin/sh',
     `# ${SHIM_MARK}：由「卷知」生成（设置 → 管理员设置 → 安装命令行工具）。卷知被移动或卸载后，请重新安装命令行工具。`,
+    'unset ELECTRON_RUN_AS_NODE',
     `exec ${shQuote(exePath)} cli "$@"`,
     ''
   ].join('\n')
@@ -34,6 +39,7 @@ const shimError = (message: string): string => asciiJson(JSON.stringify({ ok: fa
  * 退出码以 .exit 文件为准（免安装版的外层启动器不传递退出码、或程序在写完结果之后崩溃时，调用方仍然拿到正确的码）。
  * 脚本里除了 exe 路径（可能含中文用户名）全是 ASCII，所以 `goto` 在任何代码页下都不会跳错；程序输出的 JSON 也是纯 ASCII（非 ASCII 字符写成 \uXXXX）。
  * 路径里的 % 写成 %%；显式关掉延迟展开（路径或参数里的 ! 不会被吃掉）。
+ * 启动前清掉 ELECTRON_RUN_AS_NODE（setlocal 之内，只影响这个脚本）：基于 Electron 的 Agent 会带着它，旧版 / 开发版的 exe 会因此当成普通 Node 运行。
  */
 export function buildCmdShim(exePath: string): string {
   const exe = exePath.replace(/%/g, '%%')
@@ -48,6 +54,7 @@ export function buildCmdShim(exePath: string): string {
     'set "JZ_OUT=%TEMP%\\juanzhi-%RANDOM%%RANDOM%.json"',
     'del "%JZ_OUT%" "%JZ_OUT%.exit" >nul 2>nul',
     'set "JUANZHI_RESULT_FILE=%JZ_OUT%"',
+    'set "ELECTRON_RUN_AS_NODE="',
     'start "" /wait "%JZ_EXE%" cli %*',
     'set "JZ_CODE=%ERRORLEVEL%"',
     'if not exist "%JZ_OUT%" goto :noresult',

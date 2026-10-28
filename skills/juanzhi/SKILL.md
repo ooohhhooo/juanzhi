@@ -24,6 +24,8 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 
 **stdout 只有一段 JSON**：成功 `{"ok":true,"data":…}`，失败 `{"ok":false,"code":"…","message":"中文白话","exit":N}`。输出是纯 ASCII（中文写成 `\uXXXX`），**用 JSON 解析器读**，不要用文本方式直接读。进度写在 stderr，可以忽略。先解析 JSON 的 `ok`，失败时把 `message` 原样转告用户。
 
+**如果输出的不是 JSON，而是 `Cannot find module '…/cli'` 或 `bad option`**（常见于你自己运行在 Electron 程序里，环境带着 `ELECTRON_RUN_AS_NODE=1`；卷知 1.2.1 起已修复）：去掉这个变量再重试，Mac `env -u ELECTRON_RUN_AS_NODE juanzhi <命令>`，Windows PowerShell 先 `Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue`。
+
 ## 使用前提（先检查）
 
 1. **卷知必须已经退出。** 卷知开着时命令行报 `app_running`（退出码 3）：请用户先退出卷知（**Mac 上只关窗口不行，要按 Cmd+Q**；Windows 上关闭窗口就是退出），不要重试。

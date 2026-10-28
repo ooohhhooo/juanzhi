@@ -1,5 +1,6 @@
 // 命令行（M7）的冒烟：被 smoke-packaged.cjs 在窗口关闭之后调用（同一份 userData、mock AI 还活着），也可以被开发版测试调用。
 //   · 从 Node 里 spawn 可执行文件：status → 导入一份 PDF（mock AI）→ 确认 → 生成老板版 / 家长版 → 导出家长版 docx（草稿标记）
+//   · 环境里带 ELECTRON_RUN_AS_NODE=1（WorkBuddy、VS Code 终端等基于 Electron 的 Agent）时，直接调用可执行文件、通过 juanzhi 短命令都要照样返回 ok:true（打包版关了 RunAsNode 熔丝）
 //   · Windows 额外验证「GUI 子系统程序拿不到输出和退出码」这个问题的解法：
 //       - juanzhi.cmd 在 PowerShell 和 cmd 里都是同步的，读得到 stdout 和退出码（成功 0、失败非 0）
 //       - 直接调用 exe：--result-file + Start-Process -Wait -PassThru 读得到结果和退出码
@@ -82,6 +83,23 @@ module.exports = async function cliSmoke(o) {
   const apiKeyLeak = everything.join('\n').match(/sk-smoke-key|ai_key_enc/)
   check('CLI 密钥', '命令行的所有输出和导出的文件里没有 API Key，也没有 ai_key_enc 字样', !apiKeyLeak, apiKeyLeak ? String(apiKeyLeak[0]) : '')
 
+  // ── ELECTRON_RUN_AS_NODE=1（WorkBuddy、VS Code 终端等基于 Electron 的 Agent 会带着它）：打包版关了 RunAsNode 熔丝，必须照样当卷知运行 ──
+  // 上面的 GUI 启动和普通命令行检查都是干净环境，这个问题以前被它们藏住了（smoke-packaged 会删掉这个变量）
+  const nodeEnv = { ...env, ELECTRON_RUN_AS_NODE: '1' }
+  const okStatus = r => r.code === 0 && one(r) && r.json.ok === true && r.json.data.version === pkgVersion && (r.json.data.dataDir || '').startsWith(path.resolve(userData))
+  if (!isWin) {
+    const direct = note(await run(exe, [...preArgs, 'cli', 'status'], { env: nodeEnv }))
+    check('CLI ELECTRON_RUN_AS_NODE 直接调用', '环境里有 ELECTRON_RUN_AS_NODE=1 时直接调用可执行文件：`cli status` 仍是 ok:true 的 JSON，退出码 0（不是 Cannot find module / bad option）', okStatus(direct), `${direct.code} ${direct.out.slice(0, 160)} ${direct.err.slice(-200)}`)
+    const flag = note(await run(exe, [...preArgs, 'cli', 'status', '--app=x'], { env: nodeEnv }))
+    check('CLI ELECTRON_RUN_AS_NODE 带参数', '同样的环境里 `cli status --app=x` 不报 bad option（参数交给卷知自己解析）', !/bad option/.test(flag.out + flag.err) && !!flag.json, `${flag.code} ${(flag.out + flag.err).slice(0, 200)}`)
+    if (shim && fs.existsSync(shim)) {
+      const viaShim = note(await run(shim, ['status'], { env: nodeEnv }))
+      check('CLI ELECTRON_RUN_AS_NODE 短命令', '环境里有 ELECTRON_RUN_AS_NODE=1 时运行已安装的 juanzhi 短命令：ok:true，退出码 0', okStatus(viaShim), `${viaShim.code} ${viaShim.out.slice(0, 160)} ${viaShim.err.slice(-200)}`)
+    } else {
+      check('CLI ELECTRON_RUN_AS_NODE 短命令', '没有安装短命令 juanzhi，跳过短命令检查（只在 CI 或 EWB_SMOKE_INSTALL_CLI=1 时安装；CI 上缺它就是失败）', process.env.CI !== 'true', String(shim))
+    }
+  }
+
   // ── Windows：GUI 子系统程序的输出和退出码 ──
   if (isWin) {
     const ps = (script, opt) => run('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { env, ...opt })
@@ -98,6 +116,19 @@ module.exports = async function cliSmoke(o) {
       check('CLI Windows cmd 退出码', 'cmd 里 juanzhi.cmd 失败的命令：退出码 2', d.code === 2 && d.json?.ok === false, `${d.code} ${d.out.slice(0, 200)}`)
     } else {
       check('CLI Windows 短命令', `没有安装短命令 juanzhi.cmd，跳过 PowerShell / cmd 里的 juanzhi 检查（只在 CI 或 EWB_SMOKE_INSTALL_CLI=1 时安装；CI 上缺它就是失败）`, process.env.CI !== 'true', String(shim))
+    }
+    // ELECTRON_RUN_AS_NODE=1：直接调用 exe（熔丝关了，必须忽略它）和 juanzhi.cmd（脚本里还会再清一次），PowerShell 和 cmd 里都验证
+    {
+      const rfn = path.join(work, 'direct-run-as-node.json')
+      const n1 = await ps(`$p = Start-Process -FilePath ${q(exe)} -ArgumentList 'cli','status','--result-file',${q(rfn)} -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode`, { env: nodeEnv })
+      const rn = fs.existsSync(rfn) ? JSON.parse(fs.readFileSync(rfn, 'utf8')) : null
+      check('CLI ELECTRON_RUN_AS_NODE 直接调用', 'Windows：环境里有 ELECTRON_RUN_AS_NODE=1 时直接调用 exe：退出码 0，结果文件里 ok:true、版本号对', n1.code === 0 && rn?.ok === true && rn.data.version === pkgVersion, `${n1.code} ${n1.err.slice(0, 200)}`)
+      if (shim && fs.existsSync(shim)) {
+        const n2 = note(await ps(`& ${q(shim)} status; exit $LASTEXITCODE`, { env: nodeEnv }))
+        check('CLI ELECTRON_RUN_AS_NODE PowerShell', 'PowerShell 里环境带 ELECTRON_RUN_AS_NODE=1 运行 juanzhi.cmd：ok:true，$LASTEXITCODE = 0', okStatus(n2), `${n2.code} ${n2.out.slice(0, 200)} ${n2.err.slice(0, 200)}`)
+        const n3 = note(await run('cmd.exe', ['/d', '/s', '/c', `""${shim}" status"`], { env: nodeEnv, verbatim: true }))
+        check('CLI ELECTRON_RUN_AS_NODE cmd', 'cmd 里环境带 ELECTRON_RUN_AS_NODE=1 运行 juanzhi.cmd：ok:true，退出码 0', okStatus(n3), `${n3.code} ${n3.out.slice(0, 200)}`)
+      }
     }
     // 直接调用 exe：--result-file + Start-Process -Wait -PassThru
     const rf = path.join(work, 'direct-result.json')

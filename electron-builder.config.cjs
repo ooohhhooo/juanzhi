@@ -22,6 +22,10 @@ module.exports = {
   buildDependenciesFromSource: false,
   electronLanguages: ['zh-CN', 'en-US'],
   afterPack: path.join(__dirname, 'scripts', 'after-pack.cjs'),
+  // 关掉 RunAsNode 熔丝：WorkBuddy、VS Code 终端等基于 Electron 的 Agent 会在环境里带着 ELECTRON_RUN_AS_NODE=1，
+  // 熔丝开着时卷知的可执行文件会被当成普通 Node 运行（`cli status` 报 Cannot find module '<cwd>/cli'）；关掉后打包版直接忽略这个变量。
+  // 只改这一项，其余熔丝保持默认（Playwright 冒烟要用 inspect 参数）。熔丝由 electron-builder 在 afterPack 之后、签名之前翻转，Mac 的 ad-hoc 签名和 Windows 的 resedit 都不受影响。
+  electronFuses: { runAsNode: false },
   files: [
     'out/**/*',
     'package.json',
