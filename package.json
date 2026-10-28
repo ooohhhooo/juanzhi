@@ -1,7 +1,7 @@
 {
   "name": "english-exam-workbench",
   "productName": "卷知",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "卷知 · 小学英语试卷分析",
   "main": "./out/main/index.js",
   "scripts": {

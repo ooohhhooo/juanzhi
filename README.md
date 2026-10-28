@@ -137,12 +137,12 @@
 
 | 你的电脑 | 点这个文件 |
 |---|---|
-| Mac，Apple 芯片（M1、M2、M3、M4…） | `Juanzhi-1.2.0-mac-arm64.dmg` |
-| Mac，Intel 处理器 | `Juanzhi-1.2.0-mac-x64.dmg` |
-| Windows（推荐） | `Juanzhi-1.2.0-win-x64-setup.exe`（安装版） |
-| Windows，没有安装权限 | `Juanzhi-1.2.0-win-x64-portable.exe`（免安装版，双击就能用） |
+| Mac，Apple 芯片（M1、M2、M3、M4…） | `Juanzhi-1.2.1-mac-arm64.dmg` |
+| Mac，Intel 处理器 | `Juanzhi-1.2.1-mac-x64.dmg` |
+| Windows（推荐） | `Juanzhi-1.2.1-win-x64-setup.exe`（安装版） |
+| Windows，没有安装权限 | `Juanzhi-1.2.1-win-x64-portable.exe`（免安装版，双击就能用） |
 
-- 文件名里的 `1.2.0` 是版本号，以页面上的最新版为准。
+- 文件名里的 `1.2.1` 是版本号，以页面上的最新版为准。
 - **不要点** `Source code (zip)` 和 `Source code (tar.gz)`，那是给程序员看的源代码，不是安装包。
 - 拿不准 Mac 是哪种芯片就下 Intel 版（`mac-x64`）：Apple 芯片的 Mac 一般也能打开（系统可能提示安装 Rosetta，按提示装即可）；反过来 Apple 芯片的包在 Intel 的 Mac 上打不开。
 - **浏览器说「此文件不常被下载」「可能有害」**：Edge 里点文件旁边的「…」→「保留」→「仍然保留」；Chrome 里点「保留」。原因同样是没买签名证书。
@@ -433,6 +433,7 @@ https://raw.githubusercontent.com/ooohhhooo/juanzhi/main/skills/juanzhi/SKILL.md
 
 - Windows 版已在 GitHub 的云端 Windows 机器上跑通导入 PDF / Word、拆题、看板、出报告、导出 PDF，但还没有在真人的 Windows 电脑上完整走过一遍。如果你是第一批 Windows 用户，遇到问题请一定反馈，我们会尽快修。
 - Windows 识别照片 / 扫描件文字：1.1.0 遇到**透明背景的 PNG 图片**会一行都认不出来，1.2.0 已修复，并在云端 Windows（装了中文 OCR 语言包）上实测样例卷识别出 45 行。手机拍的 JPG 照片没有透明背景，不受这个问题影响；真人 Windows 电脑上识别照片的效果我们还没测过，欢迎反馈。
+- 用 WorkBuddy 等助手调用命令行：1.2.0 会报「Cannot find module …/cli」或「bad option」（这类助手的环境里带着 `ELECTRON_RUN_AS_NODE=1`），1.2.1 已修复，请升级。暂时不能升级的话，见 [docs/命令行.md 的「排错」](docs/命令行.md#排错)。
 - 导出的 Word 文件还没在 Word / WPS 里逐一打开检查过，排版有问题请反馈。
 - 「难度」「易错」是 AI 根据题目估计的，不是学生的真实得分；卷子少的时候，结论只能当方向参考。
 

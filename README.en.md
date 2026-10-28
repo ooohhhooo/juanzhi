@@ -151,12 +151,12 @@ Without an API Key you can still install the app and look at the "sample data". 
 
 | Your computer | Click this file |
 |---|---|
-| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.2.0-mac-arm64.dmg` |
-| Mac with Intel processor | `Juanzhi-1.2.0-mac-x64.dmg` |
-| Windows (recommended) | `Juanzhi-1.2.0-win-x64-setup.exe` (installer version) |
-| Windows, without permission to install | `Juanzhi-1.2.0-win-x64-portable.exe` (no-install version, double-click to use) |
+| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.2.1-mac-arm64.dmg` |
+| Mac with Intel processor | `Juanzhi-1.2.1-mac-x64.dmg` |
+| Windows (recommended) | `Juanzhi-1.2.1-win-x64-setup.exe` (installer version) |
+| Windows, without permission to install | `Juanzhi-1.2.1-win-x64-portable.exe` (no-install version, double-click to use) |
 
-- The `1.2.0` in the file name is the version number. Use the latest version shown on the page.
+- The `1.2.1` in the file name is the version number. Use the latest version shown on the page.
 - **Do not click** `Source code (zip)` or `Source code (tar.gz)`. That is source code for programmers, not an installer.
 - If you are not sure which chip your Mac has, download the Intel version (`mac-x64`). A Mac with an Apple chip can usually open it too (the system may ask you to install Rosetta. Just follow the prompt). The reverse does not work: the Apple-chip installer cannot be opened on an Intel Mac.
 - **If your browser says the file "isn't commonly downloaded" or "may be harmful"** (「此文件不常被下载」「可能有害」): in Edge, click the "…" next to the file, then "Keep", then "Keep anyway" (「保留」→「仍然保留」). In Chrome, click "Keep". The reason is the same: there is no signing certificate.
@@ -454,6 +454,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 
 - The Windows version has been run on GitHub's cloud Windows machines for importing PDF / Word, splitting questions, the dashboard, generating reports and exporting PDF. But nobody has yet walked through the whole thing on a real person's Windows computer. If you are one of the first Windows users and you hit a problem, please report it. We will fix it as soon as we can.
 - Reading text from photos / scans on Windows: in 1.1.0, a **PNG image with a transparent background** could not be read at all (not a single line). This was fixed in 1.2.0, and it was tested on cloud Windows (with the Chinese OCR language pack installed): the sample paper was recognised as 45 lines. JPG photos taken with a phone have no transparent background, so they are not affected by this problem. We have not yet tested how well photos are recognised on a real person's Windows computer. Feedback is welcome.
+- Calling the command line from WorkBuddy and similar assistants: 1.2.0 fails with "Cannot find module …/cli" or "bad option" (these assistants run commands with `ELECTRON_RUN_AS_NODE=1` set). This is fixed in 1.2.1; please upgrade. If you cannot upgrade yet, see the troubleshooting section 「排错」 in [docs/命令行.md](docs/命令行.md#排错) (in Chinese).
 - The exported Word files have not yet been opened one by one in Word / WPS to check them. If the layout has problems, please report it.
 - "Difficulty" and "error-prone" are estimated by the AI from the question itself. They are not students' real scores. When there are few papers, conclusions are only a rough direction.
 
