@@ -1,5 +1,7 @@
 # 卷知 · 小学英语试卷分析
 
+**简体中文** | [English](README.en.md)
+
 把一摞小学英语试卷，变成一本「考点词典」：今年考了什么、哪里最容易错、和往年比有什么变化，一眼看清；再按读者生成**老板版、老师版、家长版**分析报告。
 
 - 免费、开源，Mac 和 Windows 都有安装包
@@ -21,7 +23,7 @@
 5. [安装步骤（Mac / Windows）](#五安装步骤)
 6. [第一次使用：三步上手](#六第一次使用三步上手)
 7. [小白指南：让 AI 助手帮你装（WorkBuddy、豆包、Codex、Claude Code）](#七小白指南让-ai-助手帮你装)
-8. [AI 助手还能怎么配合卷知用](#八ai-助手还能怎么配合卷知用)
+8. [命令行（CLI）：自己用，或交给 AI 助手](#八命令行cli自己用或交给-ai-助手)
 9. [数据和隐私](#九数据和隐私)
 10. [常见问题、已知不足和反馈](#十常见问题已知不足和反馈)
 11. [给开发者](#十一给开发者)
@@ -252,44 +254,156 @@
 
 ---
 
-## 八、AI 助手还能怎么配合卷知用
+## 八、命令行（CLI）：自己用，或交给 AI 助手
 
-从 1.2.0 起，卷知带了**命令行接口**：能执行命令的 AI 助手（Codex、Claude Code、WorkBuddy 等）可以直接让卷知「导入这几份试卷 → 解析 → 看统计 → 生成报告 → 导出 Word / PDF」，并把结果读回来；你自己也可以在终端里一行命令完成同样的事。
+从 1.2.0 起，卷知带了**命令行接口**：在终端里打一行命令，就能完成「导入试卷 → AI 解析 → 看统计 → 生成报告 → 导出 Word / PDF」。能执行命令的 AI 助手（Codex、Claude Code、WorkBuddy 等）也能用同样的命令替你操作，并把结果读回来。
 
-### 第一步：在卷知里装好短命令（一次就好）
+命令行和窗口是**同一个软件、同一份数据**：命令行导入的试卷，打开窗口就能看到；窗口里审核好的试卷，命令行也能统计。
 
-1. 打开卷知，在「设置 → 管理员设置 → AI 服务」里配好 AI（命令行不能设置 API Key，只能在窗口里填）。
-2. 同一页往下找到「命令行工具」，点「安装命令行工具」。之后在终端里就能用 `juanzhi` 这个短命令。
-3. **用命令行之前要先退出卷知**：窗口和命令行不能同时用同一份数据。Mac 上只关窗口不算退出，要按 `Command + Q`；Windows 上关掉窗口就行。
+**怎么打开终端**：Mac 按 `Command + 空格`，输入「终端」回车；Windows 按键盘上的 Win 键，输入 `PowerShell` 回车。下面的命令都是在这个窗口里输入、按回车运行。
 
-### 第二步：把这段话交给 AI 助手
+### 1. 准备（每台电脑一次）
+
+1. **Mac 先把卷知装进「应用程序」文件夹**（见[第五部分](#五安装步骤)），从那里打开。直接从安装包窗口或「下载」文件夹里打开的卷知，装不了命令行工具。
+2. **在窗口里配好 AI**：打开「设置」，点「展开管理员设置」，找到「AI 服务」，填好并点「保存」（详见[第六部分](#六第一次使用三步上手)）。命令行不能设置、也读不到 API Key。
+3. **装短命令**：同一页往下找到「命令行工具」，点「安装命令行工具」。装好后在终端里就能直接打 `juanzhi`。
+   - **Mac**：装在 `~/.local/bin/juanzhi`。如果页面提示这个目录不在 PATH 里（PATH 就是电脑找命令的地方），在终端里运行下面这行，然后关掉终端重新打开：
+     ```bash
+     echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+     ```
+   - **Windows**：装在 `%LOCALAPPDATA%\Juanzhi\bin\juanzhi.cmd`，并自动加进你的用户 PATH（不需要管理员权限）。装好后**关掉再重新打开** PowerShell 才生效。
+   - 免安装版（portable）也能装短命令，但移动或删除那个免安装的程序文件后，短命令就失效了。长期使用建议装安装版。
+4. **升级卷知之后**，先在窗口里打开一次卷知（Mac 如果弹出钥匙串授权框，点「始终允许」），再用命令行。命令行没有窗口，弹框出来它也看不到，会一直卡住。
+5. **每次用命令行之前，先退出卷知**：窗口和命令行不能同时用同一份数据。Mac 上只关窗口不算退出，要按 `Command + Q`；Windows 上关掉窗口就是退出。
+
+### 2. 使用流程（一步一步）
+
+下面以「把两份四年级期末卷导入，生成一份老师版报告，导出成 Word」为例。
+
+**第 1 步：检查状态**
+
+```bash
+juanzhi status
+```
+
+每条命令都只输出**一段 JSON**（一长串用花括号包起来的文字，是给程序读的）：成功时以 `{"ok":true` 开头，失败时以 `{"ok":false` 开头，后面带着 `code`、`message`（原因）和 `exit`（退出码）。`status` 的结果里找到 `"ai"`，它后面的 `"configured"` 应该是 `true`；如果是 `false`，回到窗口里配 AI。
+
+> 输出里的中文（包括 `message`）会写成 `\u8fd8\u6ca1…` 这样的编码，这样 Windows 上不会乱码。这是正常的：AI 助手和 JSON 工具（PowerShell 的 `ConvertFrom-Json`、`jq` 等）会自动还原成中文。自己看不懂时，把整段输出交给 AI 助手就行；`ok` 和 `exit` 两个字段不用还原也能看懂。
+
+**第 2 步：导入试卷，等 AI 解析完**
+
+Mac：
+
+```bash
+juanzhi import ~/Downloads/四年级期末卷A.pdf ~/Downloads/四年级期末卷B.jpg --wait
+```
+
+Windows（PowerShell 里路径这样写，不要用 `~`）：
+
+```powershell
+juanzhi import "$env:USERPROFILE\Downloads\四年级期末卷A.pdf" "$env:USERPROFILE\Downloads\四年级期末卷B.jpg" --wait
+```
+
+支持 pdf、jpg、png、heic、docx。命令会一直等到每份卷子解析完（每份约 2–3 分钟），不要中途关掉终端。
+
+结果里每份卷子有一个 `status`：
+- `reviewing`：解析成功、等待审核。这种卷子有 `paperId`，后面会用到。
+- `duplicate`：之前导入过同样的文件，不会重复导入，也没有新的 `paperId`（用 `juanzhi papers list` 查旧的）。
+- `failed`：解析失败；`rejected`：文件本身不能导入。两种都在 `error` 里写了原因。
+
+只要有一份失败，整条命令就会以 `{"ok":false` 开头、`code` 是 `import_failed`、`exit` 是 9。这时成功的那几份照样导入好了，每份的结果在 `data.papers` 里。
+
+**第 3 步：人工审核（这一步在窗口里做）**
+
+AI 拆的题型、分值、知识点可能有错，统计默认**只算审核确认过的卷子**。所以打开卷知窗口，到「审核」里逐题核对、点「确认整份试卷」，然后**再退出卷知**，回到命令行。
+
+- 想先粗看一眼，可以在统计和报告命令后面加 `--include-reviewing`，把还没审核的卷子也算进去。这样得出的数字没经过人工核对，只适合粗看，不要直接拿去出报告。
+- 如果你已经用别的方式核对过，可以用 `juanzhi papers confirm <paperId> --i-reviewed` 直接确认。这一步会跳过人工审核，AI 的错会直接进统计，请确定你真的核对过。
+
+**第 4 步：看统计**
+
+```bash
+juanzhi stats overview --grade 4 --semester 下
+juanzhi stats hot --grade 4
+juanzhi stats compare --grade 4 --target 2025 --base before
+```
+
+这三条依次是：总览（几份卷子、多少题、最常考的知识点）；重难点；2025-2026 学年和之前所有学年比。
+
+筛选条件都可以组合：`--grade 1`～`6`、`--semester 上|下`、`--year 2025`（学年起始年，2025 表示 2025-2026 学年）、`--exam-type 期末`（可选 单元测试 / 期中 / 期末 / 月考 / 其他）、`--textbook`、`--region`。卷子太少时结果里会提示，不会硬下结论。
+
+**第 5 步：生成报告**
+
+```bash
+juanzhi report generate --reader teacher --grade 4
+```
+
+`--reader` 选读者：`boss`（老板版）、`teacher`（老师版）、`parent`（家长版）、`full`（完整数据版）。生成要调用 AI，需要一两分钟。结果里有报告的 `id`（下一步要用）、正文 `markdown`，以及 `unverified`：程序核对时没找到依据的句子，请逐条看一遍。
+
+**第 6 步：导出成文件**
+
+Mac：
+
+```bash
+juanzhi report export <报告id> --format docx --out ~/Desktop/四年级老师版.docx
+```
+
+Windows（PowerShell 里桌面路径这样写，不要用 `~`）：
+
+```powershell
+juanzhi report export <报告id> --format docx --out "$([Environment]::GetFolderPath('Desktop'))\四年级老师版.docx"
+```
+
+把 `<报告id>` 换成上一步结果里的 `id`。报告 `id` 不好找的话，运行 `juanzhi report list`，排在最前面的就是刚生成的那份。`--format` 可以是 `docx`（Word）、`pdf` 或 `md`。目标文件已存在时，要加 `--overwrite` 才会覆盖。
+
+> **家长版的把关在命令行里同样有效**：老师没在窗口里点过「我已核对」的家长版，导出的文件开头会印着「AI 草稿 · 未经老师核对，请勿直接发给家长」。命令行没有替老师点「我已核对」的命令。
+
+**随时查找**：`juanzhi papers list --grade 4` 列出试卷和它们的 `id`；`juanzhi papers show <paperId>` 看一份卷子的每道题；`juanzhi report list` 列出生成过的报告和它们的 `id`。
+
+### 3. 常见报错
+
+命令失败时，`message` 会用中文说明原因，`exit` 是退出码：
+
+| 退出码 | `code` | 意思 | 怎么办 |
+|---|---|---|---|
+| 2 | `usage` | 命令或参数写错了 | 按 `message` 改；检查有没有多打字、漏打参数 |
+| 3 | `app_running` | 卷知窗口还开着 | 退出卷知（Mac 按 `Command + Q`）再运行 |
+| 4 | `cli_busy` | 另一条命令行任务正在跑 | 等它结束再运行 |
+| 5 | `ai_not_configured` | 还没配 AI | 到窗口「设置」→「展开管理员设置」→「AI 服务」里配 |
+| 7 | `invalid_state` | 现在不能做（比如范围内没有审核过的卷子） | 按 `message` 处理，常见的是先去审核 |
+| 9 | `import_failed` | 有文件没能导入或解析 | 看 `data.papers` 里每份的 `error`；失败的到窗口「处理队列」里点「重试」 |
+| 10 | `timeout` | 导入等太久（默认最多等 1 小时） | 没解析完的卷子到窗口「处理队列」里点「重试」，或者加大 `--timeout` 再运行 |
+| 11 | `export_blocked` | 家长版没通过把关（内容太少、有矛盾的句子） | 重新生成一份 |
+| 14 | `ai_failed` | AI 服务调用失败（网络、密钥、余额） | 检查网络和 AI 服务商账户 |
+
+全部 14 个退出码、每条命令的完整参数，以及 Windows 上直接调用 exe 的写法，见 **[docs/命令行.md](docs/命令行.md)**。
+
+### 4. 交给 AI 助手来做
+
+装好短命令、**退出卷知**之后，把下面这段话整段发给 Codex、Claude Code、WorkBuddy 等能执行命令的助手：
 
 ```text
 我电脑上装了「卷知」（小学英语试卷分析软件），它有命令行 juanzhi。请先阅读这份说明再操作：
-https://github.com/ooohhhooo/juanzhi/blob/main/skills/juanzhi/SKILL.md
-然后帮我：先运行 juanzhi status 检查状态；再把「下载」文件夹里的这几份试卷导入并等解析完成；解析完提醒我到卷知窗口里人工审核；审核完后生成老板版报告，导出成 Word 存到桌面。
+https://raw.githubusercontent.com/ooohhhooo/juanzhi/main/skills/juanzhi/SKILL.md
+然后帮我：先运行 juanzhi status 检查状态；再把「下载」文件夹里的这几份试卷导入并等解析完成；解析完提醒我到卷知窗口里人工审核，等我审核完、退出卷知、告诉你「好了」再继续；然后生成老板版报告，导出成 Word 存到桌面。
 不要向我索要 API Key；遇到报错把 message 原样告诉我。
 ```
 
-把最后两行换成你想做的事即可，比如「生成老师版报告」「看看四年级下学期最常考哪些知识点」。
+把「然后帮我：……」那一句换成你想做的事，比如「生成老师版报告」「看看四年级下学期最常考哪些知识点」；最后一行「不要向我索要 API Key……」保留。助手会按上面的流程运行命令，需要你审核时会停下来提醒你。**审核完记得先退出卷知，再让助手继续**，否则它会遇到退出码 3。
 
 **想让助手长期记住怎么用卷知**：把仓库里的 [`skills/juanzhi`](skills/juanzhi/SKILL.md) 文件夹装成助手的「技能（skill）」。Claude Code 放到 `~/.claude/skills/juanzhi/`；Codex、WorkBuddy 也支持类似的技能 / 说明文件，具体放在哪里以它们官网的说明为准。最简单的办法还是像上面那样，直接让助手读这个链接。
 
-### 命令行能做什么、不能做什么
+### 5. 命令行能做什么、不能做什么
 
 | 能做 | 不能做（故意的） |
 |---|---|
 | `status` 查看状态；`import` 导入试卷并等 AI 解析 | 设置或读取 API Key |
 | `papers list / show` 看试卷和每道题的标注 | 删除试卷、删除报告 |
-| `stats overview / hot / compare` 看考点统计、重难点、同比 | 替老师点家长版的「我已核对」 |
-| `report generate` 生成老板 / 老师 / 家长 / 完整数据版 | 改数据存放的位置 |
-| `report export` 导出 md / docx / pdf | 和卷知窗口同时使用 |
+| `papers confirm <paperId> --i-reviewed` 跳过人工审核直接确认（慎用） | 替老师点家长版的「我已核对」 |
+| `stats overview / hot / compare` 看考点统计、重难点、同比 | 改数据存放的位置 |
+| `report generate / list / show` 生成和查看报告；`report export` 导出 md / docx / pdf | 和卷知窗口同时使用 |
 
-- **家长版有把关**：没在卷知窗口里点过「我已核对」的家长版，用命令行导出时，文件开头会印着「AI 草稿 · 未经老师核对，请勿直接发给家长」。
-- `papers confirm` 能跳过人工审核直接确认整份卷子，但必须加 `--i-reviewed` 才执行；建议还是让老师在窗口里审核。
-- 完整的命令、参数、退出码和 Windows / Mac 调用示例见 **[docs/命令行.md](docs/命令行.md)**。
-
-### 没有命令行时，AI 助手也能这样帮你
+### 6. 不用命令行时，AI 助手也能这样帮你
 
 | 你想做的事 | 怎么做 |
 |---|---|
