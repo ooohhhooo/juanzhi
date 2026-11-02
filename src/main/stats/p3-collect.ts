@@ -2,7 +2,7 @@
  * P3 报告的统计取数：把「按筛选取分布 / 重难点 / 同比 / 学年 / 年级与考试类型个数」收成一个纯函数（只依赖数据库连接，不依赖 electron），
  * report/service.ts 和单测共用同一个入口——重难点取全量（P3_HOT_LIMIT）这个易错的调用点因此有测试守着（M4 复审 P2-2）。
  */
-import { compare, distribution, hot } from './core.ts'
+import { compare, distribution, hot, selectedCount } from './core.ts'
 import { collectEvidence } from './evidence.ts'
 import { paperScope } from './filter.ts'
 import type { StatsFilter } from './filter.ts'
@@ -26,7 +26,7 @@ export function collectP3Source(db: any, filter: StatsFilter): P3Source {
   const list = (col: string) => (db.prepare(`SELECT DISTINCT p.${col} v FROM papers p WHERE ${sc.where} AND p.${col} IS NOT NULL AND p.${col} <> '' ORDER BY v`).all(...sc.params) as any[]).map(r => String(r.v))
   return {
     filter, dist, hot: hotRes, cmp, years, distinctGrades: distinct('grade'), distinctExamTypes: distinct('exam_type'),
-    grades: list('grade'), semesters: list('semester'), examTypes: list('exam_type'),
+    selected: selectedCount(db, filter), grades: list('grade'), semesters: list('semester'), examTypes: list('exam_type'),
     evidence: collectEvidence(db, sc)
   }
 }

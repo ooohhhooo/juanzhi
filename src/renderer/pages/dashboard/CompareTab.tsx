@@ -74,6 +74,9 @@ export default function CompareTab() {
   const open = useMemo(() => (cmp && openCode ? [...cmp.added, ...cmp.removed, ...cmp.up, ...cmp.down].find(i => i.code === openCode) ?? null : null), [cmp, openCode])
   const earlier = useMemo(() => years.filter(y => target !== null && y < target), [years, target])
 
+  if (years.length < 2 && fullFilter.paperIds) {
+    return <div><EmptyStats><div data-testid="compare-ids-noearlier" style={{ marginTop: 8 }} className="ewb-ana-meta">选中的卷子里没有更早学年的，不做对比（同比只在选中的卷子之间比，至少需要两个不同学年的已确认试卷）。</div></EmptyStats></div>
+  }
   if (years.length < 2) {
     return <div><EmptyStats><div data-testid="compare-need-years" style={{ marginTop: 8 }} className="ewb-ana-meta">同比至少需要两个不同学年的已确认试卷（现在有 {years.length} 个学年：{years.map(yearText).join('、') || '无'}）。</div></EmptyStats></div>
   }
@@ -108,6 +111,7 @@ export default function CompareTab() {
         </span>
       </div>
       <NoticeStack>
+        {fullFilter.paperIds && <UsageNote kind="tip" data-testid="compare-ids-note">只在选中的卷子之间比：今年和去年及以前都只从你在试卷库里选的 {fullFilter.paperIds.length} 份里挑。</UsageNote>}
         {fullFilter.school_year_start && <UsageNote kind="tip" data-testid="compare-year-ignored">筛选栏里的「学年」在同比页签不生效——“今年”和“和谁比”由下面的选择决定，其它筛选条件照常生效。</UsageNote>}
         <NotCounted filter={filter} hint="以上是当前筛选条件下（不限学年）的统计；实际用来比的卷子还要按“今年 / 和谁比”和“只比同一学期”再挑，份数可能更少" />
         {cmpNotes}

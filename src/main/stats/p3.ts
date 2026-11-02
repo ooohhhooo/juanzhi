@@ -44,6 +44,8 @@ export interface P3Source {
   distinctGrades: number
   distinctExamTypes: number
   /** 范围里实际有的年级 / 学期 / 考试类型（标题和筛选描述用） */
+  /** 选中了具体几份卷子时：选中的 id 里还在库里的份数（写进筛选描述） */
+  selected?: number | null
   grades?: string[]
   semesters?: string[]
   examTypes?: string[]
@@ -143,7 +145,7 @@ export function buildP3Input(src: P3Source): P3Input {
   const yearsText = src.years.length ? src.years.map(yearLabel).join('、') : '（未填写学年）'
   const noYearNote = dist.noYear > 0 ? `（另有 ${dist.noYear} 份没有填写学年）` : ''
   const placeholders = {
-    FILTER_DESC: describeFilter(src.filter, 0, undefined, src.grades),
+    FILTER_DESC: describeFilter(src.filter, 0, undefined, src.grades, src.filter.paperIds ? { selected: src.selected ?? src.filter.paperIds.length, counted: total } : undefined),
     PAPER_COUNT: String(total),
     QUESTION_COUNT: String(dist.questions),
     YEARS: yearsText + noYearNote,

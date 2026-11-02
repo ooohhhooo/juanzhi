@@ -55,7 +55,8 @@ export function registerStatsIpc(): void {
   ipcMain.handle('stats:exportMatrix', async (_e, filter?: unknown, level?: unknown) => {
     const lv = LevelSchema.default(1).parse(level)
     const f = FilterArg.parse(filter ?? {})
-    const csv = matrixToCsv(S.matrix(db(), f, lv), describeFilter(f, lv))
+    const mx = S.matrix(db(), f, lv)
+    const csv = matrixToCsv(mx, describeFilter(f, lv, undefined, undefined, f.paperIds ? { selected: S.selectedCount(db(), f) ?? f.paperIds.length, counted: mx.papers } : undefined))
     const win = getMainWindow()
     const opts: Electron.SaveDialogOptions = {
       title: '导出双向细目表', defaultPath: `双向细目表-${['', '一级', '二级', '三级'][lv]}知识点.csv`, filters: [{ name: 'CSV 表格', extensions: ['csv'] }]

@@ -291,7 +291,9 @@ export function markdownToWechat(md: string, opts: { keepMarks?: boolean; spaced
 const GRADE_CN = ['', '一', '二', '三', '四', '五', '六']
 
 export interface TitleInput {
-  filter: { grade?: string; semester?: string; exam_type?: string; sample?: boolean }
+  filter: { grade?: string; semester?: string; exam_type?: string; sample?: boolean; paperIds?: string[] }
+  /** 实际计入的份数（指定了具体几份卷子时标题写「选中的 N 份试卷」） */
+  paperCount?: number
   /** 范围里实际有的年级 / 学期 / 考试类型 / 学年起始（取自数据；筛选里指定了的以筛选为准） */
   grades: string[]
   semesters: string[]
@@ -312,6 +314,7 @@ function gradeText(grades: string[]): string {
 export function reportTitle(t: TitleInput): string {
   const parts: string[] = []
   if (t.filter.sample) parts.push('示例数据')
+  if (t.filter.paperIds?.length) parts.push(`选中的 ${t.paperCount ?? t.filter.paperIds.length} 份试卷`)
   const g = t.filter.grade ? gradeText([t.filter.grade]) : gradeText(t.grades)
   if (g) parts.push(g)
   const sem = t.filter.semester ? [t.filter.semester] : [...new Set(t.semesters)]

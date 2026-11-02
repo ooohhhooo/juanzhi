@@ -14,6 +14,9 @@ interface ElectronAPI {
     get(id: string): Promise<Paper | null>
     update(id: string, meta: Record<string, unknown>): Promise<Paper>
     remove(id: string): Promise<boolean>
+    /** 批量：一次调用、主进程逐份处理，返回每份的结果（ok，或跳过 / 失败的白话原因） */
+    batchUpdate(ids: string[], meta: Record<string, unknown>): Promise<BatchItemResult[]>
+    batchRemove(ids: string[]): Promise<BatchItemResult[]>
     pages(paperId: string): Promise<PageRecord[]>
   }
   settings: {
@@ -89,6 +92,7 @@ interface ElectronAPI {
   }
   parse: {
     start(paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean>
+    batchStart(ids: string[]): Promise<BatchItemResult[]>
     cancel(paperId: string): Promise<boolean>
   }
   queue: {
@@ -376,6 +380,7 @@ interface QtypeRow {
 }
 
 // ── M3：统计 ──（类型直接取自主进程的统计模块，避免两边各写一份）
+type BatchItemResult = import('../main/types').BatchItemResult
 type StatsFilter = import('../main/stats/filter').StatsFilter
 type Distribution = import('../main/stats/core').Distribution
 type DistNode = import('../main/stats/core').DistNode

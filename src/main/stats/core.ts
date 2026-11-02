@@ -224,6 +224,12 @@ export interface ScopeNotes {
   similarSuspects: number
 }
 
+/** 选中的 id 里现在还在库里的份数（已删掉的不算；示例 / 真实按筛选的 sample 分开）；没有选中范围时返回 null */
+export function selectedCount(db: Db, f: StatsFilter): number | null {
+  if (!f.paperIds) return null
+  return (db.prepare('SELECT COUNT(*) c FROM papers WHERE is_sample = ? AND id IN (SELECT value FROM json_each(?))').get(f.sample ? 1 : 0, JSON.stringify(f.paperIds)) as any).c as number
+}
+
 /** 轻量的「范围说明」：每个页面都显示，只做几次计数，不做任何知识点聚合 */
 export function scopeNotes(db: Db, f: StatsFilter): ScopeNotes {
   const cnt = (s: PaperScope) => (db.prepare(`SELECT COUNT(*) c FROM papers p WHERE ${s.where}`).get(...s.params) as any).c as number

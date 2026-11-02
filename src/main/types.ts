@@ -31,6 +31,11 @@ export const PaperFilterSchema = z.object({
   status: PaperStatusEnum.optional()
 })
 
+/** 批量操作的试卷 id（去重后逐份处理） */
+export const BatchIdsSchema = z.array(z.string().uuid()).min(1).max(1000).transform(a => [...new Set(a)])
+/** 批量操作里每一份的结果：ok = 做了；否则 reason 是白话原因（跳过 / 失败） */
+export interface BatchItemResult { id: string; ok: boolean; reason?: string }
+
 export type PaperMeta = z.infer<typeof PaperMetaSchema>
 export type PaperFilter = z.infer<typeof PaperFilterSchema>
 

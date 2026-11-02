@@ -11,8 +11,8 @@
  * tests/unit/ipc-guard-audit 会列出 ipcMain.handle 的全部通道，要求每个通道要么在 WRITE_CHANNELS，要么在 READONLY_CHANNELS 里。
  */
 export const WRITE_CHANNELS = new Set([
-  'papers:import', 'papers:update', 'papers:remove', 'papers:reprocess', 'papers:acceptSimilar', 'papers:scanSimilar',
-  'parse:start', 'queue:resume',
+  'papers:import', 'papers:update', 'papers:remove', 'papers:batchUpdate', 'papers:batchRemove', 'papers:reprocess', 'papers:acceptSimilar', 'papers:scanSimilar',
+  'parse:start', 'parse:batchStart', 'queue:resume',
   'questions:update', 'questions:remove', 'questions:split', 'questions:merge', 'questions:confirmPaper', 'questions:reopen',
   'taxonomy:save', 'taxonomy:approveSuggestion', 'taxonomy:rejectSuggestion',
   'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:analyzeKp', 'ai:test',   // ai:test 会写 ai_usage（见上）
@@ -22,7 +22,7 @@ export const WRITE_CHANNELS = new Set([
   'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
-export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'parse:start', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
+export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
 
 
 /** 只读 / 只改内存状态 / 纯界面动作的通道：重启待定时不拦 */

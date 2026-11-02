@@ -16,12 +16,15 @@ const pctText = (v: number | null) => (v === null ? '—' : `${(Math.round(v * 1
 const GRADE = ['', '一', '二', '三', '四', '五', '六']
 
 /** 筛选条件的白话描述（{{FILTER_DESC}}） */
-export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResult, grades?: string[]): string {
+export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResult, grades?: string[], sel?: { selected: number; counted: number }): string {
   const parts: string[] = []
   if (f.sample) parts.push('示例数据（合成的演示卷，不是真实考情）')
   // 没选年级时按范围里实际有的年级写（只有四年级的卷子就写「四年级」），不再一概写「全部年级」；真是六个年级都有才写「全部年级」
   const gs = [...new Set(grades ?? [])].filter(g => /^[1-6]$/.test(g)).sort()
-  parts.push(f.grade ? `${GRADE[Number(f.grade)]}年级` : gs.length > 0 && gs.length < 6 ? `${gs.map(g => GRADE[Number(g)]).join('、')}年级` : '全部年级')
+  // 选中的份数写实际还在库里的（已删掉的 id 不算）；其中没计入统计的（没确认 / 疑似重复）注明计入几份
+  if (f.paperIds) { const n = sel?.selected ?? f.paperIds.length; parts.push(`试卷库里选中的 ${n} 份试卷${sel && sel.counted < n ? `（其中 ${sel.counted} 份计入统计）` : ''}`) }
+  // 指定了具体几份卷子时，不再写「全部年级」
+  if (!(f.paperIds && !f.grade && (gs.length === 0 || gs.length === 6))) parts.push(f.grade ? `${GRADE[Number(f.grade)]}年级` : gs.length > 0 && gs.length < 6 ? `${gs.map(g => GRADE[Number(g)]).join('、')}年级` : '全部年级')
   if (f.semester) parts.push(`${f.semester}学期`)
   if (f.exam_type) parts.push(f.exam_type)
   if (f.textbook) parts.push(f.textbook)
@@ -185,7 +188,7 @@ export function normalizeFilter(f: StatsFilter): Record<string, unknown> {
   for (const k of Object.keys(f).sort()) {
     const v = (f as Record<string, unknown>)[k]
     if (v === undefined || v === false) continue
-    o[k] = v
+    o[k] = Array.isArray(v) ? [...v].sort() : v   // 选中的 id 与点选先后无关
   }
   return o
 }

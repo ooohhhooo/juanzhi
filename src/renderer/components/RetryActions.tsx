@@ -13,7 +13,7 @@ const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remo
  *  · 提取失败：「重试」（重新提取）。
  * 会覆盖已有题目的选项先弹二次确认（useDiscardGuard）。
  */
-export default function RetryActions({ paper }: { paper: Paper }) {
+export default function RetryActions({ paper, menuLabel = '更多' }: { paper: Paper; /** 下拉按钮的文字：试卷库里旁边还有「更多操作」，那里改叫「其他方式」，免得一行出现两个「更多」 */ menuLabel?: string }) {
   const { message } = App.useApp()
   const qc = useQueryClient()
   const guard = useDiscardGuard()
@@ -29,7 +29,7 @@ export default function RetryActions({ paper }: { paper: Paper }) {
   if (paper.status !== 'failed') return null
   if (paper.error_stage === 'parse') {
     return (
-      <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+      <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'nowrap' }}>
         <Btn tone="secondary" size="small" icon={RotateCw} data-testid="retry-parse" onClick={() => start('ai', '已加入解析队列')}>重试</Btn>
         <Dropdown trigger={['click']} menu={{
           items: [
@@ -38,7 +38,7 @@ export default function RetryActions({ paper }: { paper: Paper }) {
             { key: 'extract', label: '从头来（重新读取文件，再让 AI 整理）' }
           ],
           onClick: ({ key }) => restart(key as 'extract' | 'ai' | 'locate')
-        }}><Btn tone="quiet" size="small" data-testid="retry-menu" icon={ChevronDown}>更多</Btn></Dropdown>
+        }}><Btn tone="quiet" size="small" data-testid="retry-menu" icon={ChevronDown}>{menuLabel}</Btn></Dropdown>
       </span>
     )
   }

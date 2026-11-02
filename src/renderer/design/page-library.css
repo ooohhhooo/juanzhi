@@ -18,7 +18,7 @@
 .ewb-lib-meta { display: flex; flex-wrap: wrap; gap: 2px var(--ewb-sp-3); margin-top: 4px; font-size: var(--ewb-fs-sm); font-weight: 400; color: var(--ewb-ink-2); font-variant-numeric: tabular-nums; }
 .ewb-lib-meta span { white-space: nowrap; }
 .ewb-lib-file { margin-top: 2px; font-size: var(--ewb-fs-xs); font-weight: 400; color: var(--ewb-ink-2); overflow-wrap: anywhere; }
-.ewb-lib-ops { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ewb-lib-ops { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; white-space: nowrap; }
 .ewb-lib-danger.ant-btn { color: var(--ewb-red-ink) !important; }
 
 /* 拖放区 */
@@ -96,3 +96,17 @@
 .ewb-lib-formrow { display: flex; flex-wrap: wrap; gap: 0 var(--ewb-sp-3); }
 
 .ewb-lib-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ewb-ink); }
+
+/* 搜索、多选与批量操作 */
+.ewb-lib-tools { display: flex; align-items: center; gap: var(--ewb-sp-3); flex-wrap: wrap; margin-bottom: var(--ewb-sp-3); }
+.ewb-lib-search { width: 320px; max-width: 100%; }
+.ewb-lib-count { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); font-variant-numeric: tabular-nums; }
+.ewb-lib-selbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; flex-wrap: wrap; gap: var(--ewb-sp-2) var(--ewb-sp-3); margin-bottom: var(--ewb-sp-3); padding: var(--ewb-sp-2) var(--ewb-sp-4); background: var(--ewb-primary-soft); border: 1px solid var(--ewb-primary); border-radius: var(--ewb-r-lg); }
+.ewb-lib-selbar__count { font-size: var(--ewb-fs-md); color: var(--ewb-ink); font-variant-numeric: tabular-nums; }
+.ewb-lib-selbar__count b { font-weight: 700; color: var(--ewb-primary); }
+.ewb-lib-selbar__ops { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ewb-sp-2); }
+.ewb-lib-titlelist { margin: 0 0 var(--ewb-sp-2); padding-left: 1.2em; max-height: 220px; overflow: auto; overflow-wrap: anywhere; }
+.ewb-lib-batchnote { margin: 0 0 var(--ewb-sp-3); font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-lib-batchwarn { margin: var(--ewb-sp-3) 0 0; font-size: var(--ewb-fs-sm); color: var(--ewb-red-ink); }
+.ewb-lib-batchgrid { display: grid; gap: var(--ewb-sp-3); }
+.ewb-lib-batchrow { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: var(--ewb-sp-3); }

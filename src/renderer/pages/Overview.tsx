@@ -156,14 +156,14 @@ export default function Overview() {
       )}
 
       <div className="ewb-ana-section" />
-      <Panel title={`今年新出现的知识点${o.newThisYear.year ? `（${yearText(o.newThisYear.year)}）` : ''}`} data-testid="new-this-year">
+      <Panel title={`今年新出现的知识点${o.newThisYear.year ? `（${yearText(o.newThisYear.year)}）` : ''}${filter.paperIds ? ' · 只在选中的卷子之间比' : ''}`} data-testid="new-this-year">
         {!o.newThisYear.reason && o.newThisYear.limited.length > 0 && (
           <UsageNote data-testid="new-limited" kind="caution">{`样本有限：${o.newThisYear.limited.includes('target') ? `本学年只有 ${o.newThisYear.targetPapers} 份卷子` : ''}${o.newThisYear.limited.length === 2 ? '，' : ''}${o.newThisYear.limited.includes('base') ? `之前学年只有 ${o.newThisYear.basePapers} 份` : ''}（不足 5 份），「新增」可能只是还没考到`}</UsageNote>
         )}
         {!o.newThisYear.reason && o.newThisYear.mixed.length > 0 && <UsageNote data-testid="new-mixed" kind="tip">{`两侧${o.newThisYear.mixed.join('，')}`}</UsageNote>}
         {!o.newThisYear.reason && o.newThisYear.insufficient.length > 0 && <UsageNote data-testid="new-insufficient" kind="caution">样本不足，暂不比较：用来比的卷子少于 3 份，“新出现”很可能只是这几份卷子刚好考没考到，下面默认折叠。</UsageNote>}
         <div style={{ marginTop: 12 }}>
-          {o.newThisYear.reason ? <span data-testid="new-reason" className="ewb-ana-muted">{o.newThisYear.reason}</span>
+          {o.newThisYear.reason ? <span data-testid="new-reason" className="ewb-ana-muted">{filter.paperIds && o.newThisYear.basePapers === 0 && o.newThisYear.targetPapers > 0 ? '选中的卷子里没有更早学年的，不做对比' : o.newThisYear.reason}</span>
             : o.newThisYear.items.length === 0 ? <span className="ewb-ana-muted">相比之前的 {o.newThisYear.basePapers} 份卷子，没有新出现的知识点</span>
               : (() => {
                 const chips = <div className="ewb-ana-chips">{o.newThisYear.items.map(i => <Tooltip key={i.code} title={`今年 ${i.aT}/${i.nT} 份卷子有，去年及以前没考过`}><span className="ewb-ana-pill ewb-ana-pill--primary" tabIndex={0} data-testid={`new-${i.code}`}>{i.name}</span></Tooltip>)}</div>

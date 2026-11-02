@@ -30,6 +30,7 @@ import { dropReportSentence, finishReport, refreshVerifyWarnings } from './finis
 import { ensureSampleWarning } from '../stats/p3'
 import type { ReportReader } from '../../shared/report-post'
 import { paperScope } from '../stats/filter'
+import { selectedCount } from '../stats/core'
 import type { StatsFilter } from '../stats/filter'
 import { cacheKeys, fillTemplate, normalizeFilter, reusableCheck, templateSig, describeFilter } from '../stats/p2'
 import type { CheckRecord } from '../stats/p2'
@@ -59,6 +60,15 @@ export interface PreparedReport {
   title: string
 }
 
+/** 筛选的白话描述；选中了具体几份卷子时带上「选中几份、其中几份计入」（counted 不给就现查） */
+function describeFilterDb(filter: StatsFilter, grades?: string[], counted?: number): string {
+  if (!filter.paperIds) return describeFilter(filter, 0, undefined, grades)
+  const db = getDb()
+  const sc = paperScope(filter)
+  const n = counted ?? (db.prepare(`SELECT COUNT(*) c FROM papers p WHERE ${sc.where}`).get(...sc.params) as any).c as number
+  return describeFilter(filter, 0, undefined, grades, { selected: selectedCount(db, filter) ?? filter.paperIds.length, counted: n })
+}
+
 const currentRev = (): number => (getDb().prepare('SELECT rev FROM data_rev WHERE id = 1').get() as any)?.rev ?? 0
 const currentTemplateSig = (reader: ReportReader) => templateSig(promptText(PROMPT_OF[reader], 'system'), promptText(PROMPT_OF[reader], 'user'))
 const today = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
@@ -81,8 +91,8 @@ export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full'
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, input.placeholders) } catch (e) { promptError = (e as Error).message }
   const keys = cacheKeys({ kind: KIND, reader, filter: normalizeFilter(filter) }, system, user)
-  const title = reportTitle({ filter, grades: src.grades ?? [], semesters: src.semesters ?? [], examTypes: src.examTypes ?? [], years: src.years, reader, date: today() })
-  return { reader, input, src, system, user, promptError, promptVersion: promptVersionFor(id), templateSig: templateSig(system, userTpl), cacheKey: keys.cacheKey, rev, desc: describeFilter(filter, 0, undefined, src.grades ?? []), title }
+  const title = reportTitle({ filter, grades: src.grades ?? [], semesters: src.semesters ?? [], examTypes: src.examTypes ?? [], years: src.years, reader, date: today(), paperCount: Number(input.placeholders.PAPER_COUNT) })
+  return { reader, input, src, system, user, promptError, promptVersion: promptVersionFor(id), templateSig: templateSig(system, userTpl), cacheKey: keys.cacheKey, rev, desc: describeFilterDb(filter, src.grades ?? [], Number(input.placeholders.PAPER_COUNT)), title }
 }
 
 // ───────────────────────── 读：列表 / 单条 ─────────────────────────
@@ -186,7 +196,7 @@ function itemOf(row: any, memo: Map<string, PreparedReport>): ReportItem {
   if (modelChanged) reasons.push('model')
   const verify = parseJson<UnverifiedItem[]>(row.verify_json, [])
   return {
-    id: row.id, title: row.title || `${describeFilter(filter, 0)} · 考情分析报告`, createdAt: row.created_at, model: row.model, filter, filterDesc: describeFilter(filter, 0),
+    id: row.id, title: row.title || `${describeFilterDb(filter)} · 考情分析报告`, createdAt: row.created_at, model: row.model, filter, filterDesc: describeFilterDb(filter),
     reader, readerLabel: READER_LABEL[reader],
     status: chk.fresh ? 'fresh' : 'stale', staleReasons: reasons, warnings: parseJson<string[]>(row.warnings_json, []), sampleWarning: visibleSampleWarning(row.markdown ?? '', row.sample_warning),
     promptVersion: row.prompt_version,
@@ -315,7 +325,7 @@ export function previewReport(filter: StatsFilter, reader: ReportReader = 'full'
     : !ready ? GUIDE : null
   const d = getDraft(draftKey(filter, reader))
   return {
-    filterDesc: describeFilter(filter, 0), papers, questions, blocked, aiReady: ready, busy: inflight.size > 0, reader,
+    filterDesc: describeFilterDb(filter, undefined, papers), papers, questions, blocked, aiReady: ready, busy: inflight.size > 0, reader,
     draft: d ? { markdown: d.markdown, refs: refreshRefs(d.refs), message: d.message, detail: d.detail, createdAt: d.createdAt } : null
   }
 }

@@ -20,7 +20,9 @@ export const StatsFilterSchema = z.object({
   includeReviewing: z.boolean().optional(),
   includeDuplicates: z.boolean().optional(),
   /** true = 只看示例数据；不写 = 只看真实数据（示例数据永远不混进真实数据的统计） */
-  sample: z.boolean().optional()
+  sample: z.boolean().optional(),
+  /** 只统计这几份试卷（试卷库里选中的）。写了它，范围就是「这些卷子」；已删掉的 id 直接查不到，不影响其它。其它计入规则（已确认 / 去重 / 疑似重复）照常 */
+  paperIds: z.array(z.string().uuid()).min(1).max(1000).optional()
 }).strict()
 export type StatsFilter = z.infer<typeof StatsFilterSchema>
 
@@ -63,6 +65,8 @@ export function paperScope(f: StatsFilter, year?: YearSpec | 'ignore', statuses?
     }
     // 疑似重复 / 部分重复的卷子（A4）默认不计入；老师确认「确实是新卷」（accepted）后才计入。打开「包含重复导入」时一并计入
     if (!f.includeDuplicates) parts.push(`(${a}.similar_state IS NULL OR ${a}.similar_state <> 'suspect')`)
+    // 一个参数装下整组 id（json_each），500 份卷子也不会撑到 SQL 参数个数上限
+    if (f.paperIds) { parts.push(`${a}.id IN (SELECT value FROM json_each(?))`); params.push(JSON.stringify(f.paperIds)) }
     if (f.grade) { parts.push(`${a}.grade = ?`); params.push(f.grade) }
     if (f.semester) { parts.push(`${a}.semester = ?`); params.push(f.semester) }
     if (f.exam_type) { parts.push(`${a}.exam_type = ?`); params.push(f.exam_type) }

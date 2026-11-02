@@ -1,10 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Popconfirm, Segmented, Select, Switch, Tooltip } from 'antd'
 import { Btn, ScopeBar, ScopeField, UsageNote } from '../design'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { sanitizePaperIds } from '../../shared/library-select'
 
 /** 全局筛选条件（总览与分析看板共用）。存在设置里（ui_stats_filter），重启后记住。 */
 const SETTING_KEY = 'ui_stats_filter'
+/** 进入「只看选中的试卷」前的维度筛选，存起来：重启后点「回到普通筛选」也能还原 */
+const STASH_KEY = 'ui_stats_filter_stash'
 const GRADES = ['1', '2', '3', '4', '5', '6'] as const
 const SEMESTERS = ['上', '下'] as const
 const EXAMS = ['单元测试', '期中', '期末', '月考', '其他'] as const
@@ -23,6 +27,8 @@ export function sanitizeFilter(raw: unknown): StatsFilter {
   if (r.includeReviewing === true) f.includeReviewing = true
   if (r.includeDuplicates === true) f.includeDuplicates = true
   if (r.sample === true) f.sample = true   // 只看示例数据（M4）
+  const ids = sanitizePaperIds(r.paperIds)   // 只看试卷库里选中的几份
+  if (ids) f.paperIds = ids
   return f
 }
 
@@ -31,6 +37,10 @@ interface Ctx {
   ready: boolean
   set: (patch: Partial<Record<keyof StatsFilter, unknown>>) => void
   reset: () => void
+  /** 只统计这几份试卷（从试卷库进来）；之前的维度筛选先收起来，退出时还原 */
+  selectPapers: (ids: string[], sample: boolean) => void
+  /** 退出「只看选中的试卷」，回到之前的筛选 */
+  clearSelection: () => void
 }
 const FilterCtx = createContext<Ctx | null>(null)
 
@@ -49,6 +59,7 @@ export function StatsFilterProvider({ children }: { children: React.ReactNode })
       const { includeReviewing: _a, includeDuplicates: _b, ...dims } = sanitizeFilter(v)   // sample 随维度一起记住：重启后仍停在示例数据（它不会改变任何真实数据的统计）
       setFilter(dims); latest.current = dims; setReady(true)
     }, () => { if (alive) setReady(true) })
+    window.api.settings.get(STASH_KEY).then(v => { if (alive) { const { includeReviewing: _a, includeDuplicates: _b, sample: _c, paperIds: _d, ...dims } = sanitizeFilter(v); stash.current = dims } }, () => { /* 没有就算了 */ })
     return () => { alive = false }
   }, [])
 
@@ -68,7 +79,27 @@ export function StatsFilterProvider({ children }: { children: React.ReactNode })
     latest.current = keep; setFilter(keep); persist(keep)
   }, [persist])
 
-  const value = useMemo(() => ({ filter, ready, set, reset }), [filter, ready, set, reset])
+  // 进入「只看选中的试卷」前的维度筛选，退出时还原（只在本次运行里记）
+  const stash = useRef<StatsFilter>({})
+  const selectPapers = useCallback((ids: string[], sample: boolean) => {
+    const cur = latest.current
+    if (!cur.paperIds) {
+      const { includeReviewing: _a, includeDuplicates: _b, sample: _c, paperIds: _d, ...dims } = cur
+      stash.current = dims
+      window.api.settings.set(STASH_KEY, dims).catch(() => { /* 存不上只是重启后还原不了 */ })
+    }
+    const f = sanitizeFilter({ paperIds: ids, sample, includeReviewing: cur.includeReviewing, includeDuplicates: cur.includeDuplicates })
+    latest.current = f; setFilter(f); persist(f)
+  }, [persist])
+  const clearSelection = useCallback(() => {
+    const cur = latest.current
+    const f = sanitizeFilter({ ...stash.current, includeReviewing: cur.includeReviewing, includeDuplicates: cur.includeDuplicates, sample: cur.sample })
+    stash.current = {}
+    window.api.settings.set(STASH_KEY, {}).catch(() => { /* 存不上不影响本次使用 */ })
+    latest.current = f; setFilter(f); persist(f)
+  }, [persist])
+
+  const value = useMemo(() => ({ filter, ready, set, reset, selectPapers, clearSelection }), [filter, ready, set, reset, selectPapers, clearSelection])
   return <FilterCtx.Provider value={value}>{children}</FilterCtx.Provider>
 }
 
@@ -79,6 +110,7 @@ export function useStatsFilter(): Ctx {
 }
 
 export const filterLabel = (f: StatsFilter): string => {
+  if (f.paperIds) return `选中的 ${f.paperIds.length} 份试卷`
   const parts: string[] = []
   if (f.grade) parts.push(GRADE_LABEL[Number(f.grade)])
   if (f.semester) parts.push(`${f.semester}学期`)
@@ -105,8 +137,10 @@ export function useScopeGuide(first?: string, last?: string): void {
 /** 范围句：没选筛选时也写成完整的一句（「看的是全部 2 份四年级试卷」），选了就写成「看的是 四年级 · 期末（3 份）」 */
 export function scopeSentence(f: StatsFilter, count: number | null, grades: string[]): string {
   const n = count == null ? '' : `${count} 份`
-  const dimsOn = Object.keys(f).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample')
   const src = f.sample ? '示例数据里的' : ''
+  // 选中几份：「看的是选中的 5 份试卷」；其中有没计入统计的（没确认 / 疑似重复），补一句计入几份
+  if (f.paperIds) return `看的是${src}选中的 ${f.paperIds.length} 份试卷${count != null && count < f.paperIds.length ? `（${count} 份计入统计）` : ''}`
+  const dimsOn = Object.keys(f).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample')
   if (dimsOn) return `看的是${src} ${filterLabel(f)}${n ? `（${n}）` : ''}`
   if (count === 0) return f.sample ? '示例数据里还没有可统计的试卷' : '还没有可统计的试卷'
   const g = grades.length === 1 ? GRADE_LABEL[Number(grades[0])] : ''
@@ -118,7 +152,8 @@ export function scopeSentence(f: StatsFilter, count: number | null, grades: stri
  * 逻辑、数据和所有 data-testid 与旧版相同；只换外观。右上角的操作区由页面传入（总览放「导入试卷」）。
  */
 export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
-  const { filter, set, reset, ready } = useStatsFilter()
+  const { filter, set, reset, ready, clearSelection } = useStatsFilter()
+  const nav = useNavigate()
   const g = useGuide()
   const qc = useQueryClient()
   const [open, setOpen] = useState(scopeOpenMemo)
@@ -129,14 +164,23 @@ export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
   const { data: opts } = useQuery({ queryKey: ['stats', 'filterOptions', !!filter.includeReviewing, !!filter.sample], queryFn: () => window.api.stats.filterOptions({ includeReviewing: filter.includeReviewing, sample: filter.sample }), staleTime: 10_000 })
   const { data: notes } = useQuery({ queryKey: ['stats', 'notes', filter], queryFn: () => window.api.stats.notes(filter) })
   const { data: ov } = useQuery({ queryKey: ['stats', 'overview', filter], queryFn: () => window.api.stats.overview(filter), enabled: ready, staleTime: 10_000 })
-  const { data: allPapers = [] } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  const { data: allPapers = [], isLoading: isLoadingPapers } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  // 选中的试卷后来被删掉了：悄悄从范围里去掉（全没了就回到普通筛选），不让范围句里的份数和实际对不上
+  const byIds = !!filter.paperIds
+  useEffect(() => {
+    if (!filter.paperIds || isLoadingPapers) return
+    const alive = new Set(allPapers.map(p => p.id))
+    const kept = filter.paperIds.filter(id => alive.has(id))
+    if (kept.length === filter.paperIds.length) return
+    if (kept.length === 0) clearSelection(); else set({ paperIds: kept })
+  }, [allPapers, isLoadingPapers, filter.paperIds])
   const grades = Array.from(new Set(allPapers.filter(p => p.status === 'done' && !!p.is_sample === !!filter.sample && p.grade).map(p => p.grade as string))).sort()
   const sel = (label: string, testid: string, placeholder: string, value: unknown, options: Array<{ value: any; label: string }>, key: keyof StatsFilter, width = 120) => (
     <ScopeField label={label}>
-      <Select data-testid={testid} placeholder={placeholder} allowClear value={value as any} style={{ width }} options={options} onChange={v => set({ [key]: v })} popupMatchSelectWidth={false} />
+      <Select data-testid={testid} placeholder={placeholder} allowClear disabled={byIds} value={value as any} style={{ width }} options={options} onChange={v => set({ [key]: v })} popupMatchSelectWidth={false} />
     </ScopeField>
   )
-  const any = Object.keys(filter).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample')
+  const any = Object.keys(filter).some(k => k !== 'includeReviewing' && k !== 'includeDuplicates' && k !== 'sample' && k !== 'paperIds')
   const pending = notes?.reviewing ?? 0
   const counted = notes?.reviewingCounted ?? 0
   const superseded = notes?.reviewingSuperseded ?? 0
@@ -149,10 +193,10 @@ export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
         {sel('考试类型', 'filter-exam', '全部', filter.exam_type, EXAMS.map(e => ({ value: e, label: e })), 'exam_type', 128)}
         {sel('教材', 'filter-textbook', '全部', filter.textbook, (opts?.textbooks ?? []).map(t => ({ value: t, label: t })), 'textbook', 140)}
         {sel('地区', 'filter-region', '全部', filter.region, (opts?.regions ?? []).map(t => ({ value: t, label: t })), 'region', 120)}
-        <Btn tone="secondary" size="small" data-testid="filter-reset" disabled={!any} onClick={reset}>清除筛选</Btn>
+        <Btn tone="secondary" size="small" data-testid="filter-reset" disabled={!any || byIds} onClick={reset}>清除筛选</Btn>
         {sampleSt?.loaded && (
           <Tooltip title="示例数据是内置的合成演示卷，和你的真实数据分开统计、互不混淆。">
-            <Segmented data-testid="filter-dataset" value={filter.sample ? 'sample' : 'real'} onChange={v => set({ sample: v === 'sample' })}
+            <Segmented data-testid="filter-dataset" disabled={byIds} value={filter.sample ? 'sample' : 'real'} onChange={v => set({ sample: v === 'sample' })}
               options={[{ label: '真实数据', value: 'real' }, { label: '示例数据', value: 'sample' }]} />
           </Tooltip>
         )}
@@ -165,6 +209,16 @@ export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
           </Tooltip>
         </div>
       </ScopeBar>
+      {byIds && (
+        <UsageNote kind="caution" data-testid="ids-banner"
+          actions={<>
+            <Btn tone="secondary" size="small" data-testid="ids-back" onClick={clearSelection}>回到普通筛选</Btn>
+            <Btn tone="quiet" size="small" data-testid="ids-library" onClick={() => nav('/')}>去试卷库改选</Btn>
+          </>}>
+          <b>现在只统计你在试卷库里选的 {filter.paperIds!.length} 份试卷</b>
+          {ov && ov.cards.papers < filter.paperIds!.length ? `（其中 ${ov.cards.papers} 份计入统计，其余还没确认或被当作重复卷，没算进去）` : ''}。数字、看板和报告都只按这几份算；年级、学期、教材这些筛选和「示例 / 真实数据」切换先不起作用。同比和「今年新增」只在这几份之间比，同比页里仍可以选看哪个学年。
+        </UsageNote>
+      )}
       {filter.sample && (
         <UsageNote kind="caution" data-testid="sample-banner"
           actions={<>

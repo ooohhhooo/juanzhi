@@ -32,6 +32,11 @@ const api = {
       ipcRenderer.invoke('papers:update', id, meta),
     remove: (id: string): Promise<boolean> =>
       ipcRenderer.invoke('papers:remove', id),
+    /** 批量：一次调用，主进程逐份处理，返回每份的结果（ok / 跳过原因） */
+    batchUpdate: (ids: string[], meta: Record<string, unknown>): Promise<Array<{ id: string; ok: boolean; reason?: string }>> =>
+      ipcRenderer.invoke('papers:batchUpdate', ids, meta),
+    batchRemove: (ids: string[]): Promise<Array<{ id: string; ok: boolean; reason?: string }>> =>
+      ipcRenderer.invoke('papers:batchRemove', ids),
     pages: (paperId: string): Promise<any[]> =>
       ipcRenderer.invoke('papers:pages', paperId),
   },
@@ -116,6 +121,7 @@ const api = {
   },
   parse: {
     start: (paperId: string, stage?: 'extract' | 'ai' | 'locate'): Promise<boolean> => ipcRenderer.invoke('parse:start', paperId, stage),
+    batchStart: (ids: string[]): Promise<Array<{ id: string; ok: boolean; reason?: string }>> => ipcRenderer.invoke('parse:batchStart', ids),
     cancel: (paperId: string): Promise<boolean> => ipcRenderer.invoke('parse:cancel', paperId),
   },
   queue: {
