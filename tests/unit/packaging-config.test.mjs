@@ -10,7 +10,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const cfg = require(path.join(root, 'electron-builder.config.cjs'))
 
 // ── 1. 基本信息 ──
-assert.match(pkg.version, /^\d+\.\d+\.\d+$/, '版本号是 x.y.z')
+assert.match(pkg.version, /^\d+\.\d+\.\d+(-(beta|rc)\.\d+)?$/, '版本号是 x.y.z 或 x.y.z-beta.n')
 assert.equal(pkg.productName, '卷知')
 assert.equal(cfg.productName, pkg.productName, '配置里的 productName 和 package.json 一致')
 assert.match(cfg.appId, /^[a-z0-9.-]+$/i)
@@ -118,9 +118,9 @@ assert.ok(!/占位/.test(JSON.stringify(cfg)), 'electron-builder 配置里没有
   const left = files.filter(f => /\.(ts|tsx|html|json|cjs|md)$/.test(f) && fs.readFileSync(f, 'utf8').includes('英语校考分析工作台'))
   assert.deepEqual(left, [], '还留着旧名的文件')
 }
-// 安装指南里写的文件名必须和实际产物名一致
+// 安装指南里写的文件名必须和实际产物名一致（公测试用版 x.y.z-beta.n 不对外，指南仍写最近的正式版，跳过）
 const guide = fs.readFileSync('docs/安装指南.md', 'utf8')
-for (const n of expected) assert.ok(guide.includes(n), `安装指南里要写明文件名 ${n}`)
+if (!pkg.version.includes('-')) for (const n of expected) assert.ok(guide.includes(n), `安装指南里要写明文件名 ${n}`)
 // 工作流用到的脚本都在
 for (const s of ['dist:mac', 'dist:win', 'dist', 'test:unit']) assert.ok(pkg.scripts[s], `package.json 缺脚本 ${s}`)
 const wf = fs.readFileSync('.github/workflows/build.yml', 'utf8')
