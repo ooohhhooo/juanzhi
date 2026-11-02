@@ -257,10 +257,16 @@ async function main() {
     tagged(name, tag)
     await L.dropFiles(page(), [path.join(fx, name)])
     const p = await waitExtracted(name)
-    writeDb(d => { d.prepare("UPDATE pages SET ocr_lang = ?, ocr_conf = 0.8, recognizer = ?, quality_json = NULL, rec_reason = NULL WHERE paper_id = ?").run(o.lang ?? 'en-US', 'win-ocr', p.id) })
+    writeDb(d => { d.prepare("UPDATE pages SET ocr_lang = ?, ocr_conf = 0.8, recognizer = ?, quality_json = NULL, rec_reason = NULL WHERE paper_id = ?").run(o.lang ?? 'en-US', 'win-ocr', p.id); garbleCjk(d, p.id) })
     return p
   }
-  const nameA = 'g4-2025-page1-期末A.png'
+  /** 英文引擎读中文页的真实样子：中文变成乱码字符（只有文件名带中文是不够的，见 ocr-quality） */
+const garbleCjk = (d, paperId) => {
+  const pg = d.prepare('SELECT id, lines_json, text FROM pages WHERE paper_id = ?').get(paperId)
+  const g = t => String(t ?? '').replace(/[\u4e00-\u9fff]/g, '\ufffd')
+  d.prepare('UPDATE pages SET lines_json = ?, text = ? WHERE id = ?').run(g(pg.lines_json), g(pg.text), pg.id)
+}
+const nameA = 'g4-2025-page1-期末A.png'
   {
     // A：视觉模型用自己的服务（mock2）。Windows 英文引擎读中文卷 → 这页改用 AI 读图，请求发到视觉模型自己的服务地址
     await saveCfg(cfgFor(mock, { auto_parse: false, vision_model: 'mock-vision-model', vision_base_url: mock2.baseUrl }), SECRET, VKEY)
@@ -326,7 +332,7 @@ async function main() {
     const nameD = 'g4-2025-page1-期末D.png'
     tagged(nameD, 'D'); await L.dropFiles(page(), [path.join(fx, nameD)])
     const pD = await waitExtracted(nameD)
-    writeDb(d => { d.prepare("UPDATE pages SET ocr_lang = 'en-US', ocr_conf = 0.8, recognizer = 'win-ocr', quality_json = NULL WHERE paper_id = ?").run(pD.id) })
+    writeDb(d => { d.prepare("UPDATE pages SET ocr_lang = 'en-US', ocr_conf = 0.8, recognizer = 'win-ocr', quality_json = NULL WHERE paper_id = ?").run(pD.id); garbleCjk(d, pD.id) })
     await parseAi(pD.id)
     const doneD = await waitParsed(nameD)
     const pgD = pagesOf(pD.id)[0]

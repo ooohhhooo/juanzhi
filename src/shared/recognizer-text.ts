@@ -13,7 +13,7 @@ export interface PageRec {
 }
 
 /** Windows 语言包的教程（应用内没有文档查看器，直接指向仓库里的文档） */
-export const OCR_TUTORIAL_URL = 'https://github.com/ooohhhooo/juanzhi/blob/main/docs/Windows中文识别安装.md'
+export const OCR_TUTORIAL_URL = 'https://github.com/ooohhhooo/juanzhi/blob/main/docs/Windows%E4%B8%AD%E6%96%87%E8%AF%86%E5%88%AB%E5%AE%89%E8%A3%85.md'
 
 const isZh = (lang: string | null | undefined) => !!lang && /^zh/i.test(lang)
 
@@ -55,7 +55,7 @@ export function reasonText(reason: string | null): string {
   }
 }
 
-export interface RecGroup { from: number; to: number; title: string; note: string; why: string; needsZhPack: boolean }
+export interface RecGroup { from: number; to: number; title: string; note: string; why: string; needsZhPack: boolean; /** 旧版本提取的 Windows 识别，没有记录识别语言：重新提取后才能检查中文够不够 */ legacyWin: boolean }
 
 /** 把相邻、方式和原因都相同的页并成一条：「第 1–3 页：Windows 自带识别（English）　中文可能认不全」 */
 export function groupPages(pages: PageRec[]): RecGroup[] {
@@ -66,7 +66,7 @@ export function groupPages(pages: PageRec[]): RecGroup[] {
     const why = reasonText(p.reason)
     const last = out[out.length - 1]
     if (last && last.title === title && last.note === note && last.why === why && last.to === p.idx - 1) { last.to = p.idx; continue }
-    out.push({ from: p.idx, to: p.idx, title, note, why, needsZhPack: p.recognizer === 'win-ocr' && !!p.ocrLang && !isZh(p.ocrLang) })
+    out.push({ from: p.idx, to: p.idx, title, note, why, needsZhPack: p.recognizer === 'win-ocr' && !!p.ocrLang && !isZh(p.ocrLang), legacyWin: p.recognizer === 'win-ocr' && !p.ocrLang })
   }
   return out
 }

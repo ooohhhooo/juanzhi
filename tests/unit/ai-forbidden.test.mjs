@@ -5,6 +5,7 @@ import { friendlyAiError } from '../../src/main/ai/friendly.ts'
 import { explainTestError, judgeVisionAnswer } from '../../src/main/ai/test-rules.ts'
 import { makeTextPng } from '../../src/main/ai/png.ts'
 import { AiConfigSchema, DEFAULT_AI_CONFIG, parseModelOf } from '../../src/main/ai/types.ts'
+import { pickVisionKey } from '../../src/main/ai/guard.ts'
 import { judgeModelHint, median } from '../../src/main/parse/model-hint.ts'
 
 // ───────── 403：不再和 401 混成一句 ─────────
@@ -103,5 +104,25 @@ import { judgeModelHint, median } from '../../src/main/parse/model-hint.ts'
   const slow = judgeModelHint(Array.from({ length: 10 }, () => b(0, 120_000)))
   assert.ok(slow.suggest && slow.reason === 'slow')
   assert.equal(judgeModelHint(Array.from({ length: 10 }, () => b(0, 60_000))).suggest, false)
+}
+{
+  const x = explainTestError(new AiError('forbidden', 'x', 403, 'denied token abcdefghijklmnopqrstuvwxyz0123456789ABCD for model m'), 'm')
+  assert.ok(!/abcdefghijklmnopqrstuvwxyz0123456789ABCD/.test(x.detail), '查看详情里连续的长串也隐藏')
+}
+// ───────── 已存的密钥只发往它配套的服务（视觉模型的选钥规则）─────────
+{
+  const A = 'https://a.example.com/v1', B = 'https://b.example.com/v1', C = 'https://c.example.com/v1'
+  const base = { savedVisionUrl: B, savedTextUrl: A, draftTextUrl: A, storedTextKey: 'TEXT', storedVisionKey: 'VIS' }
+  assert.equal(pickVisionKey({ ...base, targetUrl: B }), 'VIS', '正常：已存视觉密钥 → 已存视觉地址')
+  assert.equal(pickVisionKey({ ...base, targetUrl: A, savedVisionUrl: A }), 'VIS')
+  // 漏洞 1：界面上输了文本密钥，又把视觉地址改到别处 → 不能把已存的文本 / 视觉密钥带过去；刚输入的文本密钥也只配界面上的文本地址
+  assert.equal(pickVisionKey({ ...base, targetUrl: C, draftTextKey: 'TYPED' }), null)
+  assert.equal(pickVisionKey({ ...base, targetUrl: A, savedVisionUrl: B, draftTextKey: 'TYPED' }), 'TYPED', '刚输入的文本密钥配界面上的文本地址')
+  // 漏洞 2：界面上把文本地址改成已存的视觉地址、没输任何密钥 → 已存的文本密钥不能发过去
+  assert.equal(pickVisionKey({ ...base, targetUrl: B, savedVisionUrl: B, storedVisionKey: null, draftTextUrl: B }), null)
+  // 界面上刚输入的视觉密钥随便发
+  assert.equal(pickVisionKey({ ...base, targetUrl: C, draftVisionKey: ' NEW ' }), 'NEW')
+  // 已存的视觉密钥不发往别的地址
+  assert.equal(pickVisionKey({ ...base, targetUrl: C, storedTextKey: null }), null)
 }
 console.log('ai-forbidden.test ✓')

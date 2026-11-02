@@ -105,9 +105,16 @@ assert.ok(locateAll(qs, sections, plainGeoms).every(r => r.bbox === null))
   assert.ok(r.every(x => x.bbox), '横线让整段对不上，也能靠题号找到：' + JSON.stringify(r.map(x => x.source)))
   assert.deepEqual(r.map(x => x.flags.includes('locate_fuzzy')), [false, true, true], '回退找到的标成模糊定位，让老师抽查')
   assert.ok(r[1].bbox[1] < 0.2 + 0.001 && r[1].bbox[1] + r[1].bbox[3] > 0.2, '8 题的框在第 8 题那一行')
+  // 「1.5 million」「1:30 pm」不是题号；回退命中不推进游标
+  const g2 = new Map([[1, { idx: 1, rows: buildRows([F('1.5 million people', 0.08, 0.1, 0.3), F('1:30 pm is late', 0.08, 0.2, 0.3), F('1. Real one', 0.08, 0.3, 0.2)]) }]])
+  const r3 = locateAll([tq('1', '一', '1. ______ one')], [], g2)
+  assert.ok(r3[0].bbox && r3[0].bbox[1] > 0.29, '只认真正的题号行：' + JSON.stringify(r3[0].bbox))
+  const g3 = new Map([[1, { idx: 1, rows: buildRows([F('8. aaa', 0.08, 0.1, 0.2), F('9.', 0.08, 0.2, 0.05), F('9 bbb stuff', 0.12, 0.2, 0.2), F('10. ccc', 0.08, 0.3, 0.2)]) }]])
+  const r4 = locateAll([tq('8', '一', '8. ______ aaa'), tq('9', '一', '9. ______ zzz'), tq('10', '一', '10. ccc')], [], g3)
+  assert.ok(r4.every(x => x.bbox), '回退命中的 9 题没有把游标带偏：10 题照样找到')
   // 题号不在上一题之后的行（比如更靠前的同号行）不认
   const r2 = locateAll([tq('9', '一', '9. These ______ my pants.'), tq('8', '一', '8. ______ are these?')], [], g)
-  assert.equal(r2[1].bbox, null, '游标之后找不到本题题号就老实说没找到，不往回找')
+  assert.ok(r2[1].bbox, '回退命中不推进游标：顺序颠倒的 9、8 两题各自找到自己的行')
 }
 
 // Word 页的识别决定：直接用文字（不经过识别，也不因为 images_always 改走读图）

@@ -6,7 +6,7 @@ import { getApiKey, getVisionOwnKey, hasStoredKey, hasVisionStoredKey, keyStorag
 import { chat, AiError } from './client'
 import { explainTestError, judgeVisionAnswer } from './test-rules'
 import type { ChatMessage, Usage } from './client'
-import { isHttpUrl, sameServer } from './guard'
+import { isHttpUrl, sameServer, pickVisionKey } from './guard'
 import { makeTextPng } from './png'
 
 const CONFIG_KEY = 'ai_config'
@@ -38,10 +38,12 @@ export function visionBaseUrl(cfg: Pick<AiConfig, 'base_url' | 'vision_base_url'
  */
 export function visionCreds(cfg: AiConfig, override?: { visionKey?: string; textKey?: string }): { baseUrl: string; key: string | null } {
   const baseUrl = visionBaseUrl(cfg)
-  const own = override?.visionKey?.trim() || getVisionOwnKey()
-  if (own) return { baseUrl, key: own }
-  const text = override?.textKey?.trim() || getApiKey()
-  return { baseUrl, key: text && sameServer(cfg.base_url, baseUrl) ? text : null }
+  const saved = loadConfig()
+  const key = pickVisionKey({
+    targetUrl: baseUrl, savedVisionUrl: visionBaseUrl(saved), savedTextUrl: saved.base_url, draftTextUrl: cfg.base_url,
+    draftVisionKey: override?.visionKey, draftTextKey: override?.textKey, storedVisionKey: getVisionOwnKey(), storedTextKey: getApiKey()
+  })
+  return { baseUrl, key }
 }
 
 /**
@@ -137,7 +139,6 @@ async function testOne(kind: TestKind, draft: TestDraft | undefined): Promise<Te
     key = c.key
     // 已保存的密钥不用于测试别的服务地址（同 saveConfig 的理由）；要测新地址就得带上对应的密钥
     if (baseUrl && !isHttpUrl(baseUrl)) return done('fail', '服务地址必须是以 http:// 或 https:// 开头的有效地址')
-    if (!draftVisionKey && !draftKey && baseUrl && !sameServer(visionBaseUrl(saved), baseUrl)) return done('fail', '要测试新的服务地址，请先在上面输入对应的 API Key')
     if (!model) return done('skip', '没有设置视觉模型：照片和扫描件在没装中文识别的电脑上可能识别不完整')
   } else {
     baseUrl = cfg.base_url
@@ -147,7 +148,7 @@ async function testOne(kind: TestKind, draft: TestDraft | undefined): Promise<Te
     if (!model) return done('fail', kind === 'parse' ? '请先填写拆题用的模型名称' : '请先填写写报告用的模型名称')
   }
   if (!baseUrl) return done('fail', kind === 'vision' ? '请先填写 Base URL（或视觉模型自己的服务地址）' : '请先填写 Base URL')
-  if (!key) return done('fail', kind === 'vision' && cfg.vision_base_url.trim() && !sameServer(cfg.base_url, baseUrl) ? '视觉模型用了不同的服务地址，请先填写它自己的 API Key' : '请先填写 API Key')
+  if (!key) return done('fail', kind === 'vision' && !sameServer(visionBaseUrl(saved), baseUrl) ? (cfg.vision_base_url.trim() && !sameServer(cfg.base_url, baseUrl) ? '视觉模型用了不同的服务地址，请先填写它自己的 API Key' : '要测试新的服务地址，请先在上面输入对应的 API Key') : cfg.vision_base_url.trim() && !sameServer(cfg.base_url, baseUrl) ? '视觉模型用了不同的服务地址，请先填写它自己的 API Key' : '请先填写 API Key')
 
   const messages: ChatMessage[] = kind === 'vision'
     ? [{ role: 'user', content: [

@@ -5,7 +5,7 @@ import { ocrImage, isOcrAvailable, convertImageToPngMac, OcrError } from './ocr'
 import { renderPdfPages, normalizeImage } from './pdf-renderer'
 import { judgeTextLayer } from './textquality'
 import { renderDocxPages } from './docx-render'
-import { ocrQuality, paperExpectsCjk } from './ocr-quality'
+import { ocrQuality, paperExpectsCjk, namesHaveCjk, relaxSparse } from './ocr-quality'
 import type { Recognizer } from './ocr-quality'
 import type { OcrLine, JobProgress } from '../types'
 
@@ -158,14 +158,14 @@ const ocrRecognizer = (): Recognizer => (process.platform === 'win32' ? 'win-ocr
 function markQuality(pages: PageRow[], names: string[]): void {
   const zhEngine = (p: PageRow) => !p.ocrLang || /^zh/i.test(p.ocrLang)
   const expects = paperExpectsCjk({
-    names,
     pageTexts: pages.map(p => ({ texts: p.lines.length ? p.lines.map(l => l.text) : (p.text ? p.text.split('\n') : []), trustedForCjk: p.textSource === 'pdf-text' || p.textSource === 'docx' || (p.textSource === 'ocr' && zhEngine(p)) }))
   })
-  for (const p of pages) {
-    if (p.textSource !== 'ocr') continue
+  const nameCjk = namesHaveCjk(names)
+  const quals = pages.map(p => p.textSource !== 'ocr' ? null
     // Windows 的置信度是固定值，不可信；有引擎语言就说明是 Windows
-    p.quality = ocrQuality(p.lines.map(l => l.text), { lang: p.ocrLang ?? null, paperExpectsCjk: expects, conf: p.ocrLang ? null : p.ocrConf })
-  }
+    : ocrQuality(p.lines.map(l => l.text), { lang: p.ocrLang ?? null, paperExpectsCjk: expects, nameHasCjk: nameCjk, conf: p.ocrLang ? null : p.ocrConf }))
+  const relaxed = relaxSparse(quals)
+  pages.forEach((p, i) => { if (relaxed[i]) p.quality = relaxed[i] })
 }
 
 function noteLang(notes: string[], lang: string | undefined): void {
@@ -346,7 +346,7 @@ async function extractDocx(
   // 把 Word 排成 A4 页面图，并量出每行文字的位置：之后和图片 / PDF 走同一套定位和「出自原卷」截图。失败就退回只有文字（没有页面图）
   if (textSource === 'docx') {
     onProgress({ paperId, stage: 'extracting', progress: 55, message: '生成 Word 的页面图…' })
-    const rendered = await renderDocxPages(docxPath)
+    const { pages: rendered, note: renderNote } = await renderDocxPages(docxPath)
     if (rendered && rendered.length > 0 && rendered.some(p => p.lines.length > 0)) {
       const pages: PageRow[] = rendered.map(rp => {
         const rel = `page-${rp.idx}.png`
@@ -358,7 +358,7 @@ async function extractDocx(
       })
       return { pages, assets, notes }
     }
-    notes.push('没能生成 Word 的页面图，只提取了文字（原卷截图不可用）')
+    notes.push(renderNote ? `${renderNote}，只提取了文字（原卷截图不可用）` : '没能生成 Word 的页面图，只提取了文字（原卷截图不可用）')
   }
 
   return {

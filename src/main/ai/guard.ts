@@ -44,4 +44,26 @@ export function redact(text: string, secrets: string[] = []): string {
   return out
     .replace(/\b(sk|ak|key)-[A-Za-z0-9_-]{8,}/gi, '［密钥已隐藏］')   // 不含 ep-：豆包的推理接入点 ID（ep-…）是模型名，不是密钥
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]{8,}/gi, '$1［密钥已隐藏］')
+    .replace(/[A-Za-z0-9_-]{32,}/g, '［密钥已隐藏］')   // 兜底：连续 32 位以上的字母数字串（各家密钥格式不一）一律隐藏
+}
+
+/**
+ * 视觉模型这次请求该带哪把密钥（纯函数）。规则：
+ *  - 界面上刚输入的视觉密钥：随便发（用户当场给的）；
+ *  - 已存的视觉密钥：只发往「已存的视觉地址」同一个服务；
+ *  - 界面上刚输入的文本密钥：只发往界面上当前的文本地址同一个服务；
+ *  - 已存的文本密钥：只发往「已存的文本地址」同一个服务（不看界面上改过的地址）。
+ * 都不满足 = null，调用方要提示「先输入对应的 API Key」。
+ */
+export function pickVisionKey(a: {
+  targetUrl: string; savedVisionUrl: string; savedTextUrl: string; draftTextUrl: string
+  draftVisionKey?: string; draftTextKey?: string; storedVisionKey?: string | null; storedTextKey?: string | null
+}): string | null {
+  const dv = a.draftVisionKey?.trim()
+  if (dv) return dv
+  if (a.storedVisionKey && sameServer(a.savedVisionUrl, a.targetUrl)) return a.storedVisionKey
+  const dt = a.draftTextKey?.trim()
+  if (dt && sameServer(a.draftTextUrl, a.targetUrl)) return dt
+  if (a.storedTextKey && sameServer(a.savedTextUrl, a.targetUrl)) return a.storedTextKey
+  return null
 }

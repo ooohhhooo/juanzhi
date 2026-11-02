@@ -39,5 +39,7 @@ assert.equal(reasonText(null), '')
   assert.equal(paperIncomplete(pages.slice(3)), false, '识别不好的页已经改用读图了')
   assert.equal(paperIncomplete([]), false)
 }
+assert.equal(groupPages([{ idx: 1, recognizer: 'win-ocr', ocrLang: null, reason: null, low: false }])[0].legacyWin, true, '旧数据（没有语言记录）给出重新提取的提示')
+assert.equal(groupPages([{ idx: 1, recognizer: 'win-ocr', ocrLang: 'zh-Hans-CN', reason: null, low: false }])[0].legacyWin, false)
 assert.ok(OCR_TUTORIAL_URL.startsWith('https://github.com/ooohhhooo/juanzhi/blob/main/docs/'))
 console.log('recognizer-text.test ✓')

@@ -54,6 +54,12 @@ export function RecognitionCard({ paperId }: { paperId: string }) {
             <b>{rangeText(g)}：</b>{g.title}
             {g.note && <span data-testid="recognition-note" style={{ marginInlineStart: 10 }}>{g.note}</span>}
             {g.needsZhPack && win && <span style={{ marginInlineStart: 10 }}><InstallZhOcr size="small" /></span>}
+            {g.legacyWin && (
+              <div data-testid="recognition-legacy" style={{ color: 'var(--ewb-ink-2)', fontSize: 'var(--ewb-fs-sm)' }}>
+                这份卷子是旧版本导入的，没有记下识别用的语言。重新提取后，卷知才能检查中文识别够不够用。{' '}
+                <Btn tone="secondary" size="small" onClick={() => { window.api.papers.reprocess(paperId) }}>重新提取</Btn>
+              </div>
+            )}
             {g.why && <div style={{ color: 'var(--ewb-ink-2)', fontSize: 'var(--ewb-fs-sm)' }}>{g.why}</div>}
           </li>
         ))}

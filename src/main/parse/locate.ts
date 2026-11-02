@@ -45,6 +45,9 @@ const PAD = 0.004
 export const NEIGHBOR_GAP = 0.012
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
+/** 行首题号检查用：NFKC、去掉前导空白（保留题号后的空白，和 squash 不同） */
+function normalizeLead(t: string): string { return t.normalize('NFKC').replace(/^\s+/, '') }
+
 function parseRef(ref: string): { page: number; row: number } | null {
   const m = /^\s*(\d+)\s*[-–]\s*(\d+)\s*$/.exec(ref || '')
   return m ? { page: Number(m[1]), row: Number(m[2]) } : null
@@ -156,16 +159,20 @@ export function locateTextStarts(questions: MergedQuestion[], pages: Map<number,
     }
 
     // (e) 题号回退：模型给的开头里常带着本机识别丢掉的东西（填空横线、破折号被识别成别的字），整段对不上。
-    //     这时只认「行首就是本题题号」的那一行（题号是数字、必须在上一题之后），标成模糊定位让老师抽查。
+    //     这时只认「行首就是本题题号」的那一行：题号后面是标点，再后面是空白 / 中文 / 字母（不是数字，免得把 1.5 million、1:30 pm 当成题号），
+    //     必须在上一题之后，优先本题自己声明的那一页；标成模糊定位让老师抽查，并且不推进游标（猜出来的位置不能把后面的题带偏）。
+    let viaNumber = false
     if (!found && /^\d{1,3}$/.test(q.no)) {
-      const lead = new RegExp(`^${q.no}[.、:)]`)
+      const lead = new RegExp(`^${q.no}[.、:)](?!\\d)(?=\\s|[A-Za-z\\u4e00-\\u9fff—–\\-]|$)`)
+      const rowOk = (txt: string) => lead.test(normalizeLead(txt))
       search3: for (const p of order) {
         const g = pages.get(p)
         if (!g) continue
         for (let i = 0; i < g.rows.length; i++) {
           if (p < cursor.page || (p === cursor.page && i <= cursor.row)) continue
-          if (!lead.test(squash(g.rows[i].text).str)) continue
+          if (!rowOk(g.rows[i].text)) continue
           found = { page: p, row: i, offset: 0, x: g.rows[i].x, fuzzy: true }
+          viaNumber = true
           break search3
         }
       }
@@ -173,7 +180,7 @@ export function locateTextStarts(questions: MergedQuestion[], pages: Map<number,
 
     if (found && rescanned) found = { ...found, rescan: true }
     out.push(found)
-    if (found && cmp(found, cursor) > 0) cursor = { page: found.page, row: found.row, offset: found.offset }
+    if (found && !viaNumber && cmp(found, cursor) > 0) cursor = { page: found.page, row: found.row, offset: found.offset }
   }
   return out
 }

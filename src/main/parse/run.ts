@@ -14,7 +14,7 @@ import type { ChatMessage } from '../ai/client'
 import { loadConfig, recordUsage, visionCreds } from '../ai/config'
 import { getApiKey } from '../ai/secret'
 import { parseModelOf } from '../ai/types'
-import { decidePage, paperExpectsCjk } from '../pipeline/ocr-quality'
+import { decidePage, paperExpectsCjk, namesHaveCjk, ocrQuality, relaxSparse } from '../pipeline/ocr-quality'
 import type { PageChoice, PageQuality, Recognizer } from '../pipeline/ocr-quality'
 import { promptText, promptVersionFor } from '../ai/prompts'
 import { loadTaxonomy } from '../ai/taxonomy'
@@ -104,23 +104,29 @@ function preparePages(pages: PageRow[], cfg: AiConfig, names: string[]): Prepare
   const blockers: string[] = []
   const visionReady = !!cfg.vision_model.trim() && !!visionCreds(cfg).key
   const expectsCjk = paperExpectsCjk({
-    names,
     pageTexts: pages.map(p => {
       const rows = readRows(p)
       return { texts: rows.map(r => r.text), trustedForCjk: p.text_source === 'pdf-text' || p.text_source === 'docx' || (p.text_source === 'ocr' && (!p.ocr_lang || /^zh/i.test(p.ocr_lang))) }
     })
   })
-  for (const p of pages) {
+  const nameCjk = namesHaveCjk(names)
+  // 每个本机识别出文字的页的质量（提取时记过的用记录，没有就现场算），再按全卷把「太短」的封面 / 答案页放过
+  const quals = pages.map((p): PageQuality | null => {
+    if (p.text_source !== 'ocr') return null
+    try { if (p.quality_json) return JSON.parse(p.quality_json) } catch { /* 损坏的记录：现场重算 */ }
+    return ocrQuality(readRows(p).map(r => r.text), { lang: p.ocr_lang, paperExpectsCjk: expectsCjk, nameHasCjk: nameCjk, conf: p.ocr_lang ? null : p.ocr_conf })
+  })
+  const relaxed = relaxSparse(quals)
+  for (const [pi, p] of pages.entries()) {
     const rows = readRows(p)
     const chars = rows.reduce((s, r) => s + r.text.length, 0)
     const hasImage = !!p.image_rel
-    let stored: PageQuality | null = null
-    try { stored = p.quality_json ? JSON.parse(p.quality_json) : null } catch { /* 损坏的记录：现场重算 */ }
+    const stored: PageQuality | null = relaxed[pi]
     const c = decidePage({
       textSource: p.text_source, hasImage, rowTexts: rows.map(r => r.text), lang: p.ocr_lang,
       // 有引擎语言 = Windows，那个置信度是固定值，不可信
       conf: p.ocr_lang ? null : p.ocr_conf, quality: stored
-    }, { policy: cfg.vision_policy, visionReady, expectsCjk })
+    }, { policy: cfg.vision_policy, visionReady, expectsCjk, nameHasCjk: nameCjk })
     choices.set(p.idx, c)
     if (c.mode === 'skip') {
       if (c.reason === 'ocr-failed') blockers.push(`第 ${p.idx} 页`)
@@ -264,6 +270,29 @@ async function runAiStage(
     const endpoint = batch.mode === 'vision' ? vcreds : { baseUrl: cfg.base_url, key }
     if (!endpoint.key) throw new ParseError('prepare', '视觉模型没有可用的 API Key：它用了和文本模型不同的服务地址，请到「设置 → AI 服务」给它填上自己的密钥')
 
+    /** 收下一个批次的结果：合并进整卷、记批次明细、更新进度 */
+    const accept = (data: any, r: { attempts: number; escalated: boolean; usage: any }): void => {
+      const allowed: readonly string[] = batch.mode === 'vision' ? FLAGS_VISION : FLAGS_TEXT
+      const questions: AnyQuestion[] = data.questions.map((q: any) => {
+        const page = batch.pages.includes(q.page) ? q.page
+          : batch.pages.reduce((best, p) => (Math.abs(p - q.page) < Math.abs(best - q.page) ? p : best), batch.pages[0])
+        return {
+          ...q, page, anchor_ref: 'anchor_ref' in q ? q.anchor_ref : '',
+          flags: q.flags.filter((f: string) => allowed.includes(f))
+        } as AnyQuestion
+      })
+      mergeBatch(state, { ...data, questions, materials: data.materials, sections: data.sections }, { batch: seqNo, mode: batch.mode })
+      used.push({ mode: batch.mode, pages: batch.pages, attempts: r.attempts })
+      recordBatch(seqNo, batch, model, { attempts: Math.max(attemptsTotal, r.attempts), truncated: sawTruncated, escalated: r.escalated || sawEscalated, usage: r.usage, ms: Date.now() - batchT0, ok: true })
+      finished++
+      curProgress = Math.min(90, 10 + Math.round((finished / Math.max(totalBatches, finished)) * 70))
+      ctx.onProgress({
+        paperId, stage: 'parse:ai', progress: curProgress,
+        message: `AI 解析中：已完成第 ${batch.pages[0]}${batch.pages.length > 1 ? '–' + batch.pages[batch.pages.length - 1] : ''} 页（${finished}/${Math.max(totalBatches, finished)} 批）`
+      })
+    }
+    let held: { data: any; r: any } | null = null
+
     for (let round = 0; round < 2; round++) {
       checkAbort(ctx)
       const messages: ChatMessage[] = feedback
@@ -293,6 +322,7 @@ async function runAiStage(
         })
       } catch (e) {
         if (e instanceof AiError && (e.code === 'truncated' || e.code === 'empty')) {
+          if (held) { accept(held.data, held.r); return }   // 补框那一轮写不完 / 空：用第一轮的结果
           if (e.code === 'truncated') sawTruncated = true
           lastProblem = e.message
           lastDetail = e.detail
@@ -336,36 +366,22 @@ async function runAiStage(
         feedback = { raw: r.content, error: lastProblem }
         continue
       }
-      // 读图版必须给每道题的框（anchor）：截图和「出自原卷」全靠它。有题没给框，第一轮带着名单让模型补；第二轮还没有就收下（定位失败的题会标「没找到位置」）
+      // 读图版必须给每道题的框（anchor）：截图和「出自原卷」全靠它。有题没给框，第一轮只把这些题的题号告诉模型让它补；
+      // 第一轮的结果先留着当后备——第二轮失败（写不完、空、格式不对）就用它，不会因此对半拆批、白白重来
       if (batch.mode === 'vision' && round === 0) {
         const noBox = (z.data.questions as Array<{ no: string; anchor: unknown }>).filter(q => !Array.isArray(q.anchor))
         if (noBox.length > 0) {
+          held = { data: z.data, r }
           lastProblem = `有 ${noBox.length} 道题没有给出位置框`
-          feedback = { raw: r.content, error: `这些题的 anchor 是 null 或缺失：第 ${noBox.slice(0, 12).map(q => q.no).join('、')} 题${noBox.length > 12 ? ' 等' : ''}。截图要靠 anchor 定位：请为每一道题都给出 anchor [x, y, w, h]（框住题号和题干第一行，数值是 0–1 的比例）；只有这道题确实不在图片上时才写 null。` }
+          feedback = { raw: r.content, error: `这些题的 anchor 是 null 或缺失：第 ${noBox.slice(0, 12).map(q => q.no).join('、')} 题${noBox.length > 12 ? ' 等' : ''}。请只补上这些题的位置：anchor 是 [x, y, w, h]（框住题号和题干第一行，数值是 0–1 的比例），其余内容照旧；只有这道题确实不在图片上时才写 null。` }
           continue
         }
       }
-
-      const allowed: readonly string[] = batch.mode === 'vision' ? FLAGS_VISION : FLAGS_TEXT
-      const questions: AnyQuestion[] = z.data.questions.map((q) => {
-        const page = batch.pages.includes(q.page) ? q.page
-          : batch.pages.reduce((best, p) => (Math.abs(p - q.page) < Math.abs(best - q.page) ? p : best), batch.pages[0])
-        return {
-          ...q, page, anchor_ref: 'anchor_ref' in q ? q.anchor_ref : '',
-          flags: q.flags.filter(f => allowed.includes(f))
-        } as AnyQuestion
-      })
-      mergeBatch(state, { ...z.data, questions, materials: z.data.materials, sections: z.data.sections }, { batch: seqNo, mode: batch.mode })
-      used.push({ mode: batch.mode, pages: batch.pages, attempts: r.attempts })
-      recordBatch(seqNo, batch, model, { attempts: Math.max(attemptsTotal, r.attempts), truncated: sawTruncated, escalated: r.escalated || sawEscalated, usage: r.usage, ms: Date.now() - batchT0, ok: true })
-      finished++
-      curProgress = Math.min(90, 10 + Math.round((finished / Math.max(totalBatches, finished)) * 70))
-      ctx.onProgress({
-        paperId, stage: 'parse:ai', progress: curProgress,
-        message: `AI 解析中：已完成第 ${batch.pages[0]}${batch.pages.length > 1 ? '–' + batch.pages[batch.pages.length - 1] : ''} 页（${finished}/${Math.max(totalBatches, finished)} 批）`
-      })
+      accept(z.data, r)
       return
     }
+    // 第二轮没成：有第一轮留下的结果（只是有的题没框）就收下它
+    if (held) { accept(held.data, held.r); return }
 
     recordBatch(seqNo, batch, model, { attempts: Math.max(attemptsTotal, 1), truncated: sawTruncated, escalated: sawEscalated, ms: Date.now() - batchT0, ok: false, errCode: sawTruncated ? 'truncated' : 'invalid' })
     const halves = halveBatch(batch)

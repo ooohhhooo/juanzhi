@@ -69,24 +69,43 @@ export function textStats(texts: string[]): { chars: number; cjk: number; garble
  *  - paperExpectsCjk：这份卷子是否本应含中文（见 paperExpectsCjk）。不确定时传 false——只在有证据时才下结论
  *  - conf：识别置信度（macOS 有；Windows 的固定值不可信，调用方传 null）
  */
-export function ocrQuality(texts: string[], opts: { lang?: string | null; paperExpectsCjk: boolean; conf?: number | null }): PageQuality {
+export function ocrQuality(texts: string[], opts: { lang?: string | null; paperExpectsCjk: boolean; nameHasCjk?: boolean; conf?: number | null }): PageQuality {
   const st = textStats(texts)
   const base = { garbled: st.garbled, cjk: st.cjk, lines: st.lines, chars: st.chars }
   if (st.chars === 0) return { low: true, why: 'empty', ...base }
-  if (opts.lang && !/^zh/i.test(opts.lang) && opts.paperExpectsCjk) return { low: true, why: 'lang-mismatch', ...base }
+  if (opts.lang && !/^zh/i.test(opts.lang)) {
+    // 有页面证据表明卷子里有中文 → 直接判。只有文件名 / 标题里有中文是弱证据（英文卷也可能叫「2024海淀期末英语.pdf」），
+    // 要再加上别的坏信号（乱码多 / 行数字数太少）才判
+    if (opts.paperExpectsCjk) return { low: true, why: 'lang-mismatch', ...base }
+    if (opts.nameHasCjk && (st.garbled > MAX_GARBLED / 2 || st.lines < MIN_LINES || st.chars < MIN_CHARS)) return { low: true, why: 'lang-mismatch', ...base }
+  }
   if (st.garbled > MAX_GARBLED) return { low: true, why: 'garbled', ...base }
   if (st.lines < MIN_LINES || st.chars < MIN_CHARS) return { low: true, why: 'sparse', ...base }
   if (opts.conf != null && opts.conf < LOW_OCR_CONF) return { low: true, why: 'low-conf', ...base }
   return { low: false, why: 'ok', ...base }
 }
 
+/** 文件名 / 标题里有中文（弱证据，见 ocrQuality） */
+export function namesHaveCjk(names: string[]): boolean {
+  return names.some(n => CJK_RE.test(n))
+}
+
 /**
- * 这份卷子本应含中文吗：文件名 / 标题里有中文，或任何一页（PDF 文字层、中文引擎的识别结果）里中文占比达到阈值。
+ * 这份卷子本应含中文吗：任何一页（PDF 文字层、中文引擎的识别结果）里中文占比达到阈值。
  * 纯英文卷子没有这些证据 → false，不乱提示。
  */
-export function paperExpectsCjk(args: { names: string[]; pageTexts: Array<{ texts: string[]; trustedForCjk: boolean }> }): boolean {
-  if (args.names.some(n => CJK_RE.test(n))) return true
+export function paperExpectsCjk(args: { pageTexts: Array<{ texts: string[]; trustedForCjk: boolean }> }): boolean {
   return args.pageTexts.some(p => p.trustedForCjk && textStats(p.texts).cjk >= CJK_EXPECT_RATIO)
+}
+
+/**
+ * 封面、答案页、最后一页本来就很短：同一份卷子里有别的正常的页时，「太短」的页不算识别不好。
+ * quals：每页的质量（没有质量的页 = PDF 文字层 / Word，当作正常）。返回处理后的质量（顺序不变）。
+ */
+export function relaxSparse<T extends PageQuality | null>(quals: T[]): T[] {
+  const hasNormal = quals.some(q => q === null || !q.low)
+  if (!hasNormal) return quals
+  return quals.map(q => (q && q.low && q.why === 'sparse' ? ({ ...q, low: false, why: 'ok' } as T) : q))
 }
 
 export type VisionPolicy = 'auto' | 'images_always' | 'never'
@@ -115,7 +134,7 @@ export interface PageChoice {
  * 每页走文本还是读图（默认策略 auto：只有本机识别不好的页才交给视觉模型）。
  * visionReady = 配了视觉模型、有可用的密钥、这页有页面图。
  */
-export function decidePage(f: PageFacts, ctx: { policy: VisionPolicy; visionReady: boolean; expectsCjk: boolean }): PageChoice {
+export function decidePage(f: PageFacts, ctx: { policy: VisionPolicy; visionReady: boolean; expectsCjk: boolean; nameHasCjk?: boolean }): PageChoice {
   const canVision = ctx.visionReady && f.hasImage && ctx.policy !== 'never'
   const none = (mode: PageChoice['mode'], reason: RecReason, q: PageQuality | null, low: boolean): PageChoice => ({ mode, reason, quality: q, low })
   if (f.textSource === 'docx') return none(f.rowTexts.length ? 'text' : 'skip', 'docx-text', null, false)
@@ -126,7 +145,7 @@ export function decidePage(f: PageFacts, ctx: { policy: VisionPolicy; visionRead
   if (f.textSource === 'none' || f.rowTexts.length === 0) return none(canVision ? 'vision' : 'skip', 'no-text', null, true)
 
   // 本机识别出了文字（图片 / 扫描件 / 扫描 PDF）
-  const q = f.quality ?? ocrQuality(f.rowTexts, { lang: f.lang, paperExpectsCjk: ctx.expectsCjk, conf: f.conf })
+  const q = f.quality ?? ocrQuality(f.rowTexts, { lang: f.lang, paperExpectsCjk: ctx.expectsCjk, nameHasCjk: ctx.nameHasCjk, conf: f.conf })
   if (ctx.policy === 'images_always' && canVision) return none('vision', 'policy-images-always', q, q.low)
   if (!q.low) return none('text', 'ocr-ok', q, false)
   // 只是置信度偏低（macOS 的置信度整体偏低，干净的页面也常在 0.5 上下）：有视觉模型就读图（老行为），没有就照用本机文字，不报「识别不完整」

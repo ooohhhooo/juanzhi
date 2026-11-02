@@ -1,6 +1,6 @@
 // 本机识别的质量判断与「每页走文本还是读图」的决定（M9 D1/D2）。直接加载 TS 源文件。
 import assert from 'node:assert/strict'
-import { ocrQuality, paperExpectsCjk, decidePage, textStats } from '../../src/main/pipeline/ocr-quality.ts'
+import { ocrQuality, paperExpectsCjk, namesHaveCjk, relaxSparse, decidePage, textStats } from '../../src/main/pipeline/ocr-quality.ts'
 
 const english = ['Look at the sheep.', 'How much is this skirt?', 'It is fifty yuan.', 'Is this the computer room?', 'Yes, it is.']
 const chinese = ['一、选出画线部分读音不同的一项。', '二、单项选择。（每题2分，共20分）', '三、用所给词的适当形式填空。', '四、补全对话。']
@@ -38,11 +38,34 @@ const garbled = ['Ii ■ ◆ ☐ ☐ ��', '□ □ ��� ◇◇ �', '�
   assert.equal(st.chars, 8); assert.ok(Math.abs(st.cjk - 3 / 8) < 1e-9); assert.equal(st.lines, 2)
 }
 
-// ───────── 这份卷子本应含中文吗 ─────────
-assert.equal(paperExpectsCjk({ names: ['期末卷.pdf'], pageTexts: [] }), true, '文件名里有中文')
-assert.equal(paperExpectsCjk({ names: ['final.pdf', ''], pageTexts: [{ texts: chinese, trustedForCjk: true }] }), true, '有页的中文占比够高')
-assert.equal(paperExpectsCjk({ names: ['final.pdf'], pageTexts: [{ texts: chinese, trustedForCjk: false }] }), false, '英文引擎读出的中文不可信，不当证据')
-assert.equal(paperExpectsCjk({ names: ['final.pdf'], pageTexts: [{ texts: english, trustedForCjk: true }] }), false, '纯英文卷没有证据')
+// ───────── 这份卷子本应含中文吗（只看页面证据；文件名里有中文只是弱证据）─────────
+assert.equal(namesHaveCjk(['期末卷.pdf']), true)
+assert.equal(namesHaveCjk(['final.pdf', '']), false)
+assert.equal(paperExpectsCjk({ pageTexts: [{ texts: chinese, trustedForCjk: true }] }), true, '有页的中文占比够高')
+assert.equal(paperExpectsCjk({ pageTexts: [{ texts: chinese, trustedForCjk: false }] }), false, '英文引擎读出的中文不可信，不当证据')
+assert.equal(paperExpectsCjk({ pageTexts: [{ texts: english, trustedForCjk: true }] }), false, '纯英文卷没有证据')
+{
+  // 英文扫描件叫「2024海淀期末英语.pdf」+ en-US 引擎：正常的英文页不能因为文件名就判成 lang-mismatch
+  const q = ocrQuality([...english, ...english], { lang: 'en-US', paperExpectsCjk: false, nameHasCjk: true })
+  assert.equal(q.low, false, '只有文件名里有中文，不够')
+  const c = decidePage({ textSource: 'ocr', hasImage: true, rowTexts: [...english, ...english], lang: 'en-US', conf: null }, { policy: 'auto', visionReady: true, expectsCjk: false, nameHasCjk: true })
+  assert.equal(c.mode, 'text'); assert.equal(c.low, false)
+  // 文件名有中文 + 别的坏信号（乱码多 / 太短）才判
+  assert.equal(ocrQuality(garbled, { lang: 'en-US', paperExpectsCjk: false, nameHasCjk: true }).why, 'lang-mismatch')
+  assert.equal(ocrQuality(['Hello', 'World'], { lang: 'en-US', paperExpectsCjk: false, nameHasCjk: true }).why, 'lang-mismatch')
+}
+{
+  // 封面 / 答案页 / 最后一页本来就短：同一份卷子里有正常的页就不算
+  const ok = ocrQuality([...chinese, ...english], { lang: 'zh-Hans-CN', paperExpectsCjk: true })
+  const short = ocrQuality(['答案', 'A B C'], { lang: 'zh-Hans-CN', paperExpectsCjk: true })
+  assert.equal(short.why, 'sparse')
+  const r = relaxSparse([ok, short])
+  assert.equal(r[1].low, false); assert.equal(r[0].low, false)
+  assert.equal(relaxSparse([null, short])[1].low, false, 'PDF 文字层 / Word 的页算正常页')
+  assert.equal(relaxSparse([short, short])[0].low, true, '整份都很短就还是低')
+  const bad = ocrQuality(garbled, { lang: 'zh-Hans-CN', paperExpectsCjk: true })
+  assert.equal(relaxSparse([ok, bad])[1].low, true, '乱码不放过')
+}
 
 // ───────── decidePage：三种读图策略 ─────────
 const base = { textSource: 'ocr', hasImage: true, rowTexts: english, lang: 'en-US', conf: null }
