@@ -60,7 +60,7 @@ export interface AiConfigView extends AiConfig {
 }
 
 /** p3_report 是「完整数据版」（沿用 id，旧的自定义提示词和历史报告照旧）；p3_boss / p3_parent / p3_teacher 是另外三个读者的版本 */
-export const PROMPT_IDS = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp'] as const
+export const PROMPT_IDS = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp', 'p3_tricks', 'p4_variant_gen', 'p4_variant_check'] as const
 export type PromptId = (typeof PROMPT_IDS)[number]
 export type PromptPart = 'system' | 'user'
 
@@ -73,6 +73,10 @@ export interface PromptView {
   isCustom: boolean
   /** 提示词里出现了程序不认识的 {{占位符}}（拼错名字） */
   unknownPlaceholders: string[]
+  /** 内置默认版的版本号（升过版的提示词各自标注，如老师版 v3.0） */
+  version: string
+  /** 用户自定义过、而内置默认版之后又升级了：提示词页标「默认版已更新，可对比」；他自己的版本保持不变 */
+  defaultUpdated: boolean
   /** 本提示词当前会被使用（P2/P3 要到后续里程碑才用） */
   usedInM2: boolean
 }

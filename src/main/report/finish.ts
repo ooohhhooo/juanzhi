@@ -3,7 +3,8 @@
  * 顺序：去反引号 → 去内部代码 → 去模型写的标题 → 校验引用 → 家长版先删矛盾句、再净化统计词 → 写标题 → 补样本提示 → 事实核对写回「未核实」标记。
  */
 import { stripUnknownCitations } from '../../shared/citation.ts'
-import { checkRules, markFindings, removeSentence } from '../../shared/factcheck.ts'
+import { checkRules, markFindings, removeSentence, splitSentences } from '../../shared/factcheck.ts'
+import { hasOverclaim } from './teacher-sections.ts'
 import { fixBackticks, hasBossReviewLine, markdownToWechat, parentBodyLength, parentItemCount, PARENT_MIN_CHARS, PARENT_MIN_ITEMS, sanitizeParent, setBossReviewLine, stripInternalCodes, topScoreGapWarning } from '../../shared/report-post.ts'
 import { bossJargon, fixParent, fixTeacherExamples, softenOverclaims } from '../../shared/parent-fix.ts'
 import type { KpEvidence } from '../../shared/parent-fix.ts'
@@ -12,8 +13,8 @@ import { ensureSampleWarning } from '../stats/p3.ts'
 import type { UnverifiedItem } from '../ai/chunk.ts'
 
 /** 各版本在默认提示词里规定的最后一节（缺了很可能被截断；家长版没有固定小节，不检查） */
-const FINAL_SECTION: Record<ReportReader, RegExp | null> = { full: /^#{1,3}\s*教学建议/m, boss: /^#{1,3}\s*风险提示/m, teacher: /^#{1,3}\s*备课建议/m, parent: null }
-const FINAL_NAME: Record<ReportReader, string> = { full: '教学建议', boss: '风险提示', teacher: '备课建议', parent: '' }
+const FINAL_SECTION: Record<ReportReader, RegExp | null> = { full: /^#{1,3}\s*教学建议/m, boss: /^#{1,3}\s*风险提示/m, teacher: /^#{1,3}\s*(?:学习进步建议|备课建议)/m, parent: null }
+const FINAL_NAME: Record<ReportReader, string> = { full: '教学建议', boss: '风险提示', teacher: '学习进步建议', parent: '' }
 
 /** 去掉模型自己写的一级标题（标题由程序按年级 / 学期 / 学年 / 日期统一生成） */
 export function dropLeadingH1(md: string): string {
@@ -86,6 +87,12 @@ export function finishReport(o: {
     const fixedT = fixTeacherExamples(body, o.evidenceKps)
     body = fixedT.text
     warnings.push(...fixedT.warnings)
+  }
+  // 老师版里 AI 写的话不能有价格 / 营销 / 夸大的说法（§0.4）：含这些的句子整句删掉
+  if (o.reader === 'teacher') {
+    const bad = splitSentences(body).filter(s => hasOverclaim(s))
+    for (const s of bad) body = removeSentence(body, s)
+    if (bad.length) warnings.push(`老师版里有 ${bad.length} 句含价格 / 夸大的说法，已删掉：${bad.slice(0, 3).map(s => `「${s.replace(/\s+/g, ' ').trim().slice(0, 30)}${s.trim().length > 30 ? '…' : ''}」`).join('')}${bad.length > 3 ? '等' : ''}`)
   }
   const remaining = checkRules(body, o.evidence)
   // 家长版不写标题（老师口吻：开头就是「各位家长好」）；其他版本标题由程序写

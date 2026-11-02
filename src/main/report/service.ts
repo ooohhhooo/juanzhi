@@ -19,7 +19,7 @@ import { createStream } from '../ai/stream'
 import { friendlyAiError, limitFallbackNotice } from '../ai/friendly'
 import { clearDraft, getDraft, saveDraft } from '../ai/drafts'
 import type { Draft } from '../ai/drafts'
-import { promptText, promptVersionFor, PROMPT_DEFAULT_VERSION, PLACEHOLDERS } from '../ai/prompts'
+import { promptText, promptVersionFor, defaultVersionOf, PLACEHOLDERS } from '../ai/prompts'
 import type { PromptId } from '../ai/types'
 import { notifyDataChanged } from '../events'
 import { stripUnknownCitations } from '../../shared/citation'
@@ -39,6 +39,10 @@ import { collectP3Source } from '../stats/p3-collect'
 import type { P3Input, P3Source } from '../stats/p3'
 import type { ChunkEvent, GenerateResult } from '../stats/analysis'
 import type { UnverifiedItem } from '../ai/chunk'
+import { effectiveStatus, getPartDef, isGenerating, loadParts, metaOf, partsFor, reassemble, runParts, saveMainPart } from './parts-run'
+import type { PartRowDb } from './parts-run'
+import { removeSentence } from '../../shared/factcheck'
+import type { ReportOptions } from '../../shared/report-options'
 
 const KIND = 'report'
 const MAX_HISTORY = 100
@@ -78,8 +82,10 @@ const allCodes = (): string[] => {
   return [...(db.prepare('SELECT code FROM kps').all() as any[]), ...(db.prepare('SELECT code FROM qtypes').all() as any[])].map(r => String(r.code))
 }
 
+const hasOptions = (o: ReportOptions | undefined): boolean => !!o && Object.values(o).some(v => v !== undefined && v !== false && !(Array.isArray((v as any)?.outlineIds) && (v as any).outlineIds.length === 0))
+
 /** 取统计、填占位符。复用 M3 的统计函数（去重、学期对齐、主次知识点的口径都在那里），这里不重新算任何东西 */
-export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full'): PreparedReport {
+export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full', options: ReportOptions = {}): PreparedReport {
   const db = getDb()
   const rev = currentRev()
   const src = collectP3Source(db, filter)
@@ -90,7 +96,8 @@ export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full'
   let user = ''
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, input.placeholders) } catch (e) { promptError = (e as Error).message }
-  const keys = cacheKeys({ kind: KIND, reader, filter: normalizeFilter(filter) }, system, user)
+  // 生成选项（课程对照等）参与缓存键；没有选项时和 beta.3 之前的键完全一致，旧报告不会因此变成「已过期」
+  const keys = cacheKeys(hasOptions(options) ? { kind: KIND, reader, filter: normalizeFilter(filter), options } : { kind: KIND, reader, filter: normalizeFilter(filter) }, system, user)
   const title = reportTitle({ filter, grades: src.grades ?? [], semesters: src.semesters ?? [], examTypes: src.examTypes ?? [], years: src.years, reader, date: today(), paperCount: Number(input.placeholders.PAPER_COUNT) })
   return { reader, input, src, system, user, promptError, promptVersion: promptVersionFor(id), templateSig: templateSig(system, userTpl), cacheKey: keys.cacheKey, rev, desc: describeFilterDb(filter, src.grades ?? [], Number(input.placeholders.PAPER_COUNT)), title }
 }
@@ -124,10 +131,41 @@ export interface ReportItem {
   blockReason: string | null
 }
 
+export interface ReportPartView {
+  part: string
+  label: string
+  status: 'ok' | 'failed' | 'skipped' | 'running'
+  message: string | null
+  detail: string | null
+  model: string | null
+  canRetry: boolean
+  retryBlock: string | null
+}
+
+export interface ReportVariantView {
+  id: string
+  seq: number
+  qtype: 'choice' | 'blank'
+  stem: string
+  options: string[]
+  answer: string
+  explanation: string
+  changed: string
+  status: 'checked' | 'flagged' | 'dropped'
+  teacherOk: boolean
+  kpName: string
+  notes: string[]
+  secondAnswer: string | null
+}
+
 export interface ReportDetail extends ReportItem {
   markdown: string
   refs: Array<CitationRef & { missing?: boolean }>
   unverified: UnverifiedItem[]
+  /** 报告的分段（老师版等）；没有分段的旧报告 / 其他版本为空数组 */
+  parts: ReportPartView[]
+  /** 老师版的 AI 变形题（逐题勾「我核对过」后才进答题卡） */
+  variants: ReportVariantView[]
 }
 
 /**
@@ -176,9 +214,9 @@ function checkRow(row: any, memo: Map<string, PreparedReport>): CheckRecord {
   const sig = currentTemplateSig(reader)
   const hit = reusableCheck(row, rev, sig)
   if (hit) return hit
-  const key = `${reader}|${row.filter_json ?? '{}'}`
+  const key = `${reader}|${row.filter_json ?? '{}'}|${row.options_json ?? ''}`
   let p = memo.get(key)
-  if (!p) { p = prepareReport(parseFilter(row.filter_json), reader); memo.set(key, p) }
+  if (!p) { p = prepareReport(parseFilter(row.filter_json), reader, parseJson<ReportOptions>(row.options_json, {})); memo.set(key, p) }
   const reasons: Array<'data' | 'prompt'> = []
   if (row.template_sig !== p.templateSig) reasons.push('prompt')
   if (row.fingerprint !== p.input.fingerprint) reasons.push('data')
@@ -213,14 +251,45 @@ export function listReports(): ReportItem[] {
   return rows.map(r => itemOf(r, memo))
 }
 
+/** 分段的界面视图：状态、白话原因，以及这一段现在能不能单独重试（程序拼的和 AI 写的都可以，已核对 / 数据变了 / 正在生成时不行） */
+function partViews(row: any, item: ReportItem): ReportPartView[] {
+  const rows = loadParts(row.id).filter(r => r.part !== 'main' && getPartDef(r.part))
+  const sorted = rows.sort((a, b) => (getPartDef(a.part)!.order - getPartDef(b.part)!.order))
+  const block = item.confirmedAt ? '这份报告已经核对过了，不能再改；需要重试请重新生成一份'
+    : item.status === 'stale' ? '统计数据或写作要求有变化，请重新生成整份报告（单独重试会和主文对不上）'
+    : isGenerating(row.id) ? '正在生成，请等它结束' : null
+  return sorted.map((r: PartRowDb) => {
+    const def = getPartDef(r.part)!
+    return { part: r.part, label: def.label, status: effectiveStatus(row.id, r.status), message: r.message, detail: r.detail, model: r.model, canRetry: !block, retryBlock: block }
+  })
+}
+
+function variantViews(reportId: string): ReportVariantView[] {
+  const db = getDb()
+  const names = new Map((db.prepare('SELECT code, name FROM kps').all() as any[]).map(r => [String(r.code), String(r.name)]))
+  return (db.prepare('SELECT * FROM report_variants WHERE report_id = ? ORDER BY seq').all(reportId) as any[]).map(r => {
+    const chk = parseJson<{ problems?: string[]; hints?: string[]; second?: string | null }>(r.check_json, {})
+    return {
+      id: r.id, seq: r.seq, qtype: r.qtype === 'blank' ? 'blank' : 'choice', stem: r.stem ?? '', options: parseJson<string[]>(r.options_json, []), answer: r.answer ?? '', explanation: r.explanation ?? '', changed: r.changed ?? '',
+      status: r.status, teacherOk: !!r.teacher_ok, kpName: r.kp_code ? names.get(r.kp_code) ?? '' : '', notes: [...(chk.problems ?? []), ...(chk.hints ?? [])], secondAnswer: chk.second ?? null
+    }
+  })
+}
+
 export function getReport(id: string): ReportDetail | null {
   const row = getDb().prepare('SELECT * FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
   if (!row) return null
+  const item = itemOf(row, new Map())
   // 旧报告里 AI 套在引用外面的反引号（`[卷名 · 题号]`）读出来时去掉
-  return { ...itemOf(row, new Map()), markdown: fixBackticks(row.markdown ?? ''), refs: refreshRefs(parseJson<CitationRef[]>(row.refs_json, [])), unverified: parseJson<UnverifiedItem[]>(row.verify_json, []) }
+  return { ...item, markdown: fixBackticks(row.markdown ?? ''), refs: refreshRefs(parseJson<CitationRef[]>(row.refs_json, [])), unverified: parseJson<UnverifiedItem[]>(row.verify_json, []), parts: partViews(row, item), variants: variantViews(id) }
 }
 
+/** 这份报告还在生成附加段：核对、勾选、删句、删除、导出 / 复制都先拒绝（内容还没定，别让半成品出去，也别让生成中的行被删掉） */
+export const GENERATING_MSG = '这份报告的附加部分还在生成，请等它结束（或先取消）再操作'
+function assertIdle(id: string): void { if (isGenerating(id)) throw new Error(GENERATING_MSG) }
+
 export function deleteReport(id: string): boolean {
+  assertIdle(id)
   const row = getDb().prepare('SELECT filter_json, reader FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
   const r = getDb().prepare('DELETE FROM reports WHERE id = ? AND kind = ?').run(id, KIND)
   // 同一个筛选、同一个版本的「未完成草稿」跟着清（报告都删了，没写完的那份也没有留着的意义）
@@ -235,6 +304,7 @@ export function deleteReport(id: string): boolean {
  * 勾过的句子在 verify_json 里记 acknowledged: true（留痕）。拒绝时抛出白话错误。
  */
 export function confirmReport(id: string, acknowledged: string[] = []): boolean {
+  assertIdle(id)
   const rep = getReport(id)
   if (!rep) return false
   const why = confirmBlockReason(rep)
@@ -259,9 +329,18 @@ export function confirmReport(id: string, acknowledged: string[] = []): boolean 
  * 返回更新后的报告；删不掉（句子不在清单里、正文里找不到、报告已核对）时抛出白话错误。
  */
 export function removeReportSentence(id: string, sentence: string): ReportDetail {
+  assertIdle(id)
   const row = getDb().prepare('SELECT * FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
   if (!row) throw new Error('这份报告已经不存在了')
   if (row.confirmed_at) throw new Error('这份报告已经核对过了，不能再删句子；需要改请重新生成')
+  // 分段的报告：句子属于哪一段就改哪一段，再重新拼装（直接改拼好的整篇会在下次拼装时丢掉）
+  if (loadParts(id).some(r => r.part === 'main')) {
+    if (!removeFromParts(id, sentence)) throw new Error('没能在报告里找到这一句（可能已经删过了）')
+    const r2 = getDb().prepare('SELECT warnings_json, verify_json FROM reports WHERE id = ?').get(id) as any
+    getDb().prepare('UPDATE reports SET warnings_json = ? WHERE id = ?').run(JSON.stringify(refreshVerifyWarnings(parseJson<string[]>(r2.warnings_json, []), parseJson<UnverifiedItem[]>(r2.verify_json, []))), id)
+    notifyDataChanged('reports')
+    return getReport(id)!
+  }
   const out = dropReportSentence(row.markdown ?? '', parseJson<UnverifiedItem[]>(row.verify_json, []), sentence)
   if (!out) throw new Error('没能在报告里找到这一句（可能已经删过了）')
   const warnings = refreshVerifyWarnings(parseJson<string[]>(row.warnings_json, []), out.unverified)
@@ -270,8 +349,93 @@ export function removeReportSentence(id: string, sentence: string): ReportDetail
   return getReport(id)!
 }
 
+/** 从分段报告里删一句「未核实 / 矛盾」的话：找到登记了这句的那一段，改那一段的正文（变形题的讲解在题目行里），然后重新拼装 */
+function removeFromParts(id: string, sentence: string): boolean {
+  const db = getDb()
+  for (const r of loadParts(id)) {
+    if (r.status !== 'ok') continue
+    const meta = metaOf(r)
+    if (!(meta.unverified ?? []).some(u => u.sentence === sentence)) continue
+    const left = (meta.unverified ?? []).filter(u => u.sentence !== sentence)
+    if (r.part === 'variants') {
+      let hit = false
+      for (const v of db.prepare('SELECT id, explanation FROM report_variants WHERE report_id = ?').all(id) as any[]) {
+        const next = removeSentence(v.explanation ?? '', sentence)
+        if (next !== v.explanation) { db.prepare('UPDATE report_variants SET explanation = ? WHERE id = ?').run(next, v.id); hit = true }
+      }
+      if (!hit) continue
+      db.prepare('UPDATE report_parts SET usage_json = ? WHERE report_id = ? AND part = ?').run(JSON.stringify({ ...meta, unverified: left }), id, r.part)
+    } else {
+      const out = dropReportSentence(r.markdown ?? '', meta.unverified ?? [], sentence)
+      if (!out) continue
+      db.prepare('UPDATE report_parts SET markdown = ?, usage_json = ? WHERE report_id = ? AND part = ?').run(out.markdown, JSON.stringify({ ...meta, unverified: out.unverified }), id, r.part)
+    }
+    reassemble(id)
+    return true
+  }
+  return false
+}
+
+// ───────────────────────── 单段重试 / 变形题勾选 ─────────────────────────
+
+/**
+ * 只重新生成报告里的一个附加段：其余段和主文不动。已核对的报告、数据或提示词已经变了的报告不能单独重试（会和主文对不上）。
+ * 进度走 part 事件，返回时这一段已经写好（或失败，原因写在这一段的 message 里）。
+ */
+export async function retryReportPart(id: string, part: string, requestId: string, send: (e: ChunkEvent) => void, senderGone: (cb: () => void) => () => void): Promise<{ ok: boolean; message?: string }> {
+  const row = getDb().prepare('SELECT * FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
+  if (!row) return { ok: false, message: '这份报告已经不存在了' }
+  const def = getPartDef(part)
+  const reader = readerOf(row)
+  if (!def || part === 'main' || !def.readers.includes(reader) || !loadParts(id).some(r => r.part === part)) return { ok: false, message: '这份报告里没有这一部分' }
+  if (row.confirmed_at) return { ok: false, message: '这份报告已经核对过了，不能再改；需要重试请重新生成一份' }
+  if (!aiConfigured() && def.ai) return { ok: false, message: '尚未配置 AI 服务（请联系管理员：设置 → 管理员设置 → AI 服务）' }
+  if (inflight.size > 0 || isGenerating(id)) return { ok: false, message: '已经有一份报告正在生成，请等它结束或先取消' }
+  const options = parseJson<ReportOptions>(row.options_json, {})
+  const memo = new Map<string, PreparedReport>()
+  const item = itemOf(row, memo)
+  if (item.status === 'stale') return { ok: false, message: '统计数据或写作要求有变化，请重新生成整份报告（单独重试会和主文对不上）' }
+  const p = memo.get(`${reader}|${row.filter_json ?? '{}'}|${row.options_json ?? ''}`) ?? prepareReport(parseFilter(row.filter_json), reader, options)
+  const main = loadParts(id).find(r => r.part === 'main')
+  const ctl = new AbortController()
+  inflight.set(requestId, ctl)
+  const offGone = senderGone(() => ctl.abort())
+  try {
+    send({ id: requestId, type: 'start', scopeKey: 'report', refs: [] })
+    let failMsg = ''
+    const res = await runParts({
+      reportId: id, defs: [def], ctx: { reader, options, prepared: p, mainMarkdown: main?.markdown ?? '' }, signal: ctl.signal,
+      onEvent: e => { if (e.state === 'failed' && e.message) failMsg = e.message; send({ id: requestId, type: 'part', ...e }) }, onChange: () => notifyDataChanged('reports')
+    })
+    if (res.cancelled) { send({ id: requestId, type: 'cancelled', partial: '', reportId: id }); return { ok: false, message: '已取消' } }
+    send({ id: requestId, type: 'done', markdown: '', refs: [], warnings: [], reportId: id })
+    return res.failed.length ? { ok: false, message: failMsg || loadParts(id).find(r => r.part === part)?.message || '这一部分没有生成成功' } : { ok: true }
+  } finally {
+    offGone()
+    inflight.delete(requestId)
+  }
+}
+
+/** 老师逐题勾「我核对过」：勾了的变形题才会放进答题卡（被程序剔除的题不能勾）；返回更新后的报告 */
+export function tickVariant(id: string, variantId: string, ok: boolean): ReportDetail {
+  assertIdle(id)
+  const db = getDb()
+  const conf = db.prepare('SELECT confirmed_at c FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
+  if (!conf) throw new Error('这份报告已经不存在了')
+  // 已「我已核对」的报告内容已经定稿：不能再改勾选（要改请重新生成一份）
+  if (conf.c) throw new Error('这份报告已经核对过了，不能再改变形题的勾选；需要改请重新生成一份')
+  const v = db.prepare('SELECT id, status FROM report_variants WHERE id = ? AND report_id = ?').get(variantId, id) as any
+  if (!v) throw new Error('没有找到这道变形题')
+  if (v.status === 'dropped') throw new Error('这道题没有通过程序校验，不能放进答题卡')
+  db.prepare('UPDATE report_variants SET teacher_ok = ? WHERE id = ?').run(ok ? 1 : 0, variantId)
+  reassemble(id)
+  notifyDataChanged('reports')
+  return getReport(id)!
+}
+
 /** 导出 / 复制前的把关：家长版没核对、或内容太少 / 还有矛盾句，都不许出去 */
-export function assertExportable(report: Pick<ReportDetail, 'reader' | 'confirmedAt' | 'markdown' | 'unverified'>): void {
+export function assertExportable(report: Pick<ReportDetail, 'reader' | 'confirmedAt' | 'markdown' | 'unverified'> & { id?: string }): void {
+  if (report.id) assertIdle(report.id)
   const why = confirmBlockReason(report)
   if (why) throw new Error(why)
   if (report.reader === 'parent' && !report.confirmedAt) throw new Error('家长版要先由老师核对：请先点「我已核对」，再导出或复制')
@@ -344,8 +508,8 @@ export function cancelReport(requestId: string): boolean {
 }
 
 /** @param send 把事件发给发起请求的那个窗口（调用方传 event.sender.send），不广播 */
-export async function generateReport(filter: StatsFilter, reader: ReportReader, requestId: string, send: (e: ChunkEvent) => void, senderGone: (cb: () => void) => () => void): Promise<GenerateResult & { reportId?: string }> {
-  const p = prepareReport(filter, reader)
+export async function generateReport(filter: StatsFilter, reader: ReportReader, requestId: string, send: (e: ChunkEvent) => void, senderGone: (cb: () => void) => () => void, options: ReportOptions = {}): Promise<GenerateResult & { reportId?: string }> {
+  const p = prepareReport(filter, reader, options)
   if (p.input.empty) return { ok: false, code: 'no_data', message: '当前筛选下没有计入统计的试卷，无法生成报告' }
   if (p.promptError) return { ok: false, code: 'bad_prompt', message: `报告提示词有问题：${p.promptError}（请联系管理员：设置 → 管理员设置 → 提示词，修正或恢复默认）` }
   if (!aiConfigured()) return { ok: false, code: 'no_ai', message: '尚未配置 AI 服务（请联系管理员：设置 → 管理员设置 → AI 服务），统计结果不受影响' }
@@ -367,7 +531,7 @@ export async function generateReport(filter: StatsFilter, reader: ReportReader, 
     const warn = p.input.placeholders.SAMPLE_WARNING
     const fin = finishReport({
       raw: r.content, reader, title: p.title, knownRefs: new Set(p.input.refs.map(x => x.token)), knownCodes: allCodes(), sampleWarning: warn,
-      evidence: p.src.evidence?.statements ?? [], usedDefaultPrompt: promptVersionFor(PROMPT_OF[reader]) === PROMPT_DEFAULT_VERSION,
+      evidence: p.src.evidence?.statements ?? [], usedDefaultPrompt: promptVersionFor(PROMPT_OF[reader]) === defaultVersionOf(PROMPT_OF[reader]),
       evidenceKps: (p.src.evidence?.kps ?? []).map(k => ({ code: k.code, name: k.name, plain: k.plain, example_en: k.example_en, example_zh: k.example_zh, hint_words: k.hint_words })),
       papers: Number(p.input.placeholders.PAPER_COUNT) || 0,
       topScore: topScoreOf(p.src),
@@ -375,20 +539,41 @@ export async function generateReport(filter: StatsFilter, reader: ReportReader, 
       bossLine: bossSampleLine(Number(p.input.placeholders.PAPER_COUNT) || 0, p.input.placeholders.YEARS, warn)
     })
     if (r.fellBackTo) fin.warnings.push(limitFallbackNotice(r.fellBackTo))
-    const used = p.input.refs.filter(x => fin.text.includes(x.token))
+    const id = crypto.randomUUID()
+    // 有附加段的读者（老师版……）：主文先存成「主文」一段，再依次生成各附加段；没有附加段的读者走原来的路径，一行都不变
+    const defs = partsFor(reader, options, { reportId: id, prepared: p })
+    // 程序拼的「易错题集」里要引用的样本题也算用到的引用
+    const errTokens = defs.some(d => d.id === 'errors') ? new Set(p.input.errorItems.flatMap(i => i.questions.map(q => q.token))) : new Set<string>()
+    const used = p.input.refs.filter(x => fin.text.includes(x.token) || errTokens.has(x.token))
 
     const db = getDb()
-    const id = crypto.randomUUID()
     db.prepare(`INSERT INTO reports (id, kind, filter_json, markdown, model, title, refs_json, warnings_json, sample_warning, fingerprint, cache_key, template_sig, prompt_version, usage_json,
-        checked_rev, checked_sig, checked_json, reader, verify_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        checked_rev, checked_sig, checked_json, reader, verify_json, options_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, KIND, JSON.stringify(normalizeFilter(filter)), fin.text, r.model, p.title, JSON.stringify(used), JSON.stringify(fin.warnings), warn === '无' ? null : warn, p.input.fingerprint, p.cacheKey, p.templateSig,
-        p.promptVersion, JSON.stringify(r.usage), p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), reader, JSON.stringify(fin.unverified))
+        p.promptVersion, JSON.stringify(r.usage), p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), reader, JSON.stringify(fin.unverified), hasOptions(options) ? JSON.stringify(options) : null)
     // 历史最多留 MAX_HISTORY 条
     db.prepare(`DELETE FROM reports WHERE kind = ? AND id NOT IN (SELECT id FROM reports WHERE kind = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)`).run(KIND, KIND, MAX_HISTORY)
     clearDraft(dkey)
     notifyDataChanged('reports')
-    send({ id: requestId, type: 'done', markdown: fin.text, refs: used, warnings: fin.warnings, reportId: id, unverified: fin.unverified })
-    return { ok: true, markdown: fin.text, refs: used, warnings: fin.warnings, reportId: id, unverified: fin.unverified }
+    if (defs.length === 0) {
+      send({ id: requestId, type: 'done', markdown: fin.text, refs: used, warnings: fin.warnings, reportId: id, unverified: fin.unverified })
+      return { ok: true, markdown: fin.text, refs: used, warnings: fin.warnings, reportId: id, unverified: fin.unverified }
+    }
+    saveMainPart(id, { markdown: fin.text, model: r.model, promptVersion: p.promptVersion, usage: r.usage, unverified: fin.unverified, warnings: fin.warnings })
+    const run = await runParts({
+      reportId: id, defs, ctx: { reader, options, prepared: p, mainMarkdown: fin.text }, signal: ctl.signal,
+      onEvent: e => send({ id: requestId, type: 'part', ...e }), onChange: () => notifyDataChanged('reports')
+    })
+    const done = getReport(id)!
+    if (run.cancelled) {
+      // 主文和已完成的段已经存下了，但这次生成是被取消的：对界面报告「已取消」（并带上报告 id，界面据此选中这份已保存的报告）
+      const msg = '已取消。主文和已完成的部分已经保存，没生成的部分可以在报告里单独重试'
+      send({ id: requestId, type: 'cancelled', partial: '', reportId: id })
+      return { ok: false, cancelled: true, code: 'aborted', message: msg, partial: '', reportId: id }
+    }
+    const warnings = run.failed.length ? [...done.warnings, `有 ${run.failed.length} 个部分没有生成成功（${run.failed.map(x => getPartDef(x)?.label ?? x).join('、')}），可以在报告里单独重试`] : done.warnings
+    send({ id: requestId, type: 'done', markdown: done.markdown, refs: used, warnings, reportId: id, unverified: done.unverified })
+    return { ok: true, markdown: done.markdown, refs: used, warnings, reportId: id, unverified: done.unverified }
   } catch (e) {
     const partial = stream.partial(e)
     stream.dispose()

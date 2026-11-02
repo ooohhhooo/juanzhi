@@ -6,7 +6,7 @@
  *  - markdownToWechat：家长版「复制到微信」用的纯文本（带换行和序号，没有任何 Markdown 符号）；
  *  - reportTitle：标题含年级 / 学期 / 学年 / 日期，不再出现「全部年级」（除非真的是全部）。
  */
-import { parseBlocks } from './markdown.ts'
+import { parseBlocks, parseInline, trickFields } from './markdown.ts'
 import type { Inline } from './markdown.ts'
 import { CITATION_RE } from './citation.ts'
 import { MARK_RE } from './factcheck.ts'
@@ -17,7 +17,7 @@ export const READER_LABEL: Record<ReportReader, string> = { boss: '老板版', p
 export const READER_HINT: Record<ReportReader, string> = {
   boss: '开头三句话结论，然后是教研重点、课程卖点和风险；不铺表格、不出代码。给老板看。',
   parent: '300 字以内的大白话：孩子要练什么、为什么、在家怎么陪练，每点一个例句。老师核对后可以复制到微信。',
-  teacher: '易错点 + 原卷例题 + 练法和讲解要点。给辅导老师备课用。',
+  teacher: '易错题集 + 易错知识点 + 做题方法 + 口诀卡 + 3 道同类变形题（答题卡）+ 学习进步建议。口诀和答题卡可以存成图片发给家长。',
   full: '完整的数据报告：分布、题型、难度、重难点、易错点、年度变化。给运营和教研核对数字用。'
 }
 export const isReader = (v: unknown): v is ReportReader => typeof v === 'string' && (READERS as string[]).includes(v)
@@ -276,9 +276,34 @@ export function markdownToWechat(md: string, opts: { keepMarks?: boolean; spaced
     switch (b.type) {
       case 'heading': out.push(b.text.replace(/[*`]/g, '').trim(), ''); break
       case 'p': { const t = inlineText(b.inline); if (t) out.push(t, ''); break }
-      case 'ul': case 'ol': b.items.forEach((it, i) => { const t = inlineText(it); if (t) out.push(`${i + 1}. ${t}`); if (t && opts.spaced) out.push('') }); out.push(''); break
+      case 'ul': case 'ol': {
+        // 引用被去掉后只剩「标签：」的条目（如「原卷例题：；」）整条不要
+        const texts = b.items.map(it => inlineText(it)).filter(t => t && !/[：:]\s*[；;，,、。]*\s*$/.test(t))
+        texts.forEach((t, i) => { out.push(`${i + 1}. ${t}`); if (opts.spaced) out.push('') })
+        out.push('')
+        break
+      }
       case 'quote': break   // 引用块是给老师看的说明（样本提示、AI 草稿提醒），不进给家长的文字
       case 'code': out.push(b.text, ''); break
+      case 'card': {
+        // 卡片转成纯文本：【口诀大招】一句话 / 例；【答题卡】1. 题干 ○A ○B（不含答案）
+        if (b.kind === 'trick') {
+          const f = trickFields(b.raw)
+          out.push(`【${b.title || '口诀大招'}】${inlineText(parseInline(f.main))}`)
+          if (f.example) out.push(`例：${inlineText(parseInline(f.example))}`)
+          if (f.from) out.push(`出自考点：${inlineText(parseInline(f.from))}`)
+          out.push('')
+        } else {
+          out.push(`【${b.title || '答题卡'}】姓名：______  日期：______`)
+          for (const it of b.items) {
+            const a = it.answer
+            const tail = a?.type === 'choice' ? '  ' + a.options.map((x, i) => `○${'ABCDEFGH'[i] ?? i + 1}. ${x}`).join('  ') : a ? '  ______' : ''
+            out.push(`${it.n}. ${inlineText(it.stem)}${tail}`)
+          }
+          out.push('')
+        }
+        break
+      }
       case 'table': for (const r of b.rows) out.push(r.map(inlineText).join(' ')); out.push(''); break
       default: break
     }

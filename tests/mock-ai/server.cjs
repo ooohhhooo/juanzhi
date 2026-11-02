@@ -2,12 +2,14 @@
 //  - 按请求里的「文件名 / 批次页码 / 是否带图」返回 canned.cjs 里的 P1 标准答案（文本版、视觉版）
 //  - 可注入故障：空 content、非法 JSON、结构不符、429、5xx、401、超时（挂起）、被截断（finish_reason=length；{type:'length', times:N}：P1/P2/P3 都认，times=1 是「先写不完、加大上限后成功」，times=2 是「两次都写不完」）
 //  - 推理模型：mock.reasoning = { chars, delayMs }：每次应答先流出 reasoning_content（思考）再流出正文，usage 里带 reasoning_tokens
+//  - 老师版附加段（口诀 / 变形题 / 独立解答，见 p4.cjs）：故障指令的 only 可写 'tricks' | 'vgen' | 'vcheck'；quirks.p4 = { variantDisagree, trickPrice, ... }
 //  - 记录每次请求（鉴权头、system/user 文本、图片数、并发数），供 E2E 断言
 // 用法：const mock = await startMock({ apiKey: 'sk-mock' }); mock.baseUrl; mock.script([{ type: 'empty', times: 2 }]); await mock.stop()
 const http = require('node:http')
 const { build } = require('./canned.cjs')
 const p2 = require('./p2.cjs')
 const p3 = require('./p3.cjs')
+const p4 = require('./p4.cjs')
 const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 /** 从 data URL 里读出图片尺寸（PNG 看 IHDR，JPEG 找 SOF 段），E2E 用它核对「发给模型的图已缩小」 */
@@ -126,13 +128,14 @@ async function startMock(opts = {}) {
         const prefix = /材料 id 前缀：(b\d+)/.exec(user)?.[1] ?? 'b1'
         const isP1 = /JSON/.test(sys) && /知识点树/.test(user)
         const isP2 = p2.isP2(sys, user)
-        const isP3 = p3.isP3(sys, user)
+        const isTricks = p4.isTricks(sys), isVgen = p4.isVariantGen(sys), isVcheck = p4.isVariantCheck(sys)
+        const isP3 = !isTricks && !isVgen && !isVcheck && p3.isP3(sys, user)
         // 看板抽屉里「只讲这一个考点」的分析（p2_kp）
         const isKp = /只围绕输入里给出的这一个考点/.test(sys) && /【这一个考点】/.test(user)
         const rec = {
           at: Date.now(), auth, model: body.model, stream: !!body.stream, jsonMode: body.response_format?.type === 'json_object',
           maxTokens: body.max_tokens, system: sys, user, images, messageCount: body.messages.length, fileName, batchLine, pages, prefix,
-          isP1, isP2, isP3, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
+          isP1, isP2, isP3, isTricks, isVgen, isVcheck, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
           hasPrevUnfinished: /未完成的题/.test(user), imageDims: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => imageDims(p.image_url.url)) : [], imageUrls: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => p.image_url.url.slice(0, 30)) : [],
           body: raw.length,
           directive: null
@@ -151,7 +154,7 @@ async function startMock(opts = {}) {
           res.end(JSON.stringify({ error: { message: `The API key does not have permission to access model ${body.model}` } }))
           return
         }
-        const d = takeDirective(fileName, isP3 ? 'p3' : isP2 || isKp ? 'p2' : 'p1')
+        const d = takeDirective(fileName, isTricks ? 'tricks' : isVgen ? 'vgen' : isVcheck ? 'vcheck' : isP3 ? 'p3' : isP2 || isKp ? 'p2' : 'p1')
         if (d) rec.directive = d.type
         if (d && d.type === 'hang') { await new Promise(r => setTimeout(r, d.ms ?? 60000)); return }
         if (d && d.type === '429') { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(d.retryAfter ?? 1) }); res.end(JSON.stringify({ error: { message: 'rate limit' } })); return }
@@ -198,6 +201,12 @@ async function startMock(opts = {}) {
           if (d && d.type === 'p2_stall') { opts.stallAfter = d.after ?? 3; opts.stallMs = d.ms ?? 60000 }
           if (d && d.type === 'p2_slow') opts.chunkDelayMs = d.delayMs ?? 120
           return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream, lenCut ? 'length' : 'stop', 200, {}, opts)
+        }
+
+        // 老师版附加段：口诀 / 变形题出题 / 变形题独立解答（都是 JSON，非流式）
+        if (isTricks || isVgen || isVcheck) {
+          const c = isTricks ? p4.buildTricks(user, { ...state.quirks.p4 }) : isVgen ? p4.buildVariants(user, { ...state.quirks.p4 }) : p4.buildCheck(user, { ...state.quirks.p4 })
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
         }
 
         // 单个考点分析：四行短文，只讲输入里的这一个考点（名称 / 数据 / 样本题取自输入）
@@ -282,6 +291,9 @@ async function startMock(opts = {}) {
     set reasoning(v) { state.reasoning = v },
     get p2Requests() { return state.requests.filter(r => r.isP2) },
     get p3Requests() { return state.requests.filter(r => r.isP3) },
+    get tricksRequests() { return state.requests.filter(r => r.isTricks) },
+    get variantGenRequests() { return state.requests.filter(r => r.isVgen) },
+    get variantCheckRequests() { return state.requests.filter(r => r.isVcheck) },
     get kpRequests() { return state.kpRequests || [] },
     /** canned 响应的「真实模型会犯的错」：{ noFlag, dropContinued, typo, badPage } */
     set quirks(v) { state.quirks = v },

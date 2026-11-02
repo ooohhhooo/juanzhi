@@ -13,6 +13,7 @@ import { yearLabel } from './filter.ts'
 import type { CitationRef } from '../../shared/citation.ts'
 import { dedupeClauses } from '../../shared/report-post.ts'
 import type { Evidence } from './evidence.ts'
+import type { ErrorItem } from '../report/teacher-sections.ts'
 
 export const P3_PLACEHOLDERS = ['FILTER_DESC', 'PAPER_COUNT', 'QUESTION_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_DIST', 'QTYPE_DIST', 'DIFF_DIST', 'ERROR_PRONE', 'YEAR_DIFF', 'EVIDENCE'] as const
 
@@ -53,8 +54,14 @@ export interface P3Source {
   evidence?: Evidence
 }
 
+/** 老师版 v2 的「易错点」个数（易错题集 / 做题方法 / 口诀都按这几个来） */
+export const TEACHER_ERROR_ITEMS = 6
+
 export interface P3Input {
-  placeholders: Record<(typeof P3_PLACEHOLDERS)[number], string>
+  /** ERROR_ITEMS 是老师版 v3 / 口诀 / 变形题新增的占位符，不进数据指纹（指纹口径不变，旧报告不会因此变成「已过期」） */
+  placeholders: Record<(typeof P3_PLACEHOLDERS)[number], string> & { ERROR_ITEMS: string }
+  /** 程序拼装老师版「易错题集」用的结构化易错点（与 ERROR_ITEMS 同一批） */
+  errorItems: ErrorItem[]
   refs: CitationRef[]
   /** 数据指纹：所有占位符内容的哈希 */
   fingerprint: string
@@ -141,6 +148,22 @@ export function buildP3Input(src: P3Source): P3Input {
       return [h.code, oneLine(h.name), h.reasons.length ? dedupeClauses(h.reasons.slice(0, 2).map(r => oneLine(r.reason))) : '无', reg.sampleCell(err.length ? err : h.typical, 2), `${h.papers}/${total}`].join(' | ')
     })
 
+  // 老师版：前几个易错点（同样的排序），带它的样本题引用 token；做题方法 / 口诀按这个序号写
+  const sortedErr = hot.rows.filter(h => h.errorCount > 0)
+    .sort((a, b) => b.errorCount - a.errorCount || b.priority - a.priority || (a.code < b.code ? -1 : 1))
+  const errorItems: ErrorItem[] = sortedErr.slice(0, TEACHER_ERROR_ITEMS).map(h => {
+    const err = h.typical.filter(q => q.error_prone)
+    const qs = (err.length ? err : h.typical).slice(0, 2)
+    return {
+      code: h.code, name: oneLine(h.name),
+      reasons: h.reasons.length ? dedupeClauses(h.reasons.slice(0, 2).map(r => oneLine(r.reason))) : '',
+      papers: `${h.papers}/${total}`,
+      qtypes: [...new Set(qs.map(q => q.qtypeName))],
+      questions: qs.map(q => ({ token: reg.tokenFor(q), questionId: q.id, qtypeName: q.qtypeName }))
+    }
+  })
+  const errorItemRows = errorItems.map((it, i) => [i + 1, it.name, it.reasons || '无', it.papers].join(' | '))
+
   const block = (rows: string[]) => (rows.length ? rows.join('\n') : '（无）')
   const yearsText = src.years.length ? src.years.map(yearLabel).join('、') : '（未填写学年）'
   const noYearNote = dist.noYear > 0 ? `（另有 ${dist.noYear} 份没有填写学年）` : ''
@@ -155,10 +178,11 @@ export function buildP3Input(src: P3Source): P3Input {
     DIFF_DIST: block(diffRows),
     ERROR_PRONE: block(errRows),
     YEAR_DIFF: yearDiffText(src.cmp),
-    EVIDENCE: src.evidence?.text ?? '（无）'
+    EVIDENCE: src.evidence?.text ?? '（无）',
+    ERROR_ITEMS: block(errorItemRows)
   }
   const fingerprint = crypto.createHash('sha256').update(JSON.stringify(P3_PLACEHOLDERS.map(k => [k, placeholders[k]]))).digest('hex')
-  return { placeholders, refs: [...reg.refs.values()], fingerprint, empty: total === 0 }
+  return { placeholders, errorItems, refs: [...reg.refs.values()], fingerprint, empty: total === 0 }
 }
 
 /**

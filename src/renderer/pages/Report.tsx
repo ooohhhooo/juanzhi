@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { App, Checkbox, Collapse, Modal, Popconfirm, Tooltip } from 'antd'
-import { ClipboardList, Copy, FileText, FileType2, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
+import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import MarkdownView from '../stats/MarkdownView'
@@ -101,6 +101,44 @@ export default function Report() {
   const running = entry?.status === 'running'
   const blockedExport = !!detail?.needsConfirm || !!detail?.blockReason
   const blockTip = detail?.blockReason ?? '家长版要先由老师点「我已核对」，才能导出'
+  // 分段：单段重试、逐题勾「我核对过」、卡片存 / 复制成图片
+  const [retrying, setRetrying] = useState<string | null>(null)
+  const retryPart = async (part: string) => {
+    if (!detail) return
+    const requestId = crypto.randomUUID()
+    setRetrying(part)
+    try {
+      const r = await window.api.report.retryPart(detail.id, part, requestId)
+      if (r.ok) message.success('这一部分已重新生成')
+      else message.error(r.message ?? '这一部分没有生成成功')
+    } catch (e) { message.error(clean(e)) }
+    finally { setRetrying(null); qc.invalidateQueries({ queryKey: ['reports'] }) }
+  }
+  const tickVariant = async (variantId: string, ok: boolean) => {
+    if (!detail) return
+    try {
+      const updated = await window.api.report.variantTick(detail.id, variantId, ok)
+      qc.setQueryData(['reports', 'detail', detail.id], updated)
+    } catch (e) { message.error(clean(e)) }
+  }
+  const [imaging, setImaging] = useState<string | null>(null)
+  const cardImage = async (kind: 'trick' | 'answercard', index: number, mode: 'save' | 'copy') => {
+    if (!detail) return
+    const key = `${kind}-${index}-${mode}`
+    setImaging(key)
+    try {
+      const r = await window.api.report.cardImage(detail.id, kind, index, mode)
+      if (r.saved) message.success(mode === 'copy' ? '已复制图片，可以直接粘贴到微信或文档里' : '已保存图片')
+    } catch (e) { message.error(clean(e)) }
+    finally { setImaging(null) }
+  }
+  const cardActions = (kind: 'trick' | 'answercard', index: number) => (
+    <div className="ewb-cardview__acts" data-testid={`card-actions-${kind}-${index}`}>
+      <Btn tone="secondary" size="small" icon={ImageDown} data-testid={`card-save-${kind}-${index}`} disabled={blockedExport} loading={imaging === `${kind}-${index}-save`} onClick={() => cardImage(kind, index, 'save')}>保存图片</Btn>
+      <Btn tone="secondary" size="small" icon={ImagePlus} data-testid={`card-copy-${kind}-${index}`} disabled={blockedExport} loading={imaging === `${kind}-${index}-copy`} onClick={() => cardImage(kind, index, 'copy')}>复制图片</Btn>
+      <span className="ewb-cardview__hint">2 倍清晰度的图片{kind === 'answercard' ? '，不含学生信息，姓名和日期留给学生手写' : ''}</span>
+    </div>
+  )
   const doExport = async (fmt: 'md' | 'pdf' | 'docx') => {
     if (!detail) return
     setExporting(fmt)
@@ -190,7 +228,7 @@ export default function Report() {
         </div>
         <Collapse ghost size="small" className="ewb-rep-how" data-testid="report-how" items={[{ key: 'how', forceRender: true, label: <span className="ewb-rep-collapse-label">怎么算的？要花钱吗？（点开看）</span>, children: <div className="ewb-rep-stack"><NotCounted /><p className="ewb-rep-note">所有数字、知识点、例题都由程序先算好再交给 AI，AI 只负责把它写成人话，不自己数数；难易程度和“容易错”是 AI 估计，不是学生成绩。每生成一次会调用一次 AI（要花一点钱），生成的报告都会留在下面的历史里。</p></div> }]} />
         {running ? (
-              <Waiting text={waitingText({ seconds: elapsed, hasText: (entry?.text.length ?? 0) > 0, thinking: !!entry?.thinking, retried: !!entry?.retried })} seconds={elapsed} onCancel={cancelReport} />
+              <Waiting text={entry?.step ? `主文已写好，正在做第 ${entry.step.index}/${entry.step.total} 步：${entry.step.label}…… · 已用 ${elapsed} 秒（每一步可以单独失败、单独重试）` : waitingText({ seconds: elapsed, hasText: (entry?.text.length ?? 0) > 0, thinking: !!entry?.thinking, retried: !!entry?.retried })} seconds={elapsed} onCancel={cancelReport} />
             ) : preview?.blocked ? (
               preview.aiReady
                 ? <UsageNote kind="tip" data-testid="report-blocked">{preview.blocked}</UsageNote>
@@ -320,7 +358,62 @@ export default function Report() {
               )}
               {detail.warnings.map((w, i) => <UsageNote key={i} kind="caution" data-testid="report-warning">{w}</UsageNote>)}
               </NoticeStack>
-              <div data-testid="report-body" className="ewb-rep-body"><MarkdownView markdown={detail.markdown} refs={detail.refs} onView={setView} /></div>
+              {detail.parts.length > 0 && (
+                <ul className="ewb-parts" data-testid="report-parts" aria-label="这份报告的各个部分">
+                  {detail.parts.map(pt => (
+                    <li key={pt.part} className="ewb-parts__item" data-testid={`part-${pt.part}`} data-status={pt.status}>
+                      <span className="ewb-parts__name">{pt.label}</span>
+                      <StatusLabel kind={pt.status === 'ok' ? 'done' : pt.status === 'failed' ? 'failed' : pt.status === 'running' ? 'working' : 'queued'}>
+                        {pt.status === 'ok' ? '已生成' : pt.status === 'failed' ? '没有生成' : pt.status === 'running' ? '生成中' : '已跳过'}
+                      </StatusLabel>
+                      <span className="ewb-parts__msg">{pt.message ?? ''}</span>
+                      {pt.status !== 'running' && pt.status !== 'skipped' && (
+                        <Tooltip title={pt.retryBlock ?? ''}>
+                          <span>
+                            {pt.status === 'failed'
+                              ? <Btn tone="secondary" size="small" icon={RotateCw} data-testid={`part-retry-${pt.part}`} disabled={!pt.canRetry} loading={retrying === pt.part} onClick={() => retryPart(pt.part)}>重试这一部分</Btn>
+                              : (
+                                <Popconfirm title="重新生成这一部分？" description={pt.part === 'variants' ? '会换一批新题，已经勾过的“我核对过”会清掉。' : '其他部分不会受影响。'} okText="重新生成" cancelText="取消" disabled={!pt.canRetry} onConfirm={() => retryPart(pt.part)}>
+                                  <Btn tone="quiet" size="small" icon={RotateCw} data-testid={`part-retry-${pt.part}`} disabled={!pt.canRetry} loading={retrying === pt.part}>重新生成这一部分</Btn>
+                                </Popconfirm>
+                              )}
+                          </span>
+                        </Tooltip>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {detail.variants.length > 0 && (
+                <Panel title="AI 变形题核对（逐题勾「我核对过」，勾了的才会放进答题卡）" data-testid="variants-panel">
+                  <p className="ewb-variant__ans" data-testid="variants-left">
+                    {(() => { const need = detail.variants.filter(v => v.status !== 'dropped' && !v.teacherOk).length; return need > 0 ? `还有 ${need} 道题没核对：没勾的题不会出现在答题卡上。` : '所有可用的题都核对过了。' })()}
+                  </p>
+                  {detail.variants.map(v => (
+                    <div key={v.id} className="ewb-variant" data-testid={`variant-${v.seq}`} data-status={v.status} data-ok={v.teacherOk}>
+                      <div className="ewb-variant__head">
+                        <b>第 {v.seq} 题</b>
+                        <StatusLabel kind="queued">AI 出题</StatusLabel>
+                        <span>{v.qtype === 'choice' ? '单选题' : '填空题'}{v.kpName ? ` · ${v.kpName}` : ''}</span>
+                        {v.status === 'checked' && <StatusLabel kind="done">第二次 AI 解答一致</StatusLabel>}
+                        {v.status === 'flagged' && <StatusLabel kind="failed">答案有争议</StatusLabel>}
+                        {v.status === 'dropped' && <StatusLabel kind="failed">已剔除</StatusLabel>}
+                      </div>
+                      <p className="ewb-variant__stem">{v.stem}</p>
+                      {v.options.length > 0 && <ul className="ewb-variant__opts">{v.options.map((o, i) => <li key={i}>{'ABCD'[i]}. {o}</li>)}</ul>}
+                      {v.status !== 'dropped' && <p className="ewb-variant__ans" data-testid={`variant-answer-${v.seq}`}><b>参考答案（教师用）：</b>{v.answer}。{v.explanation}{v.status === 'flagged' ? `　第二次 AI 解答给出的是「${v.secondAnswer ?? '没有答案'}」，和出题答案不一致，请自己做一遍再决定。` : ''}</p>}
+                      {v.notes.length > 0 && <p className="ewb-variant__ans">{v.status === 'dropped' ? '剔除原因：' : '提示：'}{v.notes.join('；')}</p>}
+                      {v.status !== 'dropped' && (
+                        <div className="ewb-variant__tick">
+                          <Checkbox data-testid={`variant-tick-${v.seq}`} checked={v.teacherOk} onChange={e => tickVariant(v.id, e.target.checked)}>我核对过：我自己做过这道题，答案和讲解都对</Checkbox>
+                          {v.status === 'flagged' && !v.teacherOk && <span className="ewb-variant__ans">勾上就是“仍然使用”这道有争议的题。</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </Panel>
+              )}
+              <div data-testid="report-body" className="ewb-rep-body"><MarkdownView markdown={detail.markdown} refs={detail.refs} onView={setView} cardActions={cardActions} /></div>
             </Panel>
           )}
         </div>
