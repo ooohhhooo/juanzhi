@@ -41,7 +41,10 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 | `papers show <id>` | 一份试卷的题目、知识点、状态 |
 | `papers confirm <id> --i-reviewed` | 跳过人工审核直接确认整份试卷（**见下面的规则**） |
 | `stats overview` / `stats hot [--level 1\|2\|3]` / `stats compare --target <学年> [--base before\|<学年>]` | 统计；都支持筛选：`--grade 1-6 --semester 上\|下 --year <学年起始年> --exam-type 单元测试\|期中\|期末\|月考\|其他 --textbook --region --include-reviewing --include-duplicates` |
-| `report generate --reader boss\|teacher\|parent\|full [筛选]` | 生成报告 |
+| `report generate --reader boss\|teacher\|parent\|full [筛选] [--with-course <id[,id]>]` | 生成报告；`--with-course` 加入课程对照（体系要先 `course match`，否则退出码 15） |
+| `course list` | 课程体系列表（id、级别数、课数、是否草稿、匹配状态） |
+| `course import <文件> [--name --scene org\|school\|family\|other] [--i-reviewed]` | 导入课程表（xlsx / csv）。**不带 `--i-reviewed` 保存为草稿，不参与对照**（见下面的规则） |
+| `course match <id> [--only-new]` | 把知识点匹配到课程体系的课次（调用 AI，花用量，返回 `usage`） |
 | `report list` / `report show <id>` | 报告列表 / 详情 |
 | `report export <id> --format md\|docx\|pdf --out <路径>` | 导出文件 |
 | `diagnostics --out <文件.zip> [--overwrite]` | 导出诊断信息（版本、系统、脱敏设置、队列、日志；不含学生数据和密钥）。用户遇到问题时帮他生成，让他自己作为附件发到反馈页，不会自动上传 |
@@ -61,6 +64,8 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 
 - **`papers confirm` 不能替用户做决定。** 它会跳过人工审核，AI 的错会直接进入统计和报告。只有用户明确说了「我已经审核过了」，才加 `--i-reviewed` 运行。用户没说，就让他到卷知窗口里审核，不要自己加这个参数。
 - **家长版不能直接发给家长。** 家长版只要老师没在窗口里点「我已核对」，`report generate`、`report show` 返回 `parentDraft: true`，`report export` 的文件开头有「AI 草稿 · 未经老师核对，请勿直接发给家长」，JSON 里 `draft: true`。你没有任何命令能替老师点「我已核对」。把文件交给用户时要说清楚：这是草稿，需要老师读一遍、在卷知窗口里点「我已核对」后才能发给家长。
+- **`course import` 不能替用户做决定。** 课程表的列是 AI（或表头文字）认出来的，用户没核对过。默认保存为草稿（`draft: true`，不参与对照），让用户到卷知窗口的「设置 → 课程大纲」里核对后点「确认使用」；只有用户明确说「我已经核对过了」，才加 `--i-reviewed`。`course import` 会把课程表内容发给用户配置的 AI 服务，运行前告诉用户；`course match` 会花 AI 用量。
+- **课程匹配是 AI 的建议，不是事实。** 对外说“某某知识点可以复习第几课”时，要说明这是 AI 匹配的结果、需要老师核对；不要提价格、优惠、报名，不要承诺提分。
 - 所有报告都是 AI 生成的草稿：难度、易错点是 AI 估计，不是学生成绩；`unverified` 里的句子是事实核对没通过的，需要老师核对。
 - 不要把 stdout 的 JSON 以外的东西当结果；不要在输出里猜测密钥或服务地址（命令行也不会输出它们）。
 
@@ -83,12 +88,13 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 | 12 | `busy` | 有别的后台任务占着，稍后再试 |
 | 13 | `data_unavailable` | 数据目录不可用：让用户检查 |
 | 14 | `ai_failed` | AI 服务调用失败（网络、密钥、额度），转告用户 |
+| 15 | `course_not_matched` | 课程体系还没匹配完：先运行 `course match <id>`（会花 AI 用量，先告诉用户） |
 
 ## 不能做的事
 
-- 不能删除试卷或报告；
+- 不能删除试卷、报告或课程体系；
 - 不能设置、读取、询问 API Key；
 - 不能通过参数改数据目录；
-- 不能替老师点家长版的「我已核对」；
+- 不能替老师点家长版或家长沟通建议的「我已核对」；
 - 不能在卷知开着时使用命令行；
 - 不能把结果文件或导出文件写进卷知的数据目录，已存在的文件不会被覆盖（导出要覆盖得加 `--overwrite`，要先问用户）。

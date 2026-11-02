@@ -80,7 +80,8 @@ interface ElectronAPI {
   }
   data: {
     info(): Promise<DataInfo>
-    exportPack(): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
+    /** withCourse 默认 true：数据包里带上课程大纲；取消勾选传 false */
+    exportPack(opts?: { withCourse?: boolean }): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
     pickPack(): Promise<{ picked: false } | { picked: true; token: string; fileName: string; manifest: PackManifest; info: { originalVersion: number; migrated: boolean; papers: number; questions: number; pages: number; samplePapers: number; kpTextFolded: number }; summary: PackSummary }>
     importPack(token: string, mode: 'merge' | 'overwrite'): Promise<ImportReport>
     discardPack(token: string): Promise<boolean>
@@ -92,6 +93,41 @@ interface ElectronAPI {
     sampleStatus(): Promise<{ loaded: boolean; papers: number; questions: number }>
     loadSample(): Promise<{ papers: number; questions: number; alreadyLoaded: boolean }>
     clearSample(): Promise<{ papers: number; reports: number }>
+  }
+  /** 课程对照（设置 → 课程大纲；看板「课程对照」页签） */
+  course: {
+    list(): Promise<CourseOutlineCard[]>
+    get(id: string): Promise<CourseOutlineDetail | null>
+    maps(id: string): Promise<CourseMapRow[]>
+    search(outlineIds: string[], q: string): Promise<CourseLessonRow[]>
+    setActive(id: string, active: boolean): Promise<boolean>
+    rename(id: string, name: string): Promise<boolean>
+    /** 草稿（命令行导入）确认后才参与对照 */
+    confirmDraft(id: string): Promise<boolean>
+    remove(id: string): Promise<boolean>
+    /** 弹出选择对话框并读取；取消返回 null */
+    pickFile(): Promise<CourseSource | null>
+    /** 拖入的文件（路径必须由 getPathForFile 登记过） */
+    readFile(path: string): Promise<CourseSource>
+    readText(text: string): Promise<CourseSource>
+    /** mode：ai = 让 AI 认列（课程内容会发给用户配置的 AI 服务）；guess = 只按表头文字猜；manual = 全部留空 */
+    suggest(req: { sessionId: string; mode: 'ai' | 'guess' | 'manual' }): Promise<{ items: Record<string, CourseSuggestItem>; model: string }>
+    preview(req: { sessionId: string; mappings: Record<string, CourseSheetMapping | null> }): Promise<CourseParsed>
+    diff(req: { id: string; levels: CourseLevelDraft[] }): Promise<{ added: number; changed: number; removed: number; affectedMaps: number }>
+    save(req: CourseSaveRequest): Promise<{ id: string; replaced: boolean; added?: number; changed?: number; removed?: number; affectedMaps?: number }>
+    template(kind: 'blank' | 'sample'): Promise<{ saved: boolean; path?: string }>
+    matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number }>
+    matchProgress(id: string): Promise<CourseMatchProgress | null>
+    matchCancel(id: string): Promise<boolean>
+    match(id: string, onlyNew: boolean): Promise<{ ok: boolean; cancelled?: boolean; code?: string; message?: string; done: number; total: number; matched: number; none: number; dropped: number }>
+    mapEdit(edit: CourseMapEdit): Promise<boolean>
+    dashboard(scope: CourseScope): Promise<CourseDashboard>
+    exportGaps(scope: CourseScope): Promise<{ saved: boolean; path?: string; rows?: number }>
+    adviceState(scope: CourseScope): Promise<CourseAdviceState>
+    adviceGenerate(scope: CourseScope, requestId: string): Promise<AnalysisResult>
+    /** 「我已核对」：acknowledged = 逐句确认无误的“未核实”句子；矛盾句必须重新生成 */
+    adviceConfirm(scope: CourseScope, acknowledged?: string[]): Promise<{ ok: boolean; message?: string }>
+    adviceCopy(scope: CourseScope): Promise<{ text: string; chars: number }>
   }
   app: {
     info(): Promise<AppInfo>
@@ -482,6 +518,34 @@ type Distribution = import('../main/stats/core').Distribution
 type DistNode = import('../main/stats/core').DistNode
 type MatrixResult = import('../main/stats/core').MatrixResult
 type HotResult = import('../main/stats/core').HotResult
+type CourseOutlineCard = import('../main/course/store').OutlineCard
+type CourseOutlineDetail = import('../main/course/store').OutlineDetail
+type CourseLessonRow = import('../main/course/store').LessonRow
+type CourseMapEdit = import('../main/course/store').MapEdit
+type CourseSheetMapping = import('../main/course/map').SheetMapping
+type CourseParsed = import('../main/course/map').ParsedOutline
+type CourseLevelDraft = import('../main/course/map').ParsedLevel
+type CourseDashboard = import('../main/course/stats').CourseDashboard
+type CourseRow = import('../main/course/stats').CourseRow
+type CourseLessonRef = import('../main/course/stats').LessonRef
+type CourseSource = import('../main/course/service').SourceInfo
+type CourseSuggestItem = import('../main/course/service').SuggestItem
+type CourseMatchProgress = import('../main/course/service').MatchProgress
+type CourseAdviceState = import('../main/course/service').AdviceState
+interface CourseScope { filter: StatsFilter; outlineIds: string[] }
+interface CourseAdviceScope { kind: 'course_advice'; filter: StatsFilter; outlineIds: string[] }
+interface CourseMapRow { kp: string; kpName: string; lessonId: number; confidence: string; reason: string; quote: string; source: string; state: string; locked: boolean }
+interface CourseSaveRequest {
+  sessionId?: string
+  name: string
+  scene: 'org' | 'school' | 'family' | 'other'
+  termNote?: string
+  replaceId?: string
+  levels: CourseLevelDraft[]
+  warnings?: Array<{ kind: string; sheet: string; row: number; text: string }>
+  mappings?: Record<string, CourseSheetMapping | null>
+  aiModel?: string
+}
 type HotRow = import('../main/stats/core').HotRow
 type CompareResult = import('../main/stats/core').CompareResult
 type CompareItem = import('../main/stats/core').CompareItem
@@ -610,8 +674,12 @@ interface PackManifest {
   pageCount?: number
   fileCount?: number
   platform?: string
+  courseCount?: number
+  courseIncluded?: boolean
 }
 interface PackSummary {
+  coursesInPack?: number
+  coursesNew?: number
   papersInPack: number
   questionsInPack: number
   pagesInPack: number
@@ -632,6 +700,7 @@ interface ImportReport {
   kpsAdded: number
   kpsRemapped: number
   reportsAdded: number
+  coursesAdded?: number
   missingPageImages: number
   promptsImported: number
   promptsKeptLocal: number

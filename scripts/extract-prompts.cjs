@@ -1,20 +1,28 @@
-// 把 docs/prompts/v2-分读者与事实核对.md 里的提示词正文原样抽成资源文件（v1 保留作历史，不再抽）。
+// 把 docs/prompts/v2-分读者与事实核对.md 和 v3-课程对照.md 里的提示词正文原样抽成资源文件（v1 保留作历史，不再抽）。
 // 用法：node scripts/extract-prompts.cjs     输出：src/main/ai/prompts/<id>.<system|user>.txt
 // 提示词有改动时重新跑一次并同步更新 PROMPT_DEFAULT_VERSION（src/main/ai/prompts.ts）。
 const fs = require('node:fs')
 const path = require('node:path')
 
 const root = path.resolve(__dirname, '..')
-const src = fs.readFileSync(path.join(root, 'docs/prompts/v2-分读者与事实核对.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
 const outDir = path.join(root, 'src/main/ai/prompts')
 fs.mkdirSync(outDir, { recursive: true })
 
-const SECTION_ID = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }
+// 两份文档：v2（16 个）和 v3-课程对照（4 个新提示词，8 个文件）。每份文档的章节编号到提示词 id 的对照不同
+const DOCS = [
+  { file: 'docs/prompts/v2-分读者与事实核对.md', ids: { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' } },
+  { file: 'docs/prompts/v3-课程对照.md', ids: { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint' } }
+]
+const written = []
+for (const doc of DOCS) extract(doc)
+
+function extract(doc) {
+const src = fs.readFileSync(path.join(root, doc.file), 'utf8').replace(/\r\n/g, '\n').split('\n')
+const SECTION_ID = doc.ids
 let cur = null
 let part = null
 let inFence = false
 let buf = []
-const written = []
 
 for (const line of src) {
   if (!inFence) {
@@ -33,5 +41,6 @@ for (const line of src) {
     buf.push(line)
   }
 }
+}
 console.log(written.join('\n'))
-if (written.length !== 16) { console.error(`期望 16 个文件，实际 ${written.length}`); process.exit(1) }
+if (written.length !== 24) { console.error(`期望 24 个文件，实际 ${written.length}`); process.exit(1) }

@@ -56,7 +56,11 @@ export async function collectDiagnostics(): Promise<DiagEntry[]> {
       samplePapers: count('SELECT COUNT(*) c FROM papers WHERE is_sample = 1'),
       pages: count('SELECT COUNT(*) c FROM pages'),
       questions: count('SELECT COUNT(*) c FROM questions'),
-      aiCalls: count('SELECT COUNT(*) c FROM ai_usage')
+      aiCalls: count('SELECT COUNT(*) c FROM ai_usage'),
+      // 课程对照：只给个数，不含任何课程内容
+      courseOutlines: count('SELECT COUNT(*) c FROM course_outlines'),
+      courseLessons: count('SELECT COUNT(*) c FROM course_lessons'),
+      courseMaps: count('SELECT COUNT(*) c FROM course_kp_map')
     }
   }))
 

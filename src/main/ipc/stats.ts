@@ -11,6 +11,7 @@ import { analysisState, cancelAnalysis, generateAnalysis } from '../stats/analys
 import { cancelReport } from '../report/service'
 import { cancelKpAnalysis, generateKpAnalysis, kpAnalysisState } from '../stats/kp-analysis'
 import type { KpScope } from '../stats/kp-analysis'
+import { cancelAdvice } from '../course/service'
 import type { AnalysisScope } from '../stats/analysis'
 
 const yearNum = z.number().int().min(2000).max(2100)
@@ -108,6 +109,6 @@ export function registerStatsIpc(): void {
   })
   ipcMain.handle('ai:cancel', async (_e, rawRequestId: unknown) => {
     const id = z.string().uuid().parse(rawRequestId)
-    return cancelAnalysis(id) || cancelReport(id) || cancelKpAnalysis(id)   // P2 分析、P3 报告、单个考点分析共用同一个取消入口
+    return cancelAnalysis(id) || cancelReport(id) || cancelKpAnalysis(id) || cancelAdvice(id)   // P2 分析、P3 报告、单个考点分析、课程对照话术共用同一个取消入口
   })
 }

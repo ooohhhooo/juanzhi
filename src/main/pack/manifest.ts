@@ -14,7 +14,10 @@ export const ManifestSchema = z.object({
   questionCount: z.number().int().min(0).max(100_000_000),
   pageCount: z.number().int().min(0).max(100_000_000).optional(),
   fileCount: z.number().int().min(0).max(100_000_000).optional(),
-  platform: z.string().max(20).optional()
+  platform: z.string().max(20).optional(),
+  /** 随包带的课程体系个数 / 导出时有没有勾选「带课程大纲」（旧版本的包没有这两项） */
+  courseCount: z.number().int().min(0).max(100000).optional(),
+  courseIncluded: z.boolean().optional()
 }).passthrough()
 
 export type Manifest = z.infer<typeof ManifestSchema>

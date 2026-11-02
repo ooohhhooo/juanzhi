@@ -112,7 +112,7 @@ assert.equal(levelFromFlags({}, 2), 2); assert.equal(levelFromFlags({ level: '3'
 {
   const codes = Object.values(EXIT_CODES)
   assert.equal(new Set(codes).size, codes.length, '退出码互不相同'); assert.ok(codes.every(c => c >= 1))
-  assert.deepEqual(Object.keys(EXIT_CODES).sort(), ['ai_failed', 'ai_not_configured', 'app_running', 'busy', 'cli_busy', 'confirmation_required', 'data_unavailable', 'export_blocked', 'import_failed', 'internal', 'invalid_state', 'not_found', 'timeout', 'usage'].sort())
+  assert.deepEqual(Object.keys(EXIT_CODES).sort(), ['ai_failed', 'ai_not_configured', 'app_running', 'busy', 'cli_busy', 'confirmation_required', 'data_unavailable', 'export_blocked', 'import_failed', 'internal', 'invalid_state', 'not_found', 'timeout', 'usage', 'course_not_matched'].sort())
   for (const f of ['docs/命令行.md', 'skills/juanzhi/SKILL.md', 'docs/M7-命令行接口设计.md']) {
     if (!fs.existsSync(f)) continue
     const md = fs.readFileSync(f, 'utf8')

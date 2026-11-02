@@ -60,7 +60,7 @@ export interface AiConfigView extends AiConfig {
 }
 
 /** p3_report 是「完整数据版」（沿用 id，旧的自定义提示词和历史报告照旧）；p3_boss / p3_parent / p3_teacher 是另外三个读者的版本 */
-export const PROMPT_IDS = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp'] as const
+export const PROMPT_IDS = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp', 'p5_course_cols', 'p5_course_match', 'p5_course_advice', 'p5_course_hint'] as const
 export type PromptId = (typeof PROMPT_IDS)[number]
 export type PromptPart = 'system' | 'user'
 

@@ -30,6 +30,7 @@ import { cliArgvOf } from './cli/args'
 import { initLogging } from './log'
 import { installAiObservers } from './ai/observe'
 import { registerDiagnosticsIpc } from './ipc/diagnostics'
+import { registerCourseIpc } from './ipc/course'
 import { startCliMode } from './cli/run'
 import { acquireRunLock, clearLockFile, inspectRunLock, keepTryingRunLock, processLooksLikeJuanzhi } from './cli/lock'
 
@@ -237,6 +238,7 @@ if (cliArgs) {
     registerCliIpc()
     registerUpdateIpc()
     registerDiagnosticsIpc()
+    registerCourseIpc()
     createWindow()
     sweepStaleStages()
     startAutoCheck()   // 至多每 24 小时静默查一次；命令行模式不走这里，测试（自定义数据目录）默认不查

@@ -48,6 +48,8 @@ export interface ImportReport {
   kpsAdded: number
   kpsRemapped: number
   reportsAdded: number
+  /** 新增的课程体系个数（合并时同 id 的跳过；覆盖时是包里全部） */
+  coursesAdded?: number
   /** 页面图在包里找不到的页数 */
   missingPageImages: number
   /** 随包补进来的自定义提示词条数（本机没设置过才补）：它们会影响之后的 AI 分析和报告，所以要在报告里说出来 */
@@ -181,6 +183,53 @@ function importSettings(db: any, report: ImportReport): void {
   }
 }
 
+/**
+ * 课程大纲随包导入（course_* 表）。级别 / 课次的自增 id 在两边不通用，所以逐个体系复制并重新编号：
+ * 级别 → 课次 → 知识点检查结果 → 知识点对应（课次 id、知识点代码都按映射换过去）。体系 id 是 UUID：合并时本机已有的跳过。
+ * 话术缓存（course_advice）不导入——它按那台电脑当时的筛选和核对状态生成。包里没有这些表（旧版本的包升级后也有，只是空的）就什么也不做。
+ */
+function copyCourse(db: any, kpMap: Map<string, string>, mode: 'merge' | 'overwrite'): number {
+  if (colsOf(db, 'pk', 'course_outlines').length === 0) return 0
+  const mainHas = (t: string, c: string) => colsOf(db, 'main', t).includes(c)
+  if (!mainHas('course_outlines', 'id')) return 0
+  const have = new Set((db.prepare('SELECT id FROM main.course_outlines').all() as any[]).map(r => r.id))
+  const insertRow = (table: string, row: Record<string, unknown>, skip: string[], force: Record<string, unknown>): number => {
+    const mainCols = colsOf(db, 'main', table)
+    const names = mainCols.filter(c => !skip.includes(c) && (c in row || c in force))
+    const r = db.prepare(`INSERT INTO main.${q(table)} (${names.map(q).join(', ')}) VALUES (${names.map(() => '?').join(', ')})`).run(...names.map(c => (c in force ? force[c] : row[c]) ?? null))
+    return Number(r.lastInsertRowid)
+  }
+  let added = 0
+  for (const o of db.prepare('SELECT * FROM pk.course_outlines').all() as any[]) {
+    if (typeof o.id !== 'string' || !UUID_RE.test(o.id)) continue
+    if (mode === 'merge' && have.has(o.id)) continue
+    insertRow('course_outlines', o, [], {})
+    added++
+    const lvMap = new Map<number, number>()
+    for (const lv of db.prepare('SELECT * FROM pk.course_levels WHERE outline_id = ? ORDER BY sort, id').all(o.id) as any[]) {
+      lvMap.set(lv.id, insertRow('course_levels', lv, ['id'], {}))
+    }
+    const lessonMap = new Map<number, number>()
+    for (const l of db.prepare('SELECT * FROM pk.course_lessons WHERE outline_id = ? ORDER BY id').all(o.id) as any[]) {
+      const lvId = lvMap.get(l.level_id)
+      if (lvId === undefined) continue
+      lessonMap.set(l.id, insertRow('course_lessons', l, ['id'], { level_id: lvId }))
+    }
+    for (const c of db.prepare('SELECT * FROM pk.course_kp_check WHERE outline_id = ?').all(o.id) as any[]) {
+      const code = kpMap.get(c.kp_code) ?? c.kp_code
+      db.prepare('INSERT OR IGNORE INTO main.course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(o.id, code, c.result, c.outline_rev ?? null, c.kp_sig ?? null, c.model ?? null, c.prompt_version ?? null)
+    }
+    for (const m of db.prepare('SELECT * FROM pk.course_kp_map WHERE outline_id = ?').all(o.id) as any[]) {
+      const lid = lessonMap.get(m.lesson_id)
+      if (lid === undefined) continue
+      insertRow('course_kp_map', { ...m, kp_code: kpMap.get(m.kp_code) ?? m.kp_code }, [], { lesson_id: lid })
+    }
+  }
+  return added
+
+}
+
 function bumpRev(db: any): void { db.exec('UPDATE main.data_rev SET rev = rev + 1 WHERE id = 1') }
 
 function copyChildren(db: any, kpMap: Map<string, string>): { questions: number } {
@@ -233,6 +282,9 @@ export interface PackSummary {
   /** 新增的试卷里和本机另一份是同一个文件的 */
   sameFileAsExisting: number
   customKps: number
+  /** 包里的课程体系个数 / 合并时会新增的个数 */
+  coursesInPack: number
+  coursesNew: number
   samplesIgnored: number
   missingPageImages: number
   livePapers: number
@@ -253,6 +305,8 @@ export function summarizePack(deps: ApplyDeps, staged: Staged): PackSummary {
       pagesInPack: count(db, `SELECT COUNT(*) c FROM pk.pages WHERE paper_id IN (SELECT id FROM pk.papers ${real})`),
       papersNew: sets.fresh, papersExisting: sets.total - sets.samples - sets.fresh, sameFileAsExisting: sameFile,
       customKps: count(db, 'SELECT COUNT(*) c FROM pk.kps WHERE builtin = 0'), samplesIgnored: sets.samples,
+      coursesInPack: colsOf(db, 'pk', 'course_outlines').length ? count(db, 'SELECT COUNT(*) c FROM pk.course_outlines') : 0,
+      coursesNew: colsOf(db, 'pk', 'course_outlines').length ? count(db, 'SELECT COUNT(*) c FROM pk.course_outlines WHERE id NOT IN (SELECT id FROM main.course_outlines)') : 0,
       // 摘要里的「缺页面图」按「合并」时的新试卷算；覆盖时是全部试卷，数字只作参考
       missingPageImages: countMissingPageImages(db, staged.filesDir),
       livePapers: count(db, 'SELECT COUNT(*) c FROM main.papers WHERE is_sample = 0')
@@ -298,6 +352,7 @@ export function applyMerge(deps: ApplyDeps, staged: Staged): ImportReport {
     const ch = copyChildren(db, kp.map)
     report.questionsAdded = ch.questions
     report.reportsAdded = copyReports(db, true)
+    report.coursesAdded = copyCourse(db, kp.map, 'merge')
     normalizeImported(db)
     bumpRev(db)
     report.missingPageImages = countMissingPageImages(db, staged.filesDir)
@@ -387,6 +442,8 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     const lacking = count(db, 'SELECT COUNT(*) c FROM temp.local_builtin WHERE code NOT IN (SELECT code FROM pk.kps)')
     if (lacking > 0) throw new PackError('bad_content', `数据包里的知识点树缺少 ${lacking} 个内置节点（数据包不完整或被改过），为了不丢掉本机的知识点树，已拒绝覆盖导入`)
     db.exec(`DELETE FROM main.papers; DELETE FROM main.reports; DELETE FROM main.ai_analyses; DELETE FROM main.ai_drafts; DELETE FROM main.ai_usage; DELETE FROM main.kps; DELETE FROM main.qtypes;`)
+    // 课程大纲：包里带了才替换；导出时取消了「带课程大纲」的包不会把本机的课程清空
+    if (colsOf(db, 'pk', 'course_outlines').length && count(db, 'SELECT COUNT(*) c FROM pk.course_outlines') > 0) db.exec('DELETE FROM main.course_outlines; DELETE FROM main.course_advice;')
 
     report.kpsAdded = copyRows(db, 'kps', { force: { builtin: 'CASE WHEN s.code IN (SELECT code FROM temp.local_builtin) THEN 1 ELSE 0 END' } })
     copyRows(db, 'qtypes')
@@ -395,6 +452,7 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     report.questionsAdded = ch.questions
     copyRows(db, 'ai_usage', { skip: ['id'] })
     report.reportsAdded = copyReports(db, false)
+    report.coursesAdded = copyCourse(db, new Map(), 'overwrite')
     copyRows(db, 'ai_analyses', { where: `COALESCE(s.scope_json, '') NOT LIKE '%"sample":true%'`, force: { checked_rev: 'NULL', checked_sig: 'NULL', checked_json: 'NULL' } })
     importSettings(db, report)
     normalizeImported(db)

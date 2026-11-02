@@ -19,7 +19,9 @@ export const WRITE_CHANNELS = new Set([
    'report:generate', 'report:delete', 'report:confirm', 'report:removeSentence',   // report:confirm 写 reports.confirmed_at
   'settings:set',   // 写 settings 表（默认教材、界面状态、引导完成……）
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
-  'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup'
+  'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup',
+  // 课程对照（beta.2）：写课程表、匹配结果、话术缓存；course:suggest / course:match / course:adviceGenerate 会调用 AI 并写 ai_usage，所以归写入类
+  'course:setActive', 'course:rename', 'course:confirmDraft', 'course:remove', 'course:suggest', 'course:save', 'course:match', 'course:mapEdit', 'course:adviceGenerate', 'course:adviceConfirm'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
 export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
@@ -38,5 +40,8 @@ export const READONLY_CHANNELS = new Set([
   'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
   'taxonomy:tree',
   'update:state', 'update:check', 'update:download', 'update:cancel', 'update:install', 'update:skip', 'update:openReleasePage',   // 应用内更新：只写临时目录和一个小状态文件，不动数据
+  // 课程对照的读取类：列表 / 详情 / 看板 / 状态；pickFile、readFile、readText 只读用户选的文件到内存；template、exportGaps 只写用户选的位置；adviceCopy 只写剪贴板；matchCancel 只改内存
+  'course:list', 'course:get', 'course:maps', 'course:search', 'course:pickFile', 'course:readFile', 'course:readText', 'course:preview', 'course:diff', 'course:template',
+  'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:adviceState', 'course:adviceCopy',
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

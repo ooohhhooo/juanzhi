@@ -32,6 +32,8 @@ export interface ExportDeps {
   outPath: string
   tmpDir: string
   appVersion: string
+  /** 是否带上课程大纲（course_* 表）。默认带：它是用户自己的业务数据，不是这台电脑的机器配置；导出对话框里可以取消勾选 */
+  withCourse?: boolean
   platform?: string
   now?: Date
   onProgress?: (p: { phase: 'snapshot' | 'zip' | 'verify'; bytes: number; total: number }) => void
@@ -42,13 +44,13 @@ export interface ExportResult { manifest: Manifest; bytes: number; entries: numb
 const rmAll = (...files: string[]) => { for (const f of files) for (const suffix of ['', '-wal', '-shm', '-journal']) { try { fs.rmSync(f + suffix, { force: true }) } catch { /* 忽略 */ } } }
 
 /** 做出「干净」的数据库快照（不含密钥 / 示例数据），返回路径和统计 */
-export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpDir'>): { file: string; papers: number; questions: number; pages: number; schemaVersion: number; paperIds: string[] } {
+export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpDir' | 'withCourse'>): { file: string; papers: number; questions: number; pages: number; schemaVersion: number; paperIds: string[]; courses: number } {
   fs.mkdirSync(deps.tmpDir, { recursive: true })
   const step1 = path.join(deps.tmpDir, 'snapshot-1.sqlite')
   const final = path.join(deps.tmpDir, 'snapshot.sqlite')
   rmAll(step1, final)
   deps.db.prepare('VACUUM INTO ?').run(step1)
-  let info: { papers: number; questions: number; pages: number; schemaVersion: number; paperIds: string[] }
+  let info: { papers: number; questions: number; pages: number; schemaVersion: number; paperIds: string[]; courses: number }
   const s = deps.openDb(step1)
   try {
     s.exec('PRAGMA secure_delete = ON; PRAGMA foreign_keys = ON; PRAGMA journal_mode = DELETE')
@@ -75,13 +77,18 @@ export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpD
         if (t !== v) s.prepare(`UPDATE kps SET ${f} = ? WHERE code = ?`).run(t || null, k.code)
       }
     }
+    // 课程对照：话术缓存（按这台电脑当时的筛选和核对状态生成）不带走；课程大纲默认带走，用户取消勾选时整体删掉（外键级联带走级别、课次和匹配结果）
+    const hasTable = (t: string) => !!s.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t)
+    if (hasTable('course_advice')) s.exec('DELETE FROM course_advice')
+    if (deps.withCourse === false && hasTable('course_outlines')) s.exec('DELETE FROM course_outlines')
     s.exec('UPDATE ai_analyses SET checked_rev = NULL, checked_sig = NULL, checked_json = NULL')
     s.exec('UPDATE reports SET checked_rev = NULL, checked_sig = NULL, checked_json = NULL')
     const c = (sql: string) => (s.prepare(sql).get() as any).c as number
     info = {
       papers: c('SELECT COUNT(*) c FROM papers'), questions: c('SELECT COUNT(*) c FROM questions'), pages: c('SELECT COUNT(*) c FROM pages'),
       schemaVersion: (s.prepare('PRAGMA user_version').get() as any).user_version,
-      paperIds: (s.prepare('SELECT id FROM papers').all() as any[]).map(r => r.id as string)
+      paperIds: (s.prepare('SELECT id FROM papers').all() as any[]).map(r => r.id as string),
+      courses: hasTable('course_outlines') ? c('SELECT COUNT(*) c FROM course_outlines') : 0
     }
     s.prepare('VACUUM INTO ?').run(final)   // 重新整理一份：被删掉的行不会残留在空闲页里
   } finally {
@@ -120,7 +127,7 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
   const manifest: Manifest = {
     format: PACK_FORMAT, formatVersion: PACK_FORMAT_VERSION, schemaVersion: snap.schemaVersion, appVersion: deps.appVersion,
     exportedAt: now.toISOString(), paperCount: snap.papers, questionCount: snap.questions, pageCount: snap.pages, fileCount: files.length,
-    platform: deps.platform ?? process.platform
+    platform: deps.platform ?? process.platform, courseCount: snap.courses, courseIncluded: deps.withCourse !== false
   }
   const total = dbSize + files.reduce((n, f) => n + f.size, 0)
   const part = `${deps.outPath}.part`

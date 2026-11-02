@@ -6,7 +6,6 @@ import { sectionFor } from '../../shared/markdown'
 import MarkdownView from './MarkdownView'
 import type { ViewTarget } from './PageViewer'
 import { cancelAnalysis, dismissAnalysis, startAnalysis, useAnalysisEntry } from './analysisStore'
-import type { AiScope } from './analysisStore'
 import { AiDraftBadge } from '../components/Plain'
 import { useElapsedSeconds } from '../hooks/useElapsed'
 import { Btn, ThinkingBar, UsageNote } from '../design'
@@ -23,7 +22,7 @@ function waitingLabel(o: { hasText: boolean; thinking: boolean; retried: boolean
  * P2 年度变化分析。focusCode 有值时（在知识点抽屉里）只显示该知识点的小节，并可展开完整分析。
  * 数据或提示词变了只标「已过期，可重新生成」，绝不自动重新生成（要花钱）。
  */
-export default function AnalysisPanel({ scope, focusCode, onView }: { scope: AiScope; focusCode?: string; onView: (t: ViewTarget) => void }) {
+export default function AnalysisPanel({ scope, focusCode, onView }: { scope: CompareScope | KpScope; focusCode?: string; onView: (t: ViewTarget) => void }) {
   const nav = useNavigate()
   const kp = 'code' in scope   // 单个考点模式（词条详情抽屉）：只讲这一个考点，不需要「只看这个知识点 / 完整分析」切换
   const { data: st } = useQuery({ queryKey: ['stats', 'analysis', scope], queryFn: () => (kp ? window.api.ai.kpAnalysis(scope) : window.api.ai.compareAnalysis(scope)) as Promise<AnalysisState>, staleTime: 5_000 })

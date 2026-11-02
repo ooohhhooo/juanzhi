@@ -88,7 +88,8 @@ export function registerDataIpc(): void {
   })
 
   // ───────── 导出 ─────────
-  ipcMain.handle('data:exportPack', async () => withOp('导出数据包', async () => {
+  ipcMain.handle('data:exportPack', async (_e, rawOpts?: unknown) => withOp('导出数据包', async () => {
+    const opts0 = z.object({ withCourse: z.boolean().default(true) }).default({}).parse(rawOpts ?? {})
     // 后台还在提取 / 解析的试卷，文件可能写到一半：等处理完再导，保证数据包里的页面图和库是一致的
     const busy = busyReason()
     if (busy) throw new Error(busy)
@@ -105,7 +106,7 @@ export function registerDataIpc(): void {
     setExporting(true)   // 导出期间主进程拒绝会改写试卷文件的请求
     try {
       const res = await buildPack({
-        db: getDb(), openDb: openSqlite, filesDir: getFilesDir(), outPath: out, tmpDir, appVersion: app.getVersion(),
+        db: getDb(), openDb: openSqlite, filesDir: getFilesDir(), outPath: out, tmpDir, appVersion: app.getVersion(), withCourse: opts0.withCourse,
         onProgress: p => progress({ op: 'export', ...p })
       })
       return { saved: true, path: res.path, bytes: res.bytes, entries: res.entries, manifest: res.manifest }

@@ -24,6 +24,14 @@ import p3TeacherSystem from './prompts/p3_teacher.system.txt?raw'
 import p3TeacherUser from './prompts/p3_teacher.user.txt?raw'
 import p2KpSystem from './prompts/p2_kp.system.txt?raw'
 import p2KpUser from './prompts/p2_kp.user.txt?raw'
+import p5ColsSystem from './prompts/p5_course_cols.system.txt?raw'
+import p5ColsUser from './prompts/p5_course_cols.user.txt?raw'
+import p5MatchSystem from './prompts/p5_course_match.system.txt?raw'
+import p5MatchUser from './prompts/p5_course_match.user.txt?raw'
+import p5AdviceSystem from './prompts/p5_course_advice.system.txt?raw'
+import p5AdviceUser from './prompts/p5_course_advice.user.txt?raw'
+import p5HintSystem from './prompts/p5_course_hint.system.txt?raw'
+import p5HintUser from './prompts/p5_course_hint.user.txt?raw'
 
 /** 内置提示词的版本号；改了资源文件就要同步提升，并在交付说明里记一笔 */
 export const PROMPT_DEFAULT_VERSION = 'v2.0'
@@ -40,7 +48,11 @@ const DEFAULTS: Record<string, string> = {
   'p3_boss.system': trimEnd(p3BossSystem), 'p3_boss.user': trimEnd(p3BossUser),
   'p3_parent.system': trimEnd(p3ParentSystem), 'p3_parent.user': trimEnd(p3ParentUser),
   'p3_teacher.system': trimEnd(p3TeacherSystem), 'p3_teacher.user': trimEnd(p3TeacherUser),
-  'p2_kp.system': trimEnd(p2KpSystem), 'p2_kp.user': trimEnd(p2KpUser)
+  'p2_kp.system': trimEnd(p2KpSystem), 'p2_kp.user': trimEnd(p2KpUser),
+  'p5_course_cols.system': trimEnd(p5ColsSystem), 'p5_course_cols.user': trimEnd(p5ColsUser),
+  'p5_course_match.system': trimEnd(p5MatchSystem), 'p5_course_match.user': trimEnd(p5MatchUser),
+  'p5_course_advice.system': trimEnd(p5AdviceSystem), 'p5_course_advice.user': trimEnd(p5AdviceUser),
+  'p5_course_hint.system': trimEnd(p5HintSystem), 'p5_course_hint.user': trimEnd(p5HintUser)
 }
 
 const TITLES: Record<PromptId, string> = {
@@ -51,7 +63,11 @@ const TITLES: Record<PromptId, string> = {
   p3_boss: 'P3 考情分析报告：老板版',
   p3_parent: 'P3 考情分析报告：家长版',
   p3_teacher: 'P3 考情分析报告：老师版',
-  p2_kp: 'P2 单个考点分析（看板抽屉）'
+  p2_kp: 'P2 单个考点分析（看板抽屉）',
+  p5_course_cols: 'P5 课程对照：认列（只判断哪一列是什么，不复制内容）',
+  p5_course_match: 'P5 课程对照：知识点 → 课次',
+  p5_course_advice: 'P5 课程对照：家长沟通话术（看板）',
+  p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议'
 }
 
 const P1_COMMON = ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'FILE_NAME', 'KNOWN_META', 'BATCH_INFO', 'BATCH_PREFIX', 'PREV_CONTEXT']
@@ -61,7 +77,11 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p1_vision: [...P1_COMMON, 'PAGE_LIST'],
   p2_yoy: ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT', 'EVIDENCE'],
   p3_report: P3_PH, p3_boss: P3_PH, p3_parent: P3_PH, p3_teacher: P3_PH,
-  p2_kp: ['FILTER_DESC', 'PAPER_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_NAME', 'KP_DATA', 'KP_SAMPLES', 'EVIDENCE']
+  p2_kp: ['FILTER_DESC', 'PAPER_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_NAME', 'KP_DATA', 'KP_SAMPLES', 'EVIDENCE'],
+  p5_course_cols: ['SHEET_NAME', 'SHEET_PREVIEW'],
+  p5_course_match: ['OUTLINE_LINES', 'KP_BATCH'],
+  p5_course_advice: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
+  p5_course_hint: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE']
 }
 function overrides(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(SETTINGS_KEY) as { value_json: string } | undefined
@@ -88,7 +108,7 @@ export function promptViews(): PromptView[] {
       const text = o[k] ?? DEFAULTS[k]
       views.push({
         id, part, title: TITLES[id], text, defaultText: DEFAULTS[k], isCustom: o[k] !== undefined && o[k] !== DEFAULTS[k],
-        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: true   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）、P2（M3）、P3（M4）现在都用
+        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: id !== 'p5_course_hint'   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）、P2（M3）、P3（M4）、课程对照三个都用；家长版结尾一句（p5_course_hint）还没有接进报告
       })
     }
   }

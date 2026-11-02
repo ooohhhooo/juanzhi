@@ -1,0 +1,145 @@
+// 数据包里的课程大纲：默认随包带走、导出时可以不带；导入（合并 / 覆盖）按外键整体复制并重新编号；话术缓存不带；坏的体系 id 拒绝；旧包（没有课程表）照常导入。
+import assert from 'node:assert/strict'
+import path from 'node:path'
+import { makeEnv, paperWithFiles, openDb, count, LATEST, migrate } from './helpers/packenv.mjs'
+import { buildPack } from '../../src/main/pack/exporter.ts'
+import { extractPack } from '../../src/main/pack/reader.ts'
+import { prepareStagedDb } from '../../src/main/pack/stage-db.ts'
+import { applyMerge, applyOverwrite, summarizePack } from '../../src/main/pack/apply.ts'
+import { PackError } from '../../src/main/pack/errors.ts'
+import { createOutline, applyMatchBatch, editMap, targetKps, listOutlines, mapRows } from '../../src/main/course/store.ts'
+
+const prep = dbPath => prepareStagedDb(dbPath, { openDb, migrate: (db, from) => migrate(db, from), latest: LATEST })
+const lesson = (seq, title) => ({ seq, noLabel: String(seq), title, theme: '', textbookRef: '', points: [{ kind: 'word', label: '词汇', text: `w${seq}` }], raw: { 标题: title } })
+
+async function exportOf(env, name, opts = {}) {
+  const out = path.join(env.dir, `${name}.ewb.zip`)
+  const res = await buildPack({ db: env.db, openDb, filesDir: env.filesDir, outPath: out, tmpDir: path.join(env.dir, `tmp-${name}`), appVersion: 'test', ...opts })
+  return { out, res }
+}
+async function stageOf(zip, into) {
+  const ex = await extractPack(zip, path.join(into.dir, `stage-${path.basename(zip)}`))
+  const info = prep(ex.dbPath)
+  return { staged: { dbPath: ex.dbPath, filesDir: ex.filesDir }, info }
+}
+
+// ── 源电脑 A：一份卷子 + 一个课程体系（含匹配结果、人工确认）+ 话术缓存 ──
+const A = makeEnv('courseA')
+paperWithFiles(A, { title: '甲', year: 2025, grade: '4', hash: 'h1', questions: [{ kp: 'GR.TENSE.PAST.REG', qtype: 'MC', score: 2, err: true }, { kp: 'GR.NOUN.PLURAL.REG', qtype: 'MC', score: 2 }] }, 1)
+const oid = createOutline(A.db, {
+  name: '示例体系 A', scene: 'org', termNote: '2026 秋', sourceName: 'x', sourceHash: 'h', mapping: { s: 1 }, warnings: [], aiModel: 'm', status: 'active',
+  levels: [{ name: '基础级', lessons: [lesson(1, 'Hello'), lesson(2, 'Past')] }, { name: '进阶级', lessons: [lesson(1, 'Plural')] }]
+})
+const lid = Object.fromEntries(A.db.prepare('SELECT id, title FROM course_lessons').all().map(r => [r.title, r.id]))
+const kps = targetKps(A.db)
+applyMatchBatch(A.db, oid, [
+  { code: 'GR.TENSE.PAST.REG', none: false, maps: [{ lessonId: lid.Past, confidence: 'high', quote: 'w2', reason: 'r', quoteOk: true }] },
+  { code: 'GR.NOUN.PLURAL.REG', none: false, maps: [{ lessonId: lid.Plural, confidence: 'medium', quote: '', reason: 'r', quoteOk: false }] }
+], { rev: 1, model: 'm', promptVersion: 'v', sigs: new Map(kps.map(k => [k.code, k.sig])) })
+editMap(A.db, { op: 'confirm', kp: 'GR.TENSE.PAST.REG', lessonId: lid.Past })
+A.db.prepare("INSERT INTO course_advice (scope_key, cache_key, markdown, confirmed_at) VALUES ('sk', 'ck', '一段话', '2026-11-02 10:00:00')").run()
+
+// ── 导出：默认带课程；话术缓存永远不带 ──
+{
+  const { out, res } = await exportOf(A, 'with')
+  assert.equal(res.manifest.courseCount, 1)
+  assert.equal(res.manifest.courseIncluded, true)
+  const { info } = await stageOf(out, A)
+  assert.equal(info.papers, 1)
+  const ex = await extractPack(out, path.join(A.dir, 'peek'))
+  const pk = openDb(ex.dbPath, { readOnly: true })
+  assert.equal(count(pk, 'SELECT COUNT(*) c FROM course_outlines'), 1)
+  assert.equal(count(pk, 'SELECT COUNT(*) c FROM course_lessons'), 3)
+  assert.equal(count(pk, 'SELECT COUNT(*) c FROM course_kp_map'), 2)
+  assert.equal(count(pk, 'SELECT COUNT(*) c FROM course_advice'), 0, '话术缓存不带走')
+  pk.close()
+}
+// ── 导出：取消勾选 → 包里没有课程 ──
+{
+  const { out, res } = await exportOf(A, 'without', { withCourse: false })
+  assert.equal(res.manifest.courseCount, 0)
+  assert.equal(res.manifest.courseIncluded, false)
+  const ex = await extractPack(out, path.join(A.dir, 'peek2'))
+  const pk = openDb(ex.dbPath, { readOnly: true })
+  for (const t of ['course_outlines', 'course_levels', 'course_lessons', 'course_kp_map', 'course_kp_check']) assert.equal(count(pk, `SELECT COUNT(*) c FROM ${t}`), 0, t)
+  pk.close()
+  // 本机的课程不受导出影响
+  assert.equal(count(A.db, 'SELECT COUNT(*) c FROM course_outlines'), 1)
+}
+
+// ── 合并导入到电脑 B：课程整体复制，课次 id 重新编号，对应关系跟着走；本机已有同 id 的跳过 ──
+{
+  const { out } = await exportOf(A, 'for-merge')
+  const B = makeEnv('courseB')
+  // B 里先建一个别的体系，让课次自增 id 和 A 的撞上，验证重新编号
+  createOutline(B.db, { name: 'B 自己的', scene: 'school', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: '甲', lessons: [lesson(1, 'b1'), lesson(2, 'b2'), lesson(3, 'b3'), lesson(4, 'b4')] }] })
+  const st = await stageOf(out, B)
+  const sum = summarizePack({ ...B.deps }, st.staged)
+  assert.equal(sum.coursesInPack, 1)
+  assert.equal(sum.coursesNew, 1)
+  const rep = applyMerge(B.deps, st.staged)
+  assert.equal(rep.coursesAdded, 1)
+  assert.equal(count(B.db, 'SELECT COUNT(*) c FROM course_outlines'), 2)
+  const cards = listOutlines(B.db)
+  const got = cards.find(c => c.id === oid)
+  assert.ok(got, '体系 id 不变')
+  assert.deepEqual([got.name, got.scene, got.termNote, got.levels, got.lessons, got.rev], ['示例体系 A', 'org', '2026 秋', 2, 3, 1])
+  const maps = mapRows(B.db, oid)
+  assert.equal(maps.length, 2)
+  // 对应关系指向的是 B 里这个体系自己的课次（标题对得上），不是 B 自己那个体系的课次
+  const titleOf = id => B.db.prepare('SELECT title, outline_id FROM course_lessons WHERE id = ?').get(id)
+  const past = maps.find(m => m.kp === 'GR.TENSE.PAST.REG')
+  assert.deepEqual([titleOf(past.lessonId).title, titleOf(past.lessonId).outline_id, past.state, past.locked], ['Past', oid, 'confirmed', true], '人工确认的状态随包走')
+  assert.equal(titleOf(maps.find(m => m.kp === 'GR.NOUN.PLURAL.REG').lessonId).title, 'Plural')
+  assert.equal(count(B.db, 'SELECT COUNT(*) c FROM course_levels WHERE outline_id = ?', oid), 2)
+  assert.equal(count(B.db, 'SELECT COUNT(*) c FROM course_kp_check WHERE outline_id = ?', oid), 2)
+  assert.equal(count(B.db, 'SELECT COUNT(*) c FROM course_advice'), 0)
+  assert.equal(B.db.prepare('PRAGMA foreign_key_check').all().length, 0, '外键完整')
+  // 再合并一次：同 id 的跳过，不会重复
+  const st2 = await stageOf(out, B)
+  const rep2 = applyMerge(B.deps, st2.staged)
+  assert.equal(rep2.coursesAdded, 0)
+  assert.equal(count(B.db, 'SELECT COUNT(*) c FROM course_outlines'), 2)
+  assert.equal(count(B.db, 'SELECT COUNT(*) c FROM course_lessons'), 7)
+}
+
+// ── 覆盖导入：包里带课程就整体替换；包里没带课程（取消勾选）不会清空本机的课程 ──
+{
+  const { out } = await exportOf(A, 'for-overwrite')
+  const C = makeEnv('courseC')
+  createOutline(C.db, { name: 'C 旧的', scene: 'family', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: '甲', lessons: [lesson(1, 'c1')] }] })
+  const rep = applyOverwrite({ ...C.deps }, (await stageOf(out, C)).staged)
+  assert.equal(rep.coursesAdded, 1)
+  assert.deepEqual(listOutlines(C.db).map(c => c.name), ['示例体系 A'], '覆盖：本机旧的课程被包里的替换')
+  assert.equal(mapRows(C.db, oid).length, 2)
+
+  const { out: noCourse } = await exportOf(A, 'for-overwrite-nocourse', { withCourse: false })
+  const D = makeEnv('courseD')
+  createOutline(D.db, { name: 'D 自己的', scene: 'school', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: '甲', lessons: [lesson(1, 'd1')] }] })
+  const rep2 = applyOverwrite({ ...D.deps }, (await stageOf(noCourse, D)).staged)
+  assert.equal(rep2.coursesAdded, 0)
+  assert.deepEqual(listOutlines(D.db).map(c => c.name), ['D 自己的'], '包里没带课程：本机的课程保留')
+}
+
+// ── 坏的体系 id：整包拒绝 ──
+{
+  const { out } = await exportOf(A, 'bad-id')
+  const ex = await extractPack(out, path.join(A.dir, 'stage-bad'))
+  const db = openDb(ex.dbPath)
+  db.exec("PRAGMA foreign_keys = OFF; UPDATE course_outlines SET id = '../../etc'")
+  db.close()
+  assert.throws(() => prep(ex.dbPath), e => e instanceof PackError && e.code === 'bad_content' && /课程体系的编号/.test(e.message))
+}
+
+// ── 包里没有课程（没勾选带课程，或旧版本的包）：照常导入，课程为 0 ──
+{
+  const E = makeEnv('courseE')
+  paperWithFiles(E, { title: '旧', year: 2024, grade: '4', hash: 'old', questions: [{ kp: 'GR.NOUN.PLURAL.REG', qtype: 'MC', score: 2 }] }, 1)
+  const F = makeEnv('courseF')
+  const { out } = await exportOf(E, 'plain')
+  const rep = applyMerge(F.deps, (await stageOf(out, F)).staged)
+  assert.equal(rep.coursesAdded, 0)
+  assert.equal(rep.papersAdded, 1)
+}
+
+console.log('course-pack.test ✓')

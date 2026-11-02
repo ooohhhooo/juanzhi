@@ -8,6 +8,7 @@ const http = require('node:http')
 const { build } = require('./canned.cjs')
 const p2 = require('./p2.cjs')
 const p3 = require('./p3.cjs')
+const course = require('./course.cjs')
 const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 /** 从 data URL 里读出图片尺寸（PNG 看 IHDR，JPEG 找 SOF 段），E2E 用它核对「发给模型的图已缩小」 */
@@ -127,12 +128,14 @@ async function startMock(opts = {}) {
         const isP1 = /JSON/.test(sys) && /知识点树/.test(user)
         const isP2 = p2.isP2(sys, user)
         const isP3 = p3.isP3(sys, user)
+        // 课程对照（认列 / 匹配 / 话术 / 一句话）
+        const courseKind = course.kindOf(sys)
         // 看板抽屉里「只讲这一个考点」的分析（p2_kp）
         const isKp = /只围绕输入里给出的这一个考点/.test(sys) && /【这一个考点】/.test(user)
         const rec = {
           at: Date.now(), auth, model: body.model, stream: !!body.stream, jsonMode: body.response_format?.type === 'json_object',
           maxTokens: body.max_tokens, system: sys, user, images, messageCount: body.messages.length, fileName, batchLine, pages, prefix,
-          isP1, isP2, isP3, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
+          isP1, isP2, isP3, courseKind, retryFeedback: userMsgs.length > 1 ? textOf(userMsgs[userMsgs.length - 1].content) : '',
           hasPrevUnfinished: /未完成的题/.test(user), imageDims: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => imageDims(p.image_url.url)) : [], imageUrls: Array.isArray(firstUser?.content) ? firstUser.content.filter(p => p.type === 'image_url').map(p => p.image_url.url.slice(0, 30)) : [],
           body: raw.length,
           directive: null
@@ -151,7 +154,7 @@ async function startMock(opts = {}) {
           res.end(JSON.stringify({ error: { message: `The API key does not have permission to access model ${body.model}` } }))
           return
         }
-        const d = takeDirective(fileName, isP3 ? 'p3' : isP2 || isKp ? 'p2' : 'p1')
+        const d = takeDirective(fileName, courseKind ? 'course' : isP3 ? 'p3' : isP2 || isKp ? 'p2' : 'p1')
         if (d) rec.directive = d.type
         if (d && d.type === 'hang') { await new Promise(r => setTimeout(r, d.ms ?? 60000)); return }
         if (d && d.type === '429') { res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(d.retryAfter ?? 1) }); res.end(JSON.stringify({ error: { message: 'rate limit' } })); return }
@@ -184,6 +187,18 @@ async function startMock(opts = {}) {
         if (d && (d.type === 'truncated' || (d.type === 'length' && isP1))) {
           const c = '{"meta":{"title":"2025-2026学年第二学期四年级英语期末试卷","grade":4},"sections":[{"no":"一","title":"选出画线部分","qtype":"PH_DIFF"'
           return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream, 'length')
+        }
+
+        // 课程对照：认列 / 匹配（JSON）、话术 / 一句话（正文，流式）。故障指令沿用 p2_* 那组名字；matchDelayMs 让匹配慢一点（测进度和取消）
+        if (courseKind) {
+          if (state.courseDelayMs) await new Promise(r => setTimeout(r, state.courseDelayMs))
+          let c = course.build(courseKind, user, { ...(state.quirks.course ?? {}) })
+          const lenCut = !!(d && d.type === 'length')
+          if (lenCut) c = c.slice(0, Math.max(10, Math.floor(c.length / 2)))
+          const opts = { pieceChars: 24, chunkDelayMs: courseKind === 'advice' ? state.p3DelayMs || 0 : 0 }
+          if (d && d.type === 'p2_cut') opts.cutAfter = d.after ?? 3
+          if (d && d.type === 'p2_slow') opts.chunkDelayMs = d.delayMs ?? 120
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream, lenCut ? 'length' : 'stop', 200, {}, opts)
         }
 
         // P2 年度变化分析：按收到的提示词里的表格写一篇 Markdown，流式分段发出
@@ -283,12 +298,16 @@ async function startMock(opts = {}) {
     get p2Requests() { return state.requests.filter(r => r.isP2) },
     get p3Requests() { return state.requests.filter(r => r.isP3) },
     get kpRequests() { return state.kpRequests || [] },
+    /** 课程对照的请求（认列 cols / 匹配 match / 话术 advice / 一句话 hint） */
+    get courseRequests() { return state.requests.filter(r => r.courseKind) },
+    /** 课程对照每次应答前的延迟（毫秒），测进度条和取消用 */
+    set courseDelayMs(v) { state.courseDelayMs = v },
     /** canned 响应的「真实模型会犯的错」：{ noFlag, dropContinued, typo, badPage } */
     set quirks(v) { state.quirks = v },
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },
-    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.reasoning = null; state.seenSystems.clear() },
+    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.courseDelayMs = 0; state.reasoning = null; state.seenSystems.clear() },
     resetStats() { state.requests.length = 0; state.maxInflight = 0 },
     async stop() {
       for (const s of sockets) s.destroy()

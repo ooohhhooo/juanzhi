@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { App, Descriptions, Switch } from 'antd'
 import { BookOpen, CircleHelp, ScanSearch, Settings as SettingsIcon } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AiSettings from './AiSettings'
 import PromptSettings from './PromptSettings'
 import DataSettings from './DataSettings'
 import CliSettings from './CliSettings'
 import UpdateSettings from './UpdateSettings'
 import TaxonomySettings from './TaxonomySettings'
+import CourseSettings from './course/CourseSettings'
 import DiagnosticsPanel from '../components/DiagnosticsPanel'
 import { useAdminOpen, useShowCodes } from '../hooks/useUiPrefs'
 import { Btn, Glossary, Page, Panel, StatusLabel, UsageNote, useTheme } from '../design'
@@ -22,6 +23,7 @@ import '../design/page-report.css'
  */
 export default function Settings() {
   const nav = useNavigate()
+  const loc = useLocation()
   const [params] = useSearchParams()
   const [adminOpen, setAdminOpen] = useAdminOpen()
   const [showCodes, setShowCodes] = useShowCodes()
@@ -64,13 +66,15 @@ export default function Settings() {
   })
   const { data: about } = useQuery({ queryKey: ['app', 'info'], queryFn: () => window.api.app.info(), staleTime: Infinity })
   useEffect(() => { if (params.get('admin') === '1' && !adminOpen) void setAdminOpen(true) }, [params, adminOpen])
+  // 看板“课程对照”页的“去上传课程大纲”会跳到这里的课程大纲一节
+  useEffect(() => { if (loc.hash === '#course') setTimeout(() => document.getElementById('set-course')?.scrollIntoView({ block: 'start' }), 60) }, [loc.hash])
 
   return (
     <Page>
       <h1 className="ewb-rep-h1">设置</h1>
-      <p className="ewb-set-lead">平时用到的就是下面前三组；技术设置都收在最后的「管理员设置」里，一般不用动。</p>
+      <p className="ewb-set-lead">平时用到的就是下面前四组；技术设置都收在最后的「管理员设置」里，一般不用动。</p>
       <nav className="ewb-set-jump" aria-label="跳到">
-        {[['show', '显示与演示'], ['kp', '知识点'], ['about', '关于'], ['admin', '管理员设置']].map(([id, label]) => (
+        {[['show', '显示与演示'], ['kp', '知识点'], ['course', '课程大纲'], ['about', '关于'], ['admin', '管理员设置']].map(([id, label]) => (
           <button key={id} type="button" className="ewb-set-jump__btn" onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
         ))}
       </nav>
@@ -93,6 +97,12 @@ export default function Settings() {
         <h2 className="ewb-set-group">知识点</h2>
         <p className="ewb-set-groupdesc">AI 标题目、看板统计都按这棵树来；老师可以改名，加白话说明和例句。</p>
         <TaxonomySettings />
+      </section>
+
+      <section id="set-course" className="ewb-set-section">
+        <h2 className="ewb-set-group">课程大纲</h2>
+        <p className="ewb-set-groupdesc">上传你自己的课程表，看板“课程对照”页就能告诉你：容易出错的考点在哪一课讲。家长、学校老师、培训机构都能用。</p>
+        <CourseSettings />
       </section>
 
       <section id="set-about" className="ewb-set-section">

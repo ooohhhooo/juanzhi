@@ -103,6 +103,7 @@ export default function AiSettings() {
         <Form.Item label="Base URL" extra="例如 https://api.deepseek.com ；程序会自动补上 /chat/completions">
           <Input data-testid="ai-base-url" value={cfg.base_url} onChange={e => set({ base_url: e.target.value, ...(preset && preset.id !== 'custom' && e.target.value !== preset.baseUrl ? { provider: 'custom' } : {}) })} placeholder="https://…" />
         </Form.Item>
+        <div className="ewb-set-form-note" data-testid="ai-privacy-course" style={{ marginBottom: 12 }}>隐私：试卷内容、你上传的课程大纲，只会发给你在这里设置的 AI 服务，不会发给卷知开发者。</div>
         {plainHttp && <UsageNote kind="caution" data-testid="ai-http-warning">这个地址用的是不加密的 http：API Key 会在网络上明文传输，建议改用 https（本机/局域网自建服务除外）。</UsageNote>}
         {hint?.suggest && (
           <UsageNote kind="caution" title="拆题比较慢，建议换一个更快的模型" data-testid="model-hint"
