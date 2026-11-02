@@ -87,6 +87,20 @@ jobs:
         shell: bash
         run: ls -la release release/* | head -60
 
+      # ── 应用内更新（src/main/update）：更新清单能被解析、里面列的文件都在、sha512 和大小一致 ──
+      - name: 核对更新清单（latest*.yml）
+        shell: bash
+        run: node --experimental-strip-types --no-warnings scripts/verify-update-manifests.mjs release ${{ matrix.name == 'windows' && 'win' || 'mac' }}
+
+      # 免安装版的替换脚本真跑一遍（路径带空格和中文；两种情形：旧 exe 还在运行时必须等它退出，以及旧 exe 仍被占用时「运行中改名」能不能成功）。
+      # 这个脚本从来没在真正的 Windows 上跑过，所以先 continue-on-error：第一次跑的结果只当信息看，确认稳定后再去掉。
+      # 仍然没覆盖：免安装版 exe 自己下载新版并启动这个脚本；NSIS 安装版的 electron-updater。
+      - name: Windows｜免安装版替换脚本
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: bash
+        run: node --experimental-strip-types --no-warnings tests/e2e/update-win-swap.mjs
+
       # ── Windows 专属：OCR 现场信息（诊断用，不让它挡住后面的冒烟）──
       - name: Windows｜安装中文 OCR 语言包（仅手动触发且勾选时）
         if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch' && inputs.install_zh_ocr
@@ -228,4 +242,6 @@ jobs:
           path: |
             release/*.exe
             release/*.dmg
+            release/*.zip
+            release/latest*.yml
           if-no-files-found: error

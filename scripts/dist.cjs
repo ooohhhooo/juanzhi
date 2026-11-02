@@ -47,14 +47,22 @@ const nodeBin = (pkgName, binName = pkgName) => {
 }
 
 run(nodeBin('electron-vite'), ['build'])
+// --publish never：永远不上传（electron-builder.config.cjs 里的 publish 只是为了生成 latest*.yml）。
+// EWB_DIST_VERSION 只用来本机测试应用内更新（打两个不同版本的包），不改 package.json；正式打包不要设置。
 const ebArgs = ['--config', 'electron-builder.config.cjs', '--publish', 'never']
+if (process.env.EWB_DIST_VERSION) ebArgs.push(`-c.extraMetadata.version=${process.env.EWB_DIST_VERSION}`)
 if (which === 'mac' || which === 'all') run(nodeBin('electron-builder'), ['--mac', ...ebArgs], { EWB_BUILD_DIR: outDir, CSC_IDENTITY_AUTO_DISCOVERY: 'false' })
-if (which === 'win' || which === 'all') run(nodeBin('electron-builder'), ['--win', ...ebArgs], { EWB_BUILD_DIR: outDir })
+if (which === 'win' || which === 'all') {
+  run(nodeBin('electron-builder'), ['--win', ...ebArgs], { EWB_BUILD_DIR: outDir })
+  // electron-builder 只给 NSIS 生成 latest.yml；免安装版的更新清单自己补一份（latest-portable.yml，格式相同）
+  run(path.join(__dirname, 'make-portable-manifest.cjs'), [outDir])
+}
 
 if (outDir !== release) {
   fs.mkdirSync(release, { recursive: true })
   for (const f of fs.readdirSync(outDir)) {
-    if (/^Juanzhi-.*\.(dmg|exe|zip|blockmap)$/.test(f) && !f.endsWith('.blockmap')) {
+    // 安装包 + 更新清单（latest.yml / latest-mac.yml / latest-portable.yml）；.blockmap 不要（更新时整包下载，不做差分）
+    if (/^Juanzhi-.*\.(dmg|exe|zip)$/.test(f) || /^latest.*\.yml$/.test(f)) {
       fs.copyFileSync(path.join(outDir, f), path.join(release, f))
       console.log(`[dist] 已拷贝 ${f} → release/`)
     }

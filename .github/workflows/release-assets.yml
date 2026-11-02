@@ -34,5 +34,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la dist
-          gh release upload "${{ inputs.tag }}" dist/Juanzhi-*.dmg dist/Juanzhi-*.exe --repo "${{ github.repository }}" --clobber
+          # 应用内更新：先传安装包 / zip，最后才传更新清单（latest*.yml）——老用户一看到清单就会去下载它列的文件，文件必须先到。
+          # 上传前核对：三个清单都在，而且清单里列的每个文件（url / path）都在 dist/ 里
+          for y in dist/latest.yml dist/latest-mac.yml dist/latest-portable.yml; do
+            test -f "$y" || { echo "缺少 $y"; exit 1; }
+            for n in $(grep -E '^[[:space:]]*(- )?(url|path):' "$y" | sed -E "s/^[^:]*:[[:space:]]*//; s/['\"]//g" | sort -u); do
+              test -f "dist/$n" || { echo "$y 里列的 $n 不在 dist/ 里"; exit 1; }
+            done
+          done
+          gh release upload "${{ inputs.tag }}" dist/Juanzhi-*.dmg dist/Juanzhi-*.zip dist/Juanzhi-*.exe --repo "${{ github.repository }}" --clobber
+          gh release upload "${{ inputs.tag }}" dist/latest.yml dist/latest-mac.yml dist/latest-portable.yml --repo "${{ github.repository }}" --clobber
           gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" --json assets -q '.assets[] | "\(.name) \(.size) \(.state)"'

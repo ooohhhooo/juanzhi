@@ -18,6 +18,8 @@ import { registerDataIpc } from './ipc/data'
 import { installIpcGuards } from './restart'
 import { registerTaxonomyIpc } from './ipc/taxonomy'
 import { registerCliIpc } from './ipc/cli'
+import { registerUpdateIpc } from './ipc/update'
+import { startAutoCheck, sweepStaleStages } from './update/service'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
@@ -224,7 +226,10 @@ if (cliArgs) {
     registerDataIpc()
     registerTaxonomyIpc()
     registerCliIpc()
+    registerUpdateIpc()
     createWindow()
+    sweepStaleStages()
+    startAutoCheck()   // 至多每 24 小时静默查一次；命令行模式不走这里，测试（自定义数据目录）默认不查
     // 升级后给库里已有的卷子补扫一遍重复卷：后台分片跑，不挡窗口（失败只写日志）
     if (takeUpgradeScan()) startSimilarScan().then(r => console.log(`[db] 升级后扫描重复试卷：检查 ${r.checked} 份，疑似重复 ${r.suspects} 份`), e => console.warn(`[db] 升级后扫描重复试卷失败: ${(e as Error).message}`))
 

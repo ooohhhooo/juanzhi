@@ -17,6 +17,7 @@ let exporting = false
 export const setRestartPending = (info: { target: string; oldDir: string }): void => { restart = info }
 export const getRestartPending = (): { target: string; oldDir: string } | null => restart
 export const setExporting = (v: boolean): void => { exporting = v }
+export const getExporting = (): boolean => exporting
 
 export function blockReason(channel: string): string | null {
   if (restart && WRITE_CHANNELS.has(channel)) return '数据目录已经更改，需要先重启应用才能继续操作（重启之前的改动会写进旧目录，重启后就看不到了）'

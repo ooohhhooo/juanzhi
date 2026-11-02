@@ -123,6 +123,16 @@ interface ElectronAPI {
     status(): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }>
     install(): Promise<{ ok: boolean; platform: string; path: string; dir: string; onPath: boolean; hint: string; warnings: string[] }>
   }
+  update: {
+    state(): Promise<UpdateStateView>
+    check(silent?: boolean): Promise<UpdateStateView>
+    download(): Promise<UpdateStateView>
+    cancel(): Promise<boolean>
+    /** 有 AI 解析 / 提取 / 报告在跑时返回 { ok:false, busy:原因 }；force = 放弃这些任务继续 */
+    install(force?: boolean): Promise<{ ok: boolean; busy?: string; hard?: boolean; message?: string }>
+    skip(version: string): Promise<boolean>
+    openReleasePage(): Promise<boolean>
+  }
   dialog: {
     openFiles(): Promise<string[]>
   }
@@ -215,6 +225,19 @@ interface OcrLine {
   w: number
   h: number
   conf: number
+}
+
+/** 应用内更新的状态（和主进程 update/service.ts 的 UpdateState 一致） */
+interface UpdateStateView {
+  phase: 'idle' | 'checking' | 'uptodate' | 'available' | 'downloading' | 'ready' | 'installing' | 'error'
+  mode: 'mac-zip' | 'win-nsis' | 'win-portable' | 'manual'
+  currentVersion: string
+  latestVersion?: string
+  notes?: string
+  progress?: { percent: number; transferred: number; total: number }
+  error?: { message: string; manual: boolean }
+  blocker?: { code: string; message: string }
+  announce?: boolean
 }
 
 interface Window {
