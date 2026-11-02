@@ -44,4 +44,9 @@ export function redact(text: string, secrets: string[] = []): string {
   return out
     .replace(/\b(sk|ak|key)-[A-Za-z0-9_-]{8,}/gi, '［密钥已隐藏］')   // 不含 ep-：豆包的推理接入点 ID（ep-…）是模型名，不是密钥
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]{8,}/gi, '$1［密钥已隐藏］')
+    .replace(/\bAIza[0-9A-Za-z_-]{20,}/g, '［密钥已隐藏］')   // Google 形态
+    // 其它长串（base62 / 十六进制 / base64url，至少 24 位且字母数字混合）：不认识的密钥也不能原样出去
+    // 不含连字符的 24 位以上混合串，或 40 位以上含连字符的串；模型名（如 Qwen3-235B-A22B-Instruct-2507）各段都短，不会被误伤
+    .replace(/(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_]*\d)(?=[A-Za-z0-9_]*[A-Za-z])[A-Za-z0-9_]{24,}(?![A-Za-z0-9_-])/g, '［密钥已隐藏］')
+    .replace(/(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{40,}(?![A-Za-z0-9_-])/g, '［密钥已隐藏］')
 }

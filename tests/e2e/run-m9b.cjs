@@ -58,6 +58,7 @@ async function main() {
     check('反馈', '「反馈问题」打开官方仓库的新建 Issue 页（github.com/ooohhhooo/juanzhi/issues/new）', !!u && u.origin + u.pathname === 'https://github.com/ooohhhooo/juanzhi/issues/new', opened)
     check('反馈', '预填了软件版本和系统', body.includes(info.version) && body.includes(`${info.platform} ${info.arch}`), body.slice(0, 120))
     check('反馈', '提醒附上诊断信息、不要写学生姓名和 API Key', /诊断/.test(body) && /学生姓名/.test(body) && /API Key/.test(body))
+    check('反馈', '指定了 bug_report.md 模板，且仓库有 config.yml（允许空白 Issue）', u?.searchParams.get('template') === 'bug_report.md' && /blank_issues_enabled: true/.test(fs.readFileSync(path.join(root, '.github/ISSUE_TEMPLATE/config.yml'), 'utf8')))
     check('反馈', '链接长度在安全范围内（< 2000）', opened.length < 2000, String(opened.length))
     check('反馈', '只有 https 的 github.com 主机（地址由主进程生成，页面传不进来）', u?.protocol === 'https:' && u?.host === 'github.com')
     check('反馈', '仓库里有 Bug 反馈模板 .github/ISSUE_TEMPLATE/bug_report.md', fs.existsSync(path.join(root, '.github/ISSUE_TEMPLATE/bug_report.md')) && /诊断/.test(fs.readFileSync(path.join(root, '.github/ISSUE_TEMPLATE/bug_report.md'), 'utf8')))
@@ -123,6 +124,26 @@ async function main() {
     mock.clearScript()
   }
 
+  // ───────────────────────── 2b. 制造几种失败，让日志里有失败路径（之后的黄金测试要证明它们也没泄漏）─────────────────────────
+  {
+    // 损坏的 PDF（文件名带学生姓名）→ 提取失败
+    const bad = path.join(fx, '张三期中-损坏.pdf'); fs.writeFileSync(bad, 'not a pdf, 学生张三的作文')
+    await L.dropFiles(page, [bad])
+    await waitFor(async () => (await papers()).some(p => p.file_name === '张三期中-损坏.pdf' && p.status === 'failed'), 60000)
+    // 非法 JSON、400 回显密钥 → 解析失败
+    mock.script([{ type: 'badjson', times: 8 }])
+    const inNames = (await papers()).filter(p => names.includes(p.file_name))
+    const target = inNames[inNames.length - 1]   // 后面「确认前 5 份」不会用到它
+    await page.evaluate(id => window.api.parse.start(id, 'ai').catch(() => null), target.id)
+    await waitFor(async () => (await papers()).find(p => p.id === target.id)?.status === 'failed', 90000)
+    mock.clearScript()
+    mock.script([{ type: '400echo', times: 3 }])
+    await page.evaluate(id => window.api.parse.start(id, 'ai').catch(() => null), target.id)
+    await waitFor(async () => (await papers()).find(p => p.id === target.id)?.status === 'failed', 90000)
+    mock.clearScript()
+    check('失败路径', '提取失败（损坏 PDF）和两种解析失败（非法 JSON、400 回显密钥）都发生了', (await papers()).some(p => p.file_name === '张三期中-损坏.pdf' && p.status === 'failed') && (await papers()).find(p => p.id === target.id)?.status === 'failed')
+  }
+
   // ───────────────────────── 3. 导出诊断信息 ─────────────────────────
   {
     // 让一份卷子是「已确认」，顺便让库里有各种状态
@@ -160,12 +181,13 @@ async function main() {
     if (bundle.includes(mock.baseUrl) || bundle.includes('/v1')) leaks.push('完整服务地址')
     if (bundle.includes(os.homedir())) leaks.push('用户目录')
     if (/学生王小明/.test(bundle)) leaks.push('学生姓名')
+    for (const bad of ['张三', '学生张三的作文', 'is not valid JSON', '"stem": "Look', 'Incorrect API key']) if (bundle.includes(bad)) leaks.push(`失败路径泄漏「${bad}」`)
     check('诊断信息', `黄金测试：zip 全文搜索（${entries.length} 个文件、${dbPapers.length} 份卷子、${dbStems.length} 条题干）找不到密钥 / 文件名 / 标题 / 题干 / 完整服务地址 / 用户目录 / 学生姓名`, leaks.length === 0 && dbStems.length > 5, leaks.join('；') || `题干 ${dbStems.length} 条`)
 
     const cfg = JSON.parse(texts['config.json'])
     check('诊断信息', 'config.json：只有服务地址的主机名，API Key 写「已设置」，并发数等设置照实记录', cfg.api_key === '已设置' && cfg.base_host === new URL(mock.baseUrl).host && cfg.concurrency === 4 && !('base_url' in cfg), JSON.stringify(cfg).slice(0, 200))
     const summary = JSON.parse(texts['summary.json'])
-    check('诊断信息', 'summary.json：版本、系统、数据库版本、各状态试卷数', !!summary.app.version && !!summary.system.platform && summary.database.schemaVersion > 0 && summary.counts.papersByStatus.reviewing >= 8, JSON.stringify(summary.counts))
+    check('诊断信息', 'summary.json：版本、系统、数据库版本、各状态试卷数', !!summary.app.version && !!summary.system.platform && summary.database.schemaVersion > 0 && (summary.counts.papersByStatus.reviewing ?? 0) + (summary.counts.papersByStatus.failed ?? 0) >= 8, JSON.stringify(summary.counts))
     const csv = texts['papers.csv'].trim().split('\n')
     check('诊断信息', 'papers.csv：每份卷子一行，编号只有 8 位短 id', csv.length - 1 === dbPapers.length && csv.slice(1).every(l => /^[0-9a-f]{8},/.test(l)), `${csv.length - 1} 行`)
     const queueJson = JSON.parse(texts['queue.json'])
@@ -185,13 +207,13 @@ async function main() {
     const short = await page.evaluate(() => window.api.diagnostics.short())
     check('诊断信息', '「复制简短诊断」：5 行文字，含版本、系统、模型、文字识别', short.split('\n').length === 5 && short.includes(summary.app.version) && /文字识别/.test(short) && !short.includes(SECRET), short.replace(/\n/g, ' / '))
     // 渲染端错误会被记进日志（限速、脱敏）
-    await page.evaluate(() => window.api.logError('window.onerror: 测试用的渲染端错误 sk-RENDERER-SECRET-123456'))
+    await page.evaluate(() => { window.api.logError('window.onerror TypeError #1a2b3c'); window.api.logError('window.onerror: 题干「请选出画线部分」 sk-RENDERER-SECRET-123456 D:\\x\\张三.pdf') })
     await sleep(500)
     const files = fs.readdirSync(path.join(ud, 'logs'))
     const logText = files.map(f => fs.readFileSync(path.join(ud, 'logs', f), 'utf8')).join('\n')
-    check('日志', '渲染端上报的错误写进了日志，且其中的密钥被抹掉', /renderer .*测试用的渲染端错误/.test(logText) && !logText.includes('sk-RENDERER-SECRET'), '')
+    check('日志', '渲染端上报的错误只记错误类型和短指纹；就算混进原文，冒号后面的内容、密钥、路径都不落盘', /renderer .*TypeError #1a2b3c/.test(logText) && !logText.includes('sk-RENDERER-SECRET') && !logText.includes('请选出画线部分') && !logText.includes('张三'), '')
     check('日志', '日志文件每个不超过 2 MB，总数不超过 5 个', files.length <= 5 && files.every(f => fs.statSync(path.join(ud, 'logs', f)).size <= 2 * 1024 * 1024), files.join(','))
-    check('日志', '整份日志里没有密钥、没有 AI 返回的题干、没有学生姓名', !logText.includes(SECRET) && !/学生王小明/.test(logText) && !dbStems.some(s => logText.includes(s)))
+    check('日志', '整份日志（含失败路径）里没有密钥、AI 返回的题干、学生姓名、文件名', !logText.includes(SECRET) && !/学生王小明/.test(logText) && !logText.includes('张三') && !dbStems.some(s => logText.includes(s)) && /解析失败/.test(logText) && /提取失败/.test(logText))
     await goto('#/settings'); await T('about-card').waitFor()
     await T('diag-open').click(); await T('diag-preview').waitFor()
     await sleep(500); await shot9('diagnostics-modal-light')

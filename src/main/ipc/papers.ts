@@ -11,7 +11,7 @@ import { notifyDataChanged } from '../events'
 import { PaperMetaSchema, PaperFilterSchema, ImportOptionsSchema, BatchIdsSchema } from '../types'
 import type { BatchItemResult } from '../types'
 import { allowPath, isPathAllowed } from '../allowedPaths'
-import { walkFolder } from '../pipeline/folder-walk'
+import { walkFolder, FOLDER_MAX_FILES, FOLDER_MAX_SKIPPED } from '../pipeline/folder-walk'
 import type { SkippedFile } from '../pipeline/folder-walk'
 import { getMainWindow } from '../window'
 
@@ -121,6 +121,8 @@ export function registerPaperIpc(): void {
     const paths = ExpandSchema.parse(rawPaths)
     const files: string[] = []
     const skipped: SkippedFile[] = []
+    let skippedMore = 0
+    let budget = FOLDER_MAX_FILES   // 一次调用里所有文件夹共用一个文件数上限
     let folders = 0
     let truncated = false
     for (const p of paths) {
@@ -129,13 +131,15 @@ export function registerPaperIpc(): void {
       if (!isDir) { files.push(p); continue }
       if (!isPathAllowed(p)) { skipped.push({ name: path.basename(p), reason: '文件夹未经授权：请通过对话框选择或拖入窗口' }); continue }
       folders++
-      const r = walkFolder(p)
+      const r = walkFolder(p, { maxFiles: Math.max(0, budget) })
+      budget -= r.files.length
       r.files.forEach(allowPath)
       files.push(...r.files)
-      skipped.push(...r.skipped)
-      truncated = truncated || r.truncated
+      for (const k of r.skipped) { if (skipped.length < FOLDER_MAX_SKIPPED) skipped.push(k); else skippedMore++ }
+      skippedMore += r.skippedMore
+      truncated = truncated || r.truncated || budget <= 0
     }
-    return { files, folders, skipped, truncated }
+    return { files, folders, skipped, skippedMore, truncated }
   })
 
   ipcMain.handle('dialog:openFolder', async () => {

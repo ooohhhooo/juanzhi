@@ -50,7 +50,7 @@ if (process.env.EWB_PRINT_USERDATA === '1') {
 }
 
 // 运行日志：尽早开始（含命令行模式）；AI 调用结果同时喂给自适应降速
-initLogging()
+initLogging({ crashDialog: !cliArgvOf(process.argv, app.isPackaged) })
 installAiObservers()
 
 protocol.registerSchemesAsPrivileged([

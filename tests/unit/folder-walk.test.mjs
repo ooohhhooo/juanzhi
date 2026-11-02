@@ -36,5 +36,13 @@ try {
 // 不存在的文件夹不抛错
 assert.deepEqual(walkFolder(path.join(root, 'nope')).files, [])
 assert.ok(isHiddenName('._x') && isHiddenName('.git') && !isHiddenName('卷子.pdf'))
+// 访问条目总数上限；跳过清单上限 + 其余只计数
+{ const t = walkFolder(root, { maxVisited: 3 }); assert.equal(t.truncated, true); assert.ok(t.files.length <= 3) }
+{
+  const many = path.join(root, 'many'); fs.mkdirSync(many)
+  for (let i = 0; i < 250; i++) fs.writeFileSync(path.join(many, `n${i}.txt`), 'x')
+  const t = walkFolder(many)
+  assert.equal(t.skipped.length, 200); assert.equal(t.skippedMore, 50); assert.equal(t.files.length, 0)
+}
 fs.rmSync(root, { recursive: true, force: true })
 console.log('folder-walk.test ✓')

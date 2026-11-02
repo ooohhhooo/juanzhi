@@ -6,6 +6,7 @@ import { onAiCall } from './client'
 import { aiThrottle } from './throttle'
 import { log } from '../log'
 import { notifyDataChanged } from '../events'
+import { pumpParseQueue } from '../parse/queue'
 
 let installed = false
 export function installAiObservers(): void {
@@ -14,7 +15,7 @@ export function installAiObservers(): void {
   onAiCall(e => {
     if (e.ok) {
       log.info('ai', '调用成功', { host: e.host, model: e.model, ms: e.latencyMs, promptTokens: e.promptTokens, completionTokens: e.completionTokens })
-      if (aiThrottle.onSuccess()) { log.info('ai', '限速恢复一路'); notifyDataChanged('queue') }
+      if (aiThrottle.onSuccess()) { log.info('ai', '限速恢复一路'); notifyDataChanged('queue'); pumpParseQueue() }
       return
     }
     log.warn('ai', '调用失败', { host: e.host, model: e.model, ms: e.latencyMs, status: e.status ?? undefined, code: e.code ?? undefined })

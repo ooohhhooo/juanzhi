@@ -94,6 +94,6 @@ export function feedbackUrl(i: { version: string; platform: string; arch: string
     '',
     '提醒：请不要在反馈里写学生姓名、不要贴 API Key。'
   ].join('\n')
-  const q = new URLSearchParams({ title: `[公测] `, body, labels: 'beta' })
+  const q = new URLSearchParams({ template: 'bug_report.md', title: '[公测] ', body, labels: 'beta' })
   return `https://github.com/ooohhhooo/juanzhi/issues/new?${q.toString()}`
 }

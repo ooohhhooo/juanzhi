@@ -6,6 +6,8 @@ You only do this once. Text-based PDFs and Word files do not need OCR (Juanzhi r
 
 > Tip: Method 1 (Settings) is the most reliable. Method 2 (one PowerShell line) is faster if you have administrator rights or need to set up several PCs.
 
+Juanzhi asks Windows directly for the Simplified Chinese (zh-Hans-CN) recognizer, so once the Chinese OCR capability is installed it works; Chinese does **not** have to be in your Windows preferred-language list (so the Method 2 one-liner is enough). This has not been confirmed on every real machine: if Settings still shows English only afterwards, add Chinese through Method 1 as well.
+
 ## Before you start
 
 - The PC must be **online** (the package comes from Microsoft; tens of MB, a few minutes).

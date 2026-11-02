@@ -8,19 +8,20 @@ export function useImportFlow() {
   const queryClient = useQueryClient()
 
   /** 文件夹确认：告诉用户找到多少个文件、跳过多少个（列出前几个和原因），确认后才导入 */
-  function confirmFolder(ex: { files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; truncated: boolean }): Promise<boolean> {
+  function confirmFolder(ex: { files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }): Promise<boolean> {
     return new Promise(resolve => {
       const shown = ex.skipped.slice(0, 12)
+      const skippedTotal = ex.skipped.length + (ex.skippedMore ?? 0)
       modal.confirm({
         title: ex.folders > 1 ? `发现 ${ex.folders} 个文件夹` : '发现文件夹',
         content: (
           <div data-testid="folder-confirm">
-            <div>找到 <b data-testid="folder-count">{ex.files.length}</b> 个可以导入的试卷文件{ex.truncated ? '（文件太多，只取了前面一部分，导入完再选一次剩下的）' : ''}，将跳过 <b data-testid="folder-skipped-count">{ex.skipped.length}</b> 个。</div>
+            <div>找到 <b data-testid="folder-count">{ex.files.length}</b> 个可以导入的试卷文件{ex.truncated ? '（文件太多，只取了前面一部分，导入完再选一次剩下的）' : ''}，将跳过 <b data-testid="folder-skipped-count">{skippedTotal}</b> 个。</div>
             {shown.length > 0 && (
               <div style={{ marginTop: 8 }} data-testid="folder-skipped">
                 <div>跳过的文件：</div>
                 {shown.map((k, i) => <div key={i} style={{ opacity: 0.8 }}>· {k.name}（{k.reason}）</div>)}
-                {ex.skipped.length > shown.length && <div style={{ opacity: 0.8 }}>……还有 {ex.skipped.length - shown.length} 个</div>}
+                {skippedTotal > shown.length && <div style={{ opacity: 0.8 }} data-testid="folder-skipped-more">另有 {skippedTotal - shown.length} 个已跳过</div>}
               </div>
             )}
             <div style={{ marginTop: 8 }}>内容完全相同的文件会再问你一次。</div>
@@ -42,7 +43,7 @@ export function useImportFlow() {
       if (!allowDuplicates && window.api.papers.expandPaths) {
         const ex = await window.api.papers.expandPaths(paths)
         if (ex.folders > 0) {
-          if (ex.files.length === 0) { message.warning(`文件夹里没有可以导入的试卷文件${ex.skipped.length ? `（跳过了 ${ex.skipped.length} 个）` : ''}`); return }
+          if (ex.files.length === 0) { message.warning(`文件夹里没有可以导入的试卷文件${ex.skipped.length ? `（跳过了 ${ex.skipped.length + (ex.skippedMore ?? 0)} 个）` : ''}`); return }
           if (!(await confirmFolder(ex))) return
         }
         list = ex.files

@@ -9,10 +9,19 @@ import { log, logRendererError } from '../log'
 
 const stamp = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}` }
 
+/** 预览和导出用同一份：预览收集的内容缓存 60 秒，导出时原样写出（用户看到的就是存下的）；过期了才重新收集 */
+const CACHE_MS = 60_000
+let cache: { at: number; entries: Awaited<ReturnType<typeof collectDiagnostics>> } | null = null
+async function entriesForExport() {
+  if (cache && Date.now() - cache.at < CACHE_MS) return cache.entries
+  return collectDiagnostics()
+}
+
 export function registerDiagnosticsIpc(): void {
   // 先让用户看到里面到底有什么，再决定存不存
   ipcMain.handle('diagnostics:preview', async () => {
     const entries = await collectDiagnostics()
+    cache = { at: Date.now(), entries }
     return {
       entries: entries.map(e => ({ name: e.name, desc: e.desc, bytes: e.bytes })),
       totalBytes: entries.reduce((s, e) => s + e.bytes, 0),
@@ -30,7 +39,8 @@ export function registerDiagnosticsIpc(): void {
     let out = r.filePath
     if (!/\.zip$/i.test(out)) out += '.zip'
     if (isInside(out, getDataDir()) || isInside(out, app.getPath('userData'))) throw new Error('不能把诊断信息保存在应用的数据目录里面，请换一个位置')
-    const entries = await collectDiagnostics()
+    const entries = await entriesForExport()
+    cache = null
     const bytes = await writeDiagnosticsZip(entries, out)
     log.info('diagnostics', '已导出诊断信息', { files: entries.length, bytes })
     return { saved: true, path: out, dir: path.dirname(out), bytes, files: entries.length }

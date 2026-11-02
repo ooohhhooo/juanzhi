@@ -39,6 +39,7 @@ const url = feedbackUrl({ version: '1.3.0-beta.1', platform: 'darwin', arch: 'ar
 const u = new URL(url)
 assert.equal(u.origin + u.pathname, 'https://github.com/ooohhhooo/juanzhi/issues/new')
 const body = u.searchParams.get('body')
+assert.equal(u.searchParams.get('template'), 'bug_report.md')
 assert.ok(body.includes('1.3.0-beta.1') && body.includes('darwin arm64') && body.includes('诊断') && body.includes('学生姓名') && body.includes('API Key'))
 assert.ok(url.length < 2000, `链接太长：${url.length}`)
 

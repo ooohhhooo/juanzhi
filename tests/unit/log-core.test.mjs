@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createLogWriter, sanitize, MAX_LINE_CHARS } from '../../src/main/log-core.ts'
+import { createLogWriter, sanitize, reduceConsoleMessage, MAX_LINE_CHARS } from '../../src/main/log-core.ts'
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-log-'))
 const SECRET = 'sk-abcdef1234567890SECRETKEY'
@@ -21,11 +21,39 @@ const home = os.homedir()
 // 2. 路径里的用户名、网址的路径与参数
 {
   const s = sanitize(`打开 ${home}/Documents/试卷/张三.pdf 失败`, [], home)
-  assert.ok(!s.includes(home) && s.includes('~'), s)
+  assert.ok(!s.includes(home) && !s.includes('张三') && s.includes('<path>.pdf'), s)
   assert.ok(!sanitize('C:\\Users\\zhangsan\\Desktop\\a.pdf').includes('zhangsan'))
   assert.ok(!sanitize('/Users/lisi/x').includes('lisi'))
   const u = sanitize('POST https://api.example.com/v1/chat/completions?key=abc 返回 429')
   assert.ok(u.includes('api.example.com') && !u.includes('/v1/') && !u.includes('key=abc'), u)
+}
+// 2b. 各种形态的路径整段隐藏（保留扩展名）；用户名带空格也不漏
+{
+  for (const [raw, leak] of [['D:\\x\\张三.pdf', '张三'], ['\\\\srv\\share\\a.pdf', 'srv'], ['/Volumes/X/张三期中.pdf', '张三'], ['C:\\Users\\Zhang San\\Desktop\\期中 卷.pdf', 'Zhang'], ['/Users/Zhang San/Documents/a.docx', 'Zhang']]) {
+    const s = sanitize(`导入 ${raw} 失败`)
+    assert.ok(!s.includes(leak) && !s.includes('Users') && /<path>\.(pdf|docx)/.test(s), `${raw} → ${s}`)
+  }
+  assert.ok(!sanitize('C:\\Users\\Zhang San\\').includes('Zhang'))
+  assert.ok(!sanitize('/Users/Zhang San/Documents/').includes('Zhang'))
+  // 用户信息里带 / 的网址
+  const u = sanitize('GET https://us/er:pa/ss@api.example.com/v1/x?k=1')
+  assert.ok(u.includes('api.example.com') && !u.includes('pa/ss') && !u.includes('/v1'), u)
+  // 不认识的长密钥、Google 形态
+  assert.ok(!sanitize('key AIzaSyA1234567890abcdefghijklmnopqrstu x').includes('AIzaSy'))
+  assert.ok(sanitize('model Qwen3-235B-A22B-Instruct-2507 forbidden').includes('Qwen3-235B-A22B-Instruct-2507'))
+  assert.ok(!sanitize('tok a1b2c3d4e5f6a7b8c9d0e1f2a3b4 end').includes('a1b2c3d4e5f6'))
+  assert.ok(!sanitize('token Zm9vYmFyMTIzNDU2Nzg5MGFiY2RlZmdoaWo').includes('Zm9vYmFy'))
+  assert.ok(!sanitize('hex 0123456789abcdef0123456789abcdef').includes('0123456789abcdef0123'))
+}
+// 2c. console 的原文：冒号 / 竖线之后的错误原文（可能含 AI 返回的题干、文件名）不落盘
+{
+  const jsonErr = `非法 JSON：Unexpected token '题', "{"stem": "请选出画线部分读音不同的一项" is not valid JSON`
+  const r = reduceConsoleMessage(jsonErr)
+  assert.equal(r, '非法 JSON')
+  assert.equal(reduceConsoleMessage('失败 ab12cd34: Bad request | {"error":"学生张三的作文"}'), '失败 ab12cd34')
+  assert.equal(reduceConsoleMessage('OCR 失败: /Volumes/X/张三期中.pdf 读不出来'), 'OCR 失败')
+  assert.ok(reduceConsoleMessage('x'.repeat(200)).length <= 61)
+  assert.equal(reduceConsoleMessage('已把 3 份中断的解析退回'), '已把 3 份中断的解析退回')
 }
 // 3. 过长的文字（比如误传进来的提示词 / AI 返回）被截断
 {

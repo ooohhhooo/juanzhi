@@ -13,7 +13,7 @@ const api = {
     import: (paths: string[], opts?: { allowDuplicates?: string[] }): Promise<any[]> =>
       ipcRenderer.invoke('papers:import', paths, opts),
     /** 把拖入 / 选择的路径展开：文件夹递归找出里面支持的试卷文件（跳过隐藏文件），返回要导入的文件和被跳过的 */
-    expandPaths: (paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; truncated: boolean }> =>
+    expandPaths: (paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }> =>
       ipcRenderer.invoke('papers:expandPaths', paths),
     assets: (paperId: string): Promise<any[]> =>
       ipcRenderer.invoke('papers:assets', paperId),

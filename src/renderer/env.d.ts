@@ -2,7 +2,7 @@ interface ElectronAPI {
   getPathForFile(file: File): string
   papers: {
     import(paths: string[], opts?: { allowDuplicates?: string[] }): Promise<ImportResult[]>
-    expandPaths(paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; truncated: boolean }>
+    expandPaths(paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }>
     assets(paperId: string): Promise<PaperAsset[]>
     reprocess(id: string): Promise<boolean>
     /** 疑似重复的卷子，老师选「确实是新卷，计入统计」 */

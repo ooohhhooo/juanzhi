@@ -118,6 +118,9 @@ async function runJob(job: Job): Promise<void> {
   }
 }
 
+/** 限速恢复、并发允许变大时，让排队的试卷马上补上 */
+export function pumpParseQueue(): void { pump() }
+
 function pump(): void {
   if (isQueuePaused()) return
   const limit = effectiveConcurrency()

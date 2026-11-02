@@ -11,16 +11,43 @@ import { redact } from './ai/guard.ts'
 /** 单条日志最长字数：再长的一律截断（防止把整段 AI 返回或题干误写进来） */
 export const MAX_LINE_CHARS = 400
 
-/** 把一段文字变成可以安全落盘的样子：去密钥、路径里的用户名换成 ~、网址只留主机名、截断 */
+const EXT = '(?:pdf|jpe?g|png|heic|docx?|zip|txt|json|csv|md)'
+/** 路径整段换成 <path>（保留扩展名）：盘符路径、UNC 路径、/ 开头的绝对路径；文件名里有空格也整段处理 */
+function maskPaths(input: string): string {
+  const keepExt = (m: string) => { const e = /\.([A-Za-z0-9]{1,5})$/.exec(m); return e ? `<path>.${e[1]}` : '<path>' }
+  let out = input
+  // 带已知扩展名的：允许中间有空格（文件名常有空格）
+  out = out.replace(new RegExp(`[A-Za-z]:\\\\[^"'<>|*?\\n]*?\\.${EXT}\\b`, 'gi'), keepExt)
+  out = out.replace(new RegExp(`\\\\\\\\[^"'<>|*?\\n\\\\]+\\\\[^"'<>|*?\\n]*?\\.${EXT}\\b`, 'gi'), keepExt)
+  out = out.replace(new RegExp(`(?<![\\w:/.])/(?:[^"'<>|*?\\n/]+/)+[^"'<>|*?\\n]*?\\.${EXT}\\b`, 'gi'), keepExt)
+  // 没有扩展名的（目录等）：到空白为止
+  out = out.replace(/[A-Za-z]:\\[^\s"'<>|*?]*/g, '<path>')
+  out = out.replace(/\\\\[^\s"'<>|*?\\]+\\[^\s"'<>|*?]*/g, '<path>')
+  out = out.replace(/(?<![\w:/.])\/(?:[^\s"'<>|*?/]+\/)+[^\s"'<>|*?]*/g, '<path>')
+  return out
+}
+
+/** 把一段文字变成可以安全落盘的样子：去密钥、路径整段隐藏、网址只留主机名、截断 */
 export function sanitize(text: string, secrets: string[] = [], home = os.homedir()): string {
   let out = redact(String(text), secrets)
+  // 网址只留主机名（路径、参数、带 / 的用户信息都去掉）；先于路径处理，免得 //host/ 被当成路径
+  out = out.replace(/\bhttps?:\/\/(?:[^\s@'"]*@)?([^\s/'"）)?#]+)[^\s'"）)]*/gi, (_m, host: string) => `http://${host}`)
+  out = maskPaths(out)
   if (home && home.length > 2) out = out.split(home).join('~')
-  // Windows 的 C:\Users\某某\ 和 macOS 的 /Users/某某/
-  out = out.replace(/([A-Za-z]:\\Users\\)[^\\\s]+/g, '$1~').replace(/(\/Users\/|\/home\/)[^/\s]+/g, '$1~')
-  // 网址只留主机名（路径和参数里可能带标识）
-  out = out.replace(/\bhttps?:\/\/([^\s/'"）)]+)[^\s'"）)]*/gi, (_m, host: string) => `http://${host.replace(/^[^@]*@/, '')}`)
+  // 用户目录名（可含空格）
+  out = out.replace(/([A-Za-z]:\\Users\\)[^\\/]+/g, '$1~').replace(/(\/Users\/|\/home\/)[^/]+/g, '$1~')
   out = out.replace(/\s+/g, ' ').trim()
   return out.length > MAX_LINE_CHARS ? `${out.slice(0, MAX_LINE_CHARS)}…(已截断)` : out
+}
+
+/**
+ * console.* 的内容不能原样落盘：冒号（：或 ": "）或竖线之后往往是错误原文，里面可能有 AI 返回的题干、文件名、服务商响应。
+ * 只保留第一个分隔符之前的「发生了什么」，再截到 60 字。
+ */
+export function reduceConsoleMessage(text: string): string {
+  const cut = text.search(/：|:\s|\s\|\s|\n/)
+  const head = cut >= 0 ? text.slice(0, cut) : text
+  return head.length > 60 ? `${head.slice(0, 60)}…` : head
 }
 
 export type LogLevel = 'info' | 'warn' | 'error'
