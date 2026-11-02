@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -150,6 +150,16 @@ const api = {
       ipcRenderer.invoke('cli:status'),
     install: (): Promise<{ ok: boolean; platform: string; path: string; dir: string; onPath: boolean; hint: string; warnings: string[] }> =>
       ipcRenderer.invoke('cli:install'),
+  },
+  /** 应用内更新：state 当前状态；check 检查（silent = 静默）；download 下载并校验；install 退出并替换（有任务在跑会返回 busy，force 放弃任务） */
+  update: {
+    state: (): Promise<any> => ipcRenderer.invoke('update:state'),
+    check: (silent?: boolean): Promise<any> => ipcRenderer.invoke('update:check', { silent: !!silent }),
+    download: (): Promise<any> => ipcRenderer.invoke('update:download'),
+    cancel: (): Promise<boolean> => ipcRenderer.invoke('update:cancel'),
+    install: (force?: boolean): Promise<{ ok: boolean; busy?: string; hard?: boolean; message?: string }> => ipcRenderer.invoke('update:install', { force: !!force }),
+    skip: (version: string): Promise<boolean> => ipcRenderer.invoke('update:skip', version),
+    openReleasePage: (): Promise<boolean> => ipcRenderer.invoke('update:openReleasePage'),
   },
   dialog: {
     openFiles: (): Promise<string[]> =>

@@ -36,5 +36,6 @@ export const READONLY_CHANNELS = new Set([
   'settings:get', 'settings:getDataDir', 'settings:openDataDir',
   'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
   'taxonomy:tree',
+  'update:state', 'update:check', 'update:download', 'update:cancel', 'update:install', 'update:skip', 'update:openReleasePage',   // 应用内更新：只写临时目录和一个小状态文件，不动数据
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

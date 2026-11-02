@@ -27,6 +27,8 @@ import { getRestartPending, setExporting, setRestartPending } from '../restart'
 
 // 一次只做一件「动整个数据」的事
 let opActive: string | null = null
+/** 现在正在做的「动整个数据」的事（导出 / 导入数据包、改数据目录……）；应用内更新据此拒绝安装 */
+export const activeDataOp = (): string | null => opActive
 async function withOp<T>(name: string, fn: () => Promise<T>): Promise<T> {
   if (opActive) throw new Error(`正在${opActive}，请等它结束再操作`)
   opActive = name

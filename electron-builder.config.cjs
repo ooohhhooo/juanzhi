@@ -1,7 +1,7 @@
 // electron-builder 配置（M5）。用法见 scripts/dist.cjs（npm run dist:mac / dist:win / dist）。
 //
 // 取舍（每一条都在 docs/M5-交付说明.md 里有说明）：
-//  · Mac：dmg，arm64 和 x64 各一个（不做 universal：每个包小一半，老师按「关于本机」下载对应的；安装指南里讲了怎么看）。ad-hoc 签名（identity '-'），不公证。
+//  · Mac：dmg + zip（zip 给应用内更新），arm64 和 x64 各一个（不做 universal：每个包小一半，老师按「关于本机」下载对应的；安装指南里讲了怎么看）。ad-hoc 签名（identity '-'），不公证。
 //  · Windows：NSIS 安装包（可选安装目录、桌面快捷方式、中文界面、默认装到当前用户目录——不需要管理员权限）+ portable，x64。
 //  · 在 Mac 上交叉打 Windows 包时没有 Wine：关掉 electron-builder 自带的「用 rcedit 改 exe 图标 / 版本信息」，改由 scripts/after-pack.cjs 用纯 JS 的 resedit 改。
 //  · 不带原生 npm 模块：node:sqlite 内置在 Electron 里；pdfjs-dist 的可选依赖 @napi-rs/canvas 只给 Node 里渲染用，我们的 pdf.js 跑在渲染进程里，所以排除。
@@ -16,6 +16,9 @@ module.exports = {
   copyright: 'Copyright © 2026 ooohhhooo',
   directories: { output: process.env.EWB_BUILD_DIR || 'release', buildResources: 'build' },
   asar: true,
+  // 应用内更新（src/main/update）：这里的 publish 只让 electron-builder 生成 latest.yml / latest-mac.yml（含 sha512）；
+  // 永远不上传——scripts/dist.cjs 固定带 --publish never，Release 由人 / release-assets 工作流创建。更新源地址在 src/main/update/core.ts 的 feedBases。
+  publish: [{ provider: 'github', owner: 'ooohhhooo', repo: 'juanzhi' }],
   // 不重建原生模块（本应用没有；也避免交叉打包时去编译 @napi-rs/canvas）
   npmRebuild: false,
   nodeGypRebuild: false,
@@ -45,7 +48,7 @@ module.exports = {
   ],
   // OCR 组件放在 asar 外（要被当作可执行文件 / 脚本启动）：运行时路径 = process.resourcesPath + /native/...（src/main/pipeline/ocr.ts）
   mac: {
-    target: [{ target: 'dmg', arch: ['arm64', 'x64'] }],
+    target: [{ target: 'dmg', arch: ['arm64', 'x64'] }, { target: 'zip', arch: ['arm64', 'x64'] }],   // zip 给应用内更新用（latest-mac.yml 指向它）；dmg 给第一次安装
     category: 'public.app-category.education',
     icon: 'build/icon.icns',
     // ad-hoc 签名（不是开发者签名）：不公证，首次打开要「右键 → 打开」（见 docs/安装指南.md）
