@@ -33,6 +33,8 @@ export interface ContentsProps {
   onNavigate: (key: string) => void
   /** 在底部显示外观切换，默认 true */
   showThemeSwitch?: boolean
+  /** 品牌下面的一行小字（如「公测版」）：文字标签，不是图标 */
+  brandNote?: string
 }
 
 function Link({ item, active, onNavigate }: { item: ContentsItem; active: boolean; onNavigate: (k: string) => void }) {
@@ -51,10 +53,10 @@ function Link({ item, active, onNavigate }: { item: ContentsItem; active: boolea
   )
 }
 
-export default function Contents({ items, footerItems, activeKey, onNavigate, showThemeSwitch = true }: ContentsProps) {
+export default function Contents({ items, footerItems, activeKey, onNavigate, showThemeSwitch = true, brandNote }: ContentsProps) {
   return (
     <nav className="ewb-contents" aria-label="目录">
-      <div className="ewb-contents__brand"><BrandMark size={52} /></div>
+      <div className="ewb-contents__brand"><BrandMark size={52} />{brandNote && <span className="ewb-contents__beta" data-testid="beta-badge">{brandNote}</span>}</div>
       <ul className="ewb-contents__list">
         {items.map(it => <Link key={it.key} item={it} active={it.key === activeKey} onNavigate={onNavigate} />)}
       </ul>

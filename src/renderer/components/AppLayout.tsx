@@ -35,7 +35,7 @@ export default function AppLayout() {
   return (
     <div className="ewb-shell" data-testid="app-shell">
       <aside className="ewb-sider">
-        <Contents items={NAV_ITEMS(active, reviewing)} footerItems={NAV_FOOTER} activeKey={selectedKey} onNavigate={navigate} />
+        <Contents items={NAV_ITEMS(active, reviewing)} footerItems={NAV_FOOTER} brandNote="公测版" activeKey={selectedKey} onNavigate={navigate} />
       </aside>
       <main className="ewb-main" data-testid="app-main">
         {showFilter && (

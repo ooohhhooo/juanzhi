@@ -8,6 +8,9 @@ import { loadConfig, isAiReady } from '../ai/config'
 import { AiError } from '../ai/client'
 import { friendlyAiError } from '../ai/friendly'
 import { isQueuePaused, onResume } from '../pipeline/control'
+import { refreshPower, registerBusySource } from '../power'
+import { aiThrottle, MAX_CONCURRENCY } from '../ai/throttle'
+import { log, shortId } from '../log'
 import { parsePaper, ParseError } from './run'
 import type { FromStage } from './run'
 import type { JobProgress } from '../types'
@@ -26,6 +29,16 @@ export interface ParseQueueState {
 const waiting: Job[] = []
 const running = new Map<string, Job>()
 const lastProgress = new Map<string, JobProgress>()
+registerBusySource(() => running.size > 0 || (waiting.length > 0 && !isQueuePaused()))
+
+/** 当前允许同时解析几份：用户设定的并发（最多 16）经自适应降速压低后的值 */
+export function effectiveConcurrency(): number {
+  return aiThrottle.effective(Math.min(MAX_CONCURRENCY, loadConfig().concurrency))
+}
+/** 给队列页：现在是不是被服务商限速压低了 */
+export function throttleState() {
+  return aiThrottle.state(Math.min(MAX_CONCURRENCY, loadConfig().concurrency))
+}
 
 export function isParseActive(paperId: string): boolean {
   return running.has(paperId) || waiting.some(j => j.paperId === paperId)
@@ -46,12 +59,13 @@ export function enqueueParse(paperId: string, fromStage?: FromStage): void {
   if (isParseActive(paperId)) return
   waiting.push({ paperId, fromStage, ctl: new AbortController() })
   notifyDataChanged('queue')
+  refreshPower()
   pump()
 }
 
 export function cancelParse(paperId: string): boolean {
   const wi = waiting.findIndex(j => j.paperId === paperId)
-  if (wi >= 0) { waiting.splice(wi, 1); notifyDataChanged('queue'); return true }
+  if (wi >= 0) { waiting.splice(wi, 1); notifyDataChanged('queue'); refreshPower(); return true }
   const job = running.get(paperId)
   if (job) { job.ctl.abort(); return true }
   return false
@@ -68,11 +82,14 @@ async function runJob(job: Job): Promise<void> {
   const db = getDb()
   const before = db.prepare('SELECT status, error, error_stage FROM papers WHERE id = ?').get(job.paperId) as any
   if (!before) return
+  const t0 = Date.now()
+  log.info('parse', '开始解析', { paper: shortId(job.paperId), from: job.fromStage ?? 'start' })
   try {
     await parsePaper(job.paperId, job.fromStage, {
       signal: job.ctl.signal,
       onProgress: p => { lastProgress.set(p.paperId, p); sendProgress(p) }
     })
+    log.info('parse', '解析完成', { paper: shortId(job.paperId), ms: Date.now() - t0 })
   } catch (e) {
     if (job.ctl.signal.aborted || (e instanceof AiError && e.code === 'aborted')) {
       // 用户取消：回到开始前的状态，不算失败
@@ -80,9 +97,11 @@ async function runJob(job: Job): Promise<void> {
         .run(before.status === 'parsing' ? 'extracted' : before.status, before.error, before.error_stage, job.paperId)
       db.prepare("UPDATE parse_runs SET status = 'cancelled', finished_at = datetime('now','localtime') WHERE paper_id = ? AND status IN ('running','ai_done')").run(job.paperId)
       sendProgress({ paperId: job.paperId, stage: 'cancelled', progress: 0, message: '已取消' })
+      log.info('parse', '已取消', { paper: shortId(job.paperId), ms: Date.now() - t0 })
     } else {
       const { message: msg, detail } = userMessage(e)
-      console.warn(`[parse] 失败 ${job.paperId}: ${(e as Error).message}${detail ? ` | ${detail}` : ''}`)
+      log.warn('parse', '解析失败', { paper: shortId(job.paperId), ms: Date.now() - t0, code: e instanceof AiError ? e.code : e instanceof ParseError ? `parse-${e.stage}` : 'other' })
+      console.warn(`[parse] 失败 ${shortId(job.paperId)}: ${(e as Error).message}${detail ? ` | ${detail}` : ''}`)
       const stage = e instanceof ParseError ? e.stage : 'ai'
       db.prepare("UPDATE papers SET status = 'failed', error = ?, error_detail = ?, error_stage = 'parse', parse_stage = ? WHERE id = ?").run(msg, detail.slice(0, 1000) || null, stage, job.paperId)
       // 定位/入库阶段的失败也要把这次运行记为 failed（AI 阶段的失败 run.ts 里已经记过）
@@ -94,19 +113,21 @@ async function runJob(job: Job): Promise<void> {
     running.delete(job.paperId)
     lastProgress.delete(job.paperId)
     notifyDataChanged('papers', 'questions', 'materials', 'queue', 'usage')
+    refreshPower()
     pump()
   }
 }
 
 function pump(): void {
   if (isQueuePaused()) return
-  const limit = loadConfig().concurrency
+  const limit = effectiveConcurrency()
   while (running.size < limit && waiting.length > 0) {
     const job = waiting.shift()!
     running.set(job.paperId, job)
     notifyDataChanged('queue')
     void runJob(job)
   }
+  refreshPower()
 }
 
 onResume(() => { pump(); notifyDataChanged('queue') })

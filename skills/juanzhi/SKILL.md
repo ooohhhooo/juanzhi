@@ -44,8 +44,9 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 | `report generate --reader boss\|teacher\|parent\|full [筛选]` | 生成报告 |
 | `report list` / `report show <id>` | 报告列表 / 详情 |
 | `report export <id> --format md\|docx\|pdf --out <路径>` | 导出文件 |
+| `diagnostics --out <文件.zip> [--overwrite]` | 导出诊断信息（版本、系统、脱敏设置、队列、日志；不含学生数据和密钥）。用户遇到问题时帮他生成，让他自己作为附件发到反馈页，不会自动上传 |
 
-`--out <文件>` 把 JSON 同时写进文件（`report export` 里 `--out` 是文档路径，JSON 副本用 `--result-file <文件>`）。
+`--out <文件>` 把 JSON 同时写进文件（`report export`、`diagnostics` 里 `--out` 是导出文件的路径，JSON 副本用 `--result-file <文件>`）。
 
 ## 典型流程
 

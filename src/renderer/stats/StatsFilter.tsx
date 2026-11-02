@@ -4,6 +4,7 @@ import { Popconfirm, Segmented, Select, Switch, Tooltip } from 'antd'
 import { Btn, ScopeBar, ScopeField, UsageNote } from '../design'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { sanitizePaperIds } from '../../shared/library-select'
+import PaperPicker from './PaperPicker'
 
 /** 全局筛选条件（总览与分析看板共用）。存在设置里（ui_stats_filter），重启后记住。 */
 const SETTING_KEY = 'ui_stats_filter'
@@ -187,6 +188,7 @@ export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
   return (
     <div data-testid="filter-bar">
       <ScopeBar scope={scopeSentence(filter, ov ? ov.cards.papers : null, grades)} first={g.first} last={g.last} actions={actions} open={open} onOpenChange={v => { scopeOpenMemo = v; setOpen(v) }}>
+        <PaperPicker papers={allPapers} />
         {sel('年级', 'filter-grade', '全部', filter.grade, GRADES.map(g => ({ value: g, label: GRADE_LABEL[Number(g)] })), 'grade', 112)}
         {sel('学期', 'filter-semester', '全部', filter.semester, SEMESTERS.map(s => ({ value: s, label: `${s}学期` })), 'semester', 112)}
         {sel('学年', 'filter-year', '全部', filter.school_year_start, (opts?.years ?? []).map(y => ({ value: y, label: `${y}-${y + 1}` })), 'school_year_start', 136)}

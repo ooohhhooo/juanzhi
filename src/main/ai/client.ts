@@ -95,6 +95,34 @@ export interface ChatResult {
   fellBackTo: number | null
 }
 
+/** 每次实际发出的请求（含重试）结束后的元数据，给运行日志和自适应降速用：不含密钥、提示词和返回正文 */
+export interface AiCallEvent {
+  ok: boolean
+  model: string
+  host: string
+  status: number | null
+  code: AiErrorCode | null
+  latencyMs: number
+  promptTokens: number
+  completionTokens: number
+  retryAfterMs: number
+}
+const callObservers = new Set<(e: AiCallEvent) => void>()
+/** 订阅所有 AI 调用的结果；返回取消订阅函数 */
+export function onAiCall(fn: (e: AiCallEvent) => void): () => void { callObservers.add(fn); return () => { callObservers.delete(fn) } }
+function emitCall(req: ChatRequest, startedAt: number, r: { usage?: Usage; error?: AiError }): void {
+  if (callObservers.size === 0) return
+  let host = ''
+  try { host = new URL(req.baseUrl).host } catch { /* 地址不合法就留空 */ }
+  const e = r.error
+  const ev: AiCallEvent = {
+    ok: !e, model: req.model, host, status: e?.status ?? null, code: e?.code ?? null, latencyMs: Date.now() - startedAt,
+    promptTokens: r.usage?.promptTokens ?? 0, completionTokens: r.usage?.completionTokens ?? 0,
+    retryAfterMs: (e as (AiError & { retryAfterMs?: number }) | undefined)?.retryAfterMs ?? 0
+  }
+  for (const fn of callObservers) { try { fn(ev) } catch { /* 观察者出错不影响调用 */ } }
+}
+
 const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
   const t = setTimeout(resolve, ms)
   signal?.addEventListener('abort', () => { clearTimeout(t); reject(new AiError('aborted', '已取消')) }, { once: true })
@@ -299,6 +327,7 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
     try {
       const r = await once(req, jsonMode, sendTemperature, maxTokens, deadline)
       req.onAttempt?.({ attempt, ok: true, usage: r.usage })
+      emitCall(req, startedAt, { usage: r.usage })
       if (r.finishReason === 'length') {
         const why = `finish_reason=length；max_tokens=${maxTokens ?? '默认'}；正文 ${r.content.length} 字；思考 ${r.reasoningChars} 字${r.usage.reasoningTokens ? `（${r.usage.reasoningTokens} tokens）` : ''}${escalated ? '；已自动加大上限重试过' : ''}`
         const te = new AiError('truncated', '模型输出被长度上限截断（内容太多）', null, why)
@@ -342,6 +371,7 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
         lastTruncated.detail += `；加大到 ${maxTokens} 后被服务商拒绝（${err.detail.slice(0, 120)}）`
         err = lastTruncated
       }
+      if (err.code !== 'aborted') emitCall(req, startedAt, { error: err })
       if (err.code !== 'truncated' && err.code !== 'empty') req.onAttempt?.({ attempt, ok: false, error: err })
       // 服务商不认 response_format：去掉后重试（不计入重试次数）
       if (err.code === 'bad_request' && jsonMode && /response_format|json_object|json_schema/i.test(err.detail)) {

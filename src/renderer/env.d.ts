@@ -2,6 +2,7 @@ interface ElectronAPI {
   getPathForFile(file: File): string
   papers: {
     import(paths: string[], opts?: { allowDuplicates?: string[] }): Promise<ImportResult[]>
+    expandPaths(paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; truncated: boolean }>
     assets(paperId: string): Promise<PaperAsset[]>
     reprocess(id: string): Promise<boolean>
     /** 疑似重复的卷子，老师选「确实是新卷，计入统计」 */
@@ -135,7 +136,18 @@ interface ElectronAPI {
   }
   dialog: {
     openFiles(): Promise<string[]>
+    openFolder(): Promise<string[]>
   }
+  diagnostics: {
+    preview(): Promise<{ entries: Array<{ name: string; desc: string; bytes: number }>; totalBytes: number; neverIncluded: string[] }>
+    export(): Promise<{ saved: boolean; path?: string; dir?: string; bytes?: number; files?: number }>
+    short(): Promise<string>
+  }
+  feedback: {
+    url(): Promise<string>
+    open(): Promise<boolean>
+  }
+  logError(msg: string): void
   on(channel: string, callback: (...args: any[]) => void): () => void
 }
 
@@ -301,6 +313,10 @@ interface UsageRow {
 interface QueueState {
   paused: boolean
   concurrency: number
+  /** 服务商限速时被自动压低后的并发（throttled = 正在放慢） */
+  throttle: { throttled: boolean; effective: number; configured: number }
+  /** 正在阻止电脑因空闲而睡眠 */
+  power: boolean
   aiReady: boolean
   extract: { waiting: string[]; running: string | null }
   parse: {

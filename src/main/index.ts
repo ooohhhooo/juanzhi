@@ -26,6 +26,9 @@ import { getMainWindow, setMainWindow } from './window'
 import { APP_ID, PRODUCT_NAME, WINDOW_TITLE } from './brand'
 import { buildMacMenuTemplate } from './menu-template'
 import { cliArgvOf } from './cli/args'
+import { initLogging } from './log'
+import { installAiObservers } from './ai/observe'
+import { registerDiagnosticsIpc } from './ipc/diagnostics'
 import { startCliMode } from './cli/run'
 import { acquireRunLock, clearLockFile, inspectRunLock, keepTryingRunLock, processLooksLikeJuanzhi } from './cli/lock'
 
@@ -45,6 +48,10 @@ if (process.env.EWB_PRINT_USERDATA === '1') {
   process.stdout.write(`EWB_USERDATA=${app.getPath('userData')}\n`)
   app.exit(0)
 }
+
+// 运行日志：尽早开始（含命令行模式）；AI 调用结果同时喂给自适应降速
+initLogging()
+installAiObservers()
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -227,6 +234,7 @@ if (cliArgs) {
     registerTaxonomyIpc()
     registerCliIpc()
     registerUpdateIpc()
+    registerDiagnosticsIpc()
     createWindow()
     sweepStaleStages()
     startAutoCheck()   // 至多每 24 小时静默查一次；命令行模式不走这里，测试（自定义数据目录）默认不查

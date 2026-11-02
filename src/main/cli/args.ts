@@ -85,7 +85,8 @@ export const COMMANDS: Record<string, CommandSpec> = {
   'report generate': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'reader'], summary: '生成报告' },
   'report list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '报告列表' },
   'report show': { args: { min: 1, max: 1, name: '<id>' }, flags: [], summary: '一份报告的详情' },
-  'report export': { args: { min: 1, max: 1, name: '<id>' }, flags: ['format', 'out', 'overwrite'], summary: '导出报告文件（md / docx / pdf）；目标文件已存在时要加 --overwrite 才覆盖' }
+  'report export': { args: { min: 1, max: 1, name: '<id>' }, flags: ['format', 'out', 'overwrite'], summary: '导出报告文件（md / docx / pdf）；目标文件已存在时要加 --overwrite 才覆盖' },
+  diagnostics: { args: { min: 0, max: 0, name: '' }, flags: ['out', 'overwrite'], summary: '导出诊断信息（zip，不含学生数据和密钥）；--out 指定 zip 路径，已存在时要加 --overwrite' }
 }
 
 /** 不带值的参数（其余参数都要带一个值） */
@@ -99,7 +100,7 @@ export interface ParsedArgs {
   flags: Record<string, string | true>
   /** 全局参数 */
   resultFile: string | null
-  /** `--out`：除 `report export` 外，是 JSON 的副本文件；`report export` 里 --out 是导出文档的路径，不在这里 */
+  /** `--out`：除 `report export`、`diagnostics` 外，是 JSON 的副本文件；`report export` 里 --out 是导出文档的路径，不在这里 */
   jsonOut: string | null
   timeoutSec: number
   quiet: boolean
@@ -121,7 +122,8 @@ export function scanOutputFlags(args: string[]): { resultFile: string | null; js
     }
     return out
   }
-  const isExport = args.slice(0, 3).join(' ').startsWith('report export')
+  const head = args.slice(0, 3).join(' ')
+  const isExport = head.startsWith('report export') || head === 'diagnostics' || head.startsWith('diagnostics ')
   return { resultFile: val('result-file'), jsonOut: isExport ? null : val('out') }
 }
 const usage = (msg: string) => new CliError('usage', msg)
@@ -189,7 +191,7 @@ export function parseArgs(args: string[]): ParsedArgs {
     timeoutSec = Math.floor(n)
   }
   // report export 的 --out 是文档路径，JSON 副本只能用 --result-file
-  const jsonOut = command === 'report export' ? null : (typeof flags.out === 'string' ? flags.out : null)
+  const jsonOut = command === 'report export' || command === 'diagnostics' ? null : (typeof flags.out === 'string' ? flags.out : null)
   return {
     command, positionals, flags,
     resultFile: typeof flags['result-file'] === 'string' ? flags['result-file'] : null,

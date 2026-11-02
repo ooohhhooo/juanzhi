@@ -15,6 +15,7 @@ import { safeKpName } from '../../shared/code-guard'
 import { exportBlock, exportReportTo, PARENT_DRAFT_WARNING } from '../report/export-run'
 import { getReport } from '../report/service'
 import { assertExportTarget } from './outfile'
+import { collectDiagnostics, writeDiagnosticsZip } from '../diagnostics'
 import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags } from './args'
 import type { ParsedArgs } from './args'
 
@@ -273,13 +274,28 @@ async function reportExport(ctx: CliCtx) {
   return { id, format: fmt, path: o.path, dir: o.dir ?? null, images: o.images, bytes: o.bytes, draft: !r.confirmedAt, parentDraft: o.draft, ...(o.warning ? { warning: o.warning } : {}), reviewed: !!r.confirmedAt }
 }
 
+// ───────────────────────── diagnostics ─────────────────────────
+
+/** 导出诊断信息 zip（和界面「导出诊断信息」同一份内容：不含学生数据和密钥） */
+async function diagnosticsCmd(ctx: CliCtx) {
+  const out = ctx.args.flags.out
+  if (typeof out !== 'string' || !out.trim()) throw new CliError('usage', '导出诊断信息要用 --out 指定 zip 文件路径，例如 --out ./卷知诊断.zip')
+  const abs = path.resolve(out)
+  const withExt = abs.toLowerCase().endsWith('.zip') ? abs : `${abs}.zip`
+  const outPath = assertExportTarget(withExt, ctx.forbiddenDirs, ctx.args.flags.overwrite === true)
+  const entries = await collectDiagnostics()
+  const bytes = await writeDiagnosticsZip(entries, outPath)
+  return { path: outPath, bytes, files: entries.map(e => ({ name: e.name, bytes: e.bytes })), note: '不含学生数据和 API Key；请作为附件发到 GitHub Issue，不会自动上传' }
+}
+
 // ───────────────────────── 分发 ─────────────────────────
 
 const HANDLERS: Record<string, (ctx: CliCtx) => Promise<unknown>> = {
   status, import: importCmd,
   'papers list': papersList, 'papers show': papersShow, 'papers confirm': papersConfirm,
   'stats overview': statsOverview, 'stats hot': statsHot, 'stats compare': statsCompare,
-  'report generate': reportGenerate, 'report list': reportList, 'report show': reportShow, 'report export': reportExport
+  'report generate': reportGenerate, 'report list': reportList, 'report show': reportShow, 'report export': reportExport,
+  diagnostics: diagnosticsCmd
 }
 
 export async function runCommand(ctx: CliCtx): Promise<unknown> {

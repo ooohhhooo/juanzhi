@@ -28,6 +28,7 @@ export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'pap
 /** 只读 / 只改内存状态 / 纯界面动作的通道：重启待定时不拦 */
 export const READONLY_CHANNELS = new Set([
   'papers:scanSimilarStatus', 'ai:kpAnalysis', 'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:modelProfile', 'ai:prompts', 'ai:usage',
+  'papers:expandPaths', 'dialog:openFolder', 'diagnostics:preview', 'diagnostics:export', 'diagnostics:short', 'feedback:url', 'feedback:open',
   'app:info', 'app:restart', 'app:takeStartupNotice', 'dialog:openFiles', 'ocr:status',
   'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Modal, Form, Select, InputNumber, Input, App, Dropdown, Checkbox } from 'antd'
-import { BarChart3, ClipboardCheck, Eye, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
+import { BarChart3, ClipboardCheck, Eye, FolderOpen, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { paperKind, paperTag } from '../status'
@@ -11,6 +11,7 @@ import { useDiscardGuard } from '../hooks/useDiscardGuard'
 import RetryActions from '../components/RetryActions'
 import Onboarding from '../components/Onboarding'
 import RoleGuide from '../components/RoleGuide'
+import BetaWelcome from '../components/BetaWelcome'
 import BatchEditModal from '../components/BatchEditModal'
 import { useStatsFilter } from '../stats/StatsFilter'
 import { MAX_SCOPE_PAPERS, chunk, filterPapers, isBusyStatus, plainError, scopeFromSelection, summarizeBatch, titleList } from '../../shared/library-select'
@@ -90,6 +91,11 @@ export default function PaperLibrary() {
 
   const handleImportFiles = async () => {
     const paths = await window.api.dialog.openFiles()
+    if (paths.length) await doImport(paths)
+  }
+
+  const handleImportFolder = async () => {
+    const paths = await window.api.dialog.openFolder()
     if (paths.length) await doImport(paths)
   }
 
@@ -365,10 +371,12 @@ export default function PaperLibrary() {
       <div className="ewb-lib-head">
         <h1 className="ewb-lib-title">试卷库</h1>
         <div className="ewb-lib-actions">
+          <Btn tone="secondary" icon={FolderOpen} data-testid="import-folder" onClick={handleImportFolder} loading={importing}>导入文件夹</Btn>
           <Btn tone="primary" icon={Plus} onClick={handleImportFiles} loading={importing}>导入试卷</Btn>
         </div>
       </div>
 
+      <BetaWelcome />
       <RoleGuide />
       <Onboarding />
 
@@ -386,7 +394,7 @@ export default function PaperLibrary() {
       >
         <div className="ewb-lib-drop__icon"><Icon as={Inbox} size={32} /></div>
         <p className="ewb-lib-drop__main">拖拽试卷文件到此处，或点击选择</p>
-        <p className="ewb-lib-drop__sub">支持 PDF、JPG/PNG/HEIC、DOCX（不支持 .doc，请先另存为 .docx）</p>
+        <p className="ewb-lib-drop__sub">支持 PDF、JPG/PNG/HEIC、DOCX（不支持 .doc，请先另存为 .docx）；也可以直接拖入整个文件夹</p>
       </div>
 
       {papers.length > 0 && (

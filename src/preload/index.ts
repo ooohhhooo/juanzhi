@@ -12,6 +12,9 @@ const api = {
   papers: {
     import: (paths: string[], opts?: { allowDuplicates?: string[] }): Promise<any[]> =>
       ipcRenderer.invoke('papers:import', paths, opts),
+    /** 把拖入 / 选择的路径展开：文件夹递归找出里面支持的试卷文件（跳过隐藏文件），返回要导入的文件和被跳过的 */
+    expandPaths: (paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; truncated: boolean }> =>
+      ipcRenderer.invoke('papers:expandPaths', paths),
     assets: (paperId: string): Promise<any[]> =>
       ipcRenderer.invoke('papers:assets', paperId),
     reprocess: (id: string): Promise<boolean> =>
@@ -170,7 +173,22 @@ const api = {
   dialog: {
     openFiles: (): Promise<string[]> =>
       ipcRenderer.invoke('dialog:openFiles'),
+    openFolder: (): Promise<string[]> =>
+      ipcRenderer.invoke('dialog:openFolder'),
   },
+  /** 诊断信息：preview 先看里面有什么，export 选位置保存 zip（不含学生数据和密钥）；short = 5 行简短诊断 */
+  diagnostics: {
+    preview: (): Promise<{ entries: Array<{ name: string; desc: string; bytes: number }>; totalBytes: number; neverIncluded: string[] }> => ipcRenderer.invoke('diagnostics:preview'),
+    export: (): Promise<{ saved: boolean; path?: string; dir?: string; bytes?: number; files?: number }> => ipcRenderer.invoke('diagnostics:export'),
+    short: (): Promise<string> => ipcRenderer.invoke('diagnostics:short'),
+  },
+  /** 反馈问题：打开 GitHub 新建 Issue 页（预填版本、系统；地址由主进程生成） */
+  feedback: {
+    url: (): Promise<string> => ipcRenderer.invoke('feedback:url'),
+    open: (): Promise<boolean> => ipcRenderer.invoke('feedback:open'),
+  },
+  /** 渲染端错误上报到运行日志（主进程限速） */
+  logError: (msg: string): void => { ipcRenderer.send('log:renderer', String(msg).slice(0, 300)) },
   on: (channel: string, callback: (...args: any[]) => void): (() => void) => {
     if (!ALLOWED_CHANNELS.includes(channel)) {
       console.warn(`[preload] 不允许订阅通道: ${channel}`)

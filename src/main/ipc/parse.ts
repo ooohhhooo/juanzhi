@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { getDb } from '../db'
 import { isAiReady } from '../ai/config'
 import { loadConfig } from '../ai/config'
-import { enqueueParse, cancelParse, parseQueueState, isParseActive } from '../parse/queue'
+import { enqueueParse, cancelParse, parseQueueState, isParseActive, throttleState } from '../parse/queue'
+import { isPowerBlocking } from '../power'
 import { reprocessPaper, extractQueueState } from '../pipeline/queue'
 import { isQueuePaused, setQueuePaused } from '../pipeline/control'
 import { notifyDataChanged } from '../events'
@@ -59,6 +60,8 @@ export function registerParseIpc(): void {
   ipcMain.handle('queue:state', async () => ({
     paused: isQueuePaused(),
     concurrency: loadConfig().concurrency,
+    throttle: throttleState(),
+    power: isPowerBlocking(),
     aiReady: isAiReady(),
     extract: extractQueueState(),
     parse: parseQueueState()

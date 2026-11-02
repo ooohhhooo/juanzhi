@@ -7,6 +7,8 @@ import { extractPaper, findOriginal, removeDerivedFiles } from './extract'
 import { notifyDataChanged, sendProgress } from '../events'
 import { isPathAllowed } from '../allowedPaths'
 import { isQueuePaused, onResume } from './control'
+import { refreshPower, registerBusySource } from '../power'
+import { log, shortId } from '../log'
 import { isParseActive, maybeAutoParse, recoverInterruptedParsing } from '../parse/queue'
 import type { ImportResult } from '../types'
 
@@ -20,6 +22,7 @@ let running = false
 const parseAfterExtract = new Set<string>()
 let extracting: string | null = null
 let importChain: Promise<unknown> = Promise.resolve()
+registerBusySource(() => extracting !== null || (waiting.length > 0 && !isQueuePaused()))
 
 function removePaperFiles(paperId: string): void {
   try {
@@ -37,21 +40,28 @@ async function drain(): Promise<void> {
       const paperId = waiting.shift()!
       extracting = paperId
       notifyDataChanged('queue')
+      refreshPower()
       let ok = true
+      const t0 = Date.now()
+      log.info('extract', '开始提取', { paper: shortId(paperId) })
       try {
         await extractPaper(paperId, sendProgress)
+        log.info('extract', '提取完成', { paper: shortId(paperId), ms: Date.now() - t0 })
       } catch (e) {
         ok = false
-        console.warn(`[queue] 提取失败 ${paperId}: ${(e as Error).message}`)
+        log.warn('extract', '提取失败', { paper: shortId(paperId), ms: Date.now() - t0 })
+        console.warn(`[queue] 提取失败 ${shortId(paperId)}: ${(e as Error).message}`)
         getDb().prepare("UPDATE papers SET error_stage = 'extract' WHERE id = ? AND status = 'failed'").run(paperId)
       }
       extracting = null
       notifyDataChanged('papers', 'pages', 'assets', 'queue')
       const force = parseAfterExtract.delete(paperId)
       if (ok) maybeAutoParse(paperId, force)
+      refreshPower()
     }
   } finally {
     running = false
+    refreshPower()
   }
 }
 
@@ -152,6 +162,8 @@ export function registerImports(paths: string[], opts?: { allowDuplicates?: stri
     // 命令行导入：不管设置里有没有开「自动解析」，提取完都接着 AI 解析
     if (opts?.parseAfter) for (const r of results) if (r.paperId) parseAfterExtract.add(r.paperId)
     notifyDataChanged('papers')
+    log.info('import', '登记完成', { files: paths.length, queued: results.filter(r => r.paperId).length, failed: results.filter(r => r.error).length })
+    refreshPower()
     void drain()
     return results
   })

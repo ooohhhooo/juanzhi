@@ -186,6 +186,12 @@ export default function QueuePage() {
         </div>
       </div>
       {q?.paused && <UsageNote kind="caution" title="队列已暂停" data-testid="paused-banner">不会开始新的提取和解析；已经在跑的试卷会继续做完。点右上角「继续处理」恢复。</UsageNote>}
+      {q?.throttle?.throttled && (
+        <UsageNote kind="caution" title="AI 服务太忙，暂时放慢" data-testid="throttle-banner">
+          AI 服务商提示请求太频繁。卷知已自动放慢：现在同时处理 <b data-testid="throttle-effective">{q.throttle.effective}</b> 份（你设的是 {q.throttle.configured} 份），稍后会自己慢慢恢复，不需要操作。
+        </UsageNote>
+      )}
+      {q?.power && <p className="ewb-lib-sub" data-testid="power-note">处理期间电脑不会自动睡眠（合上笔记本盖子仍会睡眠，请保持盖子打开）。</p>}
       {q && !q.aiReady && <UsageNote kind="tip" title="还没有配置 AI 服务">提取完成的试卷会停在「待解析」。请管理员到 <a onClick={() => navigate('/settings?admin=1')}>设置 → 管理员设置 → AI 服务</a> 连接好 AI 后，就能开始解析了。</UsageNote>}
       {rows.length === 0 && !isLoading ? (
         <div data-testid="queue-empty">

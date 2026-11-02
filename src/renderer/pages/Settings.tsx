@@ -9,6 +9,7 @@ import DataSettings from './DataSettings'
 import CliSettings from './CliSettings'
 import UpdateSettings from './UpdateSettings'
 import TaxonomySettings from './TaxonomySettings'
+import DiagnosticsPanel from '../components/DiagnosticsPanel'
 import { useAdminOpen, useShowCodes } from '../hooks/useUiPrefs'
 import { Btn, Glossary, Page, Panel, StatusLabel, UsageNote, useTheme } from '../design'
 import '../design/page-report.css'
@@ -101,7 +102,8 @@ export default function Settings() {
         <Panel title="关于" data-testid="about-card">
           <Descriptions column={1} size="small">
             <Descriptions.Item label="软件">卷知 · 小学英语试卷分析 —— 帮助教师分析试卷中的知识点分布和考频趋势（离线桌面软件，数据只存在这台电脑上，没有服务器、不用登录）</Descriptions.Item>
-            <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）</Descriptions.Item>
+            <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）<span className="ewb-lib-tag" style={{ marginLeft: 8 }} data-testid="about-beta">公测版</span></Descriptions.Item>
+            <Descriptions.Item label="遇到问题"><DiagnosticsPanel /></Descriptions.Item>
             <Descriptions.Item label="软件更新"><UpdateSettings /></Descriptions.Item>
             {adminOpen && <Descriptions.Item label="运行环境"><span data-testid="about-env">{about ? `${about.platform} ${about.arch} · Electron ${about.electron} · Chromium ${about.chrome} · Node ${about.node}` : '…'}</span></Descriptions.Item>}
             {adminOpen && <Descriptions.Item label="数据目录"><code className="ewb-rep-code">{about?.dataDir}</code></Descriptions.Item>}

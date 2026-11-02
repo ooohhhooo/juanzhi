@@ -10,11 +10,15 @@ import { similarScanStatus, startSimilarScan } from '../similar-runner'
 import { notifyDataChanged } from '../events'
 import { PaperMetaSchema, PaperFilterSchema, ImportOptionsSchema, BatchIdsSchema } from '../types'
 import type { BatchItemResult } from '../types'
-import { allowPath } from '../allowedPaths'
+import { allowPath, isPathAllowed } from '../allowedPaths'
+import { walkFolder } from '../pipeline/folder-walk'
+import type { SkippedFile } from '../pipeline/folder-walk'
 import { getMainWindow } from '../window'
 
 const UuidSchema = z.string().uuid()
 const PathsSchema = z.array(z.string().min(1)).min(1).max(100)
+/** 展开路径：一次最多 100 个入口（文件或文件夹） */
+const ExpandSchema = z.array(z.string().min(1).max(4096)).min(1).max(100)
 
 /** 改一份试卷的信息（单份和批量共用）。用户亲手改过（值真的变了）的字段不再算「AI 猜测」 */
 function updatePaperMeta(id: string, m: ReturnType<typeof PaperMetaSchema.parse>): void {
@@ -107,6 +111,40 @@ export function registerPaperIpc(): void {
 
   ipcMain.handle('papers:import', async (_event, rawPaths: unknown, rawOpts?: unknown) => {
     return registerImports(PathsSchema.parse(rawPaths), ImportOptionsSchema.parse(rawOpts))
+  })
+
+  /**
+   * 把拖入 / 选择的路径展开：文件原样保留，文件夹递归扫描出里面支持的试卷文件（跳过 ._、隐藏文件、不支持的类型）。
+   * 文件夹本身必须是经对话框或 preload 登记过的；扫出来的文件随之视为已授权。真正导入仍走 papers:import（逐个再检查）。
+   */
+  ipcMain.handle('papers:expandPaths', async (_event, rawPaths: unknown) => {
+    const paths = ExpandSchema.parse(rawPaths)
+    const files: string[] = []
+    const skipped: SkippedFile[] = []
+    let folders = 0
+    let truncated = false
+    for (const p of paths) {
+      let isDir = false
+      try { isDir = fs.statSync(p).isDirectory() } catch { /* 不存在：当文件交给导入去报错 */ }
+      if (!isDir) { files.push(p); continue }
+      if (!isPathAllowed(p)) { skipped.push({ name: path.basename(p), reason: '文件夹未经授权：请通过对话框选择或拖入窗口' }); continue }
+      folders++
+      const r = walkFolder(p)
+      r.files.forEach(allowPath)
+      files.push(...r.files)
+      skipped.push(...r.skipped)
+      truncated = truncated || r.truncated
+    }
+    return { files, folders, skipped, truncated }
+  })
+
+  ipcMain.handle('dialog:openFolder', async () => {
+    const win = getMainWindow()
+    const options: Electron.OpenDialogOptions = { title: '选择放试卷的文件夹', properties: ['openDirectory'] }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (result.canceled) return []
+    result.filePaths.forEach(allowPath)
+    return result.filePaths
   })
 
   ipcMain.handle('papers:assets', async (_event, rawId: unknown) => {
