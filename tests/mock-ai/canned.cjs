@@ -121,10 +121,37 @@ const qs25 = [
   q('七', 36, 'WRITE', '以“My Day”为题，写一写你一天的时间安排，不少于5句话。', [], 'WR.EXPR.PRESENT', ['FN.TIME'], 4, '', '36. 以“My Day”', '2-13', 2, 15)
 ]
 
+
+// ───────── m9a-word（tests/e2e/make-docx.cjs 现场生成的 Word 小试卷：自动编号 1–6、手打题号 7–10、表格里的 11–12）─────────
+// anchor 是 Word 渲染成页面图后量出来的行文字（自动编号补上了「1. 」，填空横线是下划线字符）
+const secW = [
+  { no: '一', title: '单项选择（每题2分）', qtype: 'MC', score_each: 2, total_score: 12, page: 1 },
+  { no: '二', title: '用所给词的适当形式填空（每题2分）', qtype: 'FORM', score_each: 2, total_score: 8, page: 1 },
+  { no: '三', title: '补全对话（每题3分）', qtype: 'DIALOG', score_each: 3, total_score: 6, page: 1 }
+]
+const qsW = [
+  q('一', 1, 'MC', "What's your name?", MC('Tom', 'Tom is', 'I Tom'), 'FN.DIALOG', [], 1, '', "1. What's your name?", '', 1, 2),
+  q('一', 2, 'MC', 'Is this a pen?', MC('Yes, it is.', 'Yes, this is.', 'No, I am not.'), 'GR.SENT.YESNO.BE', [], 2, '一般疑问句的回答要用 it', '2. Is this a pen?', '', 1, 2),
+  q('一', 3, 'MC', 'How many apples are there?', MC('Two apple', 'Two apples', 'Second apple'), 'GR.NOUN.PLURAL.REG', [], 2, '', '3. How many apples are there?', '', 1, 2),
+  q('一', 4, 'MC', 'My sister ____ a teacher.', MC('am', 'is', 'are'), 'GR.VERB.BE', [], 1, '', '4. My sister', '', 1, 2),
+  q('一', 5, 'MC', 'Where is the library?', MC('On the second floor.', 'It is red.', 'Yes, it is.'), 'GR.PREP.PLACE', [], 2, '', '5. Where is the library?', '', 1, 2),
+  q('一', 6, 'MC', 'What time is it?', MC("It's seven o'clock.", "It's sunny.", 'I like it.'), 'FN.TIME', [], 2, '', '6. What time is it?', '', 1, 2),
+  q('二', 7, 'FORM', 'I ____ (like) apples very much.', [], 'GR.VERB.FORM.THIRD', [], 2, '', '7. I', '', 1, 2),
+  q('二', 8, 'FORM', 'Look at the ____ (sheep) on the farm.', [], 'GR.NOUN.PLURAL.IRR', [], 3, 'sheep 单复数同形', '8. Look at the', '', 1, 2),
+  q('二', 9, 'FORM', 'She ____ (go) to school by bus every day.', [], 'GR.VERB.FORM.THIRD', [], 3, '主语是第三人称单数', '9. She', '', 1, 2),
+  q('二', 10, 'FORM', 'These ____ (tomato) are very fresh.', [], 'GR.NOUN.PLURAL.REG', [], 3, 'tomato 复数加 -es', '10. These', '', 1, 2),
+  q('三', 11, 'DIALOG', '—How much is this dress? —It is fifty yuan.', [], 'FN.SHOP.PRICE', [], 2, '', '11. —How much is this dress?', '', 1, 3),
+  q('三', 12, 'DIALOG', '—What is the weather like today? —It is sunny and warm.', [], 'FN.WEATHER', [], 2, '', '12. —What is the weather like today?', '', 1, 3)
+]
+
 const PAPERS = {
   'g4-2026': {
     meta: { title: '2025-2026学年第二学期四年级英语期末试卷', grade: 4, semester: '下', school_year: '2025-2026', exam_type: '期末', textbook: '人教PEP版', total_score: 100 },
     sections: sec26, materials: mat26, questions: qs26, pageCount: 2
+  },
+  'm9a-word': {
+    meta: { title: '小学四年级英语期末测试卷', grade: 4, semester: '下', school_year: '2024-2025', exam_type: '期末', textbook: '人教PEP版', total_score: 100 },
+    sections: secW, materials: [], questions: qsW, pageCount: 1
   },
   'g4-2025': {
     meta: { title: '2024-2025学年第二学期四年级英语期末试卷', grade: 4, semester: '下', school_year: '2024-2025', exam_type: '期末', textbook: '人教PEP版', total_score: 100 },

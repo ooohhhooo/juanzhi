@@ -128,6 +128,8 @@
 .ewb-ana-crop--click:hover .ewb-ana-crop__hint { opacity: 0.92; }
 .ewb-ana-page { max-width: 100%; }
 .ewb-ana-page img { width: 100%; display: block; border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-sm); background: var(--ewb-sheet); }
+.ewb-ana-nobox { box-sizing: border-box; padding: var(--ewb-sp-3); border: 1px dashed var(--ewb-line-strong); border-radius: var(--ewb-r-sm); background: var(--ewb-note); max-width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.ewb-ana-nobox__msg { font-size: var(--ewb-fs-md); font-weight: 600; color: var(--ewb-ink); }
 .ewb-ana-nopage { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
 
 /* ───────────── 口径说明、重难点 ───────────── */

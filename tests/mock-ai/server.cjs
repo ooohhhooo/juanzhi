@@ -145,6 +145,12 @@ async function startMock(opts = {}) {
           return
         }
 
+        // 对指定模型一律返回 403（密钥没有权限使用这个模型）：mock.forbidModels = ['mock-vision-403']
+        if ((state.forbidModels || []).includes(body.model)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: { message: `The API key does not have permission to access model ${body.model}` } }))
+          return
+        }
         const d = takeDirective(fileName, isP3 ? 'p3' : isP2 || isKp ? 'p2' : 'p1')
         if (d) rec.directive = d.type
         if (d && d.type === 'hang') { await new Promise(r => setTimeout(r, d.ms ?? 60000)); return }
@@ -229,8 +235,15 @@ async function startMock(opts = {}) {
             const c = JSON.stringify({ meta: {}, sections: [], materials: [], questions: [], notes: ['mock：没有这份试卷的 canned 数据'] })
             return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
           }
+          // 视觉模型「第一次没给框」：整批 anchor 写 null（带着反馈重试的那一次才给）
+          if (mode === 'vision' && state.quirks.visionNoBoxFirst && !rec.retryFeedback) out.questions.forEach(x => { x.anchor = null; x.flags = [...x.flags, 'bbox_uncertain'] })
           // 真实模型偶尔会把 JSON 包在 ```json 围栏里（提示词已禁止，程序要能容忍）
           const c = fenced ? '```json\n' + JSON.stringify(out) + '\n```' : JSON.stringify(out)
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
+        }
+        // 视觉测试（设置页「测试视觉模型」：让模型读出点阵图上的字）：能看图的 mock 回答 7K；mock.visionBlind = true 时答非所问
+        if (images > 0 && /图上写的是哪两个字符/.test(user)) {
+          const c = state.visionBlind ? '{"text":"hello"}' : '{"text":"7K"}'
           return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
         }
         // 其它请求（连接测试等）
@@ -257,6 +270,10 @@ async function startMock(opts = {}) {
     set apiKey(v) { state.apiKey = v },
     set delayMs(v) { state.delayMs = v },
     set splitLast(v) { state.splitLast = v },
+    /** 这些模型名的请求一律返回 403 */
+    set forbidModels(v) { state.forbidModels = v },
+    /** 视觉测试时答非所问（模拟不会看图的模型） */
+    set visionBlind(v) { state.visionBlind = v },
     /** P2 正常应答每段之间的延迟（毫秒）；0 = 不延迟 */
     set p2DelayMs(v) { state.p2DelayMs = v },
     /** P3 正常应答每段之间的延迟（毫秒） */
@@ -271,7 +288,7 @@ async function startMock(opts = {}) {
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },
-    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.p2DelayMs = 0; state.p3DelayMs = 0; state.reasoning = null; state.seenSystems.clear() },
+    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.reasoning = null; state.seenSystems.clear() },
     resetStats() { state.requests.length = 0; state.maxInflight = 0 },
     async stop() {
       for (const s of sockets) s.destroy()

@@ -11,8 +11,11 @@ import { chat, AiError } from '../ai/client'
 import { effectiveMaxTokens, modelProfile } from '../ai/providers'
 import { RETRY_HINT, friendlyAiError } from '../ai/friendly'
 import type { ChatMessage } from '../ai/client'
-import { loadConfig, recordUsage } from '../ai/config'
+import { loadConfig, recordUsage, visionCreds } from '../ai/config'
 import { getApiKey } from '../ai/secret'
+import { parseModelOf } from '../ai/types'
+import { decidePage, paperExpectsCjk, namesHaveCjk, ocrQuality, relaxSparse } from '../pipeline/ocr-quality'
+import type { PageChoice, PageQuality, Recognizer } from '../pipeline/ocr-quality'
 import { promptText, promptVersionFor } from '../ai/prompts'
 import { loadTaxonomy } from '../ai/taxonomy'
 import type { TaxonomyContext } from '../ai/taxonomy'
@@ -61,9 +64,10 @@ interface PageRow {
   lines_json: string
   text: string | null
   ocr_conf: number | null
+  recognizer: string | null
+  ocr_lang: string | null
+  quality_json: string | null
 }
-
-const LOW_OCR_CONF = 0.55
 
 function readRows(p: PageRow): Row[] {
   let lines: RawLine[] = []
@@ -75,39 +79,78 @@ function readRows(p: PageRow): Row[] {
 interface Prepared {
   inputs: PageInput[]
   notes: string[]
+  /** 每页的识别方式和原因（解析前写进 pages 表，试卷详情和审核页据此说明） */
+  choices: Map<number, PageChoice>
 }
 
-/** 决定每页走文本还是视觉：没文字/OCR 没跑成/置信度低 → 视觉；空白页在没有视觉模型时跳过 */
-function preparePages(pages: PageRow[], cfg: AiConfig): Prepared {
+/** 这页最终用的识别方式（记录用）：读图 = vision-model；否则沿用提取时记下的，旧数据按文字来源和平台推 */
+function recognizerOf(p: PageRow, mode: PageInput['mode']): Recognizer | null {
+  if (mode === 'vision') return 'vision-model'
+  if (p.recognizer) return p.recognizer as Recognizer
+  if (p.text_source === 'docx') return 'docx-text'
+  if (p.text_source === 'pdf-text') return 'pdf-text'
+  if (p.text_source === 'ocr') return process.platform === 'win32' ? 'win-ocr' : 'mac-vision'
+  return null
+}
+
+/**
+ * 决定每页走文本还是视觉。不再相信 Windows 的固定置信度：看文字本身的质量（pipeline/ocr-quality.ts）。
+ * 默认（auto）只有本机识别不好的页才交给视觉模型；设置里可改成图片和扫描件一律读图，或从不读图。空白页在没有视觉模型时跳过。
+ */
+function preparePages(pages: PageRow[], cfg: AiConfig, names: string[]): Prepared {
   const notes: string[] = []
   const inputs: PageInput[] = []
+  const choices = new Map<number, PageChoice>()
   const blockers: string[] = []
-  for (const p of pages) {
+  const visionReady = !!cfg.vision_model.trim() && !!visionCreds(cfg).key
+  const expectsCjk = paperExpectsCjk({
+    pageTexts: pages.map(p => {
+      const rows = readRows(p)
+      return { texts: rows.map(r => r.text), trustedForCjk: p.text_source === 'pdf-text' || p.text_source === 'docx' || (p.text_source === 'ocr' && (!p.ocr_lang || /^zh/i.test(p.ocr_lang))) }
+    })
+  })
+  const nameCjk = namesHaveCjk(names)
+  // 每个本机识别出文字的页的质量（提取时记过的用记录，没有就现场算），再按全卷把「太短」的封面 / 答案页放过
+  const quals = pages.map((p): PageQuality | null => {
+    if (p.text_source !== 'ocr') return null
+    try { if (p.quality_json) return JSON.parse(p.quality_json) } catch { /* 损坏的记录：现场重算 */ }
+    return ocrQuality(readRows(p).map(r => r.text), { lang: p.ocr_lang, paperExpectsCjk: expectsCjk, nameHasCjk: nameCjk, conf: p.ocr_lang ? null : p.ocr_conf })
+  })
+  const relaxed = relaxSparse(quals)
+  for (const [pi, p] of pages.entries()) {
     const rows = readRows(p)
     const chars = rows.reduce((s, r) => s + r.text.length, 0)
     const hasImage = !!p.image_rel
-    let mode: PageInput['mode']
-    if (p.text_source === 'docx') mode = rows.length ? 'text' : 'skip'
-    else if (p.text_source === 'none') {
-      mode = cfg.vision_model && hasImage ? 'vision' : 'skip'
-      if (mode === 'skip') notes.push(`第 ${p.idx} 页没有识别出文字，已跳过（配置视觉模型后重试可让 AI 直接读图）`)
-    } else if (p.text_source === 'ocr_failed' || p.text_source === 'needs_ocr') {
-      if (cfg.vision_model && hasImage) mode = 'vision'
-      else { mode = 'skip'; blockers.push(`第 ${p.idx} 页`) }
-    } else if (rows.length === 0) {
-      mode = cfg.vision_model && hasImage ? 'vision' : 'skip'
-    } else if (p.text_source === 'ocr' && (p.ocr_conf ?? 1) < LOW_OCR_CONF && cfg.vision_model && hasImage) {
-      mode = 'vision'
-    } else {
-      mode = 'text'
+    const stored: PageQuality | null = relaxed[pi]
+    const c = decidePage({
+      textSource: p.text_source, hasImage, rowTexts: rows.map(r => r.text), lang: p.ocr_lang,
+      // 有引擎语言 = Windows，那个置信度是固定值，不可信
+      conf: p.ocr_lang ? null : p.ocr_conf, quality: stored
+    }, { policy: cfg.vision_policy, visionReady, expectsCjk, nameHasCjk: nameCjk })
+    choices.set(p.idx, c)
+    if (c.mode === 'skip') {
+      if (c.reason === 'ocr-failed') blockers.push(`第 ${p.idx} 页`)
+      else if (p.text_source === 'none' || c.reason === 'no-text') notes.push(`第 ${p.idx} 页没有识别出文字，已跳过（配置视觉模型后重试可让 AI 直接读图）`)
     }
-    inputs.push({ idx: p.idx, mode, rows, chars, imageRel: p.image_rel })
+    inputs.push({ idx: p.idx, mode: c.mode, rows, chars, imageRel: p.image_rel })
   }
   if (blockers.length) {
-    throw new ParseError('prepare', `${blockers.join('、')}没有可用的文字（OCR 未成功），需要视觉模型来读图。请在「设置 → AI 服务」填写视觉模型后点击重试`)
+    throw new ParseError('prepare', `${blockers.join('、')}没有可用的文字（本机识别未成功），需要视觉模型来读图。请在「设置 → AI 服务」填写视觉模型后点击重试`)
   }
   if (inputs.every(i => i.mode === 'skip')) throw new ParseError('prepare', '这份试卷没有可解析的文字或图片')
-  return { inputs, notes }
+  return { inputs, notes, choices }
+}
+
+/** 把每页的识别方式和原因写进 pages 表（解析前写；读图失败改用本机文字时会再更新一次） */
+function recordRecognition(paperId: string, pages: PageRow[], prepared: Prepared): void {
+  const db = getDb()
+  const upd = db.prepare('UPDATE pages SET recognizer = ?, rec_reason = ?, quality_json = COALESCE(?, quality_json) WHERE paper_id = ? AND idx = ?')
+  for (const p of pages) {
+    const c = prepared.choices.get(p.idx)
+    const inp = prepared.inputs.find(i => i.idx === p.idx)
+    if (!c || !inp) continue
+    upd.run(recognizerOf(p, inp.mode), c.reason, c.quality ? JSON.stringify(c.quality) : null, paperId, p.idx)
+  }
 }
 
 /**
@@ -154,11 +197,13 @@ async function readImageDataUrl(paperId: string, rel: string): Promise<string> {
 }
 
 async function runAiStage(
-  paperId: string, fileName: string, prepared: Prepared, cfg: AiConfig, tax: TaxonomyContext,
+  paperId: string, runId: number, fileName: string, prepared: Prepared, cfg: AiConfig, tax: TaxonomyContext,
   knownMeta: string, ctx: ParseContext
 ): Promise<AiStageResult> {
   const key = getApiKey()
   if (!key) throw new ParseError('prepare', '尚未设置 API Key，请先到「设置 → AI 服务」配置')
+  const vcreds = visionCreds(cfg)
+  const textModel = parseModelOf(cfg)
   const pageCount = prepared.inputs.length
   const state = newMergeState()
   const used: AiStageResult['batches'] = []
@@ -197,17 +242,56 @@ async function runAiStage(
     return [{ role: 'system', content: sysVision }, { role: 'user', content: [{ type: 'text', text: fillTemplate(userVision, vars) }, ...images] }]
   }
 
+  /** 记一行批次明细（parse_batches）：模型、模式、尝试次数、有没有被长度截断 / 加长重试、耗时、token。只写数字，不写正文 */
+  const recordBatch = (seqNo: number, batch: Batch, model: string, row: { attempts: number; truncated: boolean; escalated: boolean; usage?: { promptTokens: number; completionTokens: number; reasoningTokens?: number }; ms: number; ok: boolean; errCode?: string }) => {
+    try {
+      getDb().prepare(`INSERT INTO parse_batches (paper_id, run_id, seq, mode, model, pages, attempts, truncated, escalated, reasoning_tokens, prompt_tokens, completion_tokens, ms, ok, err_code)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(paperId, runId, seqNo, batch.mode, model, batch.pages.join(','), row.attempts, row.truncated ? 1 : 0, row.escalated ? 1 : 0,
+          row.usage?.reasoningTokens ?? null, row.usage?.promptTokens ?? null, row.usage?.completionTokens ?? null, row.ms, row.ok ? 1 : 0, row.errCode ?? null)
+    } catch (e) { console.warn(`[parse] 记录批次明细失败: ${(e as Error).message}`) }
+  }
+
   /** 跑一个批次；输出不可用时按约定对半拆小重试，单页还不行就报错 */
   const runBatch = async (batch: Batch, plannedNo: number | null): Promise<void> => {
     checkAbort(ctx)
     const seqNo = ++seq
-    const model = batch.mode === 'vision' ? cfg.vision_model : cfg.model
+    const model = batch.mode === 'vision' ? cfg.vision_model : textModel
     const schema = batch.mode === 'vision' ? VisionOutputSchema : TextOutputSchema
     const base = await buildMessages(batch, seqNo, plannedNo)
     let feedback: { raw: string; error: string } | null = null
     let lastProblem = ''
     let lastDetail = ''
     const lim = effectiveMaxTokens(cfg, model)
+    const batchT0 = Date.now()
+    let attemptsTotal = 0
+    let sawTruncated = false
+    let sawEscalated = false
+    const endpoint = batch.mode === 'vision' ? vcreds : { baseUrl: cfg.base_url, key }
+    if (!endpoint.key) throw new ParseError('prepare', '视觉模型没有可用的 API Key：它用了和文本模型不同的服务地址，请到「设置 → AI 服务」给它填上自己的密钥')
+
+    /** 收下一个批次的结果：合并进整卷、记批次明细、更新进度 */
+    const accept = (data: any, r: { attempts: number; escalated: boolean; usage: any }): void => {
+      const allowed: readonly string[] = batch.mode === 'vision' ? FLAGS_VISION : FLAGS_TEXT
+      const questions: AnyQuestion[] = data.questions.map((q: any) => {
+        const page = batch.pages.includes(q.page) ? q.page
+          : batch.pages.reduce((best, p) => (Math.abs(p - q.page) < Math.abs(best - q.page) ? p : best), batch.pages[0])
+        return {
+          ...q, page, anchor_ref: 'anchor_ref' in q ? q.anchor_ref : '',
+          flags: q.flags.filter((f: string) => allowed.includes(f))
+        } as AnyQuestion
+      })
+      mergeBatch(state, { ...data, questions, materials: data.materials, sections: data.sections }, { batch: seqNo, mode: batch.mode })
+      used.push({ mode: batch.mode, pages: batch.pages, attempts: r.attempts })
+      recordBatch(seqNo, batch, model, { attempts: Math.max(attemptsTotal, r.attempts), truncated: sawTruncated, escalated: r.escalated || sawEscalated, usage: r.usage, ms: Date.now() - batchT0, ok: true })
+      finished++
+      curProgress = Math.min(90, 10 + Math.round((finished / Math.max(totalBatches, finished)) * 70))
+      ctx.onProgress({
+        paperId, stage: 'parse:ai', progress: curProgress,
+        message: `AI 解析中：已完成第 ${batch.pages[0]}${batch.pages.length > 1 ? '–' + batch.pages[batch.pages.length - 1] : ''} 页（${finished}/${Math.max(totalBatches, finished)} 批）`
+      })
+    }
+    let held: { data: any; r: any } | null = null
 
     for (let round = 0; round < 2; round++) {
       checkAbort(ctx)
@@ -226,22 +310,42 @@ async function runAiStage(
       const tick = setInterval(() => say(retried ? `输出内容较长，AI 正在自动加长篇幅重试一次（不需要操作）· 已用 ${secs()} 秒` : `AI 正在${word} · 已用 ${secs()} 秒（通常 2–3 分钟）`), 1000)
       try {
         r = await chat({
-          baseUrl: cfg.base_url, apiKey: key, model, messages, temperature: 0.1, maxTokens: lim.maxTokens, jsonMode: true,
+          baseUrl: endpoint.baseUrl, apiKey: endpoint.key, model, messages, temperature: 0.1, maxTokens: lim.maxTokens, jsonMode: true,
           // 流式读取：超时按「多久没收到数据」算（思考内容也算数据），而不是一次请求的总时长——
           // 推理模型在 32768 的上限下一次写好几分钟，按总时长计的 180 秒会先到，而「写不完自动加长重试」永远轮不到
           stream: true,
           timeoutMs: cfg.timeout_sec * 1000, signal: ctx.signal, fetchImpl: net.fetch as unknown as typeof fetch,
           // 推理模型先思考再作答：处理队列里要看得到「AI 正在思考」，不然用户只会看着转圈圈干等
           escalateOnLength: { ceiling: lim.ceiling }, maxTokensFallback: lim.fallback,
-          onRetry: () => { retried = true; say(`输出内容较长，AI 正在自动加长篇幅重试一次（不需要操作）· 已用 ${secs()} 秒`) },
-          onAttempt: a => { recordUsage({ paperId, kind: 'parse-' + batch.mode, model, usage: a.usage, ok: a.ok }) }
+          onRetry: () => { retried = true; sawTruncated = true; sawEscalated = true; say(`输出内容较长，AI 正在自动加长篇幅重试一次（不需要操作）· 已用 ${secs()} 秒`) },
+          onAttempt: a => { attemptsTotal++; recordUsage({ paperId, kind: 'parse-' + batch.mode, model, usage: a.usage, ok: a.ok, errCode: a.error?.code }) }
         })
       } catch (e) {
         if (e instanceof AiError && (e.code === 'truncated' || e.code === 'empty')) {
+          if (held) { accept(held.data, held.r); return }   // 补框那一轮写不完 / 空：用第一轮的结果
+          if (e.code === 'truncated') sawTruncated = true
           lastProblem = e.message
           lastDetail = e.detail
           break
         }
+        // 读图时这个密钥没有权限 / 找不到模型：本机文字能用就改用本机文字，别让整份卷子失败
+        if (e instanceof AiError && batch.mode === 'vision' && (e.code === 'forbidden' || e.code === 'not_found')) {
+          recordBatch(seqNo, batch, model, { attempts: attemptsTotal || 1, truncated: sawTruncated, escalated: sawEscalated, ms: Date.now() - batchT0, ok: false, errCode: e.code })
+          const usable = batch.pages.every(i => (prepared.inputs.find(p => p.idx === i)?.rows.length ?? 0) > 0)
+          if (usable) {
+            for (const i of batch.pages) {
+              const inp = prepared.inputs.find(p => p.idx === i)!
+              inp.mode = 'text'
+              const ch = prepared.choices.get(i)
+              if (ch) prepared.choices.set(i, { ...ch, mode: 'text', reason: 'vision-forbidden' })
+            }
+            prepared.notes.push(`第 ${batch.pages.join('、')} 页：AI 读图时${e.code === 'forbidden' ? '这个密钥没有权限使用视觉模型' : '找不到视觉模型'}（${model}），已改用本机识别的文字`)
+            await runBatch({ mode: 'text', pages: batch.pages }, null)
+            return
+          }
+          throw new ParseError('ai', e.code === 'forbidden' ? `AI 读图失败：这个密钥没有权限使用视觉模型「${model}」。请到服务商控制台开通，或在「设置 → AI 服务」换一个有权限的视觉模型` : `AI 读图失败：找不到视觉模型「${model}」，请检查「设置 → AI 服务」里的模型名称`, `${e.code}；${e.detail}`)
+        }
+        recordBatch(seqNo, batch, model, { attempts: attemptsTotal || 1, truncated: sawTruncated, escalated: sawEscalated, ms: Date.now() - batchT0, ok: false, errCode: e instanceof AiError ? e.code : 'other' })
         throw e
       } finally {
         clearInterval(tick)
@@ -262,27 +366,24 @@ async function runAiStage(
         feedback = { raw: r.content, error: lastProblem }
         continue
       }
-
-      const allowed: readonly string[] = batch.mode === 'vision' ? FLAGS_VISION : FLAGS_TEXT
-      const questions: AnyQuestion[] = z.data.questions.map((q) => {
-        const page = batch.pages.includes(q.page) ? q.page
-          : batch.pages.reduce((best, p) => (Math.abs(p - q.page) < Math.abs(best - q.page) ? p : best), batch.pages[0])
-        return {
-          ...q, page, anchor_ref: 'anchor_ref' in q ? q.anchor_ref : '',
-          flags: q.flags.filter(f => allowed.includes(f))
-        } as AnyQuestion
-      })
-      mergeBatch(state, { ...z.data, questions, materials: z.data.materials, sections: z.data.sections }, { batch: seqNo, mode: batch.mode })
-      used.push({ mode: batch.mode, pages: batch.pages, attempts: r.attempts })
-      finished++
-      curProgress = Math.min(90, 10 + Math.round((finished / Math.max(totalBatches, finished)) * 70))
-      ctx.onProgress({
-        paperId, stage: 'parse:ai', progress: curProgress,
-        message: `AI 解析中：已完成第 ${batch.pages[0]}${batch.pages.length > 1 ? '–' + batch.pages[batch.pages.length - 1] : ''} 页（${finished}/${Math.max(totalBatches, finished)} 批）`
-      })
+      // 读图版必须给每道题的框（anchor）：截图和「出自原卷」全靠它。有题没给框，第一轮只把这些题的题号告诉模型让它补；
+      // 第一轮的结果先留着当后备——第二轮失败（写不完、空、格式不对）就用它，不会因此对半拆批、白白重来
+      if (batch.mode === 'vision' && round === 0) {
+        const noBox = (z.data.questions as Array<{ no: string; anchor: unknown }>).filter(q => !Array.isArray(q.anchor))
+        if (noBox.length > 0) {
+          held = { data: z.data, r }
+          lastProblem = `有 ${noBox.length} 道题没有给出位置框`
+          feedback = { raw: r.content, error: `这些题的 anchor 是 null 或缺失：第 ${noBox.slice(0, 12).map(q => q.no).join('、')} 题${noBox.length > 12 ? ' 等' : ''}。请只补上这些题的位置：anchor 是 [x, y, w, h]（框住题号和题干第一行，数值是 0–1 的比例），其余内容照旧；只有这道题确实不在图片上时才写 null。` }
+          continue
+        }
+      }
+      accept(z.data, r)
       return
     }
+    // 第二轮没成：有第一轮留下的结果（只是有的题没框）就收下它
+    if (held) { accept(held.data, held.r); return }
 
+    recordBatch(seqNo, batch, model, { attempts: Math.max(attemptsTotal, 1), truncated: sawTruncated, escalated: sawEscalated, ms: Date.now() - batchT0, ok: false, errCode: sawTruncated ? 'truncated' : 'invalid' })
     const halves = halveBatch(batch)
     if (halves) {
       for (const h of halves) await runBatch(h, null)
@@ -293,7 +394,7 @@ async function runAiStage(
   }
 
   for (let i = 0; i < plan.length; i++) await runBatch(plan[i], i + 1)
-  return { state, batches: used, model: cfg.model, visionModel: used.some(u => u.mode === 'vision') ? cfg.vision_model : null }
+  return { state, batches: used, model: textModel, visionModel: used.some(u => u.mode === 'vision') ? cfg.vision_model : null }
 }
 
 // ───────── 定位 + 入库 ─────────
@@ -405,7 +506,7 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
   const cfg = loadConfig()
   const paper = db.prepare('SELECT * FROM papers WHERE id = ?').get(paperId) as any
   if (!paper) throw new ParseError('prepare', '试卷不存在')
-  const pages = db.prepare('SELECT idx, image_rel, width, height, text_source, lines_json, text, ocr_conf FROM pages WHERE paper_id = ? ORDER BY idx').all(paperId) as unknown as PageRow[]
+  const pages = db.prepare('SELECT idx, image_rel, width, height, text_source, lines_json, text, ocr_conf, recognizer, ocr_lang, quality_json FROM pages WHERE paper_id = ? ORDER BY idx').all(paperId) as unknown as PageRow[]
   if (pages.length === 0) throw new ParseError('prepare', '这份试卷还没有提取出页面，请先重新提取')
   const tax = loadTaxonomy()
 
@@ -419,7 +520,7 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
 
   let state: MergeState
   let runId: number
-  let usedModel = cfg.model
+  let usedModel = parseModelOf(cfg)
   let notes: string[] = []
   let version = ''
   let usageNote = ''
@@ -431,14 +532,14 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
     try { saved = JSON.parse(last.result_json) } catch { saved = null }   // 数据包里带来的 / 被破坏的库里，这一列可能是垃圾
     if (!saved || typeof saved !== 'object' || Array.isArray(saved) || !Array.isArray(saved.questions)) throw new ParseError('locate', '上次的 AI 结果已损坏，无法复用，请选择「重新 AI 解析」')
     state = { ...newMergeState(), ...saved }
-    usedModel = last.model || cfg.model
+    usedModel = last.model || parseModelOf(cfg)
     version = last.prompt_version || ''
     usageNote = last.usage_json || ''
     notes = state.notes
     runId = last.id
     // 不改动被复用的那条运行的状态：重新定位若被取消/失败，题目没变，审核页顶栏仍应显示这条已完成的运行；成功时 saveResults 会更新它
   } else {
-    const prepared = preparePages(pages, cfg)
+    const prepared = preparePages(pages, cfg, [paper.file_name ?? '', paper.title ?? ''])
     const usesVision = prepared.inputs.some(i => i.mode === 'vision')
     const usesText = prepared.inputs.some(i => i.mode === 'text')
     const parts = [usesText ? promptVersionFor('p1_text') : '', usesVision ? promptVersionFor('p1_vision') : ''].filter(Boolean)
@@ -448,12 +549,14 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
     const known = knownMetaText(paper, prevAi)
     db.prepare('UPDATE parse_runs SET status = ? WHERE paper_id = ? AND status = ?').run('superseded', paperId, 'running')
     runId = Number(db.prepare('INSERT INTO parse_runs (paper_id, prompt_version, model, vision_model) VALUES (?, ?, ?, ?)')
-      .run(paperId, version, cfg.model, usesVision ? cfg.vision_model : null).lastInsertRowid)
+      .run(paperId, version, parseModelOf(cfg), usesVision ? cfg.vision_model : null).lastInsertRowid)
+    recordRecognition(paperId, pages, prepared)
     stage('ai', 8, '调用 AI 拆题与标注…')
     try {
-      const r = await runAiStage(paperId, paper.file_name, prepared, cfg, tax, known, ctx)
+      const r = await runAiStage(paperId, runId, paper.file_name, prepared, cfg, tax, known, ctx)
+      recordRecognition(paperId, pages, prepared)   // 读图失败改用本机文字的页，记录要跟着改
       state = r.state
-      usedModel = [r.batches.some(b => b.mode === 'text') ? cfg.model : '', r.visionModel ?? ''].filter(Boolean).join(' + ') || cfg.model
+      usedModel = [r.batches.some(b => b.mode === 'text') ? parseModelOf(cfg) : '', r.visionModel ?? ''].filter(Boolean).join(' + ') || parseModelOf(cfg)
       notes = [...prepared.notes, ...state.notes]
       state.notes = notes
       usageNote = JSON.stringify({ batches: r.batches })

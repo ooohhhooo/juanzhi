@@ -21,9 +21,8 @@ import { buildDocx } from './docx'
 import type { DocxImage } from './docx'
 import type { ReportDetail } from './service'
 
-const MAX_FULL_PAGE_WIDTH = 900
 
-/** 按引用的定位框从页面图里裁出这道题；没有定位框就用整页缩小到 900 宽。拿不到图返回 null */
+/** 按引用的定位框从页面图里裁出这道题；没有定位框（或拿不到图）返回 null——不用整页冒充这道题 */
 export function cropForRef(ref: CitationRef): { png: Buffer; width: number; height: number } | null {
   if (!ref.pageRel) return null
   // pageRel 来自库里的 pages.image_rel，已在导入 / 写入时校验过格式；这里仍然只接受固定格式，不让路径穿出文件目录
@@ -35,9 +34,8 @@ export function cropForRef(ref: CitationRef): { png: Buffer; width: number; heig
   const { width, height } = img.getSize()
   const r = cropPixels(ref.bbox, width, height)
   if (r) { const c = img.crop(r); return { png: c.toPNG(), width: r.width, height: r.height } }
-  const out = width > MAX_FULL_PAGE_WIDTH ? img.resize({ width: MAX_FULL_PAGE_WIDTH }) : img
-  const sz = out.getSize()
-  return { png: out.toPNG(), width: sz.width, height: sz.height }
+  // 没有定位框：不再拿整页冒充这道题（M9）。返回 null，导出里就不放这张图（计入「没有截图的引用」）
+  return null
 }
 
 /**

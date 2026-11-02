@@ -323,7 +323,14 @@ export default function PaperLibrary() {
       width: 128,
       render: (_: string, record: Paper) => {
         const t = paperTag(record, progress[record.id])
-        return <StatusLabel kind={paperKind(record)} title={t.title}>{t.label}</StatusLabel>
+        return (
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+            <StatusLabel kind={paperKind(record)} title={t.title}>{t.label}</StatusLabel>
+            {(record.rec_low ?? 0) > 0 && (record.status === 'reviewing' || record.status === 'done' || record.status === 'extracted') && (
+              <StatusLabel kind="pending" title="有几页本机识别效果不好，又没有交给 AI 读图。打开这份卷子可以看到每一页是怎么识别的">识别可能不完整</StatusLabel>
+            )}
+          </span>
+        )
       }
     },
     {

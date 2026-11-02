@@ -22,7 +22,7 @@ for (const c of EXPORT_BLOCKED) assert.ok(WRITE_CHANNELS.has(c), c + '：导出�
 // M5 小项：ai:test 的分类要和事实一致——testConnection 会往 ai_usage 写用量记录（成功失败都写），所以不是只读，重启待定时必须拦
 {
   const cfg = fs.readFileSync(path.resolve('src/main/ai/config.ts'), 'utf8')
-  const body = cfg.slice(cfg.indexOf('export async function testConnection'))
+  const body = cfg.slice(cfg.indexOf('async function testOne'))
   assert.match(body, /recordUsage\(/, '前提：testConnection 里确实会记用量（若这条前提变了，ai:test 的分类要重新核对）')
   assert.ok(WRITE_CHANNELS.has('ai:test') && !READONLY_CHANNELS.has('ai:test'), 'ai:test 会写 ai_usage，必须在写入类里')
   assert.ok(READONLY_CHANNELS.has('app:takeStartupNotice'), 'app:takeStartupNotice 只改内存状态，归只读类（重启待定时也要能取）')

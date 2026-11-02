@@ -12,6 +12,8 @@ interface ElectronAPI {
     /** 扫描进度（刷新页面后恢复「检查中」）；进度事件见 window.api.on('similar:progress') */
     scanSimilarStatus(): Promise<{ running: boolean; done: number; total: number; suspects: number | null }>
     list(filter?: Record<string, unknown>): Promise<Paper[]>
+    /** 每页的识别方式与原因、有多少道题还没在原卷上框出位置（试卷详情、审核页用） */
+    diag(id: string): Promise<PaperDiag>
     get(id: string): Promise<Paper | null>
     update(id: string, meta: Record<string, unknown>): Promise<Paper>
     remove(id: string): Promise<boolean>
@@ -30,8 +32,14 @@ interface ElectronAPI {
     presets(): Promise<ProviderPreset[]>
     modelProfile(model: string): Promise<ModelProfile>
     getConfig(): Promise<AiConfigView>
-    saveConfig(cfg: AiConfig, apiKey?: string | null): Promise<AiConfigView>
-    test(req: { kind: 'text' | 'vision'; cfg?: Partial<AiConfig>; apiKey?: string }): Promise<{ ok: boolean; message: string; latencyMs: number; model: string }>
+    /** apiKey / visionKey：省略 = 不改，null = 清除。visionKey 是视觉模型自己的密钥（没填就沿用文本模型的） */
+    saveConfig(cfg: AiConfig, apiKey?: string | null, visionKey?: string | null): Promise<AiConfigView>
+    test(req: { kind: 'text' | 'vision'; cfg?: Partial<AiConfig>; apiKey?: string; visionKey?: string }): Promise<AiTestItem>
+    /** 「测试全部」：依次测拆题模型、写报告模型、视觉模型 */
+    testAll(req: { cfg?: Partial<AiConfig>; apiKey?: string; visionKey?: string }): Promise<{ items: Array<AiTestItem & { kind: 'parse' | 'report' | 'vision'; label: string }> }>
+    /** 拆题模型反复写不完时的建议（只提示，不自动切换） */
+    modelHint(): Promise<ModelHint>
+    dismissModelHint(): Promise<boolean>
     prompts(): Promise<{ defaultVersion: string; items: PromptView[] }>
     savePrompt(id: string, part: string, text: string): Promise<boolean>
     resetPrompt(id: string, part: string): Promise<boolean>
@@ -117,6 +125,12 @@ interface ElectronAPI {
     approveSuggestion(questionId: string, body: { parent_code: string | null; name: string }): Promise<string>
     rejectSuggestion(questionId: string): Promise<boolean>
   }
+  os: {
+    /** 打开 Windows 语言设置（只在 Windows 上有效，地址固定） */
+    openLanguageSettings(): Promise<boolean>
+    /** 打开「怎么安装中文识别」的完整教程（固定网址） */
+    openOcrTutorial(): Promise<boolean>
+  }
   ocr: {
     status(): Promise<{ available: boolean; detail: string; lang?: string }>
   }
@@ -181,6 +195,8 @@ interface Paper {
   is_sample?: number
   /** 失败的技术详情（给管理员看，界面收在「查看详情」里） */
   error_detail?: string | null
+  /** 有几页本机识别不好、又没改用 AI 读图（试卷库显示「识别可能不完整」） */
+  rec_low?: number
   /** 疑似重复 / 部分重复：suspect = 默认不计入统计；accepted = 老师确认是新卷 */
   similar_state?: 'suspect' | 'accepted' | null
   similar_to?: string | null
@@ -257,11 +273,49 @@ interface Window {
 }
 
 
+interface AiTestItem {
+  ok: boolean
+  message: string
+  latencyMs: number
+  model: string
+  status?: 'ok' | 'warn' | 'fail' | 'skip'
+  steps?: string[]
+  detail?: string
+}
+
+interface ModelHint {
+  suggest: boolean
+  total: number
+  retried: number
+  medianMs: number | null
+  reason: 'retries' | 'slow' | null
+  model: string
+  reasoning: boolean
+  recommend: string | null
+}
+
+/** 一份卷子的识别方式与截图位置（主进程 ipc/recognition.ts 的 PaperDiag） */
+interface PaperDiag {
+  paperId: string
+  platform: string
+  pages: Array<{ idx: number; recognizer: string | null; ocrLang: string | null; reason: string | null; low: boolean; hasImage: boolean }>
+  incomplete: boolean
+  needsZhPack: boolean
+  locate: { total: number; located: number; missing: Array<{ id: string; no: string; page: number | null }>; noImage: boolean }
+}
+
 interface AiConfig {
   provider: string
   base_url: string
+  /** 写报告 / 做分析用的模型 */
   model: string
+  /** 拆题用的模型；空 = 与 model 相同 */
+  parse_model: string
   vision_model: string
+  /** 视觉模型自己的服务地址；空 = 与文本模型相同 */
+  vision_base_url: string
+  /** auto = 识别不好的页才读图；images_always = 图片和扫描件一律读图；never = 从不读图 */
+  vision_policy: 'auto' | 'images_always' | 'never'
   concurrency: number
   auto_parse: boolean
   batch_pages: number
@@ -273,6 +327,7 @@ interface AiConfig {
 
 interface AiConfigView extends AiConfig {
   hasKey: boolean
+  hasVisionKey: boolean
   keyStorage: 'encrypted' | 'memory' | 'none'
 }
 
@@ -281,6 +336,8 @@ interface ProviderPreset {
   name: string
   baseUrl: string
   model: string
+  /** 推荐的拆题模型（快速、不带深度思考的）；空 = 查不到可靠的就不猜 */
+  parseModel?: string
   visionModel: string
   keyHint: string
   models: string[]

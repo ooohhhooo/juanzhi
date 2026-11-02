@@ -124,7 +124,7 @@ async function main() {
   dbm.close()
   const L1 = legacyRows.find(r => r.id.startsWith('1111'))
   const L2 = legacyRows.find(r => r.id.startsWith('2222'))
-  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v10（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10）', uv === 10, `user_version=${uv}`)
+  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v11（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11）', uv === 11, `user_version=${uv}`)
   check('迁移', '新增列与附件表齐全，旧数据保留',
     ['text', 'ocr_conf', 'ocr_error', 'text_layer_chars'].every(c => pageCols.includes(c)) &&
     ['extracted_at', 'warning', 'duplicate_of'].every(c => paperCols.includes(c)) && hasAssets && legacyPages.c === 1,
@@ -347,10 +347,12 @@ async function main() {
   // docx：文本 + 内嵌图片
   const docxPaper = P('unit-test.docx'), docxPage = pg('unit-test.docx'), docxAssets = assetsOf('unit-test.docx')
   const mediaFile = path.join(userData, 'workbench-data', 'files', docxPaper.id, 'media', '1.png')
-  check('docx', 'docx：文本入库且 [图1] 占位在原位，图片落盘并登记到 paper_assets，不造坐标',
+  // M9：Word 也渲染成页面图并量出每行的位置（行带坐标），文字仍按 [图n] 占位保持相对位置
+  const docxLines = JSON.parse(docxPage.lines_json || '[]')
+  check('docx', 'docx：文本入库且 [图1] 占位在原位，图片落盘并登记到 paper_assets，页面图已生成、每行带坐标（M9）',
     docxPaper.status === 'extracted' && docxPage.text_source === 'docx' && /How are you[\s\S]*\[图1\][\s\S]*What is this/.test(docxPage.text) &&
-    docxPage.lines_json === '[]' && docxAssets.length === 1 && docxAssets[0].mime === 'image/png' && docxAssets[0].bytes > 0 && fs.existsSync(mediaFile),
-    `${docxPage.text_source} ${docxPage.text.length}字 assets=${docxAssets.length}`)
+    docxLines.length >= 3 && docxLines.every(l => l.w > 0 && l.h > 0) && !!docxPage.image_rel && docxPage.width > 0 && docxAssets.length === 1 && docxAssets[0].mime === 'image/png' && docxAssets[0].bytes > 0 && fs.existsSync(mediaFile),
+    `${docxPage.text_source} ${docxPage.text.length}字 行=${docxLines.length} assets=${docxAssets.length}`)
   const stM = url => app.evaluate(async ({ net }, u) => (await net.fetch(u)).status, url)
   const mOk = await stM(`ewb://media/${docxPaper.id}/1.png`)
   const mOrig = await stM(`ewb://media/${docxPaper.id}/original.docx`)
@@ -381,15 +383,12 @@ async function main() {
   await sleep(600)
   await page.screenshot({ path: path.join(shots, 'fix-04-detail-exif-overlay.png') })
 
-  // docx 详情页：文字 + 内联图片，没有破图缩略图，也没有无意义的叠加开关
+  // docx 详情页（M9）：Word 排成了页面图，显示和图片 / PDF 一样的页面图；没有破图缩略图
   await page.evaluate(id => { location.hash = '#/paper/' + id }, docxPaper.id)
-  await page.waitForSelector('[data-testid=docx-view]')
-  const docxImgOk = await waitFor(() => page.evaluate(() => { const i = document.querySelector('[data-testid=docx-image]'); return !!i && i.complete && i.naturalWidth > 0 }), 10000)
-  const brokenThumbs = await page.locator('img[alt^="第"]').count()
-  const switches = await page.locator('.ant-switch').count()
-  const docxShown = await page.getByText('How are you').count()
-  check('docx', '详情页：文字可见、图片内联且加载成功、无页面缩略图请求（不再破图）、无叠加开关', docxShown > 0 && !!docxImgOk && brokenThumbs === 0 && switches === 0,
-    `文字=${docxShown} 图片ok=${!!docxImgOk} 页图=${brokenThumbs} 开关=${switches}`)
+  await page.waitForSelector('.ewb-lib-pageimg img')
+  const docxImgOk = await waitFor(() => page.evaluate(() => { const i = document.querySelector('.ewb-lib-pageimg img'); return !!i && i.complete && i.naturalWidth > 0 }), 10000)
+  const brokenThumbs = await page.evaluate(() => [...document.querySelectorAll('img[alt^="第"]')].filter(i => !(i.complete && i.naturalWidth > 0)).length)
+  check('docx', '详情页：Word 的页面图加载成功、没有破图缩略图', !!docxImgOk && brokenThumbs === 0, `页面图ok=${!!docxImgOk} 破图=${brokenThumbs}`)
   await page.screenshot({ path: path.join(shots, 'fix-05-detail-docx.png') })
 
   // 删除带附件的试卷：附件行（外键级联）与 media 目录一并清理

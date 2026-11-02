@@ -1,13 +1,14 @@
 import SimilarNotice from '../../components/SimilarNotice'
 import { safeText } from '../../../shared/code-guard'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input, Modal, Segmented, Spin, Tooltip } from 'antd'
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Pencil, TriangleAlert, ListChecks } from 'lucide-react'
 import QuestionForm from './QuestionForm'
 import { Pill } from './parts'
 import { BoxEditor } from '../../components/BoxEditor'
+import { RecognitionCard } from '../../components/RecognitionCard'
 import { statusMap } from '../../status'
 import { Btn, EmptyState, Icon, StatusLabel, UsageNote } from '../../design'
 import '../../design/page-review.css'
@@ -63,7 +64,9 @@ export default function ReviewPage() {
   const lowConfidence = list?.lowConfidence ?? 0.7
   const questions = useMemo(() => (list?.questions ?? []).map(q => (overlay[q.id] ? applyPatch(q, overlay[q.id]) : q)), [list, overlay])
   const [filter, setFilter] = useState<Filter>('all')
-  const [selId, setSelId] = useState<string | null>(null)
+  // 从“这道题还没在原卷上框出位置”的提示跳过来时，地址里带着题目 id（?q=…），直接选中它
+  const [searchParams] = useSearchParams()
+  const [selId, setSelId] = useState<string | null>(searchParams.get('q'))
   const [pageIdx, setPageIdx] = useState(1)
   const [liveBox, setLiveBox] = useState<Box | null>(null)
   const [showOthers, setShowOthers] = useState(true)
@@ -264,6 +267,7 @@ export default function ReviewPage() {
         </div>
       </div>
       {paper.similar_state === 'suspect' && <div className="ewb-rev__notes"><SimilarNotice paper={paper} /></div>}
+      <div className="ewb-rev__notes" data-testid="review-recognition"><RecognitionCard paperId={paperId!} /></div>
       {((reopenedNotice && paper.status === 'reviewing') || dropped || (list?.notes?.length ?? 0) > 0) && (
         <div className="ewb-rev__notes">
           {reopenedNotice && paper.status === 'reviewing' && (

@@ -1,0 +1,93 @@
+(() => {
+  // 在隐藏窗口的页面里运行（由 docx-render.ts 用 executeJavaScript 注入）：量出每一行文字的位置。
+  // 返回 JSON 字符串 { height, frags: [{ text, x, y, w, h }], blocks: [{ y, h }] }，坐标单位都是 CSS 像素（相对整篇文档左上角）。
+  const body = document.body
+  const sy = window.scrollY, sx = window.scrollX
+
+  // 1. Word 的自动编号：mammoth 把中间隔着别的段落的列表拆成好几个 <ol>，每个都从 1 重新数。
+  //    这里让它接着上一个数（遇到「一、二、…」这样的大题标题才重新开始），页面上看到的和 Word 里一致。
+  const SECTION = /^\s*([一二三四五六七八九十]+\s*[、.．]|(Part|Section|PART|SECTION)\b)/
+  let counter = 0
+  for (const el of Array.from(body.children)) {
+    if (el.tagName === 'OL') {
+      el.start = counter + 1
+      counter += el.children.length
+    } else if (SECTION.test(el.textContent || '')) {
+      counter = 0
+    }
+  }
+
+  // 2. 填空横线：只有空格的下划线片段，HTML 会把空格折叠掉，横线几乎看不见。换成不折叠的空格，并记下这是「空」。
+  const blanks = new Set()
+  const walker0 = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
+  const all = []
+  for (let n = walker0.nextNode(); n; n = walker0.nextNode()) all.push(n)
+  for (const n of all) {
+    const el = n.parentElement
+    if (el && el.closest('u') && /^[\s ]+$/.test(n.nodeValue || '')) {
+      n.nodeValue = ' '.repeat(Math.max(6, (n.nodeValue || '').length))
+      blanks.add(n)
+    }
+  }
+
+  // 3. 逐字取矩形，按视觉行归并成片段
+  const frags = []
+  const markedLis = new Set()
+  const range = document.createRange()
+  for (const node of all) {
+    const raw = node.nodeValue || ''
+    if (!raw.trim() && !blanks.has(node)) continue
+    const parent = node.parentElement
+    if (!parent) continue
+    const style = getComputedStyle(parent)
+    if (style.visibility === 'hidden' || style.display === 'none') continue
+    const li = parent.closest('li')
+    let prefix = ''
+    if (li && !markedLis.has(li)) {
+      markedLis.add(li)
+      const list = li.parentElement
+      if (list && list.tagName === 'OL') prefix = String((list.start || 1) + Array.prototype.indexOf.call(list.children, li)) + '. '
+      else prefix = '• '
+    }
+    let cur = null
+    const flush = () => { if (cur && cur.text.trim()) frags.push(cur); cur = null }
+    for (let i = 0; i < raw.length; i++) {
+      range.setStart(node, i)
+      range.setEnd(node, i + 1)
+      const rs = range.getClientRects()
+      const ch = blanks.has(node) ? '_' : raw[i] === ' ' ? ' ' : raw[i]
+      if (rs.length === 0 || rs[0].width === 0) {
+        // 被折叠掉的空白：只在片段里留一个空格
+        if (cur && !cur.text.endsWith(' ')) cur.text += ' '
+        continue
+      }
+      const r = rs[0]
+      if (!cur || Math.abs(r.top + sy - cur.y) > Math.max(cur.h, r.height) * 0.5) {
+        flush()
+        cur = { text: prefix, x: r.left + sx, y: r.top + sy, w: 0, h: r.height }
+        prefix = ''
+      }
+      cur.text += ch
+      cur.w = Math.max(cur.w, r.right + sx - cur.x)
+      cur.h = Math.max(cur.h, r.height)
+    }
+    flush()
+  }
+
+  // 4. 图片和表格行：分页时不能从它们中间切开；图片在文字里留一个 [图n] 占位（和 extract.ts 提取文字时的写法一致），AI 才知道这里有图
+  const blocks = []
+  let imgNo = 0
+  for (const el of Array.from(body.querySelectorAll('img'))) {
+    const r = el.getBoundingClientRect()
+    if (r.height <= 0) continue
+    imgNo++
+    frags.push({ text: '[图' + imgNo + ']', x: r.left + sx, y: r.top + sy, w: Math.min(r.width, 48), h: Math.min(r.height, 18) })
+  }
+  for (const el of Array.from(body.querySelectorAll('img, tr'))) {
+    const r = el.getBoundingClientRect()
+    if (r.height > 0) blocks.push({ y: r.top + sy, h: r.height })
+  }
+  const last = frags.reduce((m, f) => Math.max(m, f.y + f.h), 0)
+  const lastBlock = blocks.reduce((m, b) => Math.max(m, b.y + b.h), 0)
+  return JSON.stringify({ height: Math.ceil(Math.max(last, lastBlock)), frags, blocks })
+})()

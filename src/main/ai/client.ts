@@ -6,7 +6,7 @@ import { redact } from './guard.ts'
  */
 
 export type AiErrorCode =
-  | 'auth' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'bad_request' | 'empty' | 'truncated' | 'aborted' | 'not_found'
+  | 'auth' | 'forbidden' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'bad_request' | 'empty' | 'truncated' | 'aborted' | 'not_found'
 
 /** 带给用户看的中文原因；detail 是原始信息，只进日志不直接展示 */
 export class AiError extends Error {
@@ -133,11 +133,20 @@ export function chatUrl(baseUrl: string): string {
   return /\/chat\/completions$/.test(b) ? b : `${b}/chat/completions`
 }
 
-function statusError(status: number, body: string, secret = ''): AiError {
+/** 403 时给用户看的「怎么办」（设置页的测试结果里展开显示） */
+export const FORBIDDEN_STEPS = [
+  '到服务商的控制台，给这把密钥开通这个模型（有的服务商要先「开通模型」，或先创建「推理接入点」，这时模型名要填接入点 ID）；',
+  '或者换成这把密钥有权限的模型；',
+  '或者让视觉模型改用另一家服务商 / 另一把密钥（在「视觉模型」下展开「视觉模型用不同的服务商 / 密钥」）；',
+  '点「查看详情」可以看到服务商返回的原话（已隐藏密钥），方便找管理员或客服。'
+]
+
+export function statusError(status: number, body: string, secret = '', model = ''): AiError {
   // 响应片段会展示给用户并写进 papers.error，先脱敏
   // 先对整段响应脱敏、再截断：密钥正好跨在截断点上时，不会只剩一段认不出来的前缀漏出去
   const snippet = redact(body.replace(/\s+/g, ' '), [secret]).slice(0, 300)
-  if (status === 401 || status === 403) return new AiError('auth', `API Key 无效或没有权限（HTTP ${status}），请检查密钥与所选服务商是否匹配`, status, snippet)
+  if (status === 401) return new AiError('auth', 'API Key 无效（HTTP 401）：请重新复制密钥，注意前后不要有空格，并确认它和所选服务商是一家的', status, snippet)
+  if (status === 403) return new AiError('forbidden', `这个密钥没有权限使用这个模型${model ? `（${model}）` : ''}（HTTP 403）`, status, snippet)
   if (status === 404) return new AiError('not_found', `接口或模型不存在（HTTP 404），请检查 Base URL 与模型名称`, status, snippet)
   if (status === 408) return new AiError('timeout', '服务端返回请求超时（HTTP 408）', status, snippet)
   if (status === 429) return new AiError('rate_limit', '请求太频繁或额度不足（HTTP 429），稍后重试，或检查账户余额', status, snippet)
@@ -202,7 +211,7 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
     }
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      const err = statusError(res.status, text, req.apiKey)
+      const err = statusError(res.status, text, req.apiKey, req.model)
       // 429 与 5xx（常见 503）都可能带 Retry-After（秒数）
       const ra = Number(res.headers.get('retry-after'))
       if ((res.status === 429 || res.status >= 500) && ra > 0) (err as AiError & { retryAfterMs?: number }).retryAfterMs = Math.min(ra * 1000, 30_000)

@@ -47,6 +47,8 @@ function DataChangeListener() {
       for (const t of types) {
         queryClient.invalidateQueries({ queryKey: [t] })
       }
+      // 识别方式与「没找到位置的题」随试卷、页面、题目的变化重新取
+      if (types.some(t => t === 'papers' || t === 'pages' || t === 'questions')) queryClient.invalidateQueries({ queryKey: ['diag'] })
       // 看板与总览的统计（含 AI 分析的缓存状态）：试卷状态、题目、知识点树任何一项变了都重新取数
       if (types.some(t => STATS_SOURCES.has(t))) queryClient.invalidateQueries({ queryKey: ['stats'] })
       if (types.some(t => REPORT_SOURCES.has(t))) queryClient.invalidateQueries({ queryKey: ['reports'] })

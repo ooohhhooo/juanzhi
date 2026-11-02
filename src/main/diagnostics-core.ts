@@ -19,10 +19,10 @@ export function scrubConfig(cfg: Record<string, unknown>, hasKey: boolean): Reco
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(cfg)) {
     if (/key|secret|password|token(?!s)|authorization|credential/i.test(k) && k !== 'max_tokens' && !/^max_tokens/.test(k)) continue
-    if (k === 'base_url') {
+    if (k === 'base_url' || k.endsWith('_base_url') || /url/i.test(k)) {
       let host = ''
       try { host = new URL(String(v)).host } catch { /* 空或非法 */ }
-      out.base_host = host
+      out[k === 'base_url' ? 'base_host' : k.replace(/_?base_url$|_?url$/i, '') + '_host'] = host
       continue
     }
     if (typeof v === 'number' || typeof v === 'boolean') out[k] = v

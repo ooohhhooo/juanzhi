@@ -32,7 +32,7 @@ import JSZip from 'jszip'
 // ── 迁移 v10 ──
 {
   const { db, version } = newDb()
-  assert.equal(version, 10)
+  assert.equal(version, 11)
   const cols = t => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name)
   for (const c of ['plain', 'example_en', 'example_zh', 'hint_words']) assert.ok(cols('kps').includes(c), `kps.${c}`)
   for (const c of ['error_detail', 'similar_to', 'similar_ratio', 'similar_state']) assert.ok(cols('papers').includes(c), `papers.${c}`)
@@ -73,7 +73,7 @@ import JSZip from 'jszip'
   const b = id => JSON.parse(db.prepare('SELECT bbox_json b FROM questions WHERE id = ?').get(id).b)
   assert.ok(Math.abs(b('q16')[0] + b('q16')[2] - 0.404) < 0.0011, '第 16 题右边缩回到第 17 题前面'); assert.deepEqual(b('q17'), [0.412, 0.677, 0.274, 0.026]); assert.deepEqual(b('qm'), [0.05, 0.677, 0.4, 0.026], '手工框不动')
   assert.equal(db.prepare("SELECT bbox_json b FROM questions WHERE id = 'qbad'").get().b, '不是json', '坏数据原样保留')
-  assert.equal(db.prepare("SELECT markdown m, reader r FROM reports WHERE id = 'old'").get().r, 'full'); assert.equal(db.prepare('PRAGMA user_version').get().user_version, 10)
+  assert.equal(db.prepare("SELECT markdown m, reader r FROM reports WHERE id = 'old'").get().r, 'full'); assert.equal(db.prepare('PRAGMA user_version').get().user_version, 11)
 }
 
 // ── 知识点编辑器：白话 / 例句 / 例词可填可清，字符规则同名称和说明 ──

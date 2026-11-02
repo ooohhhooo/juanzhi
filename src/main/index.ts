@@ -8,6 +8,7 @@ import { refineAllOnce } from './parse/refine-run'
 import { writeConfig } from './datadir'
 import { registerProtocol } from './protocol'
 import { registerPaperIpc } from './ipc/papers'
+import { registerRecognitionIpc } from './ipc/recognition'
 import { registerSettingsIpc } from './ipc/settings'
 import { registerAiIpc } from './ipc/ai'
 import { registerParseIpc } from './ipc/parse'
@@ -224,6 +225,7 @@ if (cliArgs) {
 
     installIpcGuards()   // 必须在注册任何 IPC 之前：写入类请求在「需要重启」/「导出中」时由主进程直接拒绝
     registerPaperIpc()
+    registerRecognitionIpc()
     registerSettingsIpc()
     registerAiIpc()
     registerParseIpc()

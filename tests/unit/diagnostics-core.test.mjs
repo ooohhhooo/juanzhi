@@ -17,6 +17,11 @@ assert.equal(out.concurrency, 8)
 assert.equal(out.max_tokens, 32768, 'max_tokens 不是密钥，要保留')
 assert.equal(out.nested, undefined, '对象类字段一律不带')
 assert.equal(scrubConfig({ base_url: '' }, false).api_key, '未设置')
+{
+  const v = scrubConfig({ vision_base_url: 'https://u:p@vision.example.com/v1/secret-path?k=1' }, true)
+  assert.equal(v.vision_host, 'vision.example.com')
+  assert.ok(!JSON.stringify(v).includes('secret-path') && !JSON.stringify(v).includes('u:p'))
+}
 
 // CSV：引号、逗号、换行、公式前缀
 assert.equal(csvCell('a,b'), '"a,b"')
