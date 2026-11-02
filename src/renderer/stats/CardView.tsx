@@ -48,7 +48,7 @@ export default function CardView({ block, inl, actions }: { block: CardBlock; in
             </div>
           </div>
         ))}
-        <div className="ewb-card__foot">本题由 AI 根据原卷考点改编，已由程序和第二次 AI 解答核对；使用前请老师先做一遍</div>
+        <div className="ewb-card__foot">AI 出题，老师逐题核对后使用</div>
       </div>
       {actions}
     </div>

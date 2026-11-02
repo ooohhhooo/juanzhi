@@ -1,12 +1,10 @@
 /**
  * 「保存图片 / 复制图片」：把报告里的一张卡片（口诀大招 / 答题卡）渲染成 2 倍清晰度的 PNG。
- * 用一个隐藏的离屏窗口加载与 PDF 同源的静态 HTML（强制浅色白底、固定 720px 宽、CSS zoom: 2），不受当前主题、滚动位置和显示器缩放影响；不引入新依赖。
- * 需要 electron。页面没有脚本；只有主进程用 executeJavaScript 量一下高度。
+ * 用一个隐藏的离屏窗口渲染与 PDF 同源的静态 HTML（强制浅色白底、固定 720px 宽、CSS zoom: 2），不受当前主题、滚动位置和显示器缩放影响；不引入新依赖。
+ * 需要 electron。不写临时文件：窗口先打开 about:blank，主进程用 document.write 写入页面（页面带 CSP meta，没有脚本、不能联网）；
+ * 窗口用一次性的内存 session，禁止跳转、禁止弹新窗口、拒绝一切权限请求。
  */
 import { BrowserWindow, nativeImage } from 'electron'
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import crypto from 'node:crypto'
 import { parseBlocks } from '../../shared/markdown'
 import { cardImagePage, cardToHtml } from '../../shared/mdhtml'
@@ -23,14 +21,19 @@ export function cardHtmlOf(markdown: string, kind: 'trick' | 'answercard', index
 }
 
 export async function renderCardImage(cardHtml: string): Promise<{ png: Buffer; width: number; height: number }> {
-  const tmp = path.join(os.tmpdir(), `ewb-card-${crypto.randomBytes(6).toString('hex')}.html`)
-  fs.writeFileSync(tmp, cardImagePage(cardHtml), 'utf8')
   const win = new BrowserWindow({
     show: false, width: CARD_IMAGE_WIDTH, height: 1200, useContentSize: true, backgroundColor: '#FFFFFF',
-    webPreferences: { sandbox: true, contextIsolation: true, offscreen: true }
+    // partition 不带 persist: 前缀 = 一次性的内存 session，用完即丢
+    webPreferences: { sandbox: true, contextIsolation: true, offscreen: true, partition: `ewb-card-${crypto.randomBytes(6).toString('hex')}` }
   })
+  const wc = win.webContents
+  wc.on('will-navigate', e => e.preventDefault())
+  wc.on('will-redirect', e => e.preventDefault())
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }))
+  wc.session.setPermissionRequestHandler((_w, _p, cb) => cb(false))
   try {
-    await win.loadFile(tmp)
+    await win.loadURL('about:blank')
+    await wc.executeJavaScript(`document.open();document.write(${JSON.stringify(cardImagePage(cardHtml))});document.close();document.fonts.ready.then(() => true)`)
     // 量卡片高度（CSS zoom 下 getBoundingClientRect 的口径随 Chromium 版本不同，取 offsetHeight × zoom 与它的较大者，再用截图后的白边裁剪兜底）
     const h: number = await win.webContents.executeJavaScript(
       '(()=>{const b=document.body;const r=b.getBoundingClientRect().height;return Math.ceil(Math.max(r,b.offsetHeight*2,b.scrollHeight))})()')
@@ -57,6 +60,5 @@ export async function renderCardImage(cardHtml: string): Promise<{ png: Buffer; 
     return { png: out.toPNG(), width: s2.width, height: s2.height }
   } finally {
     if (!win.isDestroyed()) win.destroy()
-    try { fs.rmSync(tmp, { force: true }) } catch { /* 忽略 */ }
   }
 }

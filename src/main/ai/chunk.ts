@@ -11,7 +11,7 @@ export type ChunkEvent =
   | { id: string; type: 'retry'; reason: 'length' }
   | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string; unverified?: UnverifiedItem[] }
   | { id: string; type: 'error'; code: string; message: string; detail?: string; partial: string }
-  | { id: string; type: 'cancelled'; partial: string }
+  | { id: string; type: 'cancelled'; partial: string; /** 附加段阶段被取消：主文已经存成报告，带上它的 id */ reportId?: string }
   /** 报告分段生成：主文写完后，每个附加段开始 / 成功 / 失败各发一次 */
   | { id: string; type: 'part'; part: string; label: string; state: 'start' | 'ok' | 'failed'; index: number; total: number; message?: string }
 

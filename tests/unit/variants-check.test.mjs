@@ -48,6 +48,10 @@ assert.ok(tokensOf('你好 abc').has('好') && tokensOf('你好 abc').has('abc')
 
 // 价格 / 营销 / 夸大
 assert.ok(run([q({ explanation: '报名后保证提分。' })]).variants[0].problems.some(p => /价格|夸大/.test(p)))
+// 选项和 changed 里的营销说法也要查；购物题里的价格、日常说法不误伤
+assert.ok(run([q({ options: ['pen', 'pens', '报名立减 50 元', "pen's"] })]).variants[0].problems.some(p => /价格|夸大/.test(p)))
+assert.ok(run([q({ changed: '保证提分' })]).variants[0].problems.some(p => /价格|夸大/.test(p)))
+assert.deepEqual(run([q({ stem: 'How much is the pen? It is 3 ____ (y).', options: ['yuan', 'yuans', 'a yuan', 'yuan s'], answer: 'A', explanation: '最好的朋友也要用 yuan。' })]).variants[0].problems, [])
 // 重复的题只留第一道
 const dup = run([q(), q()])
 assert.equal(dup.variants[0].problems.length, 0); assert.ok(dup.variants[1].problems.some(p => /重复/.test(p)))

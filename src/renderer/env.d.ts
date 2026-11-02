@@ -565,7 +565,7 @@ type ChunkEvent =
   | { id: string; type: 'retry'; reason: 'length' }
   | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string; unverified?: UnverifiedItem[] }
   | { id: string; type: 'error'; code: string; message: string; detail?: string; partial: string }
-  | { id: string; type: 'cancelled'; partial: string }
+  | { id: string; type: 'cancelled'; partial: string; reportId?: string }
   /** 报告分段生成：主文写完后，每个附加段开始 / 成功 / 失败各发一次（index 从 1 起，total 是这次要跑的附加段数） */
   | { id: string; type: 'part'; part: string; label: string; state: 'start' | 'ok' | 'failed'; index: number; total: number; message?: string }
 

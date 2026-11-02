@@ -284,7 +284,12 @@ export function getReport(id: string): ReportDetail | null {
   return { ...item, markdown: fixBackticks(row.markdown ?? ''), refs: refreshRefs(parseJson<CitationRef[]>(row.refs_json, [])), unverified: parseJson<UnverifiedItem[]>(row.verify_json, []), parts: partViews(row, item), variants: variantViews(id) }
 }
 
+/** 这份报告还在生成附加段：核对、勾选、删句、删除、导出 / 复制都先拒绝（内容还没定，别让半成品出去，也别让生成中的行被删掉） */
+export const GENERATING_MSG = '这份报告的附加部分还在生成，请等它结束（或先取消）再操作'
+function assertIdle(id: string): void { if (isGenerating(id)) throw new Error(GENERATING_MSG) }
+
 export function deleteReport(id: string): boolean {
+  assertIdle(id)
   const row = getDb().prepare('SELECT filter_json, reader FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
   const r = getDb().prepare('DELETE FROM reports WHERE id = ? AND kind = ?').run(id, KIND)
   // 同一个筛选、同一个版本的「未完成草稿」跟着清（报告都删了，没写完的那份也没有留着的意义）
@@ -299,6 +304,7 @@ export function deleteReport(id: string): boolean {
  * 勾过的句子在 verify_json 里记 acknowledged: true（留痕）。拒绝时抛出白话错误。
  */
 export function confirmReport(id: string, acknowledged: string[] = []): boolean {
+  assertIdle(id)
   const rep = getReport(id)
   if (!rep) return false
   const why = confirmBlockReason(rep)
@@ -323,6 +329,7 @@ export function confirmReport(id: string, acknowledged: string[] = []): boolean 
  * 返回更新后的报告；删不掉（句子不在清单里、正文里找不到、报告已核对）时抛出白话错误。
  */
 export function removeReportSentence(id: string, sentence: string): ReportDetail {
+  assertIdle(id)
   const row = getDb().prepare('SELECT * FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
   if (!row) throw new Error('这份报告已经不存在了')
   if (row.confirmed_at) throw new Error('这份报告已经核对过了，不能再删句子；需要改请重新生成')
@@ -395,12 +402,14 @@ export async function retryReportPart(id: string, part: string, requestId: strin
   const offGone = senderGone(() => ctl.abort())
   try {
     send({ id: requestId, type: 'start', scopeKey: 'report', refs: [] })
+    let failMsg = ''
     const res = await runParts({
       reportId: id, defs: [def], ctx: { reader, options, prepared: p, mainMarkdown: main?.markdown ?? '' }, signal: ctl.signal,
-      onEvent: e => send({ id: requestId, type: 'part', ...e }), onChange: () => notifyDataChanged('reports')
+      onEvent: e => { if (e.state === 'failed' && e.message) failMsg = e.message; send({ id: requestId, type: 'part', ...e }) }, onChange: () => notifyDataChanged('reports')
     })
+    if (res.cancelled) { send({ id: requestId, type: 'cancelled', partial: '', reportId: id }); return { ok: false, message: '已取消' } }
     send({ id: requestId, type: 'done', markdown: '', refs: [], warnings: [], reportId: id })
-    return res.failed.length ? { ok: false, message: loadParts(id).find(r => r.part === part)?.message ?? '这一部分没有生成成功' } : { ok: true }
+    return res.failed.length ? { ok: false, message: failMsg || loadParts(id).find(r => r.part === part)?.message || '这一部分没有生成成功' } : { ok: true }
   } finally {
     offGone()
     inflight.delete(requestId)
@@ -409,7 +418,12 @@ export async function retryReportPart(id: string, part: string, requestId: strin
 
 /** 老师逐题勾「我核对过」：勾了的变形题才会放进答题卡（被程序剔除的题不能勾）；返回更新后的报告 */
 export function tickVariant(id: string, variantId: string, ok: boolean): ReportDetail {
+  assertIdle(id)
   const db = getDb()
+  const conf = db.prepare('SELECT confirmed_at c FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
+  if (!conf) throw new Error('这份报告已经不存在了')
+  // 已「我已核对」的报告内容已经定稿：不能再改勾选（要改请重新生成一份）
+  if (conf.c) throw new Error('这份报告已经核对过了，不能再改变形题的勾选；需要改请重新生成一份')
   const v = db.prepare('SELECT id, status FROM report_variants WHERE id = ? AND report_id = ?').get(variantId, id) as any
   if (!v) throw new Error('没有找到这道变形题')
   if (v.status === 'dropped') throw new Error('这道题没有通过程序校验，不能放进答题卡')
@@ -420,7 +434,8 @@ export function tickVariant(id: string, variantId: string, ok: boolean): ReportD
 }
 
 /** 导出 / 复制前的把关：家长版没核对、或内容太少 / 还有矛盾句，都不许出去 */
-export function assertExportable(report: Pick<ReportDetail, 'reader' | 'confirmedAt' | 'markdown' | 'unverified'>): void {
+export function assertExportable(report: Pick<ReportDetail, 'reader' | 'confirmedAt' | 'markdown' | 'unverified'> & { id?: string }): void {
+  if (report.id) assertIdle(report.id)
   const why = confirmBlockReason(report)
   if (why) throw new Error(why)
   if (report.reader === 'parent' && !report.confirmedAt) throw new Error('家长版要先由老师核对：请先点「我已核对」，再导出或复制')
@@ -550,6 +565,12 @@ export async function generateReport(filter: StatsFilter, reader: ReportReader, 
       onEvent: e => send({ id: requestId, type: 'part', ...e }), onChange: () => notifyDataChanged('reports')
     })
     const done = getReport(id)!
+    if (run.cancelled) {
+      // 主文和已完成的段已经存下了，但这次生成是被取消的：对界面报告「已取消」（并带上报告 id，界面据此选中这份已保存的报告）
+      const msg = '已取消。主文和已完成的部分已经保存，没生成的部分可以在报告里单独重试'
+      send({ id: requestId, type: 'cancelled', partial: '', reportId: id })
+      return { ok: false, cancelled: true, code: 'aborted', message: msg, partial: '', reportId: id }
+    }
     const warnings = run.failed.length ? [...done.warnings, `有 ${run.failed.length} 个部分没有生成成功（${run.failed.map(x => getPartDef(x)?.label ?? x).join('、')}），可以在报告里单独重试`] : done.warnings
     send({ id: requestId, type: 'done', markdown: done.markdown, refs: used, warnings, reportId: id, unverified: done.unverified })
     return { ok: true, markdown: done.markdown, refs: used, warnings, reportId: id, unverified: done.unverified }

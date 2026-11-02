@@ -95,6 +95,15 @@ function savePart(reportId: string, part: string, status: PartStatus, o: { markd
     .run(reportId, part, status, o.markdown ?? '', o.message ?? null, o.detail ?? null, o.model ?? null, o.promptVersion ?? null, o.meta ? JSON.stringify(o.meta) : null)
 }
 
+/** 开始重跑一段：只把状态改成 running，旧的正文和说明先留着（新的一次成功了才替换；失败了就还原） */
+function markRunning(reportId: string, part: string): void {
+  getDb().prepare(`INSERT INTO report_parts (report_id, part, status) VALUES (?, ?, 'running') ON CONFLICT(report_id, part) DO UPDATE SET status = 'running'`).run(reportId, part)
+}
+/** 写库失败（比如报告已经被删了）不能当成 AI 失败，也不能让整条链路崩：吞掉并记一条日志 */
+function trySave(reportId: string, part: string, status: PartStatus, o: Parameters<typeof savePart>[3] = {}): void {
+  try { savePart(reportId, part, status, o) } catch { log.warn('report-part', '保存分段状态失败', { part }) }
+}
+
 /** 正在生成附加段的报告（崩溃后留下的 running 行不在这里 = 视为失败，可以重试） */
 const running = new Set<string>()
 export const isGenerating = (reportId: string): boolean => running.has(reportId)
@@ -145,52 +154,71 @@ export async function runParts(o: { reportId: string; defs: ReportPartDef[]; ctx
   running.add(reportId)
   const failed: string[] = []
   let cancelled = false
+  // 重试时旧的一段（status = ok）先记下来：新的一次失败 / 被取消时还原它，不能让重试把原来好好的内容弄丢
+  const prev = new Map(loadParts(reportId).map(r => [r.part, r]))
+  const restoreOrFail = (id: string, message: string, detail = ''): void => {
+    const old = prev.get(id)
+    if (old && old.status === 'ok') {
+      try { getDb().prepare("UPDATE report_parts SET status = 'ok' WHERE report_id = ? AND part = ?").run(reportId, id) } catch { /* 报告已被删 */ }
+    } else trySave(reportId, id, 'failed', { message, detail })
+  }
   try {
-    for (const d of defs) savePart(reportId, d.id, 'running')
+    for (const d of defs) markRunning(reportId, d.id)
     reassemble(reportId)
     o.onChange()
     for (let i = 0; i < defs.length; i++) {
       const d = defs[i]
       const ev = (state: PartEvent['state'], message?: string) => o.onEvent({ part: d.id, label: d.label, state, index: i + 1, total: defs.length, message })
       if (cancelled) {
-        savePart(reportId, d.id, 'failed', { message: '已取消，这一部分没有生成' })
+        restoreOrFail(d.id, '已取消，这一部分没有生成')
         failed.push(d.id)
         continue
       }
       const ctx: PartContext = { ...o.ctx, reportId, signal }
       const why = d.skip?.(ctx) ?? null
       if (why) {
-        savePart(reportId, d.id, 'skipped', { message: why })
+        trySave(reportId, d.id, 'skipped', { message: why })
         ev('ok', why)
         reassemble(reportId)
         continue
       }
       ev('start')
+      let out: PartOutput | null = null
       try {
-        const out = await d.run(ctx)
-        const db = getDb()
-        db.exec('BEGIN')
-        try {
-          savePart(reportId, d.id, 'ok', { markdown: out.markdown, model: out.model ?? null, promptVersion: out.promptVersion ?? null, meta: { usage: out.usage, unverified: out.unverified ?? [], warnings: out.warnings ?? [] } })
-          out.persist?.(db, reportId)
-          db.exec('COMMIT')
-        } catch (e) { db.exec('ROLLBACK'); throw e }
-        ev('ok')
+        out = await d.run(ctx)
       } catch (e) {
         const x = explain(e)
         if (e instanceof AiError && e.code === 'aborted') cancelled = true
         // 日志只记哪一段、什么错误码，不记提示词和返回内容
         log.warn('report-part', '附加段失败', { part: d.id, code: e instanceof AiError ? e.code : 'other' })
-        savePart(reportId, d.id, 'failed', { message: x.message, detail: x.detail })
+        restoreOrFail(d.id, x.message, x.detail)
         failed.push(d.id)
         ev('failed', x.message)
       }
-      reassemble(reportId)
+      if (out) {
+        // 写库单独一步：失败（比如报告已被删除）是本机存储的问题，不能算成 AI 失败；事务回滚，旧内容（含变形题行）原样保留
+        const db = getDb()
+        try {
+          db.exec('BEGIN')
+          try {
+            savePart(reportId, d.id, 'ok', { markdown: out.markdown, model: out.model ?? null, promptVersion: out.promptVersion ?? null, meta: { usage: out.usage, unverified: out.unverified ?? [], warnings: out.warnings ?? [] } })
+            out.persist?.(db, reportId)
+            db.exec('COMMIT')
+          } catch (e) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw e }
+          ev('ok')
+        } catch {
+          log.warn('report-part', '保存分段结果失败', { part: d.id })
+          restoreOrFail(d.id, '这一部分生成了，但保存到本机时出错（报告可能已被删除）。可以再试一次')
+          failed.push(d.id)
+          ev('failed', '保存到本机时出错')
+        }
+      }
+      try { reassemble(reportId) } catch { /* 报告已被删 */ }
       o.onChange()
     }
   } finally {
     running.delete(reportId)
-    reassemble(reportId)
+    try { reassemble(reportId) } catch { /* 报告已被删 */ }
     o.onChange()
   }
   return { failed, cancelled }
@@ -236,7 +264,7 @@ registerReportPart({
     if (built.cards === 0) throw new Error('AI 没有写出可用的口诀（可能是证据里没有对应的规则，或口诀不合要求）。可以点「重试这一部分」')
     const fc = factCheck(built.markdown, evidenceOf(p))
     const warnings: string[] = []
-    if (built.dropped.length) warnings.push(`有 ${built.dropped.length} 句口诀含价格 / 夸大的说法或太长，已去掉`)
+    if (built.dropped.length) warnings.push(`有 ${built.dropped.length} 句口诀含价格 / 夸大的说法或太长，已去掉：${built.dropped.slice(0, 3).map(s => `「${s}」`).join('')}`)
     return { markdown: fc.text, model: r.model, promptVersion: promptVersionFor('p3_tricks'), usage: r.usage, unverified: fc.unverified, warnings }
   }
 })
@@ -259,7 +287,7 @@ registerReportPart({
     const db = getDb()
     const items = p.input.errorItems.slice(0, 3)
     const kps = new Map(kpsOf(p).map(k => [k.code, k]))
-    // 只把考点、白话释义、例词、例句和题型交给 AI；原卷题干不外发
+    // 只把考点、白话释义、例词、例句和题型交给 AI；题干与选项原文不外发
     const kpRows = items.map((it, i) => {
       const k = kps.get(it.code)
       return [i + 1, it.name, k?.plain || '—', k?.hint_words || '—', k?.example_en ? `${k.example_en} ${k.example_zh}`.trim() : '—', it.qtypes.join('、') || '—'].map(x => String(x).replace(/\s+/g, ' ').replace(/\|/g, '／')).join(' | ')
@@ -267,7 +295,7 @@ registerReportPart({
     const user = fillTemplate(promptText('p4_variant_gen', 'user'), { VARIANT_KPS: kpRows.join('\n'), EVIDENCE: p.input.placeholders.EVIDENCE })
     const gen = await partChat({ system: promptText('p4_variant_gen', 'system'), user, kind: 'p4_variant_gen', signal: ctx.signal })
 
-    // 本机核对用的材料（不外发）：这些考点在范围内的原题原文（查抄袭）+ 已出现过的英文词（查超纲）
+    // 本机核对用的材料（题干与选项原文不外发）：这些考点在范围内的原题原文（查抄袭）+ 已出现过的英文词（查超纲）
     const sc = paperScope(p.src.filter)
     const originals: string[] = []
     for (const it of items) for (const q of questionsOfKp(db, sc, it.code, 30)) originals.push(`${q.stem} ${q.options.join(' ')}`)

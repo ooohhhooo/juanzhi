@@ -22,8 +22,12 @@ export interface KpLite { code: string; name: string; plain: string; example_en:
 
 const clean = (s: string): string => s.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
 
-/** 价格 / 营销 / 夸大的说法（§0.4）：老师版里 AI 写的话命中就整句去掉 */
-export const OVERCLAIM_RE = /价格|学费|优惠|折扣|打折|限时|名额|报名|\d+\s*元|保证|一定能|包过|必过|提分|提高\s*\d+\s*分|最好的|第一名|唯一|立竿见影|立刻见效|100\s*%|百分之百/
+/**
+ * 价格 / 营销 / 夸大的说法（§0.4）：老师版里 AI 写的话命中就整句去掉。
+ * 只管营销语境：提分、保过、包会、课程报名 / 优惠 / 限时 / 学费、带营销词的价格；
+ * 日常说法不误伤：「最好的朋友」「唯一的答案」「3 元一支笔」（购物题的价格）、My best friend 都留着。
+ */
+export const OVERCLAIM_RE = /提分|保过|包过|包会|必过|保证(?:提|能|会|孩子|学生|你|一定|有效|效果|通过|学会|考|成绩)|一定能(?:提|学会|考|通过)|提高\s*\d+\s*分|报名|学费|课程价格|课程费用|优惠|折扣|打折|特价|限时|名额|(?:立减|低至|仅需|只需|只要)\D{0,6}\d+\s*元|立竿见影|立刻见效|百分之百(?:提|有效|学会)/
 export const hasOverclaim = (s: string): boolean => OVERCLAIM_RE.test(s)
 
 // ───────────────────────── 易错题集 + 易错知识点 ─────────────────────────
@@ -92,7 +96,7 @@ export function buildTricksSection(content: string, items: ErrorItem[], kps: KpL
     const n = Number(t?.n)
     const trick = typeof t?.trick === 'string' ? clean(t.trick) : ''
     if (!Number.isInteger(n) || n < 1 || n > items.length || seen.has(n) || !trick) continue
-    if (trick.length > 60 || hasOverclaim(trick) || /\[[^\]]*·[^\]]*\]/.test(trick)) { dropped.push(trick.slice(0, 40)); continue }
+    if (trick.length > 60 || hasOverclaim(trick) || /\[[^\]]*·[^\]]*\]/.test(trick)) { dropped.push(trick.slice(0, 30)); continue }
     seen.add(n)
     const it = items[n - 1]
     const kp = kpOf.get(it.code)
@@ -127,7 +131,7 @@ export function buildVariantsSection(rows: VariantRow[], kpName: (code: string |
   const usable = rows.filter(r => r.status !== 'dropped')
   const picked = usable.filter(inCard).sort((a, b) => a.seq - b.seq)
   const heading = usable.length === 3 ? '## 3 道同类变形题' : '## 同类变形题'
-  const L: string[] = [heading, '', '> 这几道题是 AI 根据考点和题型改编的，不是原卷里的题；程序和第二次 AI 解答都核对过，但使用前请老师先做一遍，并在软件里逐题勾「我核对过」，勾了的题才会放进答题卡。']
+  const L: string[] = [heading, '', '> 这几道题是 AI 根据考点和题型改编的，不是原卷里的题。程序做过格式和抄袭检查、第二次 AI 解答只是参考，都不能替代老师：请先自己做一遍，并在软件里逐题勾「我核对过」，勾了的题才会放进答题卡。']
   if (picked.length === 0) {
     L.push('', usable.length ? `> 答题卡还没有题目：${usable.length} 道变形题都还没有核对。` : '> 这次没有可用的变形题。')
     return L.join('\n')

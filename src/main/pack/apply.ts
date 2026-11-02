@@ -169,6 +169,8 @@ function importSettings(db: any, report: ImportReport): void {
   const has = db.prepare('SELECT 1 FROM main.settings WHERE key = ?')
   const ins = db.prepare('INSERT INTO main.settings (key, value_json) VALUES (?, ?)')
   for (const r of rows) {
+    // 提示词版本记录跟着自定义提示词走：下面等 ai_prompts 导入了再处理（本机已有自己的提示词时，不拿包里的版本记录去覆盖）
+    if (r.key === 'ai_prompt_bases') continue
     const c = checkPackSetting(r.key, r.value_json)
     if (c.note) report.warnings.push(c.note)
     if (!c.ok) continue
@@ -178,6 +180,11 @@ function importSettings(db: any, report: ImportReport): void {
       const n = Object.keys(c.value as Record<string, string>).length
       if (absent) report.promptsImported = n; else report.promptsKeptLocal = n
     }
+  }
+  const bases = rows.find(r => r.key === 'ai_prompt_bases')
+  if (bases && report.promptsImported > 0 && !has.get('ai_prompt_bases')) {
+    const c = checkPackSetting('ai_prompt_bases', bases.value_json)
+    if (c.ok) ins.run('ai_prompt_bases', JSON.stringify(c.value))
   }
 }
 

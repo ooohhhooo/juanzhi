@@ -92,7 +92,7 @@ export function finishReport(o: {
   if (o.reader === 'teacher') {
     const bad = splitSentences(body).filter(s => hasOverclaim(s))
     for (const s of bad) body = removeSentence(body, s)
-    if (bad.length) warnings.push(`老师版里有 ${bad.length} 句含价格 / 夸大的说法，已删掉`)
+    if (bad.length) warnings.push(`老师版里有 ${bad.length} 句含价格 / 夸大的说法，已删掉：${bad.slice(0, 3).map(s => `「${s.replace(/\s+/g, ' ').trim().slice(0, 30)}${s.trim().length > 30 ? '…' : ''}」`).join('')}${bad.length > 3 ? '等' : ''}`)
   }
   const remaining = checkRules(body, o.evidence)
   // 家长版不写标题（老师口吻：开头就是「各位家长好」）；其他版本标题由程序写

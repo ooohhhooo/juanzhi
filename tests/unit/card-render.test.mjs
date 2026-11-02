@@ -39,7 +39,7 @@ assert.equal((html.match(/class="ewb-ans__no"/g) ?? []).length, 3, '三个编号
 assert.ok(html.includes('○ A. pen') && html.includes('○ B. pens') && html.includes('○ C. a pen') && html.includes("○ D. pen's"), '选择题 ○A ○B ○C ○D')
 assert.equal((html.match(/class="ewb-ans__box"/g) ?? []).length, 3, '填空 1 个 + 书写 2 行 = 3 个虚线作答框')
 assert.ok(html.includes('姓名<i class="ewb-ans__line">') && html.includes('日期<i class="ewb-ans__line">'), '答题卡顶部留着手写的姓名 / 日期横线')
-assert.ok(html.includes('AI 出题') && html.includes('使用前请老师先做一遍'), '标签和页脚声明')
+assert.ok(html.includes('AI 出题') && html.includes('AI 出题，老师逐题核对后使用') && !html.includes('第二次 AI 解答核对'), '标签和页脚声明（不夸大成“已核对”）')
 // 答题卡里没有答案和讲解（这两样在报告里“参考答案与讲解（教师用）”）
 assert.ok(!/参考答案|讲解/.test(html.slice(html.indexOf('data-card="answercard"'))))
 // 学生信息：除了空白横线，不出现任何具体的姓名 / 日期值
@@ -95,7 +95,7 @@ const body = kids(doc.getElementsByTagNameNS(W, 'body').item(0))
 assert.equal(body[body.length - 1], 'sectPr'); assert.equal(body[body.indexOf('tbl') + 1], 'p', '表格后面紧跟段落')
 const text = (await mammoth.extractRawText({ buffer: buf })).value
 assert.ok(text.includes('口诀大招') && text.includes('名词复数别马虎') && text.includes('Look at the sheep'))
-assert.ok(text.includes('答题卡 · 同类变形题') && text.includes('姓名 ____') && text.includes('○ B. pens') && text.includes('使用前请老师先做一遍'))
+assert.ok(text.includes('答题卡 · 同类变形题') && text.includes('姓名 ____') && text.includes('○ B. pens') && text.includes('老师逐题核对后使用'))
 assert.ok(!/参考答案/.test(text), 'Word 里的答题卡同样不含答案')
 
 console.log('card-render.test ✓')

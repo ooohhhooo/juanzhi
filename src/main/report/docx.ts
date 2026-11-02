@@ -136,7 +136,7 @@ export async function buildDocx(o: DocxOptions): Promise<Buffer> {
             ], 620))
           }
         })
-        rows.push(cardRow([cardCell(W, para(run('本题由 AI 根据原卷考点改编，已由程序和第二次 AI 解答核对；使用前请老师先做一遍', { color: hex(P.ink2), size: 18 })), { span: 2, ...edge, left: 'single', right: 'single', bottom: 'single' })]))
+        rows.push(cardRow([cardCell(W, para(run('AI 出题，老师逐题核对后使用', { color: hex(P.ink2), size: 18 })), { span: 2, ...edge, left: 'single', right: 'single', bottom: 'single' })]))
         body.push(cardTable([NO, MAIN], rows), para(''))
         break
       }

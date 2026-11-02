@@ -62,7 +62,7 @@ export function cardToHtml(b: Extract<Block, { type: 'card' }>, o: HtmlOptions =
   // 答题卡不含任何学生信息：姓名 / 日期是留给学生手写的空白横线
   return `<div class="ewb-card ewb-card--answer" data-card="answercard"><div class="ewb-card__band"><span>${esc(b.title || '答题卡')}${b.extra ? ` · ${esc(b.extra)}` : ''}</span><span>AI 出题</span></div>` +
     `<div class="ewb-ans__who"><span>姓名<i class="ewb-ans__line"></i></span><span>日期<i class="ewb-ans__line"></i></span></div>${items}` +
-    `<div class="ewb-card__foot">本题由 AI 根据原卷考点改编，已由程序和第二次 AI 解答核对；使用前请老师先做一遍</div></div>`
+    `<div class="ewb-card__foot">AI 出题，老师逐题核对后使用</div></div>`
 }
 
 export function blocksToHtml(blocks: Block[], o: HtmlOptions = {}): string {
@@ -130,6 +130,7 @@ ${opts.footer ? `<div class="foot">${esc(opts.footer)}</div>` : ''}
 export function cardImagePage(cardHtml: string): string {
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>card</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #FFFFFF; }

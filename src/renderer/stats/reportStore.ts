@@ -62,7 +62,7 @@ export function installReportChunkListener(queryClient: QueryClient): () => void
     else if (ev.type === 'thinking') setEntry({ ...entry, thinking: true })
     else if (ev.type === 'retry') setEntry({ ...entry, retried: true })
     else if (ev.type === 'part') { if (ev.state === 'start') setEntry({ ...entry, step: { label: ev.label, index: ev.index, total: ev.total } }) }
-    else if (ev.type === 'cancelled') { activeId = null; setEntry({ ...entry, status: 'cancelled', text: ev.partial }) }
+    else if (ev.type === 'cancelled') { if (ev.reportId) { finishOk(ev.id, ev.reportId); return } activeId = null; setEntry({ ...entry, status: 'cancelled', text: ev.partial }) }
     else if (ev.type === 'error') { activeId = null; setEntry({ ...entry, status: 'error', text: ev.partial, message: ev.message, detail: ev.detail, code: ev.code }) }
     else if (ev.type === 'done') finishOk(ev.id, ev.reportId)
   })
@@ -78,7 +78,7 @@ export async function startReport(filter: StatsFilter, filterDesc: string, reade
     const r = await window.api.report.generate(filter, requestId, reader)
     const cur = entry as ReportEntry | null
     if (!cur || cur.requestId !== requestId) return
-    if (r.ok) { finishOk(requestId, r.reportId); return }
+    if (r.ok || (r.cancelled && r.reportId)) { finishOk(requestId, r.reportId); return }
     activeId = null
     if (cur.status !== 'running') return          // 事件已经先到并处理过了
     if (r.cancelled) setEntry({ ...cur, status: 'cancelled', text: r.partial ?? cur.text })

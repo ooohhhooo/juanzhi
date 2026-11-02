@@ -109,7 +109,7 @@ export function validateVariants(raw: string, ctx: { kpCodes: string[]; original
       const hint = /[（(]\s*([A-Za-z])\s*[）)]/.exec(stem)?.[1]
       if (hint && answer && answer[0].toLowerCase() !== hint.toLowerCase()) problems.push('答案和题干给的首字母对不上')
     }
-    if (stem && hasOverclaim(`${stem} ${explanation}`)) problems.push('出现了价格 / 营销 / 夸大的说法')
+    if (hasOverclaim(`${stem} ${options.join(' ')} ${explanation} ${changed}`)) problems.push('出现了价格 / 营销 / 夸大的说法')
     // 抄原卷：与任何一道原题的词集相似度 ≥ 0.8 就剔除
     const mine = tokensOf(`${stem} ${options.join(' ')}`)
     if (origSets.some(o => jaccard(mine, o) >= COPY_THRESHOLD)) problems.push('和原卷的题太像（疑似照抄）')

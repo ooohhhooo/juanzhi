@@ -74,7 +74,9 @@ assert.equal(t.cards, 1); assert.deepEqual(t.dropped, ['报名立减 50 元'])
 assert.ok(t.markdown.includes('**一句话**：看到数量，想想复数。') && t.markdown.includes('**例**：Look at the sheep. 看那些羊。') && t.markdown.includes('**出自考点**：名词复数'))
 assert.equal(buildTricksSection('不是 JSON', items, kps).cards, 0)
 assert.equal(buildTricksSection('```json\n{"tricks":[{"n":2,"trick":"没有证据的考点也能写口诀。"}]}\n```', items, kps).markdown.includes('**例**'), false, '没有例句的考点不放“例”')
-assert.ok(hasOverclaim('保证提高 20 分') && hasOverclaim('限时优惠') && hasOverclaim('100%') && !hasOverclaim('每天读一点英语'))
+// 只管营销语境：提分 / 保过 / 包会 / 报名优惠这类要删；日常说法和购物题里的价格要留着
+for (const bad of ['保证提高 20 分', '限时优惠', '报名立减 50 元', '包会', '保过', '这套课能提分', '学费 3000 元', '一定能提高 20 分']) assert.ok(hasOverclaim(bad), `应当删：${bad}`)
+for (const ok of ['每天读一点英语', 'My best friend is Tom.', '他是我最好的朋友。', '唯一的答案是 B。', '这是唯一的选项。', '3 元一支笔，买两支要几元？', 'It is 3 yuan.', '第一名是 Amy。', '正确率 100%', '价格问题用 How much。']) assert.ok(!hasOverclaim(ok), `不能误删：${ok}`)
 assert.deepEqual(parseJsonLoose('前言 {"a":1} 后话'), { a: 1 })
 
 // ── 变形题 + 答题卡：只放老师勾过「我核对过」的题；答案和讲解在下面的教师用一节，不在卡里 ──

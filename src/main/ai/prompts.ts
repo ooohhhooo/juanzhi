@@ -135,7 +135,12 @@ export function savePrompt(id: PromptId, part: PromptPart, text: string): void {
   const o = overrides()
   const b = bases()
   if (text === DEFAULTS[k]) { delete o[k]; delete b[k] }
-  else { o[k] = text; b[k] = defaultVersionOf(id) }
+  else {
+    // 已经自定义过的：重新保存不等于采用了新默认版，保留原来的「基于哪一版」（没有记录的按 beta.3 之前的 v2.0）；
+    // 要「采用新默认版」得先点「恢复默认」再改，那时才记当前版本
+    b[k] = o[k] !== undefined ? baseVersionOf(k, b) : defaultVersionOf(id)
+    o[k] = text
+  }
   writeOverrides(o)
   writeBases(b)
 }

@@ -51,7 +51,7 @@ assert.ok(finish(mock3.build(fill('p3_teacher'), { noAdvice: true }, sys('p3_tea
 assert.ok(!finishReport({ raw: '## 备课建议\n1. 练。', reader: 'teacher', title: 't', knownRefs: new Set(), knownCodes: [], sampleWarning: '无', evidence: [], usedDefaultPrompt: true }).warnings.some(w => /最后一节/.test(w)), '自定义的旧版结构仍认')
 // 价格 / 夸大的说法整句去掉
 const over = finish(mock3.build(fill('p3_teacher'), { overclaim: true }, sys('p3_teacher')))
-assert.ok(!/报名|保证/.test(over.text) && over.warnings.some(w => /价格 \/ 夸大/.test(w)), over.text)
+assert.ok(!/报名|保证/.test(over.text) && over.warnings.some(w => /价格 \/ 夸大.*已删掉：「.*报名/.test(w)), over.text + over.warnings.join('|'))
 // 模型自己写的引用：不在索引里的被移除
 assert.ok(!finish(mock3.build(fill('p3_teacher'), { badCite: true }, sys('p3_teacher'))).text.includes('不存在的卷'))
 

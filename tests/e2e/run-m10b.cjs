@@ -73,6 +73,11 @@ async function main() {
     const pv2 = await api(() => window.api.ai.prompts())
     const c = pv2.items.find(i => i.id === 'p3_teacher' && i.part === 'system')
     check('提示词', '自定义过 p3_teacher 的用户：保持他自己的版本（文本不变、仍是已自定义），并被标记「默认版已更新」；user 部分没改过，不受影响', c.isCustom && c.text === CUSTOM && c.defaultUpdated && c.version === 'v3.0' && !pv2.items.find(i => i.id === 'p3_teacher' && i.part === 'user').defaultUpdated)
+    // 重新保存（比如改了一个字）不等于“采用了新默认版”：仍然基于 v2.0，标记还在
+    await api(t => window.api.ai.savePrompt('p3_teacher', 'system', t), CUSTOM + '\n')
+    const pvRe = (await api(() => window.api.ai.prompts())).items.find(i => i.id === 'p3_teacher' && i.part === 'system')
+    check('提示词', '重新保存旧的自定义版：保留原来的“基于 v2.0”，「默认版已更新」标记还在（要采用新默认版，得先「恢复默认」）', pvRe.isCustom && pvRe.defaultUpdated)
+    await api(t => window.api.ai.savePrompt('p3_teacher', 'system', t), CUSTOM)
     await goto('#/settings'); await page.waitForSelector('[data-testid=prompt-settings]')
     const body = await T('prompt-settings').innerText()
     check('提示词', '设置页提示词管理里，老师版那一组标着「默认版已更新，可对比」', /P3 考情分析报告：老师版[\s\S]*默认版已更新，可对比/.test(body))
@@ -118,7 +123,7 @@ async function main() {
   check('老师版结构', '易错题集 / 易错知识点由程序拼：每个易错点有原卷例题（[卷名 · 题号]，≤ 2 道）、题型、AI 估计的易错原因；老师审核过的题给参考答案；易错知识点有白话 / 例句 / 出现份数', nItems >= 2 && /\*\*原卷例题\*\*：\[[^\]]+ · [^\]]+\]/.test(errSec) && /\*\*题型\*\*/.test(errSec) && /\*\*易错原因（AI 估计）\*\*/.test(errSec) && /答案 B/.test(errSec) && /\*\*出现\*\*：\d+\/\d+ 份卷子/.test(errSec) && errSec.split('\n').filter(l => /^- \*\*原卷例题\*\*/.test(l)).every(l => (l.match(/\[[^\]]+ · [^\]]+\]/g) ?? []).length <= 2), `${nItems} 个易错点`)
   const tricks = (md1.match(/^::: trick/gm) ?? []).length
   check('老师版结构', '口诀大招：每个易错点一张卡片；「例」的英文句子由程序取自证据（AI 没写英文句子）', tricks === nItems && /\*\*例\*\*：[A-Za-z]/.test(md1) && !/"trick":.*[A-Za-z]{3,} [A-Za-z]{3,} [A-Za-z]{3,}/.test(mock.tricksRequests[0].user), `${tricks} 张`)
-  check('AI 内容守则', '出题的输入只有考点、白话释义、例词、例句和题型：不含任何原卷题干；独立解答的输入里没有出题答案和讲解', (() => {
+  check('AI 内容守则', '出题的输入只有考点、白话释义、例词、例句和题型：题干与选项原文不外发（不含任何原卷题干）；独立解答的输入里没有出题答案和讲解', (() => {
     const stems = withDb(ud, d => d.prepare("SELECT stem FROM questions WHERE stem IS NOT NULL AND stem <> ''").all().map(r => r.stem))
     const gen = mock.variantGenRequests[0].user, chk = mock.variantCheckRequests[0].user
     return stems.length > 3 && stems.every(s => !gen.includes(s)) && /【考点】/.test(gen) && !/答案|讲解|explanation|answer/i.test(chk)
@@ -143,7 +148,7 @@ async function main() {
   const md2 = lastReport().markdown
   const cardText = await T('card-answer').innerText()
   check('答题卡', '三题都勾后：答题卡 3 道题，左侧编号徽标 1–3，选择题 ○A ○B ○C ○D，填空题有虚线作答框；顶部是留给学生手写的空白「姓名 / 日期」横线，没有任何具体学生信息', (await page.locator('[data-testid=card-answer] .ewb-ans__no').allInnerTexts()).join(',') === '1,2,3' && /○ A\. .*○ B\. .*○ C\. .*○ D\./s.test(cardText) && (await page.locator('[data-testid=card-answer] .ewb-ans__box').count()) === 1 && (await page.locator('[data-testid=card-answer] .ewb-ans__line').count()) === 2 && /姓名/.test(cardText) && /日期/.test(cardText), cardText.slice(0, 120))
-  check('答题卡', '卡片带「AI 出题」标签和页脚“使用前请老师先做一遍”；答题卡里没有答案和讲解（它们在下面“参考答案与讲解（教师用）”一节）', /AI 出题/.test(cardText) && /使用前请老师先做一遍/.test(cardText) && !/参考答案|答案：/.test(cardText) && /### 参考答案与讲解（教师用）/.test(md2) && /\*\*答案\*\*/.test(md2))
+  check('答题卡', '卡片带「AI 出题」标签和页脚“老师逐题核对后使用”；答题卡里没有答案和讲解（它们在下面“参考答案与讲解（教师用）”一节）', /AI 出题/.test(cardText) && /老师逐题核对后使用/.test(cardText) && !/参考答案|答案：/.test(cardText) && /### 参考答案与讲解（教师用）/.test(md2) && /\*\*答案\*\*/.test(md2))
   const cw = await T('card-answer').locator('.ewb-card').evaluate(el => Math.round(el.getBoundingClientRect().width))
   check('答题卡', '卡片最宽 720px（右栏装不下时自动收窄，不出现横向滚动）；图片导出时固定 720px 宽（见下面的图片检查）', cw <= 720 && cw >= 560 && !(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), `${cw}px`)
   const vOpt = JSON.parse(variantsOf(R1.id)[1].options_json)
@@ -260,8 +265,7 @@ async function main() {
   const rr = await api(id => window.api.report.retryPart(id, 'tricks', crypto.randomUUID()), R2.id)
   check('单段重试', '报告已核对后：各段的重试按钮灰掉；绕过界面直接调接口也被拒绝（已核对的报告不能再改）', rr.ok === false && /已经核对过了/.test(rr.message) && (await T('part-retry-variants').isDisabled()), JSON.stringify(rr))
   const tk = await api(id => window.api.report.variantTick(id, `${id}-v1`, false).then(() => 'ok', e => String(e.message)), R2.id)
-  check('答题卡门槛', '核对后老师仍可调整逐题的勾选（勾选是老师自己的决定，不受报告已核对限制）', tk === 'ok')
-  await api(id => window.api.report.variantTick(id, `${id}-v1`, true), R2.id)
+  check('答题卡门槛', '报告已「我已核对」后：变形题的勾选也锁定（内容已定稿），接口拒绝并写明原因；库里的勾选没变', /已经核对过了/.test(tk) && variantsOf(R2.id).filter(v => v.teacher_ok === 1).length === 2, tk)
 
   // ───────────────────────── 8. AI 内容守则：价格 / 夸大 / 剔除 / 取消 / 变形题整段失败再重试 ─────────────────────────
   mock.resetStats()
@@ -284,8 +288,16 @@ async function main() {
   await T('reader-teacher').locator('xpath=ancestor::label').click()
   await T('report-generate').click()
   await waitFor(async () => mock.tricksRequests.length >= 1, 60000)
+  {
+    // 附加段还在生成时：核对 / 勾选 / 删句 / 删除 / 复制 / 导出 / 卡片图片都先拒绝
+    const gid = lastReport().id
+    const rej = (fn, ...args) => api(([f, a]) => window.api.report[f](...a).then(() => 'ok', e => String(e.message)), [fn, args])
+    const outs = [await rej('confirm', gid), await rej('variantTick', gid, `${gid}-v1`, true), await rej('removeSentence', gid, '不存在的句子'), await rej('delete', gid), await rej('copyWechat', gid), await rej('cardImage', gid, 'trick', 0, 'copy')]
+    check('生成中拦截', '附加段还在生成：我已核对 / 勾选 / 删句 / 删除 / 复制到微信 / 卡片图片都被拒绝，白话写明“还在生成”；报告没被删掉', outs.every(o => /还在生成/.test(o)) && reports().some(r => r.id === gid), JSON.stringify(outs).slice(0, 200))
+  }
   await T('report-cancel').click()
   await waitFor(async () => (await T('report-running').count()) === 0, 20000)
+  check('取消', '取消发生在附加段：界面没有“已取消生成，没有保存结果”这种说法（报告已存），并选中了这份已保存的报告', (await T('report-cancelled').count()) === 0 && await waitFor(async () => (await T('report-detail').innerText()).includes('没有生成'), 8000))
   await waitFor(async () => reports().length > cBefore, 5000)
   const R4 = lastReport()
   const st4 = partStatus(R4.id)
@@ -304,6 +316,15 @@ async function main() {
   await T('part-retry-variants').click()
   await waitFor(async () => partStatus(R4.id).variants === 'ok', 30000)
   check('单段重试', '改好后重试变形题：3 道题入库，答题卡区回到“还没有题目”（新题要重新逐题核对），其余段不变', variantsOf(R4.id).length === 3 && variantsOf(R4.id).every(v => v.teacher_ok === 0) && /答题卡还没有题目/.test(lastReport().markdown) && Object.values(partStatus(R4.id)).every(s => s === 'ok'))
+  {
+    // 重试失败时旧内容要还在：变形题出题输出坏掉，原来的 3 道题、勾选、段状态和报告正文都不能丢
+    const md0 = lastReport().markdown
+    const ids0 = variantsOf(R4.id).map(v => v.id).join()
+    mock.quirks = { p4: { variantBadJson: true } }
+    const rf = await api(id => window.api.report.retryPart(id, 'variants', crypto.randomUUID()), R4.id)
+    mock.quirks = {}
+    check('单段重试', '重试失败（出题输出坏了）：接口报失败，但旧的变形题行、段状态（ok）和报告正文都原样保留，不会因为一次失败丢掉原来好好的内容', rf.ok === false && partStatus(R4.id).variants === 'ok' && variantsOf(R4.id).map(v => v.id).join() === ids0 && lastReport().markdown === md0, JSON.stringify(rf))
+  }
   check('单段重试', '数据变了（报告已过期）时不能单独重试：避免新数据的口诀接在旧主文上', await (async () => {
     writeDb(ud, db => { db.exec("UPDATE questions SET error_reason = error_reason || '（改）' WHERE error_prone = 1") })
     await waitFor(async () => (await api(id => window.api.report.get(id), R4.id)).status === 'stale', 10000)

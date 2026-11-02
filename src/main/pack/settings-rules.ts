@@ -23,6 +23,13 @@ export function checkPackSetting(key: string, valueJson: unknown): SettingCheck 
       if (Object.keys(out).length === 0) return { ok: false, note: '数据包里的自定义提示词都不合格（缺必需占位符 / 格式不对），已忽略' }
       return { ok: true, value: out, note: dropped.length ? `数据包里有 ${dropped.length} 条自定义提示词不合格，已丢弃（${dropped.slice(0, 3).join('、')}）` : undefined }
     }
+    case 'ai_prompt_bases': {
+      // 每条自定义提示词「基于哪一版内置默认」：只认已知的提示词键和 vN.N 形式的版本号
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return { ok: false, note: '数据包里的提示词版本记录格式不对，已忽略' }
+      const out: Record<string, string> = {}
+      for (const [k, t] of Object.entries(v as Record<string, unknown>)) if (isPromptKey(k) && typeof t === 'string' && /^v\d{1,3}\.\d{1,3}$/.test(t)) out[k] = t
+      return Object.keys(out).length ? { ok: true, value: out } : { ok: false, note: '数据包里的提示词版本记录都不合格，已忽略' }
+    }
     case 'ui_theme':
     case 'ui_language':
       return short(v, 40) ? { ok: true, value: v } : { ok: false, note: `设置「${key}」的值不合法，已忽略` }

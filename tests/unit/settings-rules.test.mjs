@@ -28,4 +28,7 @@ assert.deepEqual(sanitizeOverrides({ 'p3_report.user': 5, 'p3_report.system': 'o
 assert.ok(isPromptKey('p1_vision.user') && !isPromptKey('p1_vision.other') && !isPromptKey('__proto__'))
 assert.equal(promptProblem('p3_report.user', '{{KP_DIST}}{{QTYPE_DIST}}{{DIFF_DIST}}{{ERROR_PRONE}}'), null)
 assert.match(promptProblem('p2_yoy.user', 'x'), /缺少必需的占位符/); assert.match(promptProblem('p1_text.system', 'x'), /JSON/); assert.match(promptProblem('p3_report.system', '  '), /不能为空/)
+// 提示词版本记录（每条自定义提示词基于哪一版内置默认）：只认已知的提示词键 + vN.N，其余丢弃
+assert.deepEqual(ok('ai_prompt_bases', { 'p3_teacher.system': 'v2.0', '__proto__': 'v1.0', 'p3_teacher.user': 'latest', 'p3_tricks.system': 'v3.0' }).value, { 'p3_teacher.system': 'v2.0', 'p3_tricks.system': 'v3.0' })
+no('ai_prompt_bases', ['v2.0']); no('ai_prompt_bases', { 'bogus.key': 'v2.0' })
 console.log('settings-rules.test ✓')
