@@ -25,7 +25,7 @@ export default function QuestionCardView({ q, onView }: { q: QuestionCard; onVie
         {q.error_reason && <div className="ewb-ana-qcard__reason">为什么容易错（估计）：{q.error_reason}</div>}
       </div>
       <div className="ewb-ana-qcard__crop">
-        <CropImage testid="crop" q={{ paperId: q.paper_id, pageRel: q.pageRel, pageW: q.pageW, pageH: q.pageH, bbox: q.bbox }} width={260} onOpen={open} />
+        <CropImage testid="crop" q={{ paperId: q.paper_id, pageRel: q.pageRel, pageW: q.pageW, pageH: q.pageH, bbox: q.bbox, questionId: q.id }} width={260} onOpen={open} />
       </div>
     </div>
   )

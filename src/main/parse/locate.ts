@@ -155,6 +155,22 @@ export function locateTextStarts(questions: MergedQuestion[], pages: Map<number,
       if (best) found = (best as { s: Start }).s
     }
 
+    // (e) 题号回退：模型给的开头里常带着本机识别丢掉的东西（填空横线、破折号被识别成别的字），整段对不上。
+    //     这时只认「行首就是本题题号」的那一行（题号是数字、必须在上一题之后），标成模糊定位让老师抽查。
+    if (!found && /^\d{1,3}$/.test(q.no)) {
+      const lead = new RegExp(`^${q.no}[.、:)]`)
+      search3: for (const p of order) {
+        const g = pages.get(p)
+        if (!g) continue
+        for (let i = 0; i < g.rows.length; i++) {
+          if (p < cursor.page || (p === cursor.page && i <= cursor.row)) continue
+          if (!lead.test(squash(g.rows[i].text).str)) continue
+          found = { page: p, row: i, offset: 0, x: g.rows[i].x, fuzzy: true }
+          break search3
+        }
+      }
+    }
+
     if (found && rescanned) found = { ...found, rescan: true }
     out.push(found)
     if (found && cmp(found, cursor) > 0) cursor = { page: found.page, row: found.row, offset: found.offset }

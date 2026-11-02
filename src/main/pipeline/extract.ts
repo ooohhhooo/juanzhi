@@ -4,6 +4,9 @@ import { getDb, getFilesDir } from '../db'
 import { ocrImage, isOcrAvailable, convertImageToPngMac, OcrError } from './ocr'
 import { renderPdfPages, normalizeImage } from './pdf-renderer'
 import { judgeTextLayer } from './textquality'
+import { renderDocxPages } from './docx-render'
+import { ocrQuality, paperExpectsCjk } from './ocr-quality'
+import type { Recognizer } from './ocr-quality'
 import type { OcrLine, JobProgress } from '../types'
 
 export type ProgressCallback = (p: JobProgress) => void
@@ -19,6 +22,11 @@ interface PageRow {
   ocrConf: number | null
   ocrError: string | null
   textLayerChars: number | null
+  /** 识别方式记录（M9）：怎么识别的、用的什么语言、花了多久；quality = 提取时的质量判断 */
+  recognizer?: Recognizer | null
+  ocrLang?: string | null
+  ocrMs?: number | null
+  quality?: unknown
 }
 
 interface AssetRow {
@@ -82,6 +90,8 @@ export async function extractPaper(paperId: string, onProgress: ProgressCallback
     else if (ext === '.docx') result = await extractDocx(paperId, original, paperDir, onProgress)
     else result = await extractImage(paperId, original, ext, paperDir, onProgress)
 
+    const meta = db.prepare('SELECT title, file_name FROM papers WHERE id = ?').get(paperId) as { title?: string; file_name?: string } | undefined
+    markQuality(result.pages, [meta?.file_name ?? '', meta?.title ?? ''])
     const warning = summarizeWarning(result.pages, result.notes)
 
     db.exec('BEGIN')
@@ -89,12 +99,14 @@ export async function extractPaper(paperId: string, onProgress: ProgressCallback
       db.prepare('DELETE FROM pages WHERE paper_id = ?').run(paperId)
       db.prepare('DELETE FROM paper_assets WHERE paper_id = ?').run(paperId)
       const insPage = db.prepare(`
-        INSERT INTO pages (paper_id, idx, image_rel, width, height, text_source, lines_json, text, ocr_conf, ocr_error, text_layer_chars)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO pages (paper_id, idx, image_rel, width, height, text_source, lines_json, text, ocr_conf, ocr_error, text_layer_chars,
+          recognizer, ocr_lang, ocr_ms, quality_json, rec_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       for (const p of result.pages) {
         insPage.run(paperId, p.idx, p.imageRel, p.width, p.height, p.textSource, JSON.stringify(p.lines),
-          p.text, p.ocrConf, p.ocrError, p.textLayerChars)
+          p.text, p.ocrConf, p.ocrError, p.textLayerChars, p.recognizer ?? null, p.ocrLang ?? null, p.ocrMs ?? null,
+          p.quality ? JSON.stringify(p.quality) : null, p.textSource === 'pdf-text' ? 'text-layer-ok' : p.textSource === 'docx' ? 'docx-text' : null)
       }
       const insAsset = db.prepare(
         'INSERT INTO paper_assets (paper_id, page_idx, seq, rel_path, mime, bytes) VALUES (?, ?, ?, ?, ?, ?)')
@@ -120,19 +132,39 @@ export async function extractPaper(paperId: string, onProgress: ProgressCallback
 }
 
 type OcrOutcome =
-  | { ok: true; lines: OcrLine[]; conf: number | null; width: number; height: number; lang?: string }
+  | { ok: true; lines: OcrLine[]; conf: number | null; width: number; height: number; lang?: string; ms: number }
   | { ok: false; reason: string }
 
 /** 区分「OCR 跑成功但没字」与「OCR 没跑成」：失败时把原因带出来，而不是吞掉 */
 async function runOcr(imagePath: string): Promise<OcrOutcome> {
+  const t0 = Date.now()
   try {
     const r = await ocrImage(imagePath)
     const conf = r.lines.length > 0 ? r.lines.reduce((s, l) => s + l.conf, 0) / r.lines.length : null
-    return { ok: true, lines: r.lines, conf, width: r.width, height: r.height, lang: r.lang }
+    return { ok: true, lines: r.lines, conf, width: r.width, height: r.height, lang: r.lang, ms: Date.now() - t0 }
   } catch (e) {
     const reason = e instanceof OcrError ? e.message : `OCR 失败：${(e as Error).message}`
     console.warn('[extract] OCR 失败:', reason)
     return { ok: false, reason }
+  }
+}
+
+const ocrRecognizer = (): Recognizer => (process.platform === 'win32' ? 'win-ocr' : 'mac-vision')
+
+/**
+ * 给每个本机识别出文字的页做质量判断（存进 pages.quality_json，试卷库的「识别可能不完整」标签和解析时改用读图都看它）。
+ * 「这份卷子本应含中文」要看全卷：文件名 / 标题里有中文，或有任何一页（PDF 文字层、中文引擎识别结果）里中文占比够高。
+ */
+function markQuality(pages: PageRow[], names: string[]): void {
+  const zhEngine = (p: PageRow) => !p.ocrLang || /^zh/i.test(p.ocrLang)
+  const expects = paperExpectsCjk({
+    names,
+    pageTexts: pages.map(p => ({ texts: p.lines.length ? p.lines.map(l => l.text) : (p.text ? p.text.split('\n') : []), trustedForCjk: p.textSource === 'pdf-text' || p.textSource === 'docx' || (p.textSource === 'ocr' && zhEngine(p)) }))
+  })
+  for (const p of pages) {
+    if (p.textSource !== 'ocr') continue
+    // Windows 的置信度是固定值，不可信；有引擎语言就说明是 Windows
+    p.quality = ocrQuality(p.lines.map(l => l.text), { lang: p.ocrLang ?? null, paperExpectsCjk: expects, conf: p.ocrLang ? null : p.ocrConf })
   }
 }
 
@@ -158,7 +190,7 @@ async function extractPdf(
 
     // 文本层优先：可信就直接用 PDF 自带文本和坐标，不跑 OCR
     if (verdict.usable) {
-      pages.push({ ...base, textSource: 'pdf-text', lines: rp.lines, text: rp.text, ocrConf: null, ocrError: null, textLayerChars: verdict.chars })
+      pages.push({ ...base, textSource: 'pdf-text', lines: rp.lines, text: rp.text, ocrConf: null, ocrError: null, textLayerChars: verdict.chars, recognizer: 'pdf-text' })
       onProgress({ paperId, stage: 'extracting', progress, message: `第 ${rp.index}/${rendered.length} 页：使用 PDF 文本层` })
       continue
     }
@@ -179,7 +211,7 @@ async function extractPdf(
       noteLang(notes, ocr.lang)
       pages.push({
         ...base, textSource: 'ocr', lines: ocr.lines, text: ocr.lines.map(l => l.text).join('\n'),
-        ocrConf: ocr.conf, ocrError: null, textLayerChars: verdict.chars
+        ocrConf: ocr.conf, ocrError: null, textLayerChars: verdict.chars, recognizer: ocrRecognizer(), ocrLang: ocr.lang ?? null, ocrMs: ocr.ms
       })
     }
   }
@@ -240,7 +272,8 @@ async function extractImage(
   return {
     pages: [{
       ...base, width, height, textSource: hasText ? 'ocr' : 'none', lines: ocr.lines,
-      text: hasText ? ocr.lines.map(l => l.text).join('\n') : null, ocrConf: ocr.conf, ocrError: null
+      text: hasText ? ocr.lines.map(l => l.text).join('\n') : null, ocrConf: ocr.conf, ocrError: null,
+      recognizer: ocrRecognizer(), ocrLang: ocr.lang ?? null, ocrMs: ocr.ms
     }],
     assets: [], notes
   }
@@ -310,10 +343,28 @@ async function extractDocx(
     notes.push('文档主要是图片，文字内容需要视觉模型识别')
   }
 
+  // 把 Word 排成 A4 页面图，并量出每行文字的位置：之后和图片 / PDF 走同一套定位和「出自原卷」截图。失败就退回只有文字（没有页面图）
+  if (textSource === 'docx') {
+    onProgress({ paperId, stage: 'extracting', progress: 55, message: '生成 Word 的页面图…' })
+    const rendered = await renderDocxPages(docxPath)
+    if (rendered && rendered.length > 0 && rendered.some(p => p.lines.length > 0)) {
+      const pages: PageRow[] = rendered.map(rp => {
+        const rel = `page-${rp.idx}.png`
+        fs.writeFileSync(path.join(paperDir, rel), rp.png)
+        return {
+          idx: rp.idx, imageRel: rel, width: rp.width, height: rp.height, textSource: 'docx', lines: rp.lines,
+          text: rp.lines.map(l => l.text).join('\n') || null, ocrConf: null, ocrError: null, textLayerChars: plain.length, recognizer: 'docx-text'
+        }
+      })
+      return { pages, assets, notes }
+    }
+    notes.push('没能生成 Word 的页面图，只提取了文字（原卷截图不可用）')
+  }
+
   return {
     pages: [{
       idx: 1, imageRel: '', width: 0, height: 0, textSource, lines: [], text: text || null,
-      ocrConf: null, ocrError: null, textLayerChars: plain.length
+      ocrConf: null, ocrError: null, textLayerChars: plain.length, recognizer: textSource === 'docx' ? 'docx-text' : null
     }],
     assets, notes
   }

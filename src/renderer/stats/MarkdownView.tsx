@@ -21,7 +21,7 @@ function Cite({ token, refMap, onView }: { token: string; refMap: Map<string, Re
     <span data-testid="cite-card" data-token={token} data-qid={r.questionId} role="button" tabIndex={0} className="ewb-cite" onClick={open} onKeyDown={e => { if (e.key === 'Enter') open?.() }}
       style={open ? undefined : { cursor: 'default' }}>
       <span data-testid="cite-label" className="ewb-cite__label">{r.paperTitle} · 第 {r.no} 题<span className="ewb-cite__type">（{r.qtypeName}）</span></span>
-      <span className="ewb-cite__sheet"><CropImage q={{ paperId: r.paperId, pageRel: r.pageRel, pageW: r.pageW, pageH: r.pageH, bbox: r.bbox }} width={300} onOpen={open} /></span>
+      <span className="ewb-cite__sheet"><CropImage q={{ paperId: r.paperId, pageRel: r.pageRel, pageW: r.pageW, pageH: r.pageH, bbox: r.bbox, questionId: r.questionId }} width={300} onOpen={open} /></span>
     </span>
   )
 }

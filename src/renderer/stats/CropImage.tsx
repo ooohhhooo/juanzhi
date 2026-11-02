@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { padBox } from '../../shared/crop'
+import { Btn } from '../design'
 import '../design/page-analysis.css'
 
-export interface PageLike { paperId: string; pageRel: string | null; pageW: number; pageH: number; bbox: number[] | null }
+/** questionId：有它，“还没框出位置”时可以带着去审核页那道题（「去框一下」） */
+export interface PageLike { paperId: string; pageRel: string | null; pageW: number; pageH: number; bbox: number[] | null; questionId?: string }
 
 /**
  * 原卷截图：（注意：容器不能有 border——绝对定位的子元素按「内边距盒」折算百分比，1px 边框会让裁切错位约一行，
  * 所以外框用 box-shadow）不在主进程裁图，直接用整页图加 CSS 定位——页面图放大到 1/bbox.w 倍，再平移让 bbox 的左上角对齐容器左上角。
- * 没有 bbox 时显示整页缩略图并注明；没有页面图（比如 Word 试卷）时给出说明。
+ * 没有 bbox 时不再拿整页冒充这道题：写明「还没在原卷上框出位置」，并给「去框一下」跳到审核页这道题；没有页面图（比如页面图没生成的旧 Word 卷）时给出说明。
  */
 export default function CropImage({ q, width = 260, onOpen, testid }: { q: PageLike; width?: number; onOpen?: () => void; testid?: string }) {
   const [nat, setNat] = useState<{ w: number; h: number } | null>(null)
+  const nav = useNavigate()
   if (!q.pageRel) return <div data-testid={testid} className="ewb-ana-nopage">没有原卷页面图（Word 试卷或页面未生成），无法截图</div>
   // 图片一旦加载好就以它的自然尺寸为准（库里记的页面尺寸和图片宽高比对不上时，比如带 EXIF 旋转的照片，按库里的会变形）
   const pw = nat?.w || q.pageW || 0
@@ -21,10 +25,10 @@ export default function CropImage({ q, width = 260, onOpen, testid }: { q: PageL
   const hasBox = !!padded
   if (!hasBox) {
     return (
-      <div data-testid={testid} data-mode="page" className="ewb-ana-page" style={{ width }}>
-        <img src={src} alt="整页缩略图" onLoad={e => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} onClick={onOpen} draggable={false}
-          style={{ cursor: onOpen ? 'zoom-in' : 'default' }} />
-        <div className="ewb-ana-meta" style={{ marginTop: 2 }}>这道题没有定位框，显示的是整页缩略图</div>
+      <div data-testid={testid} data-mode="nobox" className="ewb-ana-nobox" style={{ width }}>
+        <div className="ewb-ana-nobox__msg">这道题还没在原卷上框出位置</div>
+        <div className="ewb-ana-meta">没有框，就截不到这道题；整页不能代替它。</div>
+        {q.questionId && <Btn tone="secondary" size="small" data-testid="goto-box" onClick={e => { e.stopPropagation(); nav(`/review/${q.paperId}?q=${q.questionId}`) }}>去框一下</Btn>}
       </div>
     )
   }

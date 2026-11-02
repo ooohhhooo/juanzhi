@@ -5,6 +5,7 @@ import { Spin, Switch, Empty } from 'antd'
 import { ArrowLeft, FileText } from 'lucide-react'
 import { paperKind, paperTag, textSourceLabel } from '../status'
 import { aiFieldsOf, AiGuessTag } from './PaperLibrary'
+import { RecognitionCard, MissingBoxNotice } from '../components/RecognitionCard'
 import { Btn, Icon, Page, PaperSheet, StatusLabel, UsageNote } from '../design'
 import '../design/page-library.css'
 
@@ -99,6 +100,8 @@ export default function PaperDetail() {
       </dl>
 
       <div className="ewb-lib-notes">
+        {pages.length > 0 && <RecognitionCard paperId={paper.id} />}
+        {(paper.status === 'reviewing' || paper.status === 'done') && <MissingBoxNotice paperId={paper.id} />}
         {paper.warning && (
           <UsageNote kind="caution" data-testid="paper-warning">提示：{paper.warning}</UsageNote>
         )}

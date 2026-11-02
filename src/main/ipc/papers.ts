@@ -121,7 +121,10 @@ export function registerPaperIpc(): void {
 
   ipcMain.handle('papers:list', async (_event, filter?: unknown) => {
     const db = getDb()
-    let sql = 'SELECT papers.*, (SELECT s.title FROM papers s WHERE s.id = papers.similar_to) AS similar_title FROM papers WHERE 1=1'
+    // rec_low：有几页本机识别不好、又没有改用 AI 读图（试卷库据此显示「识别可能不完整」）
+    let sql = `SELECT papers.*, (SELECT s.title FROM papers s WHERE s.id = papers.similar_to) AS similar_title,
+      (SELECT COUNT(*) FROM pages pg WHERE pg.paper_id = papers.id AND json_valid(pg.quality_json) AND json_extract(pg.quality_json, '$.low') = 1 AND json_extract(pg.quality_json, '$.why') <> 'low-conf' AND COALESCE(pg.recognizer, '') <> 'vision-model') AS rec_low
+      FROM papers WHERE 1=1`
     const params: any[] = []
 
     if (filter) {

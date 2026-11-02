@@ -10,6 +10,12 @@ export interface ProviderPreset {
   baseUrl: string
   /** 文本解析用的模型 */
   model: string
+  /**
+   * 推荐的拆题模型（快速、不带深度思考的）；空字符串 = 查不到可靠的就不猜。
+   * 目前只写在现有模型档案里已标明 reasoning:false 的；其余服务商的当前模型多是推理型，
+   * 能否用请求参数关闭思考要逐家查证文档并用真实密钥验证后才能启用（设计稿 4.3，beta.1 的研究项）。
+   */
+  parseModel?: string
   /** 能看图的模型；空字符串 = 该服务商没有合适的默认视觉模型，需用户自己填 */
   visionModel: string
   /** 申请密钥的页面，仅作提示文字 */
@@ -25,7 +31,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'qwen', name: '通义千问（阿里云百炼）', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    model: 'qwen-plus', visionModel: 'qwen3-vl-plus',
+    model: 'qwen-plus', parseModel: 'qwen-plus', visionModel: 'qwen3-vl-plus',
     keyHint: 'bailian.console.aliyun.com', models: ['qwen-plus', 'qwen-max', 'qwen3-vl-plus']
   },
   {
@@ -35,7 +41,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'kimi', name: 'Kimi（月之暗面）', baseUrl: 'https://api.moonshot.cn/v1',
-    model: 'kimi-k2-0905-preview', visionModel: 'moonshot-v1-32k-vision-preview',
+    model: 'kimi-k2-0905-preview', parseModel: 'kimi-k2-0905-preview', visionModel: 'moonshot-v1-32k-vision-preview',
     keyHint: 'platform.moonshot.cn', models: ['kimi-k2-0905-preview', 'moonshot-v1-32k-vision-preview']
   },
   {

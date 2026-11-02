@@ -97,6 +97,10 @@
 .ewb-set-kpcode { font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); }
 .ewb-set-selected-plain { font-size: var(--ewb-fs-md); color: var(--ewb-ink); margin-top: 2px; }
 .ewb-set-selected-ex { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-set-testlist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--ewb-sp-3); }
+.ewb-set-testlist li { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.ewb-set-steps { margin: 4px 0; padding-left: 22px; line-height: 1.8; }
+.ewb-set-steps li { display: list-item; }
 .ewb-set-pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; margin-inline-start: 6px; border-radius: var(--ewb-r-pill); border: 1px solid var(--ewb-line-strong); font-size: var(--ewb-fs-xs); font-weight: 600; color: var(--ewb-ink-2); white-space: nowrap; vertical-align: middle; }
 .ewb-set-pill--own { color: var(--ewb-primary); border-color: var(--ewb-primary); }
 .ewb-set-pill--custom { color: var(--ewb-ink); background: var(--ewb-note); }

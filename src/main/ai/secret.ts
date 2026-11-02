@@ -53,3 +53,41 @@ export function hasStoredKey(): boolean {
   if (memoryKey) return true
   return !!getDb().prepare('SELECT 1 FROM settings WHERE key = ?').get(STORE_KEY)
 }
+
+// ───── 视觉模型自己的密钥（可选；没存 = 沿用上面文本模型的那一把）。存取规则和上面完全一样：只写入、只清除、读不回 ─────
+const VISION_STORE_KEY = 'ai_key_vision_enc'
+let memoryVisionKey: string | null = null
+
+export function saveVisionKey(key: string | null): KeyStorage {
+  const db = getDb()
+  const clean = key?.trim() || null
+  memoryVisionKey = clean
+  db.prepare('DELETE FROM settings WHERE key = ?').run(VISION_STORE_KEY)
+  if (!clean) return 'none'
+  if (!safeStorage.isEncryptionAvailable()) return 'memory'
+  db.prepare('INSERT OR REPLACE INTO settings (key, value_json) VALUES (?, ?)').run(VISION_STORE_KEY, JSON.stringify(safeStorage.encryptString(clean).toString('base64')))
+  return 'encrypted'
+}
+
+/** 仅主进程内部使用：视觉模型单独存的密钥（没有就是 null） */
+export function getVisionOwnKey(): string | null {
+  if (memoryVisionKey) return memoryVisionKey
+  const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(VISION_STORE_KEY) as { value_json: string } | undefined
+  if (!row) return null
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return null
+    const plain = safeStorage.decryptString(Buffer.from(JSON.parse(row.value_json), 'base64'))
+    memoryVisionKey = plain
+    return plain
+  } catch { return null }
+}
+
+/** 视觉模型实际用的密钥：自己的优先，没有就用文本模型的 */
+export function getVisionKey(): string | null {
+  return getVisionOwnKey() ?? getApiKey()
+}
+
+export function hasVisionStoredKey(): boolean {
+  if (memoryVisionKey) return true
+  return !!getDb().prepare('SELECT 1 FROM settings WHERE key = ?').get(VISION_STORE_KEY)
+}

@@ -20,6 +20,7 @@ export function friendlyAiError(e: unknown): FriendlyError {
     case 'server': return { message: `AI 服务暂时不可用，请稍后再试；${RETRY_HINT}`, detail: d }
     case 'rate_limit': return { message: 'AI 服务太忙，或账户额度不够了。请稍后再试，多次失败请联系管理员检查账户', detail: d }
     case 'auth': return { message: 'AI 的密钥无效或没有权限，请联系管理员检查「设置 → 管理员设置 → AI 服务」', detail: d }
+    case 'forbidden': return { message: 'AI 服务拒绝了这次请求：这个密钥没有权限使用设置里的模型。请联系管理员到服务商控制台开通该模型，或换一个有权限的模型（「设置 → 管理员设置 → AI 服务」）', detail: d }
     case 'not_found': return { message: '找不到设置里的 AI 模型，请联系管理员检查「设置 → 管理员设置 → AI 服务」', detail: d }
     case 'bad_request': return { message: `AI 拒绝了这次请求；${RETRY_HINT}`, detail: d }
     case 'aborted': return { message: '已取消', detail: d }

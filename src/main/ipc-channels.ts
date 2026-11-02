@@ -15,7 +15,7 @@ export const WRITE_CHANNELS = new Set([
   'parse:start', 'parse:batchStart', 'queue:resume',
   'questions:update', 'questions:remove', 'questions:split', 'questions:merge', 'questions:confirmPaper', 'questions:reopen',
   'taxonomy:save', 'taxonomy:approveSuggestion', 'taxonomy:rejectSuggestion',
-  'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:analyzeKp', 'ai:test',   // ai:test 会写 ai_usage（见上）
+  'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:analyzeKp', 'ai:test', 'ai:testAll', 'ai:dismissModelHint',   // ai:test 会写 ai_usage（见上）
    'report:generate', 'report:delete', 'report:confirm', 'report:removeSentence',   // report:confirm 写 reports.confirmed_at
   'settings:set',   // 写 settings 表（默认教材、界面状态、引导完成……）
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
@@ -27,7 +27,7 @@ export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'pap
 
 /** 只读 / 只改内存状态 / 纯界面动作的通道：重启待定时不拦 */
 export const READONLY_CHANNELS = new Set([
-  'papers:scanSimilarStatus', 'ai:kpAnalysis', 'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:modelProfile', 'ai:prompts', 'ai:usage',
+  'papers:scanSimilarStatus', 'ai:kpAnalysis', 'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:modelProfile', 'ai:prompts', 'ai:usage', 'ai:modelHint', 'papers:diag', 'os:openLanguageSettings', 'os:openOcrTutorial',
   'app:info', 'app:restart', 'app:takeStartupNotice', 'dialog:openFiles', 'ocr:status',
   'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',

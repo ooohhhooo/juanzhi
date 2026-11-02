@@ -26,6 +26,7 @@ const api = {
       ipcRenderer.invoke('papers:scanSimilarStatus'),
     list: (filter?: Record<string, unknown>): Promise<any[]> =>
       ipcRenderer.invoke('papers:list', filter),
+    diag: (id: string): Promise<any> => ipcRenderer.invoke('papers:diag', id),
     get: (id: string): Promise<any> =>
       ipcRenderer.invoke('papers:get', id),
     update: (id: string, meta: Record<string, unknown>): Promise<any> =>
@@ -55,9 +56,13 @@ const api = {
     modelProfile: (model: string): Promise<any> => ipcRenderer.invoke('ai:modelProfile', model),
     // 只能拿到 hasKey，拿不到密钥本身；密钥只能写入（apiKey 省略 = 不改，null = 清除）
     getConfig: (): Promise<any> => ipcRenderer.invoke('ai:getConfig'),
-    saveConfig: (cfg: Record<string, unknown>, apiKey?: string | null): Promise<any> =>
-      apiKey === undefined ? ipcRenderer.invoke('ai:saveConfig', cfg) : ipcRenderer.invoke('ai:saveConfig', cfg, apiKey),
-    test: (req: { kind: 'text' | 'vision'; cfg?: Record<string, unknown>; apiKey?: string }): Promise<any> => ipcRenderer.invoke('ai:test', req),
+    saveConfig: (cfg: Record<string, unknown>, apiKey?: string | null, visionKey?: string | null): Promise<any> =>
+      visionKey !== undefined ? ipcRenderer.invoke('ai:saveConfig', cfg, apiKey === undefined ? undefined : apiKey, visionKey)
+        : apiKey === undefined ? ipcRenderer.invoke('ai:saveConfig', cfg) : ipcRenderer.invoke('ai:saveConfig', cfg, apiKey),
+    test: (req: { kind: 'text' | 'vision'; cfg?: Record<string, unknown>; apiKey?: string; visionKey?: string }): Promise<any> => ipcRenderer.invoke('ai:test', req),
+    testAll: (req: { cfg?: Record<string, unknown>; apiKey?: string; visionKey?: string }): Promise<any> => ipcRenderer.invoke('ai:testAll', req),
+    modelHint: (): Promise<any> => ipcRenderer.invoke('ai:modelHint'),
+    dismissModelHint: (): Promise<boolean> => ipcRenderer.invoke('ai:dismissModelHint'),
     prompts: (): Promise<any> => ipcRenderer.invoke('ai:prompts'),
     savePrompt: (id: string, part: string, text: string): Promise<boolean> => ipcRenderer.invoke('ai:savePrompt', id, part, text),
     resetPrompt: (id: string, part: string): Promise<boolean> => ipcRenderer.invoke('ai:resetPrompt', id, part),
@@ -145,6 +150,10 @@ const api = {
     approveSuggestion: (questionId: string, body: { parent_code: string | null; name: string }): Promise<string> =>
       ipcRenderer.invoke('taxonomy:approveSuggestion', questionId, body),
     rejectSuggestion: (questionId: string): Promise<boolean> => ipcRenderer.invoke('taxonomy:rejectSuggestion', questionId),
+  },
+  os: {
+    openLanguageSettings: (): Promise<boolean> => ipcRenderer.invoke('os:openLanguageSettings'),
+    openOcrTutorial: (): Promise<boolean> => ipcRenderer.invoke('os:openOcrTutorial'),
   },
   ocr: {
     status: (): Promise<{ available: boolean; detail: string; lang?: string }> =>

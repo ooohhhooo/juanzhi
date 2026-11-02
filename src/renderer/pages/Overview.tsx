@@ -20,7 +20,7 @@ import '../design/page-analysis.css'
 
 type Top = OverviewResult['top'][number]
 
-/** 词条里的「出自原卷」：这个知识点在当前范围里的一道题，用原卷截图（点击看整页） */
+/** 词条里的「出自原卷」：这个知识点在当前范围里的一道题，用原卷截图（点击看整页）。这个知识点的题都还没框出位置时，不再拿整页冒充：写明「还没框出位置」并给「去框一下」 */
 function OriginExample({ code, filter, onView }: { code: string; filter: StatsFilter; onView: (t: ViewTarget) => void }) {
   const { data } = useQuery({ queryKey: ['stats', 'kpQuestions', filter, { kind: 'filter' }, code, 3], queryFn: () => window.api.stats.questions(filter, { kind: 'filter' }, code, 3), staleTime: 30_000 })
   const q = data?.find(x => x.pageRel && x.bbox) ?? data?.find(x => x.pageRel)
@@ -29,7 +29,7 @@ function OriginExample({ code, filter, onView }: { code: string; filter: StatsFi
   return (
     <section className="ewb-entry__src ewb-ana-origin" aria-label="出自原卷">
       <h4 className="ewb-entry__src-title">出自原卷</h4>
-      <CropImage testid="ov-crop" q={{ paperId: q.paper_id, pageRel: q.pageRel, pageW: q.pageW, pageH: q.pageH, bbox: q.bbox }} width={440} onOpen={open} />
+      <CropImage testid="ov-crop" q={{ paperId: q.paper_id, pageRel: q.pageRel, pageW: q.pageW, pageH: q.pageH, bbox: q.bbox, questionId: q.id }} width={440} onOpen={open} />
       <span className="ewb-thumb-src__cap">{q.paperTitle} · 第 {q.no} 题</span>
     </section>
   )

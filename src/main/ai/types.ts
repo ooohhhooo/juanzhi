@@ -4,10 +4,19 @@ import { z } from 'zod'
 export const AiConfigSchema = z.object({
   provider: z.string().min(1).max(40),
   base_url: z.string().max(300),
+  /** 写报告 / 做分析用的模型（1.2.1 的「文本模型」，名字沿用 model 以便旧配置、命令行和数据包照旧） */
   model: z.string().max(120),
+  /** 拆题用的模型；空 = 与上面的 model 相同（旧配置没有这一项，读取时就是空，行为和 1.2.1 完全一致） */
+  parse_model: z.string().max(120).default(''),
   vision_model: z.string().max(120),
-  /** 同时解析几份试卷（1–4） */
-  concurrency: z.number().int().min(1).max(4),
+  /** 视觉模型自己的服务地址；空 = 与文本模型相同（密钥另存一个加密槽，空 = 同一把） */
+  vision_base_url: z.string().max(300).default(''),
+  /**
+   * 什么时候让 AI 读图：auto（默认）= 本机识别不好的页才读图；images_always = 图片和扫描件一律读图（页面图会发给服务商）；never = 从不读图
+   */
+  vision_policy: z.enum(['auto', 'images_always', 'never']).default('auto'),
+  /** 同时解析几份试卷（1–16；遇到服务商限流时队列会自动放慢，见 parse/queue.ts） */
+  concurrency: z.number().int().min(1).max(16),
   /** 提取完成后是否自动开始 AI 解析（需已配置） */
   auto_parse: z.boolean(),
   /** 高级：单批最多几页 / 单次请求超时秒数 / 输出上限 */
@@ -20,11 +29,19 @@ export const AiConfigSchema = z.object({
 
 export type AiConfig = z.infer<typeof AiConfigSchema>
 
+/** 拆题实际用的模型：没单独设置就用「写报告用的模型」 */
+export function parseModelOf(cfg: Pick<AiConfig, 'model' | 'parse_model'>): string {
+  return cfg.parse_model.trim() || cfg.model
+}
+
 export const DEFAULT_AI_CONFIG: AiConfig = {
   provider: 'deepseek',
   base_url: 'https://api.deepseek.com',
   model: 'deepseek-v4-pro',
+  parse_model: '',
   vision_model: 'deepseek-flash',
+  vision_base_url: '',
+  vision_policy: 'auto',
   concurrency: 2,
   auto_parse: true,
   batch_pages: 3,
@@ -38,6 +55,8 @@ export interface AiConfigView extends AiConfig {
   hasKey: boolean
   /** encrypted：已用系统钥匙串加密落盘；memory：系统不支持加密，仅本次运行有效；none：未设置 */
   keyStorage: 'encrypted' | 'memory' | 'none'
+  /** 视觉模型是否单独存了密钥（没有 = 沿用文本模型的密钥） */
+  hasVisionKey: boolean
 }
 
 /** p3_report 是「完整数据版」（沿用 id，旧的自定义提示词和历史报告照旧）；p3_boss / p3_parent / p3_teacher 是另外三个读者的版本 */

@@ -57,6 +57,7 @@ export default function QueuePage() {
   const discardGuard = useDiscardGuard()
   const queryClient = useQueryClient()
   const [adminOpen] = useAdminOpen()
+  const { data: hint } = useQuery({ queryKey: ['modelHint'], queryFn: () => window.api.ai.modelHint(), staleTime: 10_000 })
   const [view, setView] = useState<View>('active')
   const [extractProg, setExtractProg] = useState<Record<string, JobProgress>>({})
 
@@ -186,6 +187,12 @@ export default function QueuePage() {
         </div>
       </div>
       {q?.paused && <UsageNote kind="caution" title="队列已暂停" data-testid="paused-banner">不会开始新的提取和解析；已经在跑的试卷会继续做完。点右上角「继续处理」恢复。</UsageNote>}
+      {hint?.suggest && (
+        <UsageNote kind="caution" title="拆题比较慢，建议换一个更快的模型" data-testid="queue-model-hint"
+          actions={<><Btn tone="secondary" size="small" onClick={() => navigate('/settings?admin=1')}>去设置</Btn><Btn tone="secondary" size="small" data-testid="queue-model-hint-dismiss" onClick={async () => { await window.api.ai.dismissModelHint(); queryClient.invalidateQueries({ queryKey: ['modelHint'] }) }}>以后不再提示</Btn></>}>
+          拆题用的模型 {hint.model}{hint.reasoning ? ' 是深度思考型' : ''}，最近 {hint.total} 批里有 {hint.retried} 批因为写不完被自动重试，一份卷子要等很久。建议到设置里把「拆题用的模型」换成更快的{hint.recommend ? `（比如 ${hint.recommend}）` : ''}。程序不会自己换模型。
+        </UsageNote>
+      )}
       {q && !q.aiReady && <UsageNote kind="tip" title="还没有配置 AI 服务">提取完成的试卷会停在「待解析」。请管理员到 <a onClick={() => navigate('/settings?admin=1')}>设置 → 管理员设置 → AI 服务</a> 连接好 AI 后，就能开始解析了。</UsageNote>}
       {rows.length === 0 && !isLoading ? (
         <div data-testid="queue-empty">

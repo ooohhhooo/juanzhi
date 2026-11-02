@@ -455,6 +455,159 @@ export const MIGRATIONS: Array<(db: any) => void> = [
       for (const f of repairNeighborEdgesV10(rows)) fixBox.run(JSON.stringify(f.bbox), f.id)
     }
     db.exec('UPDATE data_rev SET rev = rev + 1 WHERE id = 1')
+  },
+
+  // v10 → v11（M9 公测版）：M9 全部的表结构变化一次建好，之后不再改本迁移（发现还要改，只追加 v12，且只加列加表）。
+  //  - pages：识别方式记录（recognizer / ocr_lang / ocr_ms / rec_reason / quality_json），试卷详情和审核页据此说明「这一页是怎么识别的、为什么」；
+  //  - ai_usage：耗时、错误码、尝试次数；reports：生成选项；papers：提取体检；
+  //  - parse_batches：每个解析批次一行（模型、模式、尝试、是否被长度截断、耗时、token），用来发现「拆题模型反复写不完」；
+  //  - course_*：课程对照（beta.2 使用，这里只建空表，不影响现有功能）；report_parts / report_variants：报告分段与变形题（beta.3 使用）。
+  //  - settings.ai_config：不需要数据迁移——新字段（parse_model / vision_base_url / vision_policy / parse_thinking）缺省时按「与 1.2.1 完全一致」读取。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    for (const [c, d] of [['recognizer', 'TEXT'], ['ocr_lang', 'TEXT'], ['ocr_ms', 'INTEGER'], ['rec_reason', 'TEXT'], ['quality_json', 'TEXT']]) addCol('pages', c, d)
+    for (const [c, d] of [['ms', 'INTEGER'], ['err_code', 'TEXT'], ['attempts', 'INTEGER']]) addCol('ai_usage', c, d)
+    addCol('reports', 'options_json', 'TEXT')
+    addCol('papers', 'diag_json', 'TEXT')
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS parse_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        paper_id TEXT NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+        run_id INTEGER,
+        seq INTEGER,
+        mode TEXT,
+        model TEXT,
+        pages TEXT,
+        attempts INTEGER,
+        truncated INTEGER,
+        escalated INTEGER,
+        reasoning_tokens INTEGER,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        ms INTEGER,
+        ok INTEGER,
+        err_code TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_parse_batches_paper ON parse_batches(paper_id);
+      CREATE INDEX IF NOT EXISTS idx_parse_batches_model ON parse_batches(model, id DESC);
+
+      CREATE TABLE IF NOT EXISTS course_outlines (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        scene TEXT NOT NULL DEFAULT 'other',
+        term_note TEXT,
+        source_name TEXT,
+        source_hash TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        active INTEGER NOT NULL DEFAULT 1,
+        rev INTEGER NOT NULL DEFAULT 1,
+        mapping_json TEXT,
+        warnings_json TEXT,
+        ai_model TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE TABLE IF NOT EXISTS course_levels (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        outline_id TEXT NOT NULL REFERENCES course_outlines(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        sort INTEGER NOT NULL DEFAULT 0,
+        grade_hint TEXT
+      );
+      CREATE TABLE IF NOT EXISTS course_lessons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        outline_id TEXT NOT NULL REFERENCES course_outlines(id) ON DELETE CASCADE,
+        level_id INTEGER NOT NULL REFERENCES course_levels(id) ON DELETE CASCADE,
+        seq INTEGER NOT NULL DEFAULT 0,
+        no_label TEXT,
+        title TEXT,
+        theme TEXT,
+        textbook_ref TEXT,
+        points_json TEXT,
+        raw_json TEXT,
+        search_text TEXT,
+        text_hash TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_course_lessons_o ON course_lessons(outline_id, level_id, seq);
+      CREATE TABLE IF NOT EXISTS course_kp_check (
+        outline_id TEXT NOT NULL REFERENCES course_outlines(id) ON DELETE CASCADE,
+        kp_code TEXT NOT NULL,
+        result TEXT NOT NULL,
+        outline_rev INTEGER,
+        kp_sig TEXT,
+        model TEXT,
+        prompt_version TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        PRIMARY KEY (outline_id, kp_code)
+      );
+      CREATE INDEX IF NOT EXISTS idx_course_kp_check_o ON course_kp_check(outline_id);
+      CREATE TABLE IF NOT EXISTS course_kp_map (
+        outline_id TEXT NOT NULL REFERENCES course_outlines(id) ON DELETE CASCADE,
+        kp_code TEXT NOT NULL,
+        lesson_id INTEGER NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
+        confidence TEXT NOT NULL DEFAULT 'medium',
+        reason TEXT,
+        quote TEXT,
+        source TEXT NOT NULL DEFAULT 'ai',
+        state TEXT NOT NULL DEFAULT 'suggested',
+        locked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        PRIMARY KEY (kp_code, lesson_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_course_kp_map_o ON course_kp_map(outline_id, kp_code);
+      CREATE TABLE IF NOT EXISTS course_advice (
+        scope_key TEXT PRIMARY KEY,
+        cache_key TEXT,
+        fingerprint TEXT,
+        outline_ids_json TEXT,
+        filter_json TEXT,
+        markdown TEXT,
+        warnings_json TEXT,
+        verify_json TEXT,
+        model TEXT,
+        prompt_version TEXT,
+        confirmed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+
+      CREATE TABLE IF NOT EXISTS report_parts (
+        report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+        part TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'ok',
+        markdown TEXT,
+        message TEXT,
+        detail TEXT,
+        model TEXT,
+        prompt_version TEXT,
+        usage_json TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        PRIMARY KEY (report_id, part)
+      );
+      CREATE TABLE IF NOT EXISTS report_variants (
+        id TEXT PRIMARY KEY,
+        report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+        seq INTEGER NOT NULL DEFAULT 0,
+        kp_code TEXT,
+        source_question_id TEXT,
+        qtype TEXT,
+        stem TEXT,
+        options_json TEXT,
+        answer TEXT,
+        explanation TEXT,
+        changed TEXT,
+        status TEXT NOT NULL DEFAULT 'checked',
+        teacher_ok INTEGER NOT NULL DEFAULT 0,
+        check_json TEXT,
+        model TEXT,
+        check_model TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_report_variants_r ON report_variants(report_id, seq);
+    `)
   }
 ]
 

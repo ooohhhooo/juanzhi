@@ -67,7 +67,7 @@ async function phaseSetup() {
     const idx = d.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map(x => x.name)
     const cols = d.prepare('PRAGMA table_info(ai_analyses)').all().map(x => x.name)
     const trg = d.prepare("SELECT name FROM sqlite_master WHERE type='trigger'").all().map(x => x.name)
-    check('迁移 v8', `全新库升到 v${uv}：v6 的 3 个统计索引与 ai_analyses 缓存表；v7 的数据修订号表与缓存核对列；v8 把 papers / questions / question_kps 的触发器重建成带 WHEN 条件的（共 15 个触发器）`, uv === 10 && trg.filter(n => n.startsWith('trg_rev_')).length === 15 && d.prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_rev_%' AND (name LIKE '%papers%' OR name LIKE '%questions%' OR name LIKE '%question_kps%') AND sql LIKE '%WHEN%'").get().c === 9 && !!d.prepare("SELECT 1 FROM data_rev WHERE id = 1").get() && ['template_sig', 'checked_rev', 'checked_sig', 'checked_json'].every(c => cols.includes(c)) && ['idx_question_kps_kp', 'idx_papers_stats', 'idx_questions_paper_qtype'].every(i => idx.includes(i)) && ['scope_key', 'cache_key', 'prompt_version', 'fingerprint', 'markdown'].every(c => cols.includes(c)), `v${uv}`)
+    check('迁移 v8', `全新库升到 v${uv}：v6 的 3 个统计索引与 ai_analyses 缓存表；v7 的数据修订号表与缓存核对列；v8 把 papers / questions / question_kps 的触发器重建成带 WHEN 条件的（共 15 个触发器）`, uv === 11 && trg.filter(n => n.startsWith('trg_rev_')).length === 15 && d.prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_rev_%' AND (name LIKE '%papers%' OR name LIKE '%questions%' OR name LIKE '%question_kps%') AND sql LIKE '%WHEN%'").get().c === 9 && !!d.prepare("SELECT 1 FROM data_rev WHERE id = 1").get() && ['template_sig', 'checked_rev', 'checked_sig', 'checked_json'].every(c => cols.includes(c)) && ['idx_question_kps_kp', 'idx_papers_stats', 'idx_questions_paper_qtype'].every(i => idx.includes(i)) && ['scope_key', 'cache_key', 'prompt_version', 'fingerprint', 'markdown'].every(c => cols.includes(c)), `v${uv}`)
     ctx.tree = naive.makeTree(d.prepare('SELECT code, parent_code, level, name FROM kps').all())
   })
   // 用真实 Vision OCR 找到页面里第 3 题那一行的位置，作为 C2 第 1 题的定位框（截图位置能和它对照）
@@ -443,9 +443,9 @@ async function phaseDrawer() {
   try { text = L.ocrText(png) } catch (e) { text = 'OCR 失败：' + e.message }
   check('抽屉截图', '截图元素的像素内容经 Vision OCR：含第 3 题「skirt」，不含相邻题「sheep」「library」', /skirt/i.test(text) && !/sheep/i.test(text) && !/library/i.test(text), text.slice(0, 120))
   await crop.evaluate((el, w) => { el.style.width = w }, origW)
-  // 没有 bbox 的题：整页缩略图并注明
+  // 没有 bbox 的题：不再拿整页冒充，写明「还没框出位置」并给「去框一下」（M9）
   const c2 = cards.nth(1).locator('[data-testid=crop]')
-  check('抽屉截图', '没有定位框的题（C5 第 1 题）显示整页缩略图，并注明「没有定位框」', (await c2.getAttribute('data-mode')) === 'page' && /没有定位框，显示的是整页缩略图/.test(await c2.innerText()))
+  check('抽屉截图', '没有定位框的题（C5 第 1 题）不显示整页，写明「这道题还没在原卷上框出位置」，并有「去框一下」', (await c2.getAttribute('data-mode')) === 'nobox' && /这道题还没在原卷上框出位置/.test(await c2.innerText()) && (await c2.locator('[data-testid=goto-box]').count()) === 1 && (await c2.locator('img').count()) === 0)
   await shot('11-drawer')
   // 点截图 → 整页原卷 + 高亮
   await crop.click()
@@ -461,11 +461,6 @@ async function phaseDrawer() {
   await shot('12-page-viewer')
   await page.keyboard.press('Escape')
   await T('page-viewer').waitFor({ state: 'detached' }).catch(() => {})
-  // 点没有框的那张：整页打开、没有高亮
-  await c2.locator('img').click()
-  await T('page-viewer').waitFor()
-  check('抽屉截图', '没有定位框的题点开整页：不画高亮，并说明无法高亮', (await T('page-highlight').count()) === 0 && /没有定位框，无法高亮/.test(await txt('page-viewer')))
-  await page.keyboard.press('Escape')
   await closeDrawer()
 
   // 消失的知识点：取基线侧的题，且没有页面图 → 说明
