@@ -2,7 +2,8 @@
  * 把 parseBlocks 的结果渲染成静态 HTML（导出 PDF 用）。纯函数。
  * 所有文字都做 HTML 转义，模型输出里的 <script> 之类只是字面文字；生成的页面本身也不带任何脚本。
  */
-import { parseBlocks } from './markdown.ts'
+import { parseBlocks, parseInline, splitLatin, trickFields } from './markdown.ts'
+import { CARD_WIDTH, cardCss } from './card-style.ts'
 import type { Block, Inline } from './markdown.ts'
 
 export const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -37,6 +38,33 @@ const cites = (after: string[]): string => (after.length ? `<div class="cites">$
 /** 一段 / 一条：文字 + 它后面的截图卡片 */
 const withCites = (items: Inline[], o: HtmlOptions): string => { const after: string[] = []; const t = inline(items, o, after); return t + cites(after) }
 
+const LETTERS = 'ABCDEFGH'
+/** 口诀卡例句：英文用斜体（<i>），中文保持正体 */
+const egInline = (items: Inline[], o: HtmlOptions): string => items.map(it => (it.type === 'text' ? splitLatin(it.text).map(s => (s.latin ? `<i>${esc(s.text)}</i>` : esc(s.text))).join('') : inline([it], o))).join('')
+
+/** 卡片（口诀大招 / 答题卡）→ 静态 HTML。样式见 card-style.ts 的 cardCss；英文单词和例句用斜体 */
+export function cardToHtml(b: Extract<Block, { type: 'card' }>, o: HtmlOptions = {}): string {
+  if (b.kind === 'trick') {
+    const f = trickFields(b.raw)
+    return `<div class="ewb-card ewb-card--trick" data-card="trick"><div class="ewb-card__band">${esc(b.title || '口诀大招')}</div><div class="ewb-card__body">` +
+      `<p class="ewb-trick__main">${inline(parseInline(f.main), o)}</p>` +
+      (f.example ? `<p class="ewb-trick__eg">${egInline(parseInline(f.example), o)}</p>` : '') +
+      (f.rest.length ? f.rest.map(l => `<p class="ewb-trick__eg">${egInline(parseInline(l), o)}</p>`).join('') : '') +
+      (f.from ? `<p class="ewb-trick__from">出自考点：${inline(parseInline(f.from), o)}</p>` : '') + `</div></div>`
+  }
+  const items = b.items.map(it => {
+    const ans = it.answer
+    const opts = ans?.type === 'choice' ? `<p class="ewb-ans__opts">${ans.options.map((x, i) => `<span>○ ${LETTERS[i] ?? i + 1}. ${esc(x)}</span>`).join('')}</p>`
+      : ans?.type === 'blank' ? Array.from({ length: ans.count }, () => '<div class="ewb-ans__box"></div>').join('')
+        : ans?.type === 'lines' ? Array.from({ length: ans.count }, () => '<div class="ewb-ans__box"></div>').join('') : ''
+    return `<div class="ewb-ans__item"><div class="ewb-ans__no">${it.n}</div><div><p class="ewb-ans__stem">${inline(it.stem, o)}</p>${opts}</div></div>`
+  }).join('')
+  // 答题卡不含任何学生信息：姓名 / 日期是留给学生手写的空白横线
+  return `<div class="ewb-card ewb-card--answer" data-card="answercard"><div class="ewb-card__band"><span>${esc(b.title || '答题卡')}${b.extra ? ` · ${esc(b.extra)}` : ''}</span><span>AI 出题</span></div>` +
+    `<div class="ewb-ans__who"><span>姓名<i class="ewb-ans__line"></i></span><span>日期<i class="ewb-ans__line"></i></span></div>${items}` +
+    `<div class="ewb-card__foot">本题由 AI 根据原卷考点改编，已由程序和第二次 AI 解答核对；使用前请老师先做一遍</div></div>`
+}
+
 export function blocksToHtml(blocks: Block[], o: HtmlOptions = {}): string {
   const out: string[] = []
   for (const b of blocks) {
@@ -47,6 +75,7 @@ export function blocksToHtml(blocks: Block[], o: HtmlOptions = {}): string {
       case 'quote': out.push(`<blockquote>${b.lines.map(l => `<div>${inline(l, o)}</div>`).join('')}</blockquote>`); break
       case 'hr': out.push('<hr>'); break
       case 'code': out.push(`<pre>${esc(b.text)}</pre>`); break
+      case 'card': out.push(cardToHtml(b, o)); break
       case 'table': {
         const al = (i: number) => (b.align[i] ? ` style="text-align:${b.align[i]}"` : '')
         out.push(`<table><thead><tr>${b.header.map((c, i) => `<th${al(i)}>${inline(c, o)}</th>`).join('')}</tr></thead><tbody>${
@@ -86,9 +115,27 @@ export function reportHtmlPage(opts: { title: string; bodyHtml: string; footer?:
   .cite { display: inline-block; vertical-align: top; margin: 2pt 4pt 2pt 0; padding: 3pt; border: 0.5pt solid #adc6ff; border-radius: 3pt; background: #f7faff; max-width: 52mm; page-break-inside: avoid; }
   .cite .cap { font-size: 7.5pt; color: #1d39c4; margin-bottom: 2pt; }
   .cite img { width: 100%; display: block; }
+  ${cardCss().replace(/\n/g, '\n  ')}
   .foot { margin-top: 18pt; font-size: 8.5pt; color: #8c8c8c; border-top: 0.5pt solid #eee; padding-top: 4pt; }
 </style></head><body>
 ${opts.bodyHtml}
 ${opts.footer ? `<div class="foot">${esc(opts.footer)}</div>` : ''}
 </body></html>`
+}
+
+/**
+ * 「复制成图片 / 保存图片」用的页面：只放一张卡片，强制浅色白底，固定 720px 宽（外加 16px 白边），zoom: 2 让截图是 2 倍清晰度。
+ * 不依赖当前主题和滚动位置；页面本身没有脚本。
+ */
+export function cardImagePage(cardHtml: string): string {
+  return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>card</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #FFFFFF; }
+  body { zoom: 2; width: ${CARD_WIDTH + 32}px; padding: 16px; font-family: ${CJK_FONT_STACK}; }
+  #card { width: ${CARD_WIDTH}px; }
+  ${cardCss().replace(/\n/g, '\n  ')}
+  .ewb-card { margin: 0; }
+</style></head><body><div id="card">${cardHtml}</div></body></html>`
 }

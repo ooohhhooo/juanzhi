@@ -4,6 +4,8 @@ import { useShowCodes } from '../hooks/useUiPrefs'
 import { parseBlocks } from '../../shared/markdown'
 import type { Inline } from '../../shared/markdown'
 import CropImage from './CropImage'
+import CardView from './CardView'
+import { cardCss } from '../../shared/card-style'
 import { MARK_CONFLICT, MARK_UNVERIFIED } from '../../shared/factcheck'
 import type { ViewTarget } from './PageViewer'
 import '../design/page-report.css'
@@ -51,7 +53,7 @@ function withMarks(text: string): React.ReactNode {
 /** `### 代码｜名称` 的小标题：默认只显示名称（代码是程序内部编号） */
 const headingText = (t: string, showCodes: boolean) => (showCodes ? t : t.replace(/^[A-Z][A-Z0-9_]*(?:\.[A-Z][A-Z0-9_]*)*\s*[｜|]\s*/, ''))
 
-export default function MarkdownView({ markdown, refs, onView }: { markdown: string; refs: Ref[]; onView: (t: ViewTarget) => void }) {
+export default function MarkdownView({ markdown, refs, onView, cardActions }: { markdown: string; refs: Ref[]; onView: (t: ViewTarget) => void; /** 卡片下面的操作区（保存图片 / 复制图片）：kind 和同类卡片里的序号 */ cardActions?: (kind: 'trick' | 'answercard', index: number) => React.ReactNode }) {
   const [showCodes] = useShowCodes()
   const blocks = useMemo(() => parseBlocks(markdown), [markdown])
   const refMap = useMemo(() => new Map(refs.map(r => [r.token, r])), [refs])
@@ -71,8 +73,10 @@ export default function MarkdownView({ markdown, refs, onView }: { markdown: str
     <div className="ewb-citerow" data-testid="cite-row" aria-label="出自原卷">{tokens.map(t => <Cite key={t} token={t} refMap={refMap} onView={onView} />)}</div>
   )
   const inl = (items: Inline[]) => split(items).nodes
+  const cardIdx = { trick: 0, answercard: 0 }
   return (
     <div data-testid="md" className="ewb-md">
+      {blocks.some(b => b.type === 'card') && <style>{cardCss()}</style>}
       {blocks.map((b, i) => {
         switch (b.type) {
           case 'heading': return React.createElement(`h${Math.min(b.level + 2, 6)}`, { key: i, className: b.level <= 1 ? 'ewb-md__h1' : b.level === 2 ? 'ewb-md__h2' : 'ewb-md__h3' }, headingText(b.text, showCodes))
@@ -88,6 +92,7 @@ export default function MarkdownView({ markdown, refs, onView }: { markdown: str
                 <tbody>{b.rows.map((r, j) => <tr key={j}>{b.header.map((_, k) => <td key={k} style={{ textAlign: b.align[k] ?? 'left' }}>{(() => { const x = split(r[k] ?? []); return <>{x.nodes}{citeRow(x.cites)}</> })()}</td>)}</tr>)}</tbody>
               </table>
             </div>)
+          case 'card': { const at = cardIdx[b.kind]++; return <CardView key={i} block={b} inl={inl} actions={cardActions?.(b.kind, at)} /> }
           default: { const x = split(b.inline); return <React.Fragment key={i}><p>{x.nodes}</p>{citeRow(x.cites)}</React.Fragment> }
         }
       })}

@@ -129,17 +129,20 @@ function buildParent(user, quirks = {}) {
   return L.join('\n')
 }
 
-/** 老师版：易错点（错在哪 / 原卷例题 / 练法 / 讲解要点）+ 备课建议 */
+/** 老师版 v3：只写「做题方法」（按“待写做题方法的易错点”逐个写）和「学习进步建议」；易错题集 / 知识点 / 口诀 / 变形题由程序拼 */
 function buildTeacher(user, quirks = {}) {
   const t = parse(user)
-  const L = [`# ${t.filter} 考情分析报告`, noteLine(t, quirks), '', '## 易错点（按重要程度排序）']
-  if (t.err.length === 0) L.push('本范围内没有 AI 估计的易错题。')
-  for (const [i, r] of t.err.slice(0, 4).entries()) {
-    L.push(`### ${i + 1}. ${r[1]}`, `- **错在哪**：${r[2]}。`, `- **原卷例题**：${firstCite([r]) ?? '无'}`, '- **练法**：做 5 道同类题，错了的再讲一遍。', '- **讲解要点**：用一句白话讲规则，再举一个例句。')
+  const items = block(user, '【待写做题方法的易错点】').map(l => l.split(' | '))
+  const L = [`# ${t.filter} 考情分析报告`, noteLine(t, quirks), '', '## 做题方法']
+  if (items.length === 0) L.push('这个范围内没有 AI 估计的易错题。')
+  for (const r of items) {
+    L.push(`### ${r[0]}. ${r[1]}`, '- **怎么审题**：先读题干，找出题目考的是哪个词。', '- **练法**：做 5 道同类题，错了的再讲一遍。', '- **讲解要点**：用一句白话讲规则，再举一个例句。')
   }
   if (quirks.badCite) L.push('', '补充：另见 [不存在的卷 · 99]。')
-  L.push('', '## 备课建议', '1. 先讲最容易错的两个考点。', '2. 每个考点配 5 道练习。')
-  if (quirks.noAdvice) L.splice(L.indexOf('## 备课建议'), 3)
+  if (!quirks.noAdvice) {
+    L.push('', '## 学习进步建议', '1. 先讲最容易错的两个考点。', '2. 每个考点配 5 道练习。', '3. 每天读一小段英语。')
+    if (quirks.overclaim) L.push('4. 报名后保证孩子提高 20 分。')
+  }
   return L.join('\n')
 }
 

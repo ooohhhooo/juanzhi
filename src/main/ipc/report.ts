@@ -1,9 +1,11 @@
-import { ipcMain, dialog, clipboard, shell } from 'electron'
+import { ipcMain, dialog, clipboard, ClipboardItem, shell } from 'electron'
+import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { getMainWindow } from '../window'
 import { StatsFilterSchema } from '../stats/filter'
-import { assertExportable, confirmReport, deleteReport, generateReport, getReport, listReports, previewReport, removeReportSentence, wechatText } from '../report/service'
+import { assertExportable, confirmReport, deleteReport, generateReport, getReport, listReports, previewReport, removeReportSentence, retryReportPart, tickVariant, wechatText } from '../report/service'
+import { cardHtmlOf, renderCardImage } from '../report/card-image'
 import { exportReportTo } from '../report/export-run'
 import { safeStem } from '../report/export-plan'
 import { READERS, READER_LABEL } from '../../shared/report-post'
@@ -11,6 +13,11 @@ import { READERS, READER_LABEL } from '../../shared/report-post'
 const FilterArg = StatsFilterSchema.default({})
 const IdSchema = z.string().uuid()
 const ReaderSchema = z.enum(READERS as [string, ...string[]]).default('full')
+/** 生成选项（课程对照、家长版一句话）：严格限定字段，不接受别的东西 */
+const OptionsSchema = z.object({
+  course: z.object({ outlineIds: z.array(z.string().max(80)).max(20) }).strict().optional(),
+  parentHint: z.boolean().optional()
+}).strict().default({})
 const clean = (e: unknown) => (e as Error).message
 
 const stamp = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` }
@@ -30,14 +37,57 @@ export function registerReportIpc(): void {
   ipcMain.handle('report:removeSentence', async (_e, rawId: unknown, rawSentence: unknown) => removeReportSentence(IdSchema.parse(rawId), z.string().min(1).max(2000).parse(rawSentence)))
 
   // 流式增量走 ai:chunk，只发给发起请求的窗口（和 P2 一样）
-  ipcMain.handle('report:generate', async (e, rawFilter: unknown, rawRequestId: unknown, rawReader?: unknown) => {
+  ipcMain.handle('report:generate', async (e, rawFilter: unknown, rawRequestId: unknown, rawReader?: unknown, rawOptions?: unknown) => {
     const filter = FilterArg.parse(rawFilter ?? {})
+    const options = OptionsSchema.parse(rawOptions ?? {})
     const requestId = z.string().uuid().parse(rawRequestId)
     const reader = ReaderSchema.parse(rawReader ?? undefined) as any
     const sender = e.sender
     return generateReport(filter, reader, requestId,
       ev => { if (!sender.isDestroyed()) sender.send('ai:chunk', ev) },
+      cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } }, options)
+  })
+
+  /** 只重新生成报告里的一个附加段（口诀 / 变形题 / 以后的课程对照）；进度走 ai:chunk 的 part 事件，只发给发起请求的窗口 */
+  ipcMain.handle('report:retryPart', async (e, rawId: unknown, rawPart: unknown, rawRequestId: unknown) => {
+    const id = IdSchema.parse(rawId)
+    const part = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/).parse(rawPart)
+    const requestId = z.string().uuid().parse(rawRequestId)
+    const sender = e.sender
+    return retryReportPart(id, part, requestId,
+      ev => { if (!sender.isDestroyed()) sender.send('ai:chunk', ev) },
       cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } })
+  })
+
+  /** 老师逐题勾「我核对过」：勾了的 AI 变形题才会放进答题卡 */
+  ipcMain.handle('report:variantTick', async (_e, rawId: unknown, rawVariantId: unknown, rawOk: unknown) =>
+    tickVariant(IdSchema.parse(rawId), z.string().min(1).max(100).parse(rawVariantId), z.boolean().parse(rawOk)))
+
+  /** 卡片存成 / 复制成 2 倍清晰度的图片：save 弹系统「另存为」，copy 只写剪贴板。取消返回 { saved: false } */
+  ipcMain.handle('report:cardImage', async (_e, rawId: unknown, rawKind: unknown, rawIndex: unknown, rawMode: unknown) => {
+    const id = IdSchema.parse(rawId)
+    const kind = z.enum(['trick', 'answercard']).parse(rawKind)
+    const index = z.number().int().min(0).max(50).parse(rawIndex)
+    const mode = z.enum(['save', 'copy']).parse(rawMode)
+    const report = getReport(id)
+    if (!report) throw new Error('这份报告已经不存在了')
+    assertExportable(report)
+    const html = cardHtmlOf(report.markdown, kind, index)
+    if (!html) throw new Error(kind === 'answercard' ? '答题卡里还没有题：请先在下面逐题勾「我核对过」' : '没有找到这张卡片')
+    const img = await renderCardImage(html)
+    if (mode === 'copy') {
+      // Electron 45 的剪贴板是 W3C 风格的异步接口：写一个 image/png 条目
+      await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(img.png)], { type: 'image/png' }) })])
+      return { saved: true, width: img.width, height: img.height }
+    }
+    const win = getMainWindow()
+    const opts: Electron.SaveDialogOptions = { title: kind === 'answercard' ? '保存答题卡图片' : '保存口诀卡图片', defaultPath: `${safeStem(kind === 'answercard' ? '答题卡' : `口诀大招-${index + 1}`)}-${stamp()}.png`, filters: [{ name: 'PNG 图片', extensions: ['png'] }] }
+    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (r.canceled || !r.filePath) return { saved: false }
+    const out = r.filePath.toLowerCase().endsWith('.png') ? r.filePath : `${r.filePath}.png`
+    fs.writeFileSync(out, img.png)
+    exported.add(path.resolve(out))
+    return { saved: true, path: out, width: img.width, height: img.height }
   })
 
   /** 复制到微信：纯文本（带换行和序号，没有 Markdown 符号），写进系统剪贴板；家长版没核对不给复制 */

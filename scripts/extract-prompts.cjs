@@ -1,37 +1,48 @@
-// 把 docs/prompts/v2-分读者与事实核对.md 里的提示词正文原样抽成资源文件（v1 保留作历史，不再抽）。
+// 把 docs/prompts 里的提示词正文原样抽成资源文件（v1 保留作历史，不再抽）。
+// 依次读 v2（分读者与事实核对）和 v3（老师版升级），后读的覆盖先读的：p3_teacher 以 v3 为准，v2 里的那份只是历史。
 // 用法：node scripts/extract-prompts.cjs     输出：src/main/ai/prompts/<id>.<system|user>.txt
-// 提示词有改动时重新跑一次并同步更新 PROMPT_DEFAULT_VERSION（src/main/ai/prompts.ts）。
+// 提示词有改动时重新跑一次并同步更新对应提示词的版本号（src/main/ai/prompts.ts 的 PROMPT_VERSIONS / PROMPT_DEFAULT_VERSION）。
 const fs = require('node:fs')
 const path = require('node:path')
 
 const root = path.resolve(__dirname, '..')
-const src = fs.readFileSync(path.join(root, 'docs/prompts/v2-分读者与事实核对.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
 const outDir = path.join(root, 'src/main/ai/prompts')
 fs.mkdirSync(outDir, { recursive: true })
 
-const SECTION_ID = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }
-let cur = null
-let part = null
-let inFence = false
-let buf = []
-const written = []
+const DOCS = [
+  { file: 'docs/prompts/v2-分读者与事实核对.md', ids: { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' } },
+  { file: 'docs/prompts/v3-老师版升级.md', ids: { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' } }
+]
+const EXPECTED = 22
+const result = new Map()
 
-for (const line of src) {
-  if (!inFence) {
-    const h2 = /^## ([一二三四五六七八九十]+)、/.exec(line)
-    if (h2) { cur = SECTION_ID[h2[1]] ?? null; part = null; continue }
-    const h3 = /^### (system|user)\s*$/.exec(line)
-    if (h3 && cur) { part = h3[1]; continue }
-    if (/^````text\s*$/.test(line) && cur && part) { inFence = true; buf = []; continue }
-  } else if (/^````\s*$/.test(line)) {
-    inFence = false
-    const file = path.join(outDir, `${cur}.${part}.txt`)
-    fs.writeFileSync(file, buf.join('\n') + '\n')
-    written.push(`${path.relative(root, file)} (${buf.join('\n').length} 字)`)
-    part = null
-  } else {
-    buf.push(line)
+for (const doc of DOCS) {
+  const src = fs.readFileSync(path.join(root, doc.file), 'utf8').replace(/\r\n/g, '\n').split('\n')
+  let cur = null
+  let part = null
+  let inFence = false
+  let buf = []
+  for (const line of src) {
+    if (!inFence) {
+      const h2 = /^## ([一二三四五六七八九十]+)、/.exec(line)
+      if (h2) { cur = doc.ids[h2[1]] ?? null; part = null; continue }
+      const h3 = /^### (system|user)\s*$/.exec(line)
+      if (h3 && cur) { part = h3[1]; continue }
+      if (/^````text\s*$/.test(line) && cur && part) { inFence = true; buf = []; continue }
+    } else if (/^````\s*$/.test(line)) {
+      inFence = false
+      result.set(`${cur}.${part}`, buf.join('\n'))
+      part = null
+    } else {
+      buf.push(line)
+    }
   }
 }
+const written = []
+for (const [k, text] of result) {
+  const file = path.join(outDir, `${k}.txt`)
+  fs.writeFileSync(file, text + '\n')
+  written.push(`${path.relative(root, file)} (${text.length} 字)`)
+}
 console.log(written.join('\n'))
-if (written.length !== 16) { console.error(`期望 16 个文件，实际 ${written.length}`); process.exit(1) }
+if (written.length !== EXPECTED) { console.error(`期望 ${EXPECTED} 个文件，实际 ${written.length}`); process.exit(1) }

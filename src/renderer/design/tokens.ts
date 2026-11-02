@@ -9,6 +9,7 @@
  * 浅色 = 词典内页（冷白纸），深色 = 夜读版（深蓝封面布底）。
  */
 import { theme as antdThemeApi, type ThemeConfig } from 'antd'
+import { CARD_AMBER, CARD_PAPER } from '../../shared/card-style'
 
 export type Mode = 'light' | 'dark'
 
@@ -230,7 +231,9 @@ function paletteVars(p: Palette, mode: Mode): string[] {
     v('red', p.red), v('red-ink', p.redInk), v('red-soft', p.redSoft), v('red-line', p.redLine), v('on-red', p.onRed),
     v('note', p.note), v('line', p.line), v('line-strong', p.lineStrong),
     v('ok', p.ok), v('warn', p.warn), v('mask', p.mask), v('shadow-pop', p.shadowPop),
-    v('sheet', p.sheet), v('sheet-ink', p.sheetInk)
+    v('sheet', p.sheet), v('sheet-ink', p.sheetInk),
+    // 卡片色（仅用于导出卡片及其周边，不用于应用界面其他地方，不与大类色混用；见 DESIGN.md「卡片色」）：随主题变的一套，用在卡片外面的说明标签和深色模式描边
+    v('card-amber-theme-band', CARD_AMBER[mode].band), v('card-amber-theme-ink', CARD_AMBER[mode].ink), v('card-amber-theme-line', CARD_AMBER[mode].line)
   ]
   for (const c of CATEGORIES) {
     const col = c[mode]
@@ -245,6 +248,10 @@ function paletteVars(p: Palette, mode: Mode): string[] {
 function staticVars(): string[] {
   const v = (name: string, value: string | number) => `  --ewb-${name}: ${value};`
   return [
+    // 卡片本身永远是白纸（和原卷一样不随主题变），所以这一组不分浅色 / 深色
+    v('card-paper', CARD_PAPER.paper), v('card-ink', CARD_PAPER.ink), v('card-ink-2', CARD_PAPER.ink2), v('card-line', CARD_PAPER.line), v('card-line-strong', CARD_PAPER.lineStrong),
+    v('card-badge', CARD_PAPER.badge), v('card-on-badge', CARD_PAPER.onBadge),
+    v('card-amber-band', CARD_AMBER.light.band), v('card-amber-ink', CARD_AMBER.light.ink), v('card-amber-line', CARD_AMBER.light.line),
     v('font', fontStack),
     ...Object.entries(fontSizes).map(([k, n]) => v(`fs-${k}`, `${n}px`)),
     ...Object.entries(spacing).map(([k, n]) => v(`sp-${k}`, `${n}px`)),

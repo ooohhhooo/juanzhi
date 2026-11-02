@@ -138,25 +138,32 @@ function buildRealV4Db(dbPath) {
   return db
 }
 
-/** 直接从 docs/prompts/v2-分读者与事实核对.md 取提示词正文（不经过资源文件），用来证明应用发出的就是文档里的那份 */
+/** 直接从 docs/prompts 取提示词正文（不经过资源文件），用来证明应用发出的就是文档里的那份：先读 v2，再读 v3-老师版升级（后者覆盖：老师版 p3_teacher 以 v3 为准） */
 function docsPrompt(id, part) {
-  const IDS = { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }
-  const lines = fs.readFileSync(path.join(root, 'docs/prompts/v2-分读者与事实核对.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
-  let cur = null, p = null, inFence = false, buf = []
-  for (const line of lines) {
-    if (!inFence) {
-      const h2 = /^## ([一二三四五六七八九十]+)、/.exec(line)
-      if (h2) { cur = IDS[h2[1]] ?? null; p = null; continue }
-      const h3 = /^### (system|user)\s*$/.exec(line)
-      if (h3 && cur) { p = h3[1]; continue }
-      if (/^````text\s*$/.test(line) && cur && p) { inFence = true; buf = []; continue }
-    } else if (/^````\s*$/.test(line)) {
-      inFence = false
-      if (cur === id && p === part) return buf.join('\n').replace(/\s+$/, '')
-      p = null
-    } else buf.push(line)
+  const DOCS = [
+    ['docs/prompts/v2-分读者与事实核对.md', { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }],
+    ['docs/prompts/v3-老师版升级.md', { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' }]
+  ]
+  let found = null
+  for (const [file, IDS] of DOCS) {
+    const lines = fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n').split('\n')
+    let cur = null, p = null, inFence = false, buf = []
+    for (const line of lines) {
+      if (!inFence) {
+        const h2 = /^## ([一二三四五六七八九十]+)、/.exec(line)
+        if (h2) { cur = IDS[h2[1]] ?? null; p = null; continue }
+        const h3 = /^### (system|user)\s*$/.exec(line)
+        if (h3 && cur) { p = h3[1]; continue }
+        if (/^````text\s*$/.test(line) && cur && p) { inFence = true; buf = []; continue }
+      } else if (/^````\s*$/.test(line)) {
+        inFence = false
+        if (cur === id && p === part) found = buf.join('\n').replace(/\s+$/, '')
+        p = null
+      } else buf.push(line)
+    }
   }
-  throw new Error(`docs 里找不到 ${id}.${part}`)
+  if (found === null) throw new Error(`docs 里找不到 ${id}.${part}`)
+  return found
 }
 
 function finish(file) {

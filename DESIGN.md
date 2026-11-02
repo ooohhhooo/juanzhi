@@ -27,6 +27,12 @@ colors:
   teal-communication: "#2C9AA0"
   orchid-reading: "#A062B9"
   terracotta-writing: "#C87B4C"
+  card-amber-band: "#FFF1CC"
+  card-amber-ink: "#4A3200"
+  card-amber-line: "#C79A3B"
+  night-card-amber-band: "#3A2D0C"
+  night-card-amber-ink: "#FFE2A0"
+  night-card-amber-line: "#B98733"
   night-paper: "#141427"
   night-canvas: "#1D1D35"
   night-canvas-tint: "#23233F"
@@ -205,6 +211,14 @@ components:
 
 每个大类色在 CSS 里展开成三个变量：本色（色条、圆点）、`-soft`（与画布 14% 混合，深色 20%，做标签底和横条轨道）、`-soft-strong`（30% / 38%，选中和悬停）。
 
+### 例外：卡片色（card-amber，只给导出卡片）
+老师版报告里的「口诀大招」「答题卡」是可以截图发给家长和学生的卡片，口诀卡需要一条淡琥珀横幅。琥珀已经是「语音」大类的专用色，所以卡片**不占用**它，而是单独定义一组「卡片色」令牌（`src/shared/card-style.ts` 定义，`tokens.ts` 展开成 `--ewb-card-*` 变量，用户 2026-11-02 拍板）。规则：
+- **只用于导出卡片及其周边**（报告里的卡片、复制 / 保存成的图片、PDF、Word），**不用于应用界面的其他地方，不与大类色混用**，也不是 `warn` 琥珀的替身。
+- 浅色三个值：横幅底 #FFF1CC（`card-amber-band`）、横幅文字 #4A3200（`card-amber-ink`，在横幅底上 ≥ 7:1）、外框 #C79A3B（`card-amber-line`）。深色三个值：#3A2D0C / #FFE2A0 / #B98733（文字在深琥珀底和 #1D1D35 画布上都 ≥ 7:1）。对比度由单测 `card-render` 守着。
+- **卡片本身永远是白纸**（#FFFFFF，墨色 #1C1B2E，和原卷一样，深色模式里也不变），所以卡片里用的是浅色那一套，不随主题变：`--ewb-card-paper / -ink / -ink-2 / -line / -line-strong / -badge / -on-badge / -amber-band / -amber-ink / -amber-line`。深色那一套（`--ewb-card-amber-theme-*`，随主题切换）只给卡片外面的东西用：深色模式下围着卡片的描边、卡片旁的说明标签。
+- 尺寸：卡片宽 720px，圆角 18px，1px 细线；口诀 22px 加粗，英文例句用斜体（中文不斜）；答题卡编号徽标是墨色实心圆（不用紫色），作答区是虚线框，顶部只有空白的「姓名 ____ 日期 ____」，不含任何学生信息。导出图片按 2 倍清晰度。
+- Word 里没有「圆形」可靠的画法，徽标用墨色底的窄单元格，作答区用单元格的虚线边框；颜色与界面同一个色值。
+
 ### Neutral
 - **周边浅灰** (#ECECF1)：应用底色，白色画布浮在它上面。深色 #141427。
 - **画布白** (#FFFFFF)：画布、卡片、面板。深色 #1D1D35。
@@ -351,6 +365,7 @@ components:
 - **Don't** 给卡片、面板、输入框加阴影；阴影只属于浮层。
 - **Don't** 把玫红用在易错、失败、需要处理以外的地方。
 - **Don't** 把大类色当小字的文字色；大类色只做色条、圆点、浅底。
+- **Don't** 把「卡片色」用到导出卡片以外的任何界面，也不要拿它代替「语音」大类色。
 - **Don't** 在新界面里用 `ok` 绿和 `warn` 琥珀（它们只是未迁移的 AntD 控件的兜底，状态改走文字标签）。
 - **Don't** 用一排一样大小的数字卡展示统计；总览用一句大字结论，数字写在句子里。
 - **Don't** 用图标单独做按钮；设置里的外观切换和侧栏项都带文字。

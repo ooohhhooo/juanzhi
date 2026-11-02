@@ -16,7 +16,7 @@ export const WRITE_CHANNELS = new Set([
   'questions:update', 'questions:remove', 'questions:split', 'questions:merge', 'questions:confirmPaper', 'questions:reopen',
   'taxonomy:save', 'taxonomy:approveSuggestion', 'taxonomy:rejectSuggestion',
   'ai:saveConfig', 'ai:savePrompt', 'ai:resetPrompt', 'ai:analyzeCompare', 'ai:analyzeKp', 'ai:test', 'ai:testAll', 'ai:dismissModelHint',   // ai:test 会写 ai_usage（见上）
-   'report:generate', 'report:delete', 'report:confirm', 'report:removeSentence',   // report:confirm 写 reports.confirmed_at
+   'report:generate', 'report:delete', 'report:confirm', 'report:removeSentence', 'report:retryPart', 'report:variantTick',   // report:confirm 写 reports.confirmed_at
   'settings:set',   // 写 settings 表（默认教材、界面状态、引导完成……）
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
   'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup'
@@ -33,7 +33,7 @@ export const READONLY_CHANNELS = new Set([
   'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',
   'questions:list', 'questions:summary', 'queue:pause', 'queue:state',
-  'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:reveal',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示
+  'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:reveal', 'report:cardImage',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示；cardImage 只写剪贴板或用户在「另存为」里选的文件
   'settings:get', 'settings:getDataDir', 'settings:openDataDir',
   'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
   'taxonomy:tree',

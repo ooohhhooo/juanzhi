@@ -4,7 +4,8 @@
  * 引用的题目截图（嵌在引用后面）。中文字体用 eastAsia 回退（微软雅黑 → 苹方 / 思源），Windows 和 Mac 都能显示。
  */
 import JSZip from 'jszip'
-import { parseBlocks } from '../../shared/markdown.ts'
+import { parseBlocks, parseInline, splitLatin, trickFields } from '../../shared/markdown.ts'
+import { CARD_AMBER, CARD_PAPER } from '../../shared/card-style.ts'
 import type { Block, Inline } from '../../shared/markdown.ts'
 
 export interface DocxImage { png: Buffer; width: number; height: number }
@@ -28,8 +29,8 @@ const FONT = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft Ya
 
 interface Rels { items: Array<{ id: string; file: string }>; next: number }
 
-function run(text: string, o: { bold?: boolean; color?: string; mono?: boolean; size?: number } = {}): string {
-  const props = `${o.mono ? '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:eastAsia="Microsoft YaHei"/>' : FONT}${o.bold ? '<w:b/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}${o.size ? `<w:sz w:val="${o.size}"/>` : ''}`
+function run(text: string, o: { bold?: boolean; italic?: boolean; color?: string; mono?: boolean; size?: number } = {}): string {
+  const props = `${o.mono ? '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:eastAsia="Microsoft YaHei"/>' : FONT}${o.bold ? '<w:b/>' : ''}${o.italic ? '<w:i/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}${o.size ? `<w:sz w:val="${o.size}"/>` : ''}`
   return `<w:r><w:rPr>${props}</w:rPr><w:t xml:space="preserve">${esc(text)}</w:t></w:r>`
 }
 
@@ -48,12 +49,24 @@ function imageRun(rels: Rels, files: Array<{ name: string; data: Buffer }>, img:
     `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`
 }
 
+const hex = (c: string): string => c.replace('#', '').toUpperCase()
+type Edge = 'single' | 'dashed' | 'nil'
+interface CellOpts { span?: number; fill?: string; top?: Edge; left?: Edge; bottom?: Edge; right?: Edge; color?: string; vAlign?: 'center' | 'top' }
+/** 卡片用的单元格：每条边单独指定线型（单线 / 虚线 / 无），颜色统一；圆形徽标在 WPS 里用「形状」不稳，退而用带底色的窄单元格 */
+function cardCell(w: number, inner: string, o: CellOpts = {}): string {
+  const edge = (name: string, v: Edge = 'nil') => (v === 'nil' ? `<w:${name} w:val="nil"/>` : `<w:${name} w:val="${v}" w:sz="${v === 'dashed' ? 8 : 6}" w:space="0" w:color="${o.color ?? hex(CARD_PAPER.lineStrong)}"/>`)
+  return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span ? `<w:gridSpan w:val="${o.span}"/>` : ''}<w:tcBorders>${edge('top', o.top)}${edge('left', o.left)}${edge('bottom', o.bottom)}${edge('right', o.right)}</w:tcBorders>${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ''}<w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="160" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="160" w:type="dxa"/></w:tcMar>${o.vAlign ? `<w:vAlign w:val="${o.vAlign}"/>` : ''}</w:tcPr>${inner}</w:tc>`
+}
+const cardTable = (grid: number[], rows: string[]): string =>
+  `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${grid.map(g => `<w:gridCol w:w="${g}"/>`).join('')}</w:tblGrid>${rows.join('')}</w:tbl>`
+const cardRow = (cells: string[], height?: number): string => `<w:tr>${height ? `<w:trPr><w:cantSplit/><w:trHeight w:val="${height}" w:hRule="atLeast"/></w:trPr>` : '<w:trPr><w:cantSplit/></w:trPr>'}${cells.join('')}</w:tr>`
+
 export async function buildDocx(o: DocxOptions): Promise<Buffer> {
   const rels: Rels = { items: [], next: 1 }
   const files: Array<{ name: string; data: Buffer }> = []
   let seq = 1
   let pending: string[] = []
-  const inline = (items: Inline[], base: { bold?: boolean; color?: string } = {}): string => items.map(it => {
+  const inline = (items: Inline[], base: { bold?: boolean; italic?: boolean; color?: string; size?: number } = {}): string => items.map(it => {
     if (it.type === 'text') return run(it.text, base)
     if (it.type === 'bold') return run(it.text, { ...base, bold: true })
     const img = o.images?.get(it.token)
@@ -82,6 +95,51 @@ export async function buildDocx(o: DocxOptions): Promise<Buffer> {
       case 'quote': for (const l of b.lines) { body.push(para(inline(l, { color: '614700' }), { shade: 'FFFBE6', border: true })); flush() } break
       case 'hr': body.push('<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="DDDDDD"/></w:pBdr></w:pPr></w:p>'); break
       case 'code': for (const l of b.text.split('\n')) body.push(para(run(l, { mono: true, size: 18 }), { shade: 'F6F6F6' })); break
+      case 'card': {
+        // 卡片和界面 / PDF 同一套颜色（shared/card-style.ts）：口诀卡 = 单列表格（淡琥珀横幅 + 白底正文，深琥珀边框）；答题卡 = 徽标列 + 内容列，作答区是虚线框
+        const W = 9638
+        // 例句：英文斜体，中文正体
+        const egRuns = (t: string): string => parseInline(t).map(it => (it.type === 'text' ? splitLatin(it.text).map(s => run(s.text, { italic: s.latin, size: 26 })).join('') : inline([it], { size: 26 }))).join('')
+        const a = CARD_AMBER.light
+        const P = CARD_PAPER
+        if (b.kind === 'trick') {
+          const f = trickFields(b.raw)
+          const edges = { color: hex(a.line), left: 'single' as Edge, right: 'single' as Edge }
+          const rows = [
+            cardRow([cardCell(W, para(run(b.title || '口诀大招', { bold: true, color: hex(a.ink), size: 24 })), { ...edges, span: 2, top: 'single', fill: hex(a.band) })]),
+            cardRow([cardCell(W, para(inline(parseInline(f.main), { bold: true, size: 36 })) + (f.example ? para(egRuns(f.example)) : '') + f.rest.map(l => para(egRuns(l))).join('') + (f.from ? para(run(`出自考点：${f.from}`, { color: hex(P.ink2), size: 20 })) : ''), { ...edges, span: 2, bottom: 'single' })])
+          ]
+          // 两列的网格（和答题卡同一个结构）：有的渲染器对单列表格会按内容收窄，两列 + 合并单元格时宽度和答题卡一致
+          body.push(cardTable([640, W - 640], rows), para(''))
+          break
+        }
+        const NO = 640, MAIN = W - NO
+        const edge = { color: hex(P.lineStrong) }
+        const rows: string[] = []
+        rows.push(cardRow([cardCell(W, para(run(`${b.title || '答题卡'}${b.extra ? ` · ${b.extra}` : ''}`, { bold: true, size: 26 }) + run('　　AI 出题', { color: hex(P.ink2), size: 20 })), { span: 2, ...edge, top: 'single', left: 'single', right: 'single', bottom: 'single' })]))
+        rows.push(cardRow([cardCell(W, para(run('姓名 ____________________　　日期 ____________________', { size: 24 })), { span: 2, ...edge, left: 'single', right: 'single' })]))
+        b.items.forEach((it, idx) => {
+          const last = idx === b.items.length - 1
+          const ans = it.answer
+          const opts = ans?.type === 'choice' ? para(run(ans.options.map((x, i) => `○ ${'ABCDEFGH'[i] ?? i + 1}. ${x}`).join('　　'), { size: 24 })) : ''
+          const boxN = ans?.type === 'blank' || ans?.type === 'lines' ? ans.count : 0
+          // 题号徽标：深色底白字的窄单元格
+          rows.push(cardRow([
+            cardCell(NO, para(run(String(it.n), { bold: true, color: hex(P.onBadge), size: 26 })), { ...edge, left: 'single', top: 'single', bottom: boxN ? 'nil' : (last ? 'single' : 'single'), right: 'nil', fill: hex(P.badge), vAlign: 'center' }),
+            cardCell(MAIN, para(inline(it.stem, { size: 26 })) + opts, { ...edge, right: 'single', top: 'single', bottom: boxN ? 'nil' : 'single' })
+          ]))
+          for (let k = 0; k < boxN; k++) {
+            const lastBox = k === boxN - 1
+            rows.push(cardRow([
+              cardCell(NO, para(''), { ...edge, left: 'single', top: 'nil', bottom: lastBox ? 'single' : 'nil', right: 'nil', fill: hex(P.badge) }),
+              cardCell(MAIN, para(run(' ', { size: 24 })), { ...edge, right: 'single', top: 'dashed', left: 'dashed', bottom: 'dashed' })
+            ], 620))
+          }
+        })
+        rows.push(cardRow([cardCell(W, para(run('本题由 AI 根据原卷考点改编，已由程序和第二次 AI 解答核对；使用前请老师先做一遍', { color: hex(P.ink2), size: 18 })), { span: 2, ...edge, left: 'single', right: 'single', bottom: 'single' })]))
+        body.push(cardTable([NO, MAIN], rows), para(''))
+        break
+      }
       case 'table': {
         // 列宽：页面可用宽度（11906 - 2×1134 = 9638 twips）平分；tblGrid 是必需的，每个单元格带 tcW，Word 才不会当成坏文件
         const cols = Math.max(1, b.header.length)

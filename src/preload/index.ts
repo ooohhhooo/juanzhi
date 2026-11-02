@@ -94,7 +94,10 @@ const api = {
     get: (id: string): Promise<any> => ipcRenderer.invoke('report:get', id),
     preview: (filter?: Record<string, unknown>, reader?: string): Promise<any> => ipcRenderer.invoke('report:preview', filter, reader),
     // 流式增量走 ai:chunk（只发给发起请求的窗口）；取消用 ai.cancel(requestId)。reader：boss / parent / teacher / full（默认 full）
-    generate: (filter: Record<string, unknown> | undefined, requestId: string, reader?: string): Promise<any> => ipcRenderer.invoke('report:generate', filter, requestId, reader),
+    generate: (filter: Record<string, unknown> | undefined, requestId: string, reader?: string, options?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('report:generate', filter, requestId, reader, options),
+    retryPart: (id: string, part: string, requestId: string): Promise<any> => ipcRenderer.invoke('report:retryPart', id, part, requestId),
+    variantTick: (id: string, variantId: string, ok: boolean): Promise<any> => ipcRenderer.invoke('report:variantTick', id, variantId, ok),
+    cardImage: (id: string, kind: string, index: number, mode: string): Promise<any> => ipcRenderer.invoke('report:cardImage', id, kind, index, mode),
     delete: (id: string): Promise<boolean> => ipcRenderer.invoke('report:delete', id),
     export: (id: string, fmt: 'md' | 'pdf' | 'docx'): Promise<any> => ipcRenderer.invoke('report:export', id, fmt),
     // 老师点「我已核对」（家长版必须先核对才能导出 / 复制）

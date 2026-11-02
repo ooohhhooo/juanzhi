@@ -23,6 +23,8 @@ export interface ReportEntry {
   startedAt: number
   thinking?: boolean
   retried?: boolean
+  /** 分段生成进度：主文写完后正在跑第几个附加段 */
+  step?: { label: string; index: number; total: number }
 }
 
 let entry: ReportEntry | null = null
@@ -59,6 +61,7 @@ export function installReportChunkListener(queryClient: QueryClient): () => void
     else if (ev.type === 'reset') setEntry({ ...entry, text: '' })
     else if (ev.type === 'thinking') setEntry({ ...entry, thinking: true })
     else if (ev.type === 'retry') setEntry({ ...entry, retried: true })
+    else if (ev.type === 'part') { if (ev.state === 'start') setEntry({ ...entry, step: { label: ev.label, index: ev.index, total: ev.total } }) }
     else if (ev.type === 'cancelled') { activeId = null; setEntry({ ...entry, status: 'cancelled', text: ev.partial }) }
     else if (ev.type === 'error') { activeId = null; setEntry({ ...entry, status: 'error', text: ev.partial, message: ev.message, detail: ev.detail, code: ev.code }) }
     else if (ev.type === 'done') finishOk(ev.id, ev.reportId)

@@ -66,7 +66,13 @@ interface ElectronAPI {
     list(): Promise<ReportItem[]>
     get(id: string): Promise<ReportDetail | null>
     preview(filter?: StatsFilter, reader?: ReportReader): Promise<ReportPreview>
-    generate(filter: StatsFilter | undefined, requestId: string, reader?: ReportReader): Promise<AnalysisResult & { reportId?: string }>
+    generate(filter: StatsFilter | undefined, requestId: string, reader?: ReportReader, options?: ReportOptions): Promise<AnalysisResult & { reportId?: string }>
+    /** 只重新生成报告里的一个附加段（其余段和主文不动）；进度走 ai:chunk 的 part 事件 */
+    retryPart(id: string, part: string, requestId: string): Promise<{ ok: boolean; message?: string }>
+    /** 逐题勾「我核对过」：勾了的变形题才会放进答题卡；返回更新后的报告 */
+    variantTick(id: string, variantId: string, ok: boolean): Promise<ReportDetail>
+    /** 把卡片存成 / 复制成 2 倍清晰度的图片（kind = trick 口诀卡 / answercard 答题卡；index 是第几张同类卡片，从 0 起） */
+    cardImage(id: string, kind: 'trick' | 'answercard', index: number, mode: 'save' | 'copy'): Promise<{ saved: boolean; path?: string; width?: number; height?: number }>
     delete(id: string): Promise<boolean>
     export(id: string, fmt: 'md' | 'pdf' | 'docx'): Promise<{ saved: boolean; path?: string; dir?: string | null; images?: number; missingImages?: number; bytes?: number }>
     /** 老师点「我已核对」。家长版必须带 acknowledged = 勾了「已确认无误」的未核实句子原文（每句未核实的话要么已删掉、要么在这里），有矛盾句或内容太少一律拒绝（白话 message）；其他版本可省略 */
@@ -356,6 +362,10 @@ interface PromptView {
   isCustom: boolean
   unknownPlaceholders: string[]
   usedInM2: boolean
+  /** 内置默认版的版本号（老师版 v3.0 等） */
+  version: string
+  /** 用户自定义过、而内置默认版之后升级了：标「默认版已更新，可对比」 */
+  defaultUpdated: boolean
 }
 
 interface UsageRow {
@@ -556,6 +566,14 @@ type ChunkEvent =
   | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string; unverified?: UnverifiedItem[] }
   | { id: string; type: 'error'; code: string; message: string; detail?: string; partial: string }
   | { id: string; type: 'cancelled'; partial: string }
+  /** 报告分段生成：主文写完后，每个附加段开始 / 成功 / 失败各发一次（index 从 1 起，total 是这次要跑的附加段数） */
+  | { id: string; type: 'part'; part: string; label: string; state: 'start' | 'ok' | 'failed'; index: number; total: number; message?: string }
+
+/** 生成报告时的可选项（存进 reports.options_json，参与缓存键）；课程对照等附加段读取它 */
+interface ReportOptions {
+  course?: { outlineIds: string[] }
+  parentHint?: boolean
+}
 
 // ── M4：报告与数据 ──
 interface ReportItem {
@@ -583,10 +601,44 @@ interface ReportItem {
   promptVersion: string | null
   chars: number
 }
+/** 报告的一个分段（老师版：易错题集 / 口诀 / 变形题……；没有分段的旧报告 parts 为空数组） */
+interface ReportPartView {
+  part: string
+  label: string
+  status: 'ok' | 'failed' | 'skipped' | 'running'
+  /** 失败 / 跳过的白话原因 */
+  message: string | null
+  /** 失败的技术详情（给管理员看） */
+  detail: string | null
+  model: string | null
+  /** 能不能单独重试（报告已核对、数据已变化、程序拼的段都不能） */
+  canRetry: boolean
+  retryBlock: string | null
+}
+/** 一道 AI 变形题（老师版）：逐题勾「我核对过」后才能进答题卡 */
+interface ReportVariantView {
+  id: string
+  seq: number
+  qtype: 'choice' | 'blank'
+  stem: string
+  options: string[]
+  answer: string
+  explanation: string
+  changed: string
+  /** checked 两次作答一致 / flagged 第二次解答与出题答案不一致 / dropped 被程序剔除 */
+  status: 'checked' | 'flagged' | 'dropped'
+  teacherOk: boolean
+  kpName: string
+  /** 程序校验提示（超纲词、被剔除的原因） */
+  notes: string[]
+  secondAnswer: string | null
+}
 interface ReportDetail extends ReportItem {
   markdown: string
   refs: Array<CitationRef & { missing?: boolean }>
   unverified: UnverifiedItem[]
+  parts: ReportPartView[]
+  variants: ReportVariantView[]
 }
 interface ReportPreview {
   filterDesc: string

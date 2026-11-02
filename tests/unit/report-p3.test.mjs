@@ -59,7 +59,11 @@ assert.equal(err[0][3], '[2025卷A.1A.2 · 1]（单项选择：题干1）；[202
 assert.equal(err[1][3], '[2025卷A.1B.1 · 2]（单项选择：题干2）；[2024卷A.1B.1 · 2]（单项选择：题干2）')
 assert.equal(ph.YEAR_DIFF, '样本不足，暂不比较（2025-2026学年 3 份，2024-2025学年 2 份，两边至少各 3 份才比较新增和消失）', '基线只有 2 份（< 3）：年度变化只写「样本不足，暂不比较」，不列新增 / 消失')
 // 占位符齐全，模板填得进去，没有残留
-assert.deepEqual(Object.keys(ph), [...P3.P3_PLACEHOLDERS])
+assert.deepEqual(Object.keys(ph), [...P3.P3_PLACEHOLDERS, 'ERROR_ITEMS'], 'beta.3 新增的 ERROR_ITEMS 在 P3_PLACEHOLDERS 之外（不进数据指纹）')
+// 老师版 v3：易错点结构化（序号 | 考点 | 易错原因 | 出现份数）与 ERROR_PRONE 同一批、同一排序，样本题 token 与表里的一致
+assert.deepEqual(inp.errorItems.map(i => i.code), ['A.1', 'B.1'])
+assert.deepEqual(ph.ERROR_ITEMS.split('\n').map(l => l.split(' | ').slice(0, 2)), [['1', '甲一'], ['2', '乙一']])
+assert.equal(inp.errorItems[0].questions.map(q => q.token).join('；'), err[0][3].replace(/（[^）]*）/g, ''))
 const user = P2.fillTemplate(userTpl, ph)
 assert.ok(!user.includes('{{') && !user.includes('}}'))
 // token 索引与占位符里出现的一一对应

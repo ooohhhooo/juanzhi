@@ -12,6 +12,8 @@ export type ChunkEvent =
   | { id: string; type: 'done'; markdown: string; refs: CitationRef[]; warnings: string[]; reportId?: string; unverified?: UnverifiedItem[] }
   | { id: string; type: 'error'; code: string; message: string; detail?: string; partial: string }
   | { id: string; type: 'cancelled'; partial: string }
+  /** 报告分段生成：主文写完后，每个附加段开始 / 成功 / 失败各发一次 */
+  | { id: string; type: 'part'; part: string; label: string; state: 'start' | 'ok' | 'failed'; index: number; total: number; message?: string }
 
 /** 事实核对里没能对上证据的句子（A3）：kind=conflict 是和已审核题目的解释明显矛盾，unverified 是证据里找不到依据 */
 export interface UnverifiedItem { sentence: string; kind: 'unverified' | 'conflict'; reason: string; /** 家长版「我已核对」时，老师在确认框里勾了「已确认无误」（留痕） */ acknowledged?: boolean }
