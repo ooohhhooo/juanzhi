@@ -5,15 +5,18 @@
  */
 import type { CanvasNode, CanvasNodeKind } from '../types.ts'
 
-export const NODE_W = 232
-export const GAP_X = 28
-export const GAP_Y = 44
+export const NODE_W = 220
+export const GAP_X = 56
+export const GAP_Y = 64
+/** 产出卡片在回答右边竖着排，间距小一点 */
+export const GAP_SIDE = 16
 const HIDDEN_IN_CONCLUSION: ReadonlySet<CanvasNodeKind> = new Set<CanvasNodeKind>(['plan', 'step-group', 'ask'])
 
 export interface Box { x: number; y: number; w: number; h: number }
 export interface LayoutResult {
   boxes: Map<string, Box>
-  edges: Array<{ from: string; to: string }>
+  /** side = 产出这类旁边的卡片：从父节点右侧接出，不挤在子节点那一排里 */
+  edges: Array<{ from: string; to: string; side?: boolean }>
   /** 整个内容的包围盒 */
   bounds: { x: number; y: number; w: number; h: number }
   /** 每个节点在原始数据里的直接子节点数（用来画折叠按钮） */
@@ -35,12 +38,12 @@ export interface LayoutOptions {
 /** 按内容估算节点高度（宽度固定，中文按每行约 15 个字估） */
 export function estimateHeight(n: CanvasNode): number {
   const lines = (t: string, per: number, max: number) => Math.min(max, Math.max(1, Math.ceil([...t].length / per)))
-  let h = 16 + 16 // 内边距 + 种类标签行
-  h += lines(n.title, 15, 3) * 19
-  if (n.body) h += lines(n.body, 17, 3) * 17 + 2
-  if (n.refs?.length) h += 22
+  let h = 16 + 18 // 内边距 + 种类标签行
+  h += lines(n.title, 14, 3) * 19
+  if (n.body) h += lines(n.body, 16, 3) * 18 + 2
+  if (n.refs?.length) h += 24
   if (n.mini) h += 44
-  if (n.kind === 'finding' || n.kind === 'answer') h += 50 // 操作按钮两行
+  if (n.kind === 'finding' || n.kind === 'answer') h += 54 // 操作按钮两行
   else if (n.kind !== 'step-group' && n.kind !== 'output') h += 4
   return Math.max(h, 58)
 }
@@ -83,6 +86,7 @@ export function layoutTree(nodes: readonly CanvasNode[], opts: LayoutOptions = {
   const heights = new Map<string, number>()
   const subW = new Map<string, number>()
   const kids = new Map<string, CanvasNode[]>()
+  const side = new Map<string, CanvasNode[]>()   // 产出：竖排在子节点右侧
   // 子树宽度：自底向上（用显式栈，避免很深的链爆栈）
   const post: CanvasNode[] = []
   const stack: Array<{ n: CanvasNode; i: number }> = []
@@ -97,10 +101,12 @@ export function layoutTree(nodes: readonly CanvasNode[], opts: LayoutOptions = {
   }
   for (const n of post) {
     heights.set(n.id, estimateHeight(n))
-    const ks = (kids.get(n.id) ?? []).filter(k => subW.has(k.id))
-    kids.set(n.id, ks)
+    const all = (kids.get(n.id) ?? []).filter(k => subW.has(k.id))
+    const sd = all.filter(k => k.kind === 'output' && !(kids.get(k.id)?.length))
+    const ks = all.filter(k => !sd.includes(k))
+    kids.set(n.id, ks); side.set(n.id, sd)
     const inner = ks.length ? ks.reduce((s, k) => s + subW.get(k.id)!, 0) + GAP_X * (ks.length - 1) : 0
-    subW.set(n.id, Math.max(NODE_W, inner))
+    subW.set(n.id, Math.max(NODE_W, inner) + (sd.length ? GAP_X + NODE_W : 0))
   }
 
   const boxes = new Map<string, Box>()
@@ -109,7 +115,8 @@ export function layoutTree(nodes: readonly CanvasNode[], opts: LayoutOptions = {
   const order: string[] = []
   const parentOf = new Map<string, string | null>()
   const place = (n: CanvasNode, left: number, top: number, d: number, parent: string | null) => {
-    const w = subW.get(n.id)!, h = heights.get(n.id)!
+    const sd = side.get(n.id) ?? []
+    const w = subW.get(n.id)! - (sd.length ? GAP_X + NODE_W : 0), h = heights.get(n.id)!
     boxes.set(n.id, { x: left + (w - NODE_W) / 2, y: top, w: NODE_W, h })
     depth.set(n.id, d); order.push(n.id); parentOf.set(n.id, parent)
     if (parent) edges.push({ from: parent, to: n.id })
@@ -117,6 +124,13 @@ export function layoutTree(nodes: readonly CanvasNode[], opts: LayoutOptions = {
     const inner = ks.length ? ks.reduce((s, k) => s + subW.get(k.id)!, 0) + GAP_X * (ks.length - 1) : 0
     let x = left + (w - inner) / 2
     for (const k of ks) { place(k, x, top + h + GAP_Y, d + 1, n.id); x += subW.get(k.id)! + GAP_X }
+    let sy = top + h + GAP_Y
+    for (const k of sd) {
+      const kh = heights.get(k.id)!
+      boxes.set(k.id, { x: left + w + GAP_X, y: sy, w: NODE_W, h: kh })
+      depth.set(k.id, d + 1); order.push(k.id); parentOf.set(k.id, n.id); edges.push({ from: n.id, to: k.id, side: true })
+      sy += kh + GAP_SIDE
+    }
   }
   let x0 = 0
   for (const r of visibleRoots) if (subW.has(r.id)) { place(r, x0, 0, 1, null); x0 += subW.get(r.id)! + GAP_X * 2 }
@@ -151,8 +165,10 @@ export function zoomAt(v: View, factor: number, px: number, py: number): View {
 }
 
 /** 让内容包围盒完整落在容器里并居中 */
-export function fitView(bounds: LayoutResult['bounds'], cw: number, ch: number, pad = 48): View {
+export function fitView(bounds: LayoutResult['bounds'], cw: number, ch: number, pad = 48, extra: { right?: number; bottom?: number } = {}): View {
   if (!bounds.w || !bounds.h || cw <= 0 || ch <= 0) return { x: cw / 2, y: 40, k: 1 }
-  const k = Math.min(MAX_K, Math.max(MIN_K, Math.min((cw - pad * 2) / bounds.w, (ch - pad * 2) / bounds.h, 1.1)))
-  return { k, x: (cw - bounds.w * k) / 2 - bounds.x * k, y: (ch - bounds.h * k) / 2 - bounds.y * k }
+  const er = extra.right ?? 0, eb = extra.bottom ?? 0
+  const aw = Math.max(1, cw - er), ah = Math.max(1, ch - eb)   // 内容放在去掉右下留白后的区域里
+  const k = Math.min(MAX_K, Math.max(MIN_K, Math.min((aw - pad * 2) / bounds.w, (ah - pad * 2) / bounds.h, 1.1)))
+  return { k, x: (aw - bounds.w * k) / 2 - bounds.x * k, y: (ah - bounds.h * k) / 2 - bounds.y * k }
 }

@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { App, Checkbox, Input, InputNumber, Modal, Select } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Download, Pencil } from 'lucide-react'
 import { Btn } from '../design'
 
+const NONE: never[] = []
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 /** 新建 / 编辑自定义角色：名称、说明、可用工具、推荐问题、默认剧本、额外说明；编辑时可导出、删除 */
 export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; roleId: string | null; onClose: () => void; onSaved: (id: string | null) => void }) {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
-  const { data: tools = [] } = useQuery({ queryKey: ['agent', 'tools'], queryFn: () => window.api.agent.tools(), enabled: open })
-  const { data: roles = [] } = useQuery({ queryKey: ['agent', 'customRoles'], queryFn: () => window.api.agent.customRoles(), enabled: open, staleTime: 0 })
+  const { data: tools = NONE } = useQuery({ queryKey: ['agent', 'tools'], queryFn: () => window.api.agent.tools(), enabled: open })
+  const { data: roles = NONE } = useQuery({ queryKey: ['agent', 'customRoles'], queryFn: () => window.api.agent.customRoles(), enabled: open, staleTime: 0 })
   const { data: pbs } = useQuery({ queryKey: ['agent', 'playbooks'], queryFn: () => window.api.agent.playbooks(), enabled: open })
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
@@ -65,7 +67,12 @@ export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; r
 }
 
 /** 助手设置：机构说明（每次对话都会带上）和上下文上限 */
-export function AssistantSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export interface SettingsExtra {
+  scene?: 'org' | 'school'; onScene: (s: 'org' | 'school') => void
+  curRoleName?: string; curRoleCustom?: boolean
+  onNewRole: () => void; onImportRole: () => void; onEditRole: () => void
+}
+export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean; onClose: () => void; extra?: SettingsExtra }) {
   const { message } = App.useApp()
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['agent', 'settings'], queryFn: () => window.api.agent.settings(), enabled: open, staleTime: 0 })
@@ -82,11 +89,32 @@ export function AssistantSettingsModal({ open, onClose }: { open: boolean; onClo
   return (
     <Modal open={open} title="助手设置" onCancel={onClose} width={560} destroyOnClose
       footer={<><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}>
-      <div data-testid="assistant-settings" style={{ display: 'grid', gap: 12 }}>
+      <div data-testid="assistant-settings" style={{ display: 'grid', gap: 16 }}>
+        {extra && (
+          <div>
+            <b>你的场景</b>
+            <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>助手里的叫法（班级 / 年级、学员 / 学生）按你的场景显示。</p>
+            <div className="ewb-as-seg ewb-as-seg--small" role="group" aria-label="场景" style={{ display: 'inline-flex' }}>
+              <button type="button" data-testid="assistant-scene-org" aria-pressed={extra.scene === 'org'} onClick={() => extra.onScene('org')}>培训机构</button>
+              <button type="button" data-testid="assistant-scene-school" aria-pressed={extra.scene === 'school'} onClick={() => extra.onScene('school')}>学校</button>
+            </div>
+          </div>
+        )}
+        {extra && (
+          <div>
+            <b>角色</b>
+            <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>角色决定助手能查什么、怎么说话。可以自己建一个，或导入别人发来的角色文件。</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Btn tone="secondary" size="small" icon={Plus} data-testid="assistant-role-new" onClick={() => { onClose(); extra.onNewRole() }}>新建角色</Btn>
+              <Btn tone="secondary" size="small" icon={Download} data-testid="assistant-role-import" onClick={() => { onClose(); extra.onImportRole() }}>导入角色</Btn>
+              {extra.curRoleCustom && <Btn tone="secondary" size="small" icon={Pencil} data-testid="assistant-role-edit" onClick={() => { onClose(); extra.onEditRole() }}>编辑「{extra.curRoleName}」</Btn>}
+            </div>
+          </div>
+        )}
         <div>
           <b>机构说明</b>
           <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>写给助手的背景：我们怎么叫级别、续费周期、到课怎么算、常用口径……每次对话都会带上，不用每次重复说。</p>
-          <Input.TextArea value={ctx} rows={8} data-testid="assistant-org-context" placeholder="例如：我们把一级叫“启蒙”，续费周期按学期算……" onChange={e => setCtx(e.target.value)} />
+          <Input.TextArea value={ctx} rows={5} data-testid="assistant-org-context" placeholder="例如：我们把一级叫“启蒙”，续费周期按学期算……" onChange={e => setCtx(e.target.value)} />
           <span className="ewb-lib-sub" data-testid="assistant-org-count" style={ctx.length > max ? { color: 'var(--ewb-red-ink)' } : undefined}>{ctx.length} / {max} 字{ctx.length > max ? `——超出的 ${ctx.length - max} 字不会发给助手，请精简` : ''}</span>
         </div>
         <div>

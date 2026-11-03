@@ -36,6 +36,8 @@ export interface SidePanelProps {
   /** 记住宽度 / 折叠状态用的键，默认 ewb-assistant-side */
   storageKey?: string
   title?: string
+  /** 窗口宽度小于这个值、且用户没有手动展开 / 收起过时，默认收成一条竖栏（0 = 不自动收） */
+  foldBelow?: number
 }
 
 const MIN_W = 300, MAX_W = 760, DEF_W = 400
@@ -63,11 +65,13 @@ function copyText(c: OutputContent | null): string {
 export default function AssistantSidePanel(p: SidePanelProps) {
   const key = p.storageKey ?? 'ewb-assistant-side'
   const [width, setWidth] = useState(() => { const v = Number(store()?.getItem(key + '-w')); return v >= MIN_W && v <= MAX_W ? v : DEF_W })
-  const [folded, setFolded] = useState(() => store()?.getItem(key + '-fold') === '1')
+  const [folded, setFolded] = useState(() => { const v = store()?.getItem(key + '-fold'); if (v === '1') return true; if (v === '0') return false; return !!p.foldBelow && window.innerWidth < p.foldBelow })
+  const setFoldedByUser = (f: boolean) => { try { store()?.setItem(key + '-fold', f ? '1' : '0') } catch { /* 忽略 */ } setFolded(f) }
+  // 在画布上点了卡片：卡片详情要看得到，收起的话自动展开
+  useEffect(() => { if (p.mode === 'card' && p.node) setFolded(false) }, [p.mode, p.node?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const [, tick] = useState(0)
   const widthRef = useRef(width); widthRef.current = width
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30_000); return () => clearInterval(t) }, [])
-  useEffect(() => { try { store()?.setItem(key + '-fold', folded ? '1' : '0') } catch { /* 存不上不影响使用 */ } }, [folded, key])
 
   const startDrag = (e: React.PointerEvent) => {
     e.preventDefault()
@@ -85,8 +89,8 @@ export default function AssistantSidePanel(p: SidePanelProps) {
 
   if (folded) {
     return (
-      <aside className="ewb-side ewb-side--folded" data-testid="side-panel" data-folded="1" aria-label="右侧面板（已折叠）">
-        <button type="button" className="ewb-side__fold" onClick={() => setFolded(false)} aria-label="展开右侧面板" data-testid="side-unfold"><PanelRightOpen size={16} strokeWidth={1.9} /></button>
+      <aside className="ewb-side ewb-side--folded" data-testid="side-panel" data-folded="1" data-mode={p.mode} aria-label="右侧面板（已折叠）">
+        <button type="button" className="ewb-side__fold" onClick={() => setFoldedByUser(false)} aria-label="展开右侧面板" data-testid="side-unfold"><PanelRightOpen size={16} strokeWidth={1.9} /></button>
         <span className="ewb-side__vert">{p.mode === 'card' ? '卡片详情' : `产出 ${p.outputs.length}`}</span>
       </aside>
     )
@@ -116,7 +120,7 @@ export default function AssistantSidePanel(p: SidePanelProps) {
         </div>
         <span className="ewb-side__grow" />
         <span className="ewb-side__meta">{p.mode === 'card' && p.node ? p.node.title.slice(0, 12) : `${p.outputs.length} 个文件`}</span>
-        <button type="button" className="ewb-side__fold" onClick={() => setFolded(true)} aria-label="折叠右侧面板" data-testid="side-fold"><PanelRightClose size={16} strokeWidth={1.9} /></button>
+        <button type="button" className="ewb-side__fold" onClick={() => setFoldedByUser(true)} aria-label="折叠右侧面板" data-testid="side-fold"><PanelRightClose size={16} strokeWidth={1.9} /></button>
       </div>
 
       {showCard ? (

@@ -10,12 +10,12 @@
 .ewb-cv-edges path { fill: none; stroke: var(--ewb-line-strong); stroke-width: 2; opacity: .55; transition: d var(--ewb-t-page, 240ms) var(--ewb-ease, ease); }
 
 .ewb-cv-node { position: absolute; left: 0; top: 0; box-sizing: border-box; padding: 8px 11px; overflow: hidden; cursor: pointer; text-align: left;
-  background: var(--ewb-page); color: var(--ewb-ink); border: 1px solid var(--ewb-line); border-radius: 12px; font-size: 12px; line-height: 1.45;
+  background: var(--ewb-page); color: var(--ewb-ink); border: 1px solid var(--ewb-line); border-radius: 12px; font-size: 12px; line-height: 1.5;
   transition: transform .35s var(--ewb-ease, ease), border-color .15s, box-shadow .15s; }
 .ewb-cv-node:hover { border-color: var(--ewb-line-strong); }
 .ewb-cv-node[data-fresh] { animation: ewb-cv-in .35s var(--ewb-ease, ease) both; }
-.ewb-cv-node__k { font-size: 10.5px; color: var(--ewb-ink-2); display: flex; align-items: center; gap: 4px; }
-.ewb-cv-node__t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; font-weight: 600; margin-top: 1px; }
+.ewb-cv-node__k { font-size: 12px; color: var(--ewb-ink-2); display: flex; align-items: center; gap: 4px; }
+.ewb-cv-node__t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.45; font-weight: 600; margin-top: 1px; }
 .ewb-cv-node__b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; color: var(--ewb-ink-2); }
 .ewb-cv-node[data-kind="question"], .ewb-cv-node[data-kind="followup"] { background: var(--ewb-primary); border-color: var(--ewb-primary); color: var(--ewb-on-primary); }
 .ewb-cv-node[data-kind="question"] .ewb-cv-node__k, .ewb-cv-node[data-kind="followup"] .ewb-cv-node__k, .ewb-cv-node[data-kind="question"] .ewb-cv-node__b, .ewb-cv-node[data-kind="followup"] .ewb-cv-node__b { color: inherit; opacity: .85; }
@@ -29,14 +29,14 @@
 .ewb-cv-pulse { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ewb-primary); animation: ewb-cv-dot 1.2s ease-in-out infinite; }
 .ewb-cv-node[data-kind="question"] .ewb-cv-pulse, .ewb-cv-node[data-kind="followup"] .ewb-cv-pulse { background: var(--ewb-on-primary); }
 .ewb-cv-node__refs { display: flex; gap: 3px; margin-top: 3px; }
-.ewb-cv-ref { font-size: 10.5px; padding: 0 6px; border-radius: 999px; background: var(--ewb-primary-soft); color: var(--ewb-primary); border: 1px solid transparent; }
+.ewb-cv-ref { font-size: 12px; padding: 0 6px; border-radius: 999px; background: var(--ewb-primary-soft); color: var(--ewb-primary); border: 1px solid transparent; }
 .ewb-cv-node__bar { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 4px; }
 .ewb-cv-node__bar i { display: block; width: 16px; background: var(--ewb-primary-soft); border: 1px solid var(--ewb-line-strong); border-radius: 2px; }
 .ewb-cv-node__bar i[data-hi] { background: var(--ewb-red); border-color: var(--ewb-red); }
 .ewb-cv-node__act { position: absolute; left: 11px; right: 11px; bottom: 7px; display: flex; flex-wrap: wrap; gap: 4px; }
-.ewb-cv-node__act button { font: inherit; font-size: 10.5px; line-height: 1.5; padding: 0 8px; border-radius: 999px; border: 0; cursor: pointer; color: var(--ewb-primary); background: var(--ewb-primary-soft); }
+.ewb-cv-node__act button { font: inherit; font-size: 12px; line-height: 1.5; padding: 0 8px; border-radius: 999px; border: 0; cursor: pointer; color: var(--ewb-primary); background: var(--ewb-primary-soft); }
 .ewb-cv-node__act button:hover { background: var(--ewb-primary); color: var(--ewb-on-primary); }
-.ewb-cv-node__fold { position: absolute; right: 6px; top: 6px; display: inline-flex; align-items: center; gap: 1px; font: inherit; font-size: 10px; min-width: 18px; height: 18px; padding: 0 4px; justify-content: center; border-radius: 999px; cursor: pointer;
+.ewb-cv-node__fold { position: absolute; right: 6px; top: 6px; display: inline-flex; align-items: center; gap: 1px; font: inherit; font-size: 12px; min-width: 20px; height: 20px; padding: 0 4px; justify-content: center; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--ewb-line-strong); background: var(--ewb-page); color: var(--ewb-ink-2); }
 .ewb-cv button:focus-visible, .ewb-side button:focus-visible, .ewb-side input:focus-visible, .ewb-cv input:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 1px; }
 
@@ -47,12 +47,12 @@
 .ewb-cv-tool button[aria-pressed="true"] { background: var(--ewb-primary-soft); color: var(--ewb-primary); border-color: var(--ewb-primary); }
 .ewb-cv-zoom { font-size: 11.5px; color: var(--ewb-ink-2); min-width: 38px; }
 
-.ewb-cv-mini { position: absolute; right: 14px; bottom: 14px; overflow: hidden; background: var(--ewb-page); border: 1px solid var(--ewb-line-strong); border-radius: 8px; cursor: pointer; }
+.ewb-cv-mini { position: absolute; right: 14px; bottom: 14px; overflow: hidden; background: var(--ewb-page); background: color-mix(in srgb, var(--ewb-page) 78%, transparent); backdrop-filter: blur(2px); box-shadow: 0 1px 6px rgba(0,0,0,.08); border: 1px solid var(--ewb-line-strong); border-radius: 8px; cursor: pointer; }
 .ewb-cv-mini i { position: absolute; background: var(--ewb-primary-soft); border: 1px solid var(--ewb-line-strong); border-radius: 1px; box-sizing: border-box; }
 .ewb-cv-mini i[data-kind="question"], .ewb-cv-mini i[data-kind="followup"] { background: var(--ewb-primary); border-color: var(--ewb-primary); }
 .ewb-cv-mini i.ewb-cv-mini__vp { background: transparent; border: 1.5px solid var(--ewb-primary); border-radius: 2px; pointer-events: none; }
 
-.ewb-cv-ask { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(520px, calc(100% - 220px)); display: flex; gap: 8px; align-items: center; cursor: default;
+.ewb-cv-ask { position: absolute; left: 14px; bottom: 16px; width: min(560px, calc(100% - 210px)); display: flex; gap: 8px; align-items: center; cursor: default;
   background: var(--ewb-elevated); border: 1px solid var(--ewb-primary); border-radius: 14px; box-shadow: var(--ewb-shadow-pop); padding: 7px 10px; font-size: 12.5px; }
 .ewb-cv-ask__to { background: var(--ewb-primary-soft); color: var(--ewb-primary); border-radius: 6px; padding: 1px 8px; font-size: 11.5px; white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
 .ewb-cv-ask input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ewb-ink); font: inherit; outline: none; }

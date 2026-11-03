@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react'
 import { Dropdown, Input, Popover, Slider } from 'antd'
 import type { MenuProps } from 'antd'
 import { ArrowUp, ChevronDown, Hand, Plus, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
-import { Btn } from '../design'
 import { getAssistantSlots } from './assistant-slots'
 import type { Mentionable } from './assistant-slots'
 
@@ -31,6 +30,8 @@ export interface ComposerProps {
   models: AgentModelInfo[]; model: string; mainModel: string; onModel: (m: string) => void
   effort: AgentEffort; onEffort: (e: AgentEffort) => void; effortChoices: AgentEffort[]; curInfo?: AgentModelInfo
   onResetModel: () => void
+  /** 标签区里额外的内容（已选数据集标签），排在选中的剧本 / 产出标签前面 */
+  extra?: React.ReactNode
 }
 
 export default function Composer(p: ComposerProps) {
@@ -100,8 +101,9 @@ export default function Composer(p: ComposerProps) {
 
   return (
     <div className="ewb-as-composer" data-testid="assistant-composer">
-      {p.chips.length > 0 && (
+      {(
         <div className="ewb-as-chips" data-testid="assistant-chips">
+          {p.extra}
           {p.chips.map(c => (
             <span key={c.key} className="ewb-as-tagchip" data-testid="assistant-chip" data-kind={c.kind}>{KIND_LABEL[c.kind]} · {c.label}
               <button type="button" aria-label="去掉" data-testid="assistant-chip-remove" onClick={() => p.onChips(p.chips.filter(x => x.key !== c.key))}><X size={12} /></button></span>
@@ -111,7 +113,7 @@ export default function Composer(p: ComposerProps) {
       <div style={{ position: 'relative' }}>
         <Input.TextArea
           variant="borderless" value={p.value} autoSize={{ minRows: 2, maxRows: 8 }} data-testid="assistant-input" disabled={p.disabled}
-          placeholder="描述你要分析什么，或拖入数据文件"
+          placeholder="描述你要分析什么，或拖入数据文件。输入 @ 可以点名数据、剧本、群"
           onChange={e => { p.onChange(e.target.value); if (/@[^\s@]*$/.test(e.target.value)) void loadMentions() }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); if (mentionItems.length && q) { const i = mentionItems[0]; addChip(i); p.onChange(p.value.replace(/@[^\s@]*$/, '')) } else p.onSend() } }}
         />
@@ -139,9 +141,9 @@ export default function Composer(p: ComposerProps) {
         </Dropdown>
         <span style={{ flex: 1 }} />
         <Popover content={modelPop} trigger="click" placement="topRight" open={modelOpen} onOpenChange={setModelOpen} arrow={false}>
-          <button type="button" className="ewb-as-chiplink" data-testid="assistant-model-btn"><SlidersHorizontal size={13} style={{ verticalAlign: '-2px' }} /> {EFFORT_LABEL[p.effort]} · {curModel}</button>
+          <button type="button" className="ewb-as-chiplink" data-testid="assistant-model-btn"><SlidersHorizontal size={13} style={{ verticalAlign: '-2px' }} /> <span className="ewb-as-modeltxt">{curModel} · {EFFORT_LABEL[p.effort]}</span></button>
         </Popover>
-        <Btn tone="primary" icon={ArrowUp} disabled={!p.value.trim() || p.busy || p.disabled} data-testid="assistant-send" onClick={p.onSend}>发送</Btn>
+        <button type="button" className="ewb-as-send" aria-label="发送" title="发送（Enter）" disabled={!p.value.trim() || p.busy || p.disabled} data-testid="assistant-send" onClick={p.onSend}><ArrowUp size={16} strokeWidth={2.2} /></button>
       </div>
     </div>
   )

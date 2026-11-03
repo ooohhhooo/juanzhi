@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input } from 'antd'
-import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, Plus, Square, SquarePen, Trash2, Wrench } from 'lucide-react'
+import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, PanelLeftClose, PanelLeftOpen, Settings, Square, SquarePen, Trash2, Wrench, FileSpreadsheet, GitBranch } from 'lucide-react'
 import { Btn, UsageNote } from '../design'
 import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
@@ -12,7 +12,7 @@ import type { Chip } from './assistant-composer'
 import AiErrorExplain from '../components/AiErrorExplain'
 import { ApprovalBox, BoardPane, QueryRecordModal } from './assistant-extras'
 import type { ApprovalInfo } from './assistant-extras'
-import { addPickedDatasets, clearPickedDatasets, getPickedDatasets } from './assistant-data'
+import { addDroppedFiles, addPickedDatasets, clearPickedDatasets, getPickedDatasets } from './assistant-data'
 import AssistantCanvas from '../assistant/canvas/AssistantCanvas'
 import AssistantSidePanel from '../assistant/side/AssistantSidePanel'
 import type { SideMode } from '../assistant/side/AssistantSidePanel'
@@ -46,6 +46,15 @@ const STOP_NOTE: Record<string, string> = {
   stopped: '已停止。', rounds: '查询步骤太多，助手已自动停止。', tokens: '本次用量已到上限，助手已自动停止。', time: '用时太长，助手已自动停止。', stuck: '助手在重复同一个查询，已自动停止。', error: '调用模型时出错，已停止。'
 }
 
+/** 工具失败时界面上显示的白话短句（给模型看的文案不在这里改） */
+export function friendlyFail(summary: string): string {
+  const t = summary.trim()
+  if (/没有同意|不同意/.test(t)) return '你没有同意，已取消'
+  const keep = t.split(/(?<=[。！？!?])/).map(x => x.trim()).filter(x => x && !/请(换|重|改|再)|换一种|直接问|用户想/.test(x))
+  const first = (keep[0] ?? '').replace(/[。！？!?]+$/, '')
+  return first ? (first.length > 36 ? first.slice(0, 35) + '…' : first) : '没做成'
+}
+
 type Cites = Map<string, AgentCite>
 const citeKey = (kind: string, id: string) => `${kind}:${id}`
 
@@ -66,8 +75,11 @@ function withChips(text: string, cites: Cites, onGo: (c: AgentCite) => void, key
   for (const m of text.matchAll(re)) {
     const i = m.index ?? 0
     if (i > last) out.push(text.slice(last, i))
-    out.push(<CiteChip key={`${keyBase}-${n++}`} kind={m[1]} id={m[2]} cites={cites} onGo={onGo} />)
+    const chip = <CiteChip key={`${keyBase}-${n++}`} kind={m[1]} id={m[2]} cites={cites} onGo={onGo} />
     last = i + m[0].length
+    // 标签后面紧跟的标点和标签粘在一起，不让句号单独掉到下一行
+    const tail = /^[，。；：、！？．.,;:!?）)」』]+/.exec(text.slice(last))?.[0] ?? ''
+    if (tail) { out.push(<span key={`${keyBase}-g${n}`} style={{ whiteSpace: 'nowrap' }}>{chip}{tail}</span>); last += tail.length } else out.push(chip)
   }
   if (last < text.length) out.push(text.slice(last))
   return out
@@ -132,7 +144,7 @@ function ToolItem({ call, result, prog }: { call: AgentStepRow; result?: AgentSt
       <summary>
         <Wrench size={14} />
         <span className="ewb-as-tool__name">{TOOL_LABEL[name] ?? name}</span>
-        <span className="ewb-as-tool__sum" data-testid="assistant-tool-summary" data-progress={prog ? `${prog.done}/${prog.total}` : undefined}>{ok ? sum : `没成功：${sum}`}{result && result.ms ? `　${(result.ms / 1000).toFixed(1)} 秒` : ''}</span>
+        <span className="ewb-as-tool__sum" data-testid="assistant-tool-summary" data-progress={prog ? `${prog.done}/${prog.total}` : undefined}>{ok ? sum : friendlyFail(sum)}{result && result.ms ? `　${(result.ms / 1000).toFixed(1)} 秒` : ''}</span>
       </summary>
       <div className="ewb-as-tool__body">
         <div><span className="ewb-as-tool__k">查询条件</span><pre className="ewb-as-pre" data-testid="assistant-tool-args">{JSON.stringify(call.payload.args ?? {}, null, 2)}</pre></div>
@@ -231,6 +243,9 @@ export default function Assistant() {
   const [queryN, setQueryN] = useState<number | null>(null)
   const [text, setText] = useState('')
   const [checking, setChecking] = useState(false)
+  const [histOpen, setHistOpen] = useState(() => { try { return window.localStorage.getItem('ewb-as-hist') !== '0' } catch { return true } })
+  const toggleHist = () => setHistOpen(o => { try { window.localStorage.setItem('ewb-as-hist', o ? '0' : '1') } catch { /* 忽略 */ } return !o })
+  const [dropping, setDropping] = useState(false)
   const activeRef = useRef<string | null>(null)
   const startingRef = useRef(false)
   const flowEnd = useRef<HTMLDivElement>(null)
@@ -404,54 +419,66 @@ export default function Assistant() {
   const meterTokens = tokens >= 10000 ? `${(tokens / 10000).toFixed(1)} 万` : tokens.toLocaleString()
   const limitMoney = progress && progress.money != null && tokens > 0 ? (progress.money / tokens) * progress.limitTokens : null
   const fmtMoney = (m: number) => `¥${m >= 1 ? m.toFixed(2) : m.toFixed(3)}`
+  const sessionTitle = (active && sessions.find(x => x.id === active)?.title) || (empty ? '新对话' : '这次对话')
   const showStale = stale && !running && steps.some(s => s.kind === 'answer')
 
   return (
-    <div className="ewb-as-shell" data-testid="assistant-page">
-      <aside className="ewb-as-side" data-testid="assistant-history">
-        <button type="button" className="ewb-as-newbtn" data-testid="assistant-new" onClick={newChat}><SquarePen size={14} strokeWidth={1.9} />新对话</button>
-        <p className="ewb-as-side__title">最近</p>
-        {sessions.length === 0 && <span className="ewb-lib-sub" data-testid="assistant-history-empty">还没有对话</span>}
-        {sessions.map(s => (
-          <div key={s.id} className="ewb-as-histrow">
-            <button type="button" className="ewb-as-hist" data-testid="assistant-history-item" aria-current={s.id === active} onClick={() => openSession(s.id)}>
-              <span className="ewb-as-hist__t">{s.title || '（没有标题）'}</span>
-              <span className="ewb-as-hist__m"><span>{roleName(s.role)}</span><span>{s.updatedAt.slice(5, 16)}</span>{s.stale && <span data-testid="assistant-history-stale">数据已更新</span>}</span>
-            </button>
-            <button type="button" className="ewb-as-hist ewb-as-hist__del" aria-label="删除这个对话" title="删除这个对话" data-testid="assistant-history-delete" onClick={() => removeSession(s.id)}><Trash2 size={14} /></button>
-          </div>
-        ))}
+    <div className="ewb-as-shell" data-testid="assistant-page" data-dropping={dropping ? '1' : undefined}
+      onDragOver={e => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDropping(true) } }}
+      onDragLeave={e => { if (e.currentTarget === e.target) setDropping(false) }}
+      onDrop={e => { if (e.dataTransfer?.files?.length) { e.preventDefault(); setDropping(false); void addDroppedFiles(Array.from(e.dataTransfer.files)) } }}>
+      <aside className={`ewb-as-side${histOpen ? '' : ' ewb-as-side--folded'}`} data-testid="assistant-history" data-folded={histOpen ? undefined : '1'}>
+        {histOpen ? (
+          <>
+            <div className="ewb-as-side__top">
+              <button type="button" className="ewb-as-newbtn" data-testid="assistant-new" onClick={newChat}><SquarePen size={14} strokeWidth={1.9} />新对话</button>
+              <button type="button" className="ewb-as-iconbtn ewb-as-iconbtn--quiet" aria-label="收起历史" title="收起历史" data-testid="assistant-hist-fold" onClick={toggleHist}><PanelLeftClose size={16} strokeWidth={1.9} /></button>
+            </div>
+            <p className="ewb-as-side__title">最近</p>
+            <div className="ewb-as-side__list">
+              {sessions.length === 0 && <span className="ewb-lib-sub" data-testid="assistant-history-empty">还没有对话</span>}
+              {sessions.map(s => (
+                <div key={s.id} className="ewb-as-histrow">
+                  <button type="button" className="ewb-as-hist" data-testid="assistant-history-item" aria-current={s.id === active} onClick={() => openSession(s.id)}>
+                    <span className="ewb-as-hist__t">{s.title || '（没有标题）'}</span>
+                    <span className="ewb-as-hist__m"><span>{roleName(s.role)}</span><span>{s.updatedAt.slice(5, 16)}</span>{s.stale && <span data-testid="assistant-history-stale">数据已更新</span>}</span>
+                  </button>
+                  <button type="button" className="ewb-as-hist ewb-as-hist__del" aria-label="删除这个对话" title="删除这个对话" data-testid="assistant-history-delete" onClick={() => removeSession(s.id)}><Trash2 size={14} /></button>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="ewb-as-setbtn" data-testid="assistant-settings-open" onClick={() => setSettingsOpen(true)}><Settings size={14} strokeWidth={1.9} />助手设置</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="ewb-as-iconbtn ewb-as-iconbtn--quiet" aria-label="展开历史" title="展开历史" data-testid="assistant-hist-unfold" onClick={toggleHist}><PanelLeftOpen size={16} strokeWidth={1.9} /></button>
+            <button type="button" className="ewb-as-iconbtn ewb-as-iconbtn--quiet" aria-label="新对话" title="新对话" data-testid="assistant-new" onClick={newChat}><SquarePen size={16} strokeWidth={1.9} /></button>
+            <span className="ewb-as-grow" />
+            <button type="button" className="ewb-as-iconbtn ewb-as-iconbtn--quiet" aria-label="助手设置" title="助手设置" data-testid="assistant-settings-open" onClick={() => setSettingsOpen(true)}><Settings size={16} strokeWidth={1.9} /></button>
+          </>
+        )}
       </aside>
 
       <section className="ewb-as-conv">
         <div className="ewb-as-top">
-          <div className="ewb-as-seg" role="group" aria-label="我的身份">
-            {roles.map(r => <button key={r.id} type="button" data-testid={`assistant-role-${r.id}`} aria-pressed={r.id === curRole?.id} onClick={() => { if (r.id !== curRole?.id) { newChat(); setRole(r.id) } }}>{r.name}</button>)}
-          </div>
-          <div className="ewb-as-seg ewb-as-seg--small" role="group" aria-label="场景" title="叫法按你的场景显示">
-            <button type="button" data-testid="assistant-scene-org" aria-pressed={rolesData?.scene === 'org'} onClick={() => setScene('org')}>培训机构</button>
-            <button type="button" data-testid="assistant-scene-school" aria-pressed={rolesData?.scene === 'school'} onClick={() => setScene('school')}>学校</button>
-          </div>
-          <button type="button" className="ewb-as-chiplink" data-testid="assistant-role-new" onClick={() => setRoleModal({ open: true, id: null })}><Plus size={12} strokeWidth={1.9} style={{ verticalAlign: '-1px' }} /> 新建角色</button>
-          <button type="button" className="ewb-as-chiplink" data-testid="assistant-role-import" onClick={importRole}>导入角色</button>
-          {curRole?.custom && <button type="button" className="ewb-as-chiplink" data-testid="assistant-role-edit" onClick={() => setRoleModal({ open: true, id: curRole.id })}>编辑角色</button>}
-          <button type="button" className="ewb-as-chiplink" data-testid="assistant-settings-open" onClick={() => setSettingsOpen(true)}>助手设置</button>
-          {branchId !== 'main' && (
-            <span className="ewb-as-branch" data-testid="assistant-branch">当前在分支：{allSteps.find(x => x.branchId === branchId && x.kind === 'user')?.payload.text?.slice(0, 16) ?? ''}
-              <button type="button" className="ewb-as-chiplink" data-testid="assistant-branch-main" onClick={() => { setBranchId('main'); setForkFrom(null) }}>回到主线</button></span>
-          )}
-          {slots.dataChips && <div className="ewb-as-dataslot" data-testid="assistant-dataslot"><slots.dataChips sessionId={active} /></div>}
-          <span className="ewb-as-grow" />
+          <h1 className="ewb-as-title" data-testid="assistant-title" title={sessionTitle}>{sessionTitle}</h1>
           <div className="ewb-as-seg ewb-as-seg--small" role="group" aria-label="显示方式">
             <button type="button" data-testid="assistant-view-chat" aria-pressed={view === 'chat'} onClick={() => setView('chat')}><MessageSquare size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> 对话</button>
             <button type="button" data-testid="assistant-view-canvas" aria-pressed={view === 'canvas'} onClick={() => setView('canvas')}><Network size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> 画布</button>
           </div>
+          <span className="ewb-as-grow" />
           <div className="ewb-as-meter" data-testid="assistant-meter">
             {progress && <span data-testid="assistant-rounds">第 {progress.rounds} 轮</span>}
             {(running || tokens > 0) && <span data-testid="assistant-tokens">{meterTokens} token{progress?.money != null ? ` · 约 ${fmtMoney(progress.money)}` : ''}{running && limitMoney != null ? ` / 上限约 ${fmtMoney(limitMoney)}` : ''}</span>}
-            {running && <button type="button" className="ewb-as-stop" data-testid="assistant-stop" onClick={stop}>{' '}<Square size={12} strokeWidth={1.9} style={{ verticalAlign: '-1px' }} /> 停止</button>}
+            {running && <button type="button" className="ewb-as-stop" data-testid="assistant-stop" onClick={stop}><Square size={11} strokeWidth={2} />停止</button>}
           </div>
         </div>
+        {branchId !== 'main' && (
+          <div className="ewb-as-branchbar">
+            <span className="ewb-as-branch" data-testid="assistant-branch"><GitBranch size={12} strokeWidth={1.9} />当前在分支：{allSteps.find(x => x.branchId === branchId && x.kind === 'user')?.payload.text?.slice(0, 16) ?? ''}
+              <button type="button" className="ewb-as-chiplink" data-testid="assistant-branch-main" onClick={() => { setBranchId('main'); setForkFrom(null) }}>回到主线</button></span>
+          </div>
+        )}
 
         {view === 'canvas' && (
           <div className="ewb-as-canvaswrap" data-testid="assistant-canvas" style={{ flex: 1, minHeight: 0, display: 'flex', position: 'relative' }}>
@@ -489,6 +516,7 @@ export default function Assistant() {
               <div className="ewb-as-suggest" data-testid="assistant-suggest">
                 {curRole.suggestions.slice(0, 4).map((q, i) => <button key={i} type="button" className="ewb-as-card" data-testid={`assistant-suggest-${i}`} disabled={running} onClick={() => (q.endsWith('：') ? setText(q) : send(q))}>{q}</button>)}
               </div>
+              <div className="ewb-as-drop" data-testid="assistant-drophint"><FileSpreadsheet size={16} strokeWidth={1.9} />把 Excel / CSV 拖到这里，或点输入框左下的「＋」添加数据</div>
             </div>
           )}
 
@@ -523,7 +551,16 @@ export default function Assistant() {
         {view === 'chat' && forkFrom !== null && (
           <div className="ewb-as-forkbar" data-testid="assistant-forkbar">从第 {steps.filter(x => x.kind === 'answer').length} 条回答分出一个新分支追问（不影响主线）<button type="button" className="ewb-as-chiplink" data-testid="assistant-fork-cancel" onClick={() => setForkFrom(null)}>取消</button></div>
         )}
+        {view === 'chat' && (
+          <div className="ewb-as-rolebar" role="group" aria-label="我的身份">
+            <span className="ewb-as-rolebar__k">我是</span>
+            <div className="ewb-as-seg ewb-as-seg--small">
+              {roles.map(r => <button key={r.id} type="button" data-testid={`assistant-role-${r.id}`} aria-pressed={r.id === curRole?.id} onClick={() => { if (r.id !== curRole?.id) { newChat(); setRole(r.id) } }}>{r.name}</button>)}
+            </div>
+          </div>
+        )}
         {view === 'chat' && <Composer
+          extra={slots.dataChips ? <div className="ewb-as-dataslot" data-testid="assistant-dataslot"><slots.dataChips sessionId={active} /></div> : undefined}
           value={text} onChange={setText} onSend={() => send(text)} disabled={!!notReady} busy={running}
           chips={chips} onChips={setChips} playbooks={(pbs?.items ?? []).map(x => x.name)}
           mode={mode} onMode={setMode} approval={approval2} onApproval={setApproval2}
@@ -534,8 +571,11 @@ export default function Assistant() {
       </section>
 
       <RoleModal open={roleModal.open} roleId={roleModal.id} onClose={() => setRoleModal({ open: false, id: null })} onSaved={id => { if (id) { newChat(); setRole(id) } else { newChat(); setRole(roles[0]?.id ?? 'ops') } }} />
-      <AssistantSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <AssistantSidePanel
+      <AssistantSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} extra={{
+        scene: rolesData?.scene, onScene: setScene, curRoleName: curRole?.name, curRoleCustom: !!curRole?.custom,
+        onNewRole: () => setRoleModal({ open: true, id: null }), onImportRole: importRole, onEditRole: () => curRole && setRoleModal({ open: true, id: curRole.id })
+      }} />
+      <AssistantSidePanel foldBelow={1280}
         mode={sideMode} onModeChange={setSideMode}
         outputs={outs.outputs} activeOutputId={outs.activeId} onActiveOutputChange={outs.setActiveId} content={outs.content}
         renderBoard={() => <BoardPane sessionId={active} onSource={openQuery} />}

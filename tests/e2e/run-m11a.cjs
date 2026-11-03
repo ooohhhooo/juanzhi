@@ -35,7 +35,7 @@ async function main() {
   // ── 1. 空状态 + 推荐问题 + 默认「先出计划」模式 ──
   check('空状态', '大标题「今天要做什么？」、数据只在本机的说明、4 张推荐问题卡片（运营）', /今天要做什么/.test(await txt('assistant-empty')) && /不会发给 AI/.test(await txt('assistant-empty')) && (await ctx.page.locator('[data-testid^=assistant-suggest-]').count()) === 4)
   check('输入框', '输入框是一张卡片：上面输入区（占位提示）、下面一行：＋、审批标签、运行模式标签、模型与思考强度按钮、发送', /描述你要分析什么/.test(await T('assistant-input').getAttribute('placeholder')) && (await count('assistant-plus')) === 1 && (await count('assistant-approval-tag')) === 1 && (await count('assistant-mode')) === 1 && (await count('assistant-model-btn')) === 1 && (await count('assistant-send')) === 1)
-  check('模式', '运行模式默认「先出计划」；审批默认「只问对外发送」；模型按钮显示「自动 · 模型名」', /先出计划/.test(await txt('assistant-mode')) && /只问对外发送/.test(await txt('assistant-approval-tag')) && /自动 · mock-text-model/.test(await txt('assistant-model-btn')))
+  check('模式', '运行模式默认「先出计划」；审批默认「只问对外发送」；模型按钮显示「模型名 · 自动」', /先出计划/.test(await txt('assistant-mode')) && /只问对外发送/.test(await txt('assistant-approval-tag')) && /mock-text-model · 自动/.test(await txt('assistant-model-btn')))
   await shot('assistant-composer')
   // 「＋」菜单
   await T('assistant-plus').click()
@@ -195,7 +195,7 @@ async function main() {
 
   // ── 9. 自定义角色：新建 → 使用 → 导出 / 导入 → 删除 ──
   await goto('#/overview'); await goto('#/assistant'); await T('assistant-page').waitFor()
-  await T('assistant-role-new').click(); await T('role-modal').waitFor()
+  await T('assistant-settings-open').click(); await T('assistant-role-new').click(); await T('role-modal').waitFor()
   await T('role-name').fill('续费跟进'); await T('role-desc').fill('关心续费，说话简短。')
   await ctx.page.locator('[data-testid=role-tools] label', { hasText: '看整体情况' }).click()
   await T('role-suggest').fill('今年哪些知识点最难？\n哪些课最该补？')
@@ -211,7 +211,7 @@ async function main() {
   check('自定义角色', '这个角色只能用勾选的查询 + 基础工具（没有 kp_questions）', names.includes('stats_overview') && !names.includes('kp_questions') && names.includes('session_state') && names.includes('ask_user'), names.join(','))
   check('自定义角色', '角色说明进了给模型的规矩', /关心续费/.test(mock.agentRequests.at(-1).messages[0].content))
   // 导出
-  await T('assistant-role-edit').click(); await T('role-modal').waitFor()
+  await T('assistant-settings-open').click(); await T('assistant-role-edit').click(); await T('role-modal').waitFor()
   const exportPath = path.join(work, 'role-export.json')
   await M.stubSave(exportPath)
   await T('role-export').click()
@@ -221,7 +221,7 @@ async function main() {
   check('角色删除', '删除后角色和文件都没了，以前的对话还在', await waitFor(async () => (await ctx.page.locator('[data-testid^=assistant-role-c-]').count()) === 0, 8000) && fs.readdirSync(path.join(ud, 'workbench-data', 'agent-roles')).filter(f => f.endsWith('.json')).length === 0 && (await count('assistant-history-item')) >= 1)
   // 导入
   await stubOpen([exportPath])
-  await T('assistant-role-import').click()
+  await T('assistant-settings-open').click(); await T('assistant-role-import').click()
   check('角色导入', '导入刚才导出的文件：角色回来了（新 id）', await waitFor(async () => (await ctx.page.locator('[data-testid^=assistant-role-c-]').count()) === 1, 8000) && (await ctx.page.locator('[data-testid^=assistant-role-c-]').first().getAttribute('data-testid')) !== `assistant-role-${rid}`)
 
   // ── 10. 机构说明 ──

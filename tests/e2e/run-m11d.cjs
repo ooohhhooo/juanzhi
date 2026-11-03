@@ -58,6 +58,7 @@ async function main() {
 
   // ── 5. 选中节点 → 右侧卡片详情 ──
   check('面板', '没选中时右侧是「产出」', (await T('side-panel').getAttribute('data-mode')) === 'outputs')
+  await T('cv-fit').click(); await sleep(400)   // 默认缩放不低于 80%，30 个节点放不下，先适应窗口再点
   await T('cv-node-f2').click()
   await T('card-detail').waitFor({ timeout: 5000 })
   check('选中', '节点高亮', (await T('cv-node-f2').getAttribute('data-selected')) === '1')
@@ -182,6 +183,7 @@ async function main() {
   await ctx.page.reload()
   await openDemo()
   check('深色', 'data-theme=dark 生效', (await ctx.page.evaluate(() => document.documentElement.dataset.theme)) === 'dark')
+  await T('cv-fit').click(); await sleep(400)
   await T('cv-node-f2').click()
   await T('card-detail').waitFor()
   await sleep(2500)

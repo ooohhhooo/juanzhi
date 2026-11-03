@@ -2,12 +2,17 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Maximize2, ZoomIn, ZoomOut, ListFilter, ChevronDown, ChevronRight, Send, CornerDownRight } from 'lucide-react'
 import { KIND_LABEL } from '../types'
 import type { CanvasAction, CanvasNode, CanvasProps } from '../types'
-import { fitView, layoutTree, neighbor, zoomAt, MAX_K, MIN_K } from './layout'
+import { fitView, layoutTree, neighbor, zoomAt, GAP_Y, MAX_K, MIN_K } from './layout'
 import type { Box, View } from './layout'
 import '../assistant.css'
 
 const ACTIONS: Array<[string, CanvasAction | 'ask']> = [['追问', 'ask'], ['加到看板', 'add-to-board'], ['加到汇报', 'add-to-report'], ['生成名单', 'make-list']]
 const MM_W = 168, MM_H = 104
+/** 默认缩放下限；适应窗口时给右下角小地图、底部追问框留出的空间 */
+const GAP_Y_HALF = GAP_Y / 2
+const MIN_DEFAULT_K = 0.8
+const ASK_SPACE = 72
+const FIT_EXTRA = { right: MM_W + 28, bottom: ASK_SPACE }
 
 interface NodeProps {
   node: CanvasNode; box: Box; depth: number; selected: boolean; fresh: boolean
@@ -81,12 +86,14 @@ export default function AssistantCanvas({ nodes, selectedId, onSelect, onFollowU
   }, [])
   // 第一次有内容时适应窗口；之后新节点用淡入，不动视角
   useEffect(() => {
-    if (!fitted.current && size.w > 0 && L.boxes.size > 0) { fitted.current = true
-      // 树太宽时「完整适应」会小到看不清：第一次进来先以能读的比例对准根节点，想看全貌点「适应窗口」或看小地图
-      const f = fitView(L.bounds, size.w, size.h)
-      const root = L.boxes.get(L.order[0])
-      setView(f.k >= 0.5 || !root ? f : { k: 0.6, x: size.w / 2 - (root.x + root.w / 2) * 0.6, y: 56 - root.y * 0.6 }); requestAnimationFrame(() => setFresh(true)) }
-  }, [size, L])
+    if (!fitted.current && size.w > 0 && size.h > 240 && L.boxes.size > 0) { fitted.current = true
+      // 树太宽时「完整适应」会小到看不清：第一次进来至少 80%，以选中的（没选就是最新的）节点为中心；想看全貌点「适应窗口」或看小地图
+      const f = fitView(L.bounds, size.w, size.h, 48, FIT_EXTRA)
+      let focus = selectedId ? L.boxes.get(selectedId) : undefined
+      if (!focus) { let t = -Infinity; for (const id of L.order) { const nd = byId.get(id); const c = nd?.kind === 'output' ? -1 : (nd?.createdAt ?? 0); if (c >= t) { t = c; focus = L.boxes.get(id) } } }
+      const k = MIN_DEFAULT_K
+      setView(f.k >= k || !focus ? f : { k, x: size.w / 2 - (focus.x + focus.w / 2) * k, y: (size.h - ASK_SPACE) / 2 - (focus.y + focus.h / 2) * k }); requestAnimationFrame(() => setFresh(true)) }
+  }, [size, L])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // 滚轮缩放（以鼠标为中心）；要 preventDefault，所以用非被动的原生监听
   useEffect(() => {
@@ -118,7 +125,7 @@ export default function AssistantCanvas({ nodes, selectedId, onSelect, onFollowU
   }
 
   const zoomBy = useCallback((f: number) => setView(v => zoomAt(v, f, size.w / 2, size.h / 2)), [size])
-  const fit = useCallback(() => setView(fitView(L.bounds, size.w, size.h)), [L, size])
+  const fit = useCallback(() => setView(fitView(L.bounds, size.w, size.h, 48, FIT_EXTRA)), [L, size])
 
   // 追问目标：选中的节点；没选中时是最后一个回答
   const target = useMemo(() => {
@@ -184,9 +191,16 @@ export default function AssistantCanvas({ nodes, selectedId, onSelect, onFollowU
     setView(v => ({ ...v, x: size.w / 2 - wx * v.k, y: size.h / 2 - wy * v.k }))
   }
 
-  const edgeD = (a: Box, b: Box) => {
-    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y, my = (y1 + y2) / 2
-    return `M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}`
+  // 父底部中点 → 子顶部中点：先竖直下来、在两排之间圆角拐弯、再竖直接到子顶部。横向那一段只在兄弟范围内，不会拉出长线
+  const edgeD = (a: Box, b: Box, side?: boolean) => {
+    if (side) { // 产出卡片：从父节点右侧中点接到卡片左侧中点
+      const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2, mx = x2 - 28, r = Math.min(14, (y2 - y1) / 2, 14)
+      return `M${x1} ${y1} H${mx - r} Q${mx} ${y1} ${mx} ${y1 + r} V${y2 - r} Q${mx} ${y2} ${mx + r} ${y2} H${x2}`
+    }
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y, my = y2 - GAP_Y_HALF
+    const dx = x2 - x1, r = Math.min(16, Math.abs(dx) / 2), sg = Math.sign(dx)
+    if (!r) return `M${x1} ${y1} V${y2}`
+    return `M${x1} ${y1} V${my - r} Q${x1} ${my} ${x1 + sg * r} ${my} H${x2 - sg * r} Q${x2} ${my} ${x2} ${my + r} V${y2}`
   }
 
   return (
@@ -194,7 +208,7 @@ export default function AssistantCanvas({ nodes, selectedId, onSelect, onFollowU
       onPointerDown={onPointerDown} onKeyDown={onKeyDown} onClick={e => { if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('ewb-cv-world')) { if (dragged.current) dragged.current = false; else onSelect(null) } }}>
       <div className="ewb-cv-world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
         <svg className="ewb-cv-edges" width="1" height="1" aria-hidden>
-          {L.edges.map(e => { const a = L.boxes.get(e.from), b = L.boxes.get(e.to); if (!a || !b) return null; const d = edgeD(a, b); return <path key={e.to} data-testid="cv-edge" d={d} style={{ d: `path("${d}")` } as React.CSSProperties} /> })}
+          {L.edges.map(e => { const a = L.boxes.get(e.from), b = L.boxes.get(e.to); if (!a || !b) return null; const d = edgeD(a, b, e.side); return <path key={e.to} data-testid="cv-edge" d={d} style={{ d: `path("${d}")` } as React.CSSProperties} /> })}
         </svg>
         {L.order.map(id => {
           const n = byId.get(id)!

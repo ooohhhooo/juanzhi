@@ -80,4 +80,19 @@ assert.ok(zoomAt(v, 100, 0, 0).k <= 2.5 && zoomAt(v, 0.0001, 0, 0).k >= 0.015)
 // 适应窗口：内容完整落在容器里
 const f = fitView(LB.bounds, 800, 500)
 assert.ok(LB.bounds.w * f.k <= 800 && LB.bounds.h * f.k <= 500)
+// 产出卡片竖排在回答右边（不挤进子节点那一排），连线标记为 side；连线不超出父节点子树范围
+{
+  const ns = [n('q2', null, 'question'), n('ans', 'q2', 'answer'), n('f1', 'ans'), n('f2', 'ans'), n('o1', 'ans', 'output'), n('o2', 'ans', 'output')]
+  const S = layoutTree(ns)
+  noOverlap(S)
+  const b = id => S.boxes.get(id)
+  assert.ok(b('o1').x > b('f2').x + NODE_W && b('o1').x === b('o2').x && b('o1').y < b('o2').y, '产出竖排在右侧')
+  assert.equal(S.edges.filter(e => e.side).length, 2)
+  assert.ok(Math.abs(b('ans').x + NODE_W / 2 - (b('f1').x + b('f2').x + NODE_W) / 2) < 1e-6, '回答只在 finding 上方居中')
+}
+// 适应窗口给右下角留白
+{
+  const f2 = fitView(LB.bounds, 800, 500, 48, { right: 200, bottom: 80 })
+  assert.ok(LB.bounds.w * f2.k + f2.x <= 600 + 1e-6 && LB.bounds.h * f2.k + f2.y <= 420 + 1e-6)
+}
 console.log('assistant-canvas-layout.test ✓')

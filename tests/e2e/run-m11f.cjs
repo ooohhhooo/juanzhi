@@ -96,6 +96,7 @@ async function main() {
   await ctx.page.keyboard.press('Escape'); await sleep(300)
 
   // ── 5. 右侧「产出」 ──
+  if ((await T('side-panel').getAttribute('data-folded')) === '1') await T('side-unfold').click()   // 窄窗口（<1280）右侧面板默认收成竖栏
   check('产出面板', '对话模式右侧默认是「产出」，列出汇报、看板、名单 3 项', (await T('side-panel').getAttribute('data-mode')) === 'outputs' && await waitFor(async () => (await ctx.page.locator('[data-testid^=out-tab-]').count()) === 3, 15000), (await ctx.page.locator('[data-testid^=out-tab-]').allInnerTexts()).join('｜'))
   const tabs = await ctx.page.locator('[data-testid^=out-tab-]').allInnerTexts()
   check('产出面板', '有「满意度汇报」「秋季满意度看板」「本周跟进名单」', tabs.some(x => x.includes('满意度汇报')) && tabs.some(x => x.includes('秋季满意度看板')) && tabs.some(x => x.includes('本周跟进名单')), tabs.join('｜'))

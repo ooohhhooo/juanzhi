@@ -38,8 +38,18 @@ const errText = (e: unknown): string => (e as Error).message.replace(/^Error inv
 
 /** 弹出文件选择、导入、自动加为本会话数据 */
 async function addFiles(): Promise<void> {
-  try {
-    const paths = await window.api.datasets.pick()
+  try { await importPaths(await window.api.datasets.pick()) } catch (e) { message.error(errText(e)) }
+}
+
+/** 拖进助手页的文件：取路径后走同一套导入 */
+export async function addDroppedFiles(files: File[]): Promise<void> {
+  const paths: string[] = []
+  for (const f of files) { try { const p = window.api.getPathForFile(f); if (p) paths.push(p) } catch { /* 忽略 */ } }
+  try { await importPaths(paths) } catch (e) { message.error(errText(e)) }
+}
+
+async function importPaths(paths: string[]): Promise<void> {
+  {
     if (!paths.length) return
     const hide = message.loading('正在导入数据……', 0)
     try {
@@ -53,7 +63,7 @@ async function addFiles(): Promise<void> {
       const bad = res.filter(r => !r.ok)
       if (bad.length) message.error(`${bad.length} 个文件没能导入：${bad[0].error ?? ''}`)
     } finally { hide() }
-  } catch (e) { message.error(errText(e)) }
+  }
 }
 
 function DatasetPicker() {
