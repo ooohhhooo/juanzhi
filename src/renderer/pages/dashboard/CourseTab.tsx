@@ -72,10 +72,15 @@ export default function CourseTab() {
     }
   }
   const sceneAll = d?.outlines.every(o => o.scene === 'school')
+  const where = ids.length === 1 ? `「${outlineName(ids[0])}」` : '所选课程'
   const headline = d && d.ready
     ? (d.summary.lostPoints === 0
       ? '这批试卷里还没有 AI 估计容易出错的考点，可以先看下面“常考但课程没覆盖”的部分。'
-      : <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，<b>{d.summary.withCourse}</b> 个在{ids.length === 1 ? `「${outlineName(ids[0])}」` : '所选课程'}里能找到对应的课，<b>{d.summary.without}</b> 个没有课讲到。</>)
+      : d.summary.without === 0
+        ? <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，在{where}里都能找到对应的课。</>
+        : d.summary.withCourse === 0
+          ? <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，在{where}里都还没有找到对应的课。</>
+          : <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，<b>{d.summary.withCourse}</b> 个在{where}里能找到对应的课，<b>{d.summary.without}</b> 个还没有课讲到。</>)
     : null
 
   return (

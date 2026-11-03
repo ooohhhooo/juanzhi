@@ -162,7 +162,7 @@ async function main() {
     const head = await txt('course-headline')
     const rows = await page.locator('[data-testid^=course-row-]').evaluateAll(els => els.map(e => ({ code: e.getAttribute('data-testid').replace('course-row-', ''), main: Number(e.getAttribute('data-main')) })))
     const withCourse = rows.filter(r => r.main > 0).length
-    check('看板', '一句大字结论：“最容易出错的 N 个考点，M 个在「示例体系 A」里能找到对应的课，K 个没有课讲到”，三个数字和行数、有无对应课的行数一致', new RegExp(`最容易出错的 ${rows.length} 个考点，${withCourse} 个在「示例体系 A」里能找到对应的课，${rows.length - withCourse} 个没有课讲到`).test(head), `${head} rows=${rows.length} with=${withCourse}`)
+    check('看板', '一句大字结论：“最容易出错的 N 个考点，M 个在「示例体系 A」里能找到对应的课，K 个没有课讲到”，三个数字和行数、有无对应课的行数一致', new RegExp(withCourse === rows.length ? `最容易出错的 ${rows.length} 个考点，在「示例体系 A」里都能找到对应的课` : withCourse === 0 ? `最容易出错的 ${rows.length} 个考点，在「示例体系 A」里都还没有找到对应的课` : `最容易出错的 ${rows.length} 个考点，${withCourse} 个在「示例体系 A」里能找到对应的课，${rows.length - withCourse} 个还没有课讲到`).test(head), `${head} rows=${rows.length} with=${withCourse}`)
     // 数字和数据库独立核对：二级考点“一般过去时”名下所有知识点的高 / 中把握对应
     const dbMain = dbMain2
     const pastRow = rows.find(r => r.code === 'GR.TENSE.PAST')
