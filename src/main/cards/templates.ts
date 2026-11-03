@@ -17,27 +17,26 @@ export interface CardTemplate {
   file: string
   width: number
   height: number
-  /** 相对坐标 [x0, y0, x1, y1] */
-  panel: number[]
-  title: number[]
-  foot: number[]
+  /** 相对坐标 [x0, y0, x1, y1]：纸张（便签 / 信纸）区域，仅供参考 */
+  paper: number[]
+  /** 相对坐标：已内缩的安全文字区，标题、正文、署名都排在这里面 */
+  content: number[]
   style: {
     accent: string
-    panelBg?: string
-    titleOnDark?: boolean
-    footOnDark?: boolean
-    /** 覆盖这套模板的字体栈（title / body / latin） */
-    fonts?: { title?: string; body?: string; latin?: string }
+    /** 辅色：高亮荧光笔底、对比条、小标等 */
+    accent2?: string
+    paperBg?: string
+    /** 覆盖这套模板的字体栈（title / body / latin / hand / serif） */
+    fonts?: Record<string, string>
     /** 直接覆盖任意 CSS 变量，如 { "--ink": "#222" } */
     vars?: Record<string, string>
-    /** 正文面板内边距（像素），默认宽度的 5% */
-    panelPad?: number
   }
 }
-export interface FontFile { family: string; file: string; weight?: number | string; style?: string }
+/** audiences：只在这些受众的卡片里内嵌（字体文件大，用不到就不放进页面） */
+export interface FontFile { family: string; file: string; audiences?: Audience[]; weight?: number | string; style?: string }
 export interface Manifest {
   version: number
-  fonts: { files: FontFile[]; stacks: { title: string; body: string; latin: string } }
+  fonts: { files: FontFile[]; stacks: Record<string, string> }
   templates: CardTemplate[]
 }
 
@@ -80,7 +79,7 @@ export function writeCardSettings(dataDir: string, patch: { defaults?: Partial<C
 }
 
 // ── 版式 ──
-export interface Layout { css: string; zones: { title: string; panel: string; foot: string } }
+export interface Layout { css: string; content: string }
 const layoutCache = new Map<string, Layout>()
 export function loadLayout(kind: CardKind): Layout {
   const hit = layoutCache.get(kind + '@' + cardRoot())
@@ -88,7 +87,7 @@ export function loadLayout(kind: CardKind): Layout {
   const src = fs.readFileSync(path.join(cardRoot(), 'layouts', `${kind}.html`), 'utf8')
   const css = [...src.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n')
   const zone = (n: string) => new RegExp(`<zone name="${n}">([\\s\\S]*?)</zone>`).exec(src)?.[1] ?? ''
-  const l: Layout = { css, zones: { title: zone('title'), panel: zone('panel'), foot: zone('foot') } }
+  const l: Layout = { css, content: zone('content') }
   layoutCache.set(kind + '@' + cardRoot(), l)
   return l
 }
@@ -106,19 +105,20 @@ export function prepareData(kind: CardKind, data: Record<string, any>): Record<s
       const h = l.highlight ? escapeHtml(l.highlight) : ''
       return { ...l, html: h && text.includes(h) ? text.replace(h, `<em>${h}</em>`) : text }
     })
-  } else if (kind === 'weekly') {
-    d.metricCount = (d.metrics as unknown[]).length
-  } else if (kind === 'brief') {
-    d.subline = [d.title ? d.student : '', d.period].filter(Boolean).join(' · ')
   }
+  // 底部署名 + 日期、副标题（版式里直接用 {{foot}} / {{sub}}）
+  d.foot = [d.signature ?? d.teacher, d.date].filter(Boolean).join(' · ')
+  if (kind === 'weekly') d.sub = [d.grade, d.week].filter(Boolean).join(' · ')
+  else if (kind === 'progress') d.sub = [d.grade, d.period].filter(Boolean).join(' · ')
+  else if (kind === 'brief') d.sub = [d.title ? d.student : '', d.period].filter(Boolean).join(' · ')
   return d
 }
 
 const px = (v: number) => Math.round(v * 100) / 100
 const pos = (r: number[], w: number, h: number, pad = 0) => `left:${px(r[0] * w + pad)}px;top:${px(r[1] * h + pad)}px;width:${px((r[2] - r[0]) * w - 2 * pad)}px;height:${px((r[3] - r[1]) * h - 2 * pad)}px`
 
-function fontFaces(): string {
-  return loadManifest().fonts.files.map(f => {
+function fontFaces(audience: Audience): string {
+  return loadManifest().fonts.files.filter(f => !f.audiences || f.audiences.includes(audience)).map(f => {
     try {
       const buf = fs.readFileSync(path.join(cardRoot(), 'fonts', f.file))
       const mime = /\.woff2$/i.test(f.file) ? 'font/woff2' : /\.woff$/i.test(f.file) ? 'font/woff' : /\.otf$/i.test(f.file) ? 'font/otf' : 'font/ttf'
@@ -135,27 +135,25 @@ export function buildCardPage(t: CardTemplate, kind: CardKind, data: Record<stri
   const lay = loadLayout(kind)
   const base = fs.readFileSync(path.join(cardRoot(), 'layouts', 'base.css'), 'utf8')
   const a = hexOk(t.style.accent) ? t.style.accent : '#4A6CF7'
-  const dark = !!t.style.titleOnDark
+  const a2 = t.style.accent2 && hexOk(t.style.accent2) ? t.style.accent2 : a
+  const fonts = { ...m.fonts.stacks, ...(t.style.fonts ?? {}) }
   const vars: Record<string, string> = {
-    '--accent': a, '--accent-soft': a + '14', '--accent-soft2': a + '30',
+    '--accent': a, '--accent2': a2, '--accent-soft': a + '1f', '--hl': a2 + '66',
+    '--paper': t.style.paperBg ?? '#ffffff',
     '--ink': '#2B2A3D', '--muted': '#6B6A82',
-    '--title-ink': dark ? '#ffffff' : '#1C1B2E', '--title-on': dark ? '#ffffff' : a, '--title-sub': dark ? 'rgba(255,255,255,.85)' : '#5E5D75',
-    '--foot-ink': t.style.footOnDark ? 'rgba(255,255,255,.92)' : '#5E5D75',
-    '--panel-bg': t.style.panelBg ?? '#ffffff',
-    '--font-title': t.style.fonts?.title ?? m.fonts.stacks.title, '--font-body': t.style.fonts?.body ?? m.fonts.stacks.body, '--font-latin': t.style.fonts?.latin ?? m.fonts.stacks.latin,
+    '--font-title': fonts.title, '--font-body': fonts.body, '--font-latin': fonts.latin, '--font-hand': fonts.hand ?? fonts.body, '--font-serif': fonts.serif ?? fonts.body,
     '--s': String(scale),
     ...(t.style.vars ?? {})
   }
-  const varCss = Object.entries(vars).filter(([k]) => /^--[a-z0-9-]+$/.test(k)).map(([k, v]) => `${k}:${String(v).replace(/[<>{};]/g, '')}`).join(';')
+  const varCss = Object.entries(vars).filter(([k, v]) => /^--[a-z0-9-]+$/.test(k) && v !== undefined).map(([k, v]) => `${k}:${String(v).replace(/[<>{};]/g, '')}`).join(';')
   const bg = `data:image/jpeg;base64,${fs.readFileSync(templateImagePath(t)).toString('base64')}`
   const W = t.width, H = t.height
-  const pad = t.style.panelPad ?? Math.round(W * 0.05)
-  const body = (zone: 'title' | 'panel' | 'foot') => renderTemplate(lay.zones[zone], data)
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">
-<style>${fontFaces()}\nbody{${varCss}}\n${base}\n${lay.css}</style></head><body>
+<style>${fontFaces(t.audience)}
+body{${varCss}}
+${base}
+${lay.css}</style></head><body>
 <img class="bg" alt="" src="${bg}">
-<div class="z title" id="zt" style="${pos(t.title, W, H)}">${body('title')}</div>
-<div class="z panel" id="zp" style="${pos(t.panel, W, H, pad)}">${body('panel')}</div>
-<div class="z foot" id="zf" style="${pos(t.foot, W, H)}">${body('foot')}</div>
+<div class="z content" id="zc" style="${pos(t.content, W, H)}"><div class="fit">${renderTemplate(lay.content, data)}</div></div>
 </body></html>`
 }

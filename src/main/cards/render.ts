@@ -9,7 +9,9 @@ import type { CardTemplate } from './templates.ts'
 import type { CardKind } from './schema.ts'
 
 /** 字号缩放下限：再小就看不清了，宁可让 Agent 精简内容 */
-export const MIN_SCALE = 0.62
+export const MIN_SCALE = 0.8
+/** 内容少时最多放大到这个倍数 */
+export const MAX_SCALE = 1.25
 const STEP = 0.03
 const TIMEOUT_MS = 30_000
 
@@ -27,7 +29,7 @@ function getSession(): Electron.Session {
   return sess
 }
 
-const FIT_JS = `(()=>{const ids=['zt','zp','zf'];const over=()=>ids.some(i=>{const e=document.getElementById(i);return e.scrollHeight>e.clientHeight+1||e.scrollWidth>e.clientWidth+1});return over()})()`
+const FIT_JS = `(()=>{const e=document.getElementById("zc");return e.scrollHeight>e.clientHeight+1||e.scrollWidth>e.clientWidth+1})()`
 
 export async function renderCardPng(t: CardTemplate, kind: CardKind, data: Record<string, any>): Promise<{ png: Buffer; width: number; height: number; scale: number }> {
   const win = new BrowserWindow({
@@ -46,6 +48,15 @@ export async function renderCardPng(t: CardTemplate, kind: CardKind, data: Recor
     await wc.executeJavaScript('document.fonts ? document.fonts.ready.then(() => true) : true')
     await wc.executeJavaScript('Promise.all(Array.from(document.images).map(i => i.decode ? i.decode().catch(() => {}) : null)).then(() => true)')
     let scale = 1
+    // 内容少时适当放大填满纸面（最多 1.25 倍）
+    if (!(await wc.executeJavaScript(FIT_JS))) {
+      while (scale < MAX_SCALE) {
+        const next = Math.round((scale + 0.05) * 100) / 100
+        await wc.executeJavaScript(`document.body.style.setProperty('--s','${next}');true`)
+        if (await wc.executeJavaScript(FIT_JS)) { await wc.executeJavaScript(`document.body.style.setProperty('--s','${scale}');true`); break }
+        scale = next
+      }
+    }
     while (await wc.executeJavaScript(FIT_JS)) {
       scale = Math.round((scale - STEP) * 100) / 100
       if (scale < MIN_SCALE) throw new CardTooMuchError()

@@ -489,3 +489,5 @@ npm run dist:win       # build the Windows installers (installer version + porta
 ## License
 
 [MIT](LICENSE) © 2026 ooohhhooo. Free to use, modify and distribute.
+
+The share cards embed two open-source fonts (SIL OFL-1.1; licence files in `resources/card-templates/fonts/`): [Smiley Sans](https://github.com/atelier-anchor/smiley-sans) and [LXGW WenKai](https://github.com/lxgw/LxgwWenKai) (subsetted).

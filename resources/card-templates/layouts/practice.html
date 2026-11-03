@@ -1,13 +1,14 @@
 <style>
-.p-tag{font-size:1em;font-weight:800;color:var(--title-on);letter-spacing:.13em;font-family:var(--font-title)}
-.p-title{font-size:2.4em;font-weight:900;color:var(--title-ink);margin-top:.05em;line-height:1.15;font-family:var(--font-title)}
-.p-q{display:flex;gap:.7em;align-items:flex-start;background:var(--accent-soft);border-radius:.9em;padding:.65em .85em;margin-bottom:.7em}
-.p-n{flex:none;width:1.7em;height:1.7em;border-radius:50%;background:var(--accent);color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:1.1em}
-.p-body{flex:1}.p-text{font-size:1.2em;font-weight:700}
-.p-opts{margin-top:.3em;display:flex;flex-wrap:wrap;gap:.3em .9em;font-size:1em;color:var(--muted)}
-.p-enc{margin-top:.5em;text-align:center;font-size:1.25em;font-weight:800;color:var(--accent)}
+.p-head{text-align:center;margin-bottom:14px}
+.p-title{font-size:58px;color:#2B2A3D;line-height:1.1;margin-top:6px}
+.p-q{display:flex;gap:18px;align-items:flex-start;margin-bottom:18px}
+.p-n{flex:none;width:58px;height:58px;border-radius:50%;background:var(--accent);color:#fff;font-size:32px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 var(--accent-soft)}
+.p-t{font-size:34px;font-weight:700;line-height:1.3}
+.p-o{display:flex;flex-wrap:wrap;gap:4px 22px;font-size:26px;color:#8A86A0;margin-top:3px}
+.p-enc{text-align:center;margin-top:8px}
+.p-enc span{display:inline-block;border-radius:999px;background:var(--hl);color:#4A3A10;font-size:28px;font-weight:800;padding:5px 22px}
 </style>
-<zone name="title"><div class="p-tag">{{#if tag}}{{tag}}{{else}}小练习{{/if}}</div><div class="p-title">{{title}}</div></zone>
-<zone name="panel">{{#each questions}}<div class="p-q"><span class="p-n">{{@n}}</span><div class="p-body"><div class="p-text latin">{{q}}</div><div class="p-opts latin">{{#each options}}<span>{{this}}</span>{{/each}}</div></div></div>{{/each}}
-{{#if encourage}}<div class="p-enc">{{encourage}}</div>{{/if}}</zone>
-<zone name="foot"><span>{{#if signature}}{{signature}}{{/if}}{{#if date}}{{#if signature}} · {{/if}}{{date}}{{/if}}</span></zone>
+<zone name="content"><div class="p-head"><span class="chip">{{#if tag}}{{tag}}{{else}}小挑战{{/if}}</span><div class="sm p-title">{{title}}</div></div>
+{{#each questions}}<div class="p-q"><span class="p-n">{{@n}}</span><div><div class="p-t en">{{q}}</div><div class="p-o en">{{#each options}}<span>{{this}}</span>{{/each}}</div></div></div>{{/each}}
+{{#if encourage}}<div class="p-enc"><span>{{encourage}}</span></div>{{/if}}
+{{#if foot}}<div class="foot">{{foot}}</div>{{/if}}</zone>

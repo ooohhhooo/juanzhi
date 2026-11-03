@@ -1,19 +1,23 @@
 <style>
-.w-tag{font-size:.93em;font-weight:700;color:var(--title-on);letter-spacing:.2em}
-.w-title{font-size:2.13em;font-weight:800;color:var(--title-ink);margin-top:.15em;font-family:var(--font-title)}
-.w-sub{font-size:.93em;color:var(--title-sub);margin-top:.15em}
-.w-metrics{display:grid;gap:.55em;margin-bottom:.3em}
-.w-m{background:var(--accent-soft);border-radius:.6em;padding:.6em .4em;text-align:center}
-.w-m b{display:block;font-size:1.6em;color:var(--accent)}.w-m span{font-size:.83em;color:var(--muted)}
-.w-h{font-size:1.03em;font-weight:700;color:#1C1B2E;margin:.75em 0 .25em;display:flex;align-items:center;gap:.4em}
-.w-h i{width:.27em;height:.93em;border-radius:.13em;background:var(--accent);display:inline-block}
-.w-p{font-size:1em;line-height:1.55;color:#3A3950}
-.w-tip{background:var(--accent-soft);border-radius:.55em;padding:.55em .7em;margin-top:.6em;font-size:.97em;line-height:1.55;color:#3A3950}
+.w-head{text-align:center;margin-bottom:14px}
+.w-tag{font-size:24px;color:var(--accent);letter-spacing:6px}
+.w-title{font-size:58px;color:#3A3226;margin-top:2px;line-height:1.15}
+.w-sub{font-size:24px;color:#8A7F6E;margin-top:4px}
+.w-metrics{display:flex;gap:14px;margin-bottom:18px}
+.w-m{flex:1;border-radius:18px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:12px 6px;text-align:center}
+.w-m b{display:block;line-height:1.25;font-family:var(--font-serif);font-size:42px;font-weight:700;color:var(--accent)}
+.w-m span{font-size:22px;color:#8A8296}
+.w-sec{display:flex;gap:18px;margin-bottom:14px}
+.w-no{flex:none;font-family:var(--font-serif);font-size:38px;font-weight:700;color:var(--accent2);width:54px}
+.w-h{font-size:30px;color:var(--accent);margin-bottom:2px}
+.w-p{font-size:26px;line-height:1.55;color:#4A4458}
+.w-tip{border-radius:16px;background:var(--accent-soft);padding:12px 20px;font-size:26px;line-height:1.55;color:#4A4030;margin-top:4px}
+.w-sign{text-align:right;font-size:26px;color:#8A7F6E;margin-top:12px}
 </style>
-<zone name="title"><div class="w-tag">学情反馈</div><div class="w-title">{{#if student}}{{student}}的{{else}}孩子的{{/if}}本周学习情况</div>{{#if grade}}<div class="w-sub">{{grade}}{{#if week}} · {{week}}{{/if}}</div>{{else}}{{#if week}}<div class="w-sub">{{week}}</div>{{/if}}{{/if}}</zone>
-<zone name="panel"><div class="w-metrics" style="grid-template-columns:repeat({{metricCount}},1fr)">{{#each metrics}}<div class="w-m"><b>{{value}}</b><span>{{label}}</span></div>{{/each}}</div>
-<div class="w-h"><i></i>本周学了</div><div class="w-p">{{learned}}</div>
-<div class="w-h"><i></i>做得好的</div><div class="w-p">{{good}}</div>
-<div class="w-h"><i></i>还要加强</div><div class="w-p">{{improve}}</div>
-<div class="w-tip"><b>家里可以这样配合：</b>{{tips}}</div></zone>
-<zone name="foot"><span>{{#if teacher}}{{teacher}}{{/if}}{{#if date}}{{#if teacher}} · {{/if}}{{date}}{{/if}}</span></zone>
+<zone name="content"><div class="w-head"><div class="wk w-tag">本周学情</div><div class="wk w-title">{{#if student}}{{student}}{{else}}孩子{{/if}}这一周</div>{{#if sub}}<div class="w-sub">{{sub}}</div>{{/if}}</div>
+<div class="w-metrics">{{#each metrics}}<div class="w-m"><b>{{value}}</b><span>{{label}}</span></div>{{/each}}</div>
+<div class="w-sec"><div class="w-no">01</div><div><div class="wk w-h">学了什么</div><div class="w-p">{{learned}}</div></div></div>
+<div class="w-sec"><div class="w-no">02</div><div><div class="wk w-h">做得好</div><div class="w-p">{{good}}</div></div></div>
+<div class="w-sec"><div class="w-no">03</div><div><div class="wk w-h">再加把劲</div><div class="w-p">{{improve}}</div></div></div>
+<div class="w-tip"><b>在家可以这样做：</b>{{tips}}</div>
+{{#if foot}}<div class="wk w-sign">—— {{foot}}</div>{{/if}}</zone>

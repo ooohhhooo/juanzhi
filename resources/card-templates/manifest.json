@@ -1,672 +1,549 @@
 {
- "version": 1,
+ "version": 2,
  "fonts": {
-  "files": [],
+  "files": [
+   {
+    "family": "Smiley",
+    "file": "SmileySans-Oblique.woff2",
+    "audiences": [
+     "student"
+    ]
+   },
+   {
+    "family": "WenKai",
+    "file": "LXGWWenKai-Medium-subset.woff2",
+    "audiences": [
+     "parent"
+    ]
+   }
+  ],
   "stacks": {
-   "title": "\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif",
+   "title": "\"Smiley\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif",
    "body": "\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif",
-   "latin": "\"Avenir Next\",\"Helvetica Neue\",Arial,sans-serif"
+   "latin": "\"Avenir Next\",\"Helvetica Neue\",Arial,sans-serif",
+   "hand": "\"WenKai\",\"Kaiti SC\",\"STKaiti\",\"KaiTi\",serif",
+   "serif": "Georgia,\"Songti SC\",\"SimSun\",serif"
   }
  },
  "templates": [
   {
-   "id": "s01",
+   "id": "stu-a",
    "audience": "student",
-   "name": "热血冒险",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s01.jpg",
+   "name": "书堆打招呼",
+   "scene": "学生知识卡：书堆打招呼",
+   "file": "stu-a.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0672,
-    0.2307,
-    0.9282,
-    0.7652
+   "paper": [
+    0.0322,
+    0.4517,
+    0.9669,
+    0.9544
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2107
-   ],
-   "foot": [
-    0.12,
-    0.7852,
-    0.88,
-    0.955
+   "content": [
+    0.0922,
+    0.4867,
+    0.9069,
+    0.9194
    ],
    "style": {
-    "accent": "#D9361E",
-    "panelBg": "rgb(253,245,220)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#E3742B",
+    "accent2": "#3E8FD8",
+    "paperBg": "rgb(254,239,203)"
    }
   },
   {
-   "id": "s02",
+   "id": "stu-a02",
    "audience": "student",
-   "name": "魔法闪耀",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s02.jpg",
+   "name": "星空月亮",
+   "scene": "学生知识卡：星空月亮",
+   "file": "stu-a02.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0709,
-    0.2231,
-    0.9273,
-    0.8108
+   "paper": [
+    0.0442,
+    0.4544,
+    0.942,
+    0.9627
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2031
-   ],
-   "foot": [
-    0.12,
-    0.8308,
-    0.88,
-    0.955
+   "content": [
+    0.1042,
+    0.4894,
+    0.882,
+    0.9277
    ],
    "style": {
-    "accent": "#C04FC0",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#3B4A9E",
+    "accent2": "#E0A526",
+    "paperBg": "rgb(254,238,199)"
    }
   },
   {
-   "id": "s03",
+   "id": "stu-a03",
    "audience": "student",
-   "name": "太空探险",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s03.jpg",
+   "name": "雨后彩虹",
+   "scene": "学生知识卡：雨后彩虹",
+   "file": "stu-a03.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0663,
-    0.2438,
-    0.9319,
-    0.7749
+   "paper": [
+    0.0488,
+    0.4558,
+    0.9494,
+    0.9517
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2238
-   ],
-   "foot": [
-    0.12,
-    0.7949,
-    0.88,
-    0.955
+   "content": [
+    0.1088,
+    0.4908,
+    0.8894,
+    0.9167
    ],
    "style": {
-    "accent": "#2B6FD6",
-    "panelBg": "rgb(232,250,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#2F8FD8",
+    "accent2": "#F2A20C",
+    "paperBg": "rgb(252,242,222)"
    }
   },
   {
-   "id": "s04",
+   "id": "stu-a04",
    "audience": "student",
-   "name": "恐龙乐园",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s04.jpg",
+   "name": "秋天落叶",
+   "scene": "学生知识卡：秋天落叶",
+   "file": "stu-a04.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.1022,
-    0.2562,
-    0.8692,
-    0.8059
+   "paper": [
+    0.0331,
+    0.4517,
+    0.9669,
+    0.9551
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2362
-   ],
-   "foot": [
-    0.12,
-    0.8259,
-    0.88,
-    0.955
+   "content": [
+    0.0931,
+    0.4867,
+    0.9069,
+    0.9201
    ],
    "style": {
-    "accent": "#3E8E3A",
-    "panelBg": "rgb(252,243,224)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#D9622B",
+    "accent2": "#8A5A2B",
+    "paperBg": "rgb(253,234,197)"
    }
   },
   {
-   "id": "s05",
+   "id": "stu-a05",
    "audience": "student",
-   "name": "海底世界",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s05.jpg",
+   "name": "海边沙堡",
+   "scene": "学生知识卡：海边沙堡",
+   "file": "stu-a05.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0617,
-    0.2403,
-    0.9282,
-    0.8253
+   "paper": [
+    0.0414,
+    0.4537,
+    0.953,
+    0.9496
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2203
-   ],
-   "foot": [
-    0.12,
-    0.8453,
-    0.88,
-    0.955
+   "content": [
+    0.1014,
+    0.4887,
+    0.893,
+    0.9146
    ],
    "style": {
-    "accent": "#1C7FC4",
-    "panelBg": "rgb(229,250,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#1F86B8",
+    "accent2": "#E3A33B",
+    "paperBg": "rgb(253,239,217)"
    }
   },
   {
-   "id": "s06",
+   "id": "stu-a06",
    "audience": "student",
-   "name": "机器人科技",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s06.jpg",
+   "name": "雪地雪人",
+   "scene": "学生知识卡：雪地雪人",
+   "file": "stu-a06.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.105,
-    0.2265,
-    0.8674,
-    0.7901
+   "paper": [
+    0.0433,
+    0.4503,
+    0.953,
+    0.9489
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2065
-   ],
-   "foot": [
-    0.12,
-    0.8101,
-    0.88,
-    0.955
+   "content": [
+    0.1033,
+    0.4853,
+    0.893,
+    0.9139
    ],
    "style": {
-    "accent": "#1E5FD0",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#2E6FB8",
+    "accent2": "#D64545",
+    "paperBg": "rgb(252,240,220)"
    }
   },
   {
-   "id": "s07",
+   "id": "stu-a07",
    "audience": "student",
-   "name": "超级英雄漫画",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s07.jpg",
+   "name": "春天风筝",
+   "scene": "学生知识卡：春天风筝",
+   "file": "stu-a07.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0718,
-    0.2445,
-    0.9254,
-    0.8405
+   "paper": [
+    0.0414,
+    0.4703,
+    0.9549,
+    0.9523
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2245
-   ],
-   "foot": [
-    0.12,
-    0.8605,
-    0.88,
-    0.955
+   "content": [
+    0.1014,
+    0.5053,
+    0.8949,
+    0.9173
    ],
    "style": {
-    "accent": "#D62828",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#E0608A",
+    "accent2": "#5AA05A",
+    "paperBg": "rgb(250,236,213)"
    }
   },
   {
-   "id": "s08",
+   "id": "stu-a08",
    "audience": "student",
-   "name": "萌宠学校",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s08.jpg",
+   "name": "森林蘑菇",
+   "scene": "学生知识卡：森林蘑菇",
+   "file": "stu-a08.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0912,
-    0.2424,
-    0.9033,
-    0.799
+   "paper": [
+    0.047,
+    0.4572,
+    0.9549,
+    0.9503
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2224
-   ],
-   "foot": [
-    0.12,
-    0.819,
-    0.88,
-    0.955
+   "content": [
+    0.107,
+    0.4922,
+    0.8949,
+    0.9153
    ],
    "style": {
-    "accent": "#E26A8F",
-    "panelBg": "rgb(253,252,241)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#3E8E4A",
+    "accent2": "#C0473A",
+    "paperBg": "rgb(253,240,214)"
    }
   },
   {
-   "id": "s09",
+   "id": "stu-a09",
    "audience": "student",
-   "name": "糖果王国",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s09.jpg",
+   "name": "背包上学",
+   "scene": "学生知识卡：背包上学",
+   "file": "stu-a09.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.1179,
-    0.2403,
-    0.8692,
-    0.7804
+   "paper": [
+    0.0295,
+    0.4558,
+    0.9613,
+    0.9475
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2203
-   ],
-   "foot": [
-    0.12,
-    0.8004,
-    0.88,
-    0.955
+   "content": [
+    0.0895,
+    0.4908,
+    0.9013,
+    0.9125
    ],
    "style": {
-    "accent": "#E0559A",
-    "panelBg": "rgb(253,253,247)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#E07A3A",
+    "accent2": "#3E8FD8",
+    "paperBg": "rgb(253,237,214)"
    }
   },
   {
-   "id": "s10",
+   "id": "stu-a10",
    "audience": "student",
-   "name": "像素游戏",
-   "scene": "课后发给学生的知识小卡",
-   "file": "s10.jpg",
+   "name": "热气球",
+   "scene": "学生知识卡：热气球",
+   "file": "stu-a10.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0783,
-    0.2362,
-    0.9208,
-    0.7901
+   "paper": [
+    0.0331,
+    0.4675,
+    0.9613,
+    0.9537
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2162
-   ],
-   "foot": [
-    0.12,
-    0.8101,
-    0.88,
-    0.955
+   "content": [
+    0.0931,
+    0.5025,
+    0.9013,
+    0.9187
    ],
    "style": {
-    "accent": "#1E9C9C",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#D9443A",
+    "accent2": "#E0A526",
+    "paperBg": "rgb(252,233,202)"
    }
   },
   {
-   "id": "p01",
+   "id": "par-e",
    "audience": "parent",
-   "name": "清爽简约",
-   "scene": "发给家长的学情反馈",
-   "file": "p01.jpg",
+   "name": "傍晚台灯",
+   "scene": "给家长的学情信：傍晚台灯",
+   "file": "par-e.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0746,
-    0.2507,
-    0.9245,
-    0.8032
+   "paper": [
+    0.0341,
+    0.3108,
+    0.9586,
+    0.962
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2307
-   ],
-   "foot": [
-    0.12,
-    0.8232,
-    0.88,
-    0.955
+   "content": [
+    0.0941,
+    0.3458,
+    0.8986,
+    0.927
    ],
    "style": {
-    "accent": "#5B57D1",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#B8693E",
+    "accent2": "#5E7FA6",
+    "paperBg": "rgb(253,238,215)"
    }
   },
   {
-   "id": "p02",
+   "id": "par-e02",
    "audience": "parent",
-   "name": "温暖水彩",
-   "scene": "发给家长的学情反馈",
-   "file": "p02.jpg",
+   "name": "清晨窗台",
+   "scene": "给家长的学情信：清晨窗台",
+   "file": "par-e02.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.11,
-    0.245,
-    0.89,
-    0.82
+   "paper": [
+    0.0239,
+    0.3343,
+    0.977,
+    0.9765
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.225
-   ],
-   "foot": [
-    0.12,
-    0.84,
-    0.88,
-    0.955
+   "content": [
+    0.0839,
+    0.3693,
+    0.917,
+    0.9415
    ],
    "style": {
-    "accent": "#B07A4A",
-    "panelBg": "rgb(253,248,234)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#6E9A4E",
+    "accent2": "#C9A23B",
+    "paperBg": "rgb(252,243,224)"
    }
   },
   {
-   "id": "p03",
+   "id": "par-e03",
    "audience": "parent",
-   "name": "杂志排版",
-   "scene": "发给家长的学情反馈",
-   "file": "p03.jpg",
+   "name": "雨天飘窗",
+   "scene": "给家长的学情信：雨天飘窗",
+   "file": "par-e03.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.06,
-    0.245,
-    0.94,
-    0.85
+   "paper": [
+    0.0341,
+    0.3046,
+    0.9595,
+    0.9669
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.225
-   ],
-   "foot": [
-    0.12,
-    0.87,
-    0.88,
-    0.955
+   "content": [
+    0.0941,
+    0.3396,
+    0.8995,
+    0.9319
    ],
    "style": {
-    "accent": "#22285A",
-    "panelBg": "rgb(250,245,238)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#5E7FA6",
+    "accent2": "#B8693E",
+    "paperBg": "rgb(250,238,221)"
    }
   },
   {
-   "id": "p04",
+   "id": "par-e04",
    "audience": "parent",
-   "name": "日系手账",
-   "scene": "发给家长的学情反馈",
-   "file": "p04.jpg",
+   "name": "草地野餐",
+   "scene": "给家长的学情信：草地野餐",
+   "file": "par-e04.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0718,
-    0.2541,
-    0.919,
-    0.8308
+   "paper": [
+    0.0368,
+    0.2631,
+    0.9475,
+    0.9627
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2341
-   ],
-   "foot": [
-    0.12,
-    0.8508,
-    0.88,
-    0.955
+   "content": [
+    0.0968,
+    0.2981,
+    0.8875,
+    0.9277
    ],
    "style": {
-    "accent": "#8A6A3A",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#6FA04E",
+    "accent2": "#D9806A",
+    "paperBg": "rgb(251,235,214)"
    }
   },
   {
-   "id": "p05",
+   "id": "par-e05",
    "audience": "parent",
-   "name": "清晨阳光",
-   "scene": "发给家长的学情反馈",
-   "file": "p05.jpg",
+   "name": "银杏长椅",
+   "scene": "给家长的学情信：银杏长椅",
+   "file": "par-e05.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0691,
-    0.2438,
-    0.9291,
-    0.8198
+   "paper": [
+    0.0193,
+    0.297,
+    0.9761,
+    0.9793
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2238
-   ],
-   "foot": [
-    0.12,
-    0.8398,
-    0.88,
-    0.955
+   "content": [
+    0.0793,
+    0.332,
+    0.9161,
+    0.9443
    ],
    "style": {
-    "accent": "#3B7DB8",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#C08A1E",
+    "accent2": "#5E7FA6",
+    "paperBg": "rgb(252,236,213)"
    }
   },
   {
-   "id": "p06",
+   "id": "par-e06",
    "audience": "parent",
-   "name": "书香学院",
-   "scene": "发给家长的学情反馈",
-   "file": "p06.jpg",
+   "name": "冬夜壁炉",
+   "scene": "给家长的学情信：冬夜壁炉",
+   "file": "par-e06.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0773,
-    0.261,
-    0.9217,
-    0.8377
+   "paper": [
+    0.0285,
+    0.3343,
+    0.9549,
+    0.9627
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.241
-   ],
-   "foot": [
-    0.12,
-    0.8577,
-    0.88,
-    0.955
+   "content": [
+    0.0885,
+    0.3693,
+    0.8949,
+    0.9277
    ],
    "style": {
-    "accent": "#1F4D3A",
-    "panelBg": "rgb(252,247,234)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#B5452E",
+    "accent2": "#C08A1E",
+    "paperBg": "rgb(251,232,206)"
    }
   },
   {
-   "id": "p07",
+   "id": "par-e07",
    "audience": "parent",
-   "name": "莫兰迪",
-   "scene": "发给家长的学情反馈",
-   "file": "p07.jpg",
+   "name": "图书馆",
+   "scene": "给家长的学情信：图书馆",
+   "file": "par-e07.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0645,
-    0.2472,
-    0.9346,
-    0.8253
+   "paper": [
+    0.0387,
+    0.2963,
+    0.9503,
+    0.9613
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2272
-   ],
-   "foot": [
-    0.12,
-    0.8453,
-    0.88,
-    0.955
+   "content": [
+    0.0987,
+    0.3313,
+    0.8903,
+    0.9263
    ],
    "style": {
-    "accent": "#8C6A70",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#6B4A2E",
+    "accent2": "#3E6E52",
+    "paperBg": "rgb(252,239,215)"
    }
   },
   {
-   "id": "p08",
+   "id": "par-e08",
    "audience": "parent",
-   "name": "纸艺立体",
-   "scene": "发给家长的学情反馈",
-   "file": "p08.jpg",
+   "name": "海边落日",
+   "scene": "给家长的学情信：海边落日",
+   "file": "par-e08.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0691,
-    0.2369,
-    0.9291,
-    0.8101
+   "paper": [
+    0.0368,
+    0.2597,
+    0.9466,
+    0.9613
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2169
-   ],
-   "foot": [
-    0.12,
-    0.8301,
-    0.88,
-    0.955
+   "content": [
+    0.0968,
+    0.2947,
+    0.8866,
+    0.9263
    ],
    "style": {
-    "accent": "#6A8FB8",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#3E7FA6",
+    "accent2": "#D9806A",
+    "paperBg": "rgb(253,242,221)"
    }
   },
   {
-   "id": "p09",
+   "id": "par-e09",
    "audience": "parent",
-   "name": "极简线描",
-   "scene": "发给家长的学情反馈",
-   "file": "p09.jpg",
+   "name": "星空露营",
+   "scene": "给家长的学情信：星空露营",
+   "file": "par-e09.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.09,
-    0.27,
-    0.91,
-    0.8
+   "paper": [
+    0.0405,
+    0.288,
+    0.9669,
+    0.9655
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.25
-   ],
-   "foot": [
-    0.12,
-    0.82,
-    0.88,
-    0.955
+   "content": [
+    0.1005,
+    0.323,
+    0.9069,
+    0.9305
    ],
    "style": {
-    "accent": "#2E8B83",
-    "panelBg": "rgb(243,244,244)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#2E3A7A",
+    "accent2": "#D9A02B",
+    "paperBg": "rgb(251,246,235)"
    }
   },
   {
-   "id": "p10",
+   "id": "par-e10",
    "audience": "parent",
-   "name": "温馨家庭",
-   "scene": "发给家长的学情反馈",
-   "file": "p10.jpg",
+   "name": "樱花树下",
+   "scene": "给家长的学情信：樱花树下",
+   "file": "par-e10.jpg",
    "width": 1086,
    "height": 1448,
-   "panel": [
-    0.0746,
-    0.2383,
-    0.9245,
-    0.8156
+   "paper": [
+    0.0368,
+    0.2548,
+    0.9466,
+    0.9627
    ],
-   "title": [
-    0.12,
-    0.065,
-    0.88,
-    0.2183
-   ],
-   "foot": [
-    0.12,
-    0.8356,
-    0.88,
-    0.955
+   "content": [
+    0.0968,
+    0.2898,
+    0.8866,
+    0.9277
    ],
    "style": {
-    "accent": "#B0763A",
-    "panelBg": "rgb(254,254,254)",
-    "titleOnDark": false,
-    "footOnDark": false
+    "accent": "#D9708A",
+    "accent2": "#6FA04E",
+    "paperBg": "rgb(254,242,217)"
    }
   }
  ]

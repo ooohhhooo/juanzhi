@@ -320,7 +320,7 @@ const api = {
   /** 分享卡片：模板列表（含默认 / 孩子称呼设置）、示例预览、改默认模板、改孩子称呼 */
   cards: {
     templates: (): Promise<any> => ipcRenderer.invoke('cards:templates'),
-    preview: (id: string, thumb: boolean): Promise<string> => ipcRenderer.invoke('cards:preview', id, thumb),
+    preview: (id: string, thumb: boolean, kind?: string): Promise<string> => ipcRenderer.invoke('cards:preview', id, thumb, kind),
     setDefault: (audience: 'student' | 'parent', id: string): Promise<any> => ipcRenderer.invoke('cards:setDefault', audience, id),
     setChildName: (mode: 'first' | 'none'): Promise<any> => ipcRenderer.invoke('cards:setChildName', mode),
   },

@@ -54,10 +54,10 @@ async function main() {
   // ── 3. 文件：在会话 exports 里，是有效 PNG；用的是默认模板；孩子称呼只写名 ──
   const idx = readIndexes()
   const items = idx.flatMap(x => x.items.map(i => ({ ...i, sid: x.sid }))).filter(i => i.type === 'image')
-  check('文件', '索引里有两张 image，模板是默认的 s01 / p01', items.length === 2 && items[0].card.templateId === 's01' && items[1].card.templateId === 'p01', JSON.stringify(items.map(i => i.card)))
+  check('文件', '索引里有两张 image，模板是默认的 stu-a / par-e', items.length === 2 && items[0].card.templateId === 'stu-a' && items[1].card.templateId === 'par-e', JSON.stringify(items.map(i => i.card)))
   const files = items.map(i => path.join(sessionsDir(), i.sid, i.file))
   check('文件', '都在 exports 文件夹里，是 PNG', files.every(f => f.includes(`${path.sep}exports${path.sep}`) && M.isPng(f)), files.join(','))
-  files.forEach((f, i) => { try { fs.copyFileSync(f, path.join(SHOTS, `card-${i === 0 ? 'student-knowledge-s01' : 'parent-weekly-p01'}.png`)) } catch { /* 忽略 */ } })
+  files.forEach((f, i) => { try { fs.copyFileSync(f, path.join(SHOTS, `card-${i === 0 ? 'student-knowledge-stu-a' : 'parent-weekly-par-e'}.png`)) } catch { /* 忽略 */ } })
 
   // ── 4. 复制 / 保存 ──
   await T('out-tab-i1').click()
@@ -82,32 +82,32 @@ async function main() {
   await T('assistant-settings-open').first().click()
   await T('assistant-settings-tab-cards').click()
   await T('assistant-cards').waitFor()
-  check('设置', '学生、家长各 10 个缩略图，默认的 s01 / p01 高亮', await waitFor(async () => (await ctx.page.locator('[data-testid^=card-tpl-s]').count()) === 10 && (await ctx.page.locator('[data-testid^=card-tpl-p]').count()) === 10, 10000)
-    && (await T('card-tpl-s01').getAttribute('data-picked')) === '1' && (await T('card-tpl-p01').getAttribute('data-picked')) === '1')
+  check('设置', '学生、家长各 10 个缩略图，默认的 stu-a / par-e 高亮', await waitFor(async () => (await ctx.page.locator('[data-testid^=card-tpl-s]').count()) === 10 && (await ctx.page.locator('[data-testid^=card-tpl-p]').count()) === 10, 10000)
+    && (await T('card-tpl-stu-a').getAttribute('data-picked')) === '1' && (await T('card-tpl-par-e').getAttribute('data-picked')) === '1')
   check('设置', '缩略图是实时渲染出来的（至少前几张已出图）', await waitFor(async () => (await ctx.page.locator('[data-testid^=card-tpl-s] img').count()) >= 2, 60000))
-  await T('card-zoom-s05').click()
+  await T('card-zoom-stu-a05').click()
   check('设置', '「预览大图」能打开大图', await waitFor(async () => (await count('card-zoom-img')) === 1, 30000))
   await shot('03-settings-zoom')
   await ctx.page.keyboard.press('Escape')
-  await T('card-tpl-s05').locator('button').first().click()
-  check('设置', '点 s05 设为默认：s05 高亮，s01 取消', await waitFor(async () => (await T('card-tpl-s05').getAttribute('data-picked')) === '1' && (await T('card-tpl-s01').getAttribute('data-picked')) === null, 8000))
+  await T('card-tpl-stu-a05').locator('button').first().click()
+  check('设置', '点 stu-a05 设为默认：stu-a05 高亮，stu-a 取消', await waitFor(async () => (await T('card-tpl-stu-a05').getAttribute('data-picked')) === '1' && (await T('card-tpl-stu-a').getAttribute('data-picked')) === null, 8000))
   await shot('04-settings-picked')
   await T('card-name-none').click()
   check('设置', '孩子称呼可切到「不写名字」', await waitFor(async () => (await T('card-name-none').getAttribute('aria-pressed')) === 'true', 5000))
   await T('card-name-first').click()
   const st = JSON.parse(fs.readFileSync(path.join(dataDirOf(), 'share-cards.json'), 'utf8'))
-  check('设置', '设置写进数据目录的 share-cards.json', st.defaults.student === 's05' && st.defaults.parent === 'p01' && st.childName === 'first', JSON.stringify(st))
+  check('设置', '设置写进数据目录的 share-cards.json', st.defaults.student === 'stu-a05' && st.defaults.parent === 'par-e' && st.childName === 'first', JSON.stringify(st))
   await ctx.page.keyboard.press('Escape')
   await T('assistant-settings-open').first().waitFor()
 
-  // ── 7. 再出一张：用新默认 s05 ──
+  // ── 7. 再出一张：用新默认 stu-a05 ──
   await ask('再做一张卡片，还是过去式')
-  check('默认', '新出的卡片用的是新默认模板 s05', await waitFor(() => {
+  check('默认', '新出的卡片用的是新默认模板 stu-a05', await waitFor(() => {
     const it = readIndexes().flatMap(x => x.items).filter(i => i.type === 'image')
-    return Promise.resolve(it.length === 3 && it.some(i => i.card.templateId === 's05'))
+    return Promise.resolve(it.length === 3 && it.some(i => i.card.templateId === 'stu-a05'))
   }, 30000), JSON.stringify(readIndexes().flatMap(x => x.items).filter(i => i.type === 'image').map(i => i.card.templateId)))
-  const newest = readIndexes().flatMap(x => x.items.map(i => ({ ...i, sid: x.sid }))).filter(i => i.type === 'image' && i.card.templateId === 's05')[0]
-  if (newest) { try { fs.copyFileSync(path.join(sessionsDir(), newest.sid, newest.file), path.join(SHOTS, 'card-student-knowledge-s05.png')) } catch { /* 忽略 */ } }
+  const newest = readIndexes().flatMap(x => x.items.map(i => ({ ...i, sid: x.sid }))).filter(i => i.type === 'image' && i.card.templateId === 'stu-a05')[0]
+  if (newest) { try { fs.copyFileSync(path.join(sessionsDir(), newest.sid, newest.file), path.join(SHOTS, 'card-student-knowledge-stu-a05.png')) } catch { /* 忽略 */ } }
   await shot('05-after-default')
 
   // ── 8. 收尾 ──

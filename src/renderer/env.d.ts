@@ -262,7 +262,7 @@ interface ElectronAPI {
   }
   cards: {
     templates(): Promise<{ student: CardTemplateInfo[]; parent: CardTemplateInfo[]; settings: { defaults: { student: string; parent: string }; childName: 'first' | 'none' } }>
-    preview(id: string, thumb: boolean): Promise<string>
+    preview(id: string, thumb: boolean, kind?: string): Promise<string>
     setDefault(audience: 'student' | 'parent', id: string): Promise<any>
     setChildName(mode: 'first' | 'none'): Promise<any>
   }

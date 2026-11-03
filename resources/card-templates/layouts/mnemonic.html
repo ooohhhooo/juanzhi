@@ -1,15 +1,15 @@
 <style>
-.m-tag{font-size:1em;font-weight:800;color:var(--title-on);letter-spacing:.13em;font-family:var(--font-title)}
-.m-title{font-size:2.4em;font-weight:900;color:var(--title-ink);margin-top:.05em;line-height:1.15;font-family:var(--font-title)}
-.m-lines{background:var(--accent-soft);border-radius:.9em;padding:.8em 1em;display:flex;flex-direction:column;gap:.35em}
-.m-line{font-size:1.5em;font-weight:800;text-align:center;line-height:1.35}
-.m-line em{font-style:normal;color:var(--accent);background:var(--accent-soft2);border-radius:.3em;padding:0 .12em}
-.m-ex{margin-top:.9em;display:flex;flex-direction:column;gap:.55em}
-.m-row{display:flex;gap:.6em;align-items:flex-start;font-size:1.1em}
-.m-label{flex:none;background:var(--accent);color:#fff;border-radius:.9em;padding:.05em .7em;font-size:.85em;font-weight:800;margin-top:.1em}
-.m-text{flex:1;font-weight:600}
+.m-head{text-align:center;margin-bottom:10px}
+.m-title{font-size:58px;color:#2B2A3D;line-height:1.1;margin-top:6px}
+.m-lines{font-size:42px;line-height:1.55;font-weight:800;text-align:center;margin:8px 0 6px}
+.m-lines em{font-style:normal;color:var(--accent);background:linear-gradient(transparent 58%,var(--hl) 58%);padding:0 4px}
+.m-sep{border-top:3px dashed var(--accent-soft);margin:12px 0 10px}
+.m-row{display:flex;gap:14px;align-items:center;margin:8px 0}
+.m-label{flex:none;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:22px;font-weight:800;padding:3px 14px}
+.m-text{font-size:30px;font-weight:600}
 </style>
-<zone name="title"><div class="m-tag">{{#if tag}}{{tag}}{{else}}口诀小卡{{/if}}</div><div class="m-title">{{title}}</div></zone>
-<zone name="panel"><div class="m-lines">{{#each lines}}<div class="m-line">{{{html}}}</div>{{/each}}</div>
-<div class="m-ex">{{#each examples}}<div class="m-row"><span class="m-label">{{label}}</span><span class="m-text latin">{{text}}</span></div>{{/each}}</div></zone>
-<zone name="foot"><span>{{#if signature}}{{signature}}{{/if}}{{#if date}}{{#if signature}} · {{/if}}{{date}}{{/if}}</span></zone>
+<zone name="content"><div class="m-head"><span class="chip">{{#if tag}}{{tag}}{{else}}背口诀{{/if}}</span><div class="sm m-title">{{title}}</div></div>
+<div class="m-lines">{{#each lines}}<div>{{{html}}}</div>{{/each}}</div>
+<div class="m-sep"></div>
+{{#each examples}}<div class="m-row"><span class="m-label">{{label}}</span><span class="m-text en">{{text}}</span></div>{{/each}}
+{{#if foot}}<div class="foot">{{foot}}</div>{{/if}}</zone>

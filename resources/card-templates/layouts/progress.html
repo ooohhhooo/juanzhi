@@ -1,19 +1,17 @@
 <style>
-.g-tag{font-size:.93em;font-weight:700;color:var(--title-on);letter-spacing:.2em}
-.g-title{font-size:2.13em;font-weight:800;color:var(--title-ink);margin-top:.15em;font-family:var(--font-title)}
-.g-sub{font-size:.93em;color:var(--title-sub);margin-top:.15em}
-.g-item{margin-bottom:.8em}
-.g-name{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;font-size:1.05em;margin-bottom:.25em}
-.g-name span{font-size:.9em;color:var(--muted)}.g-name span b{color:var(--accent)}
-.g-bar{height:.6em;border-radius:.3em;background:#00000012;position:relative;margin-bottom:.22em}
-.g-bar i{display:block;height:100%;border-radius:.3em}
-.g-bar.from i{background:#00000030}.g-bar.to i{background:var(--accent)}
-.g-sum{background:var(--accent-soft);border-radius:.55em;padding:.6em .75em;margin-top:.5em;font-size:.97em;line-height:1.6;color:#3A3950}
-.g-next{margin-top:.6em;font-size:.93em;line-height:1.55;color:#3A3950}.g-next b{color:var(--accent)}
+.l-hi{font-size:44px;color:#5A3A26;margin-bottom:8px}
+.l-sub{font-size:22px;color:#8A7F6E;margin-bottom:10px}
+.l-p{font-size:30px;line-height:1.8;color:#4A3A30}
+.l-bars{margin:14px 0;display:grid;gap:12px}
+.l-bar .n{display:flex;justify-content:space-between;font-size:24px;color:#6A5A4A}
+.l-bar .n b{color:var(--accent)}
+.l-track{height:16px;border-radius:8px;background:#0000000f;margin-top:6px;position:relative}
+.l-track i{position:absolute;left:0;top:0;bottom:0;border-radius:8px}
+.l-track .f{background:#00000026}.l-track .t{background:var(--accent);opacity:.8}
+.l-sign{text-align:right;font-size:30px;color:#7A5A44;margin-top:12px;line-height:1.4}
 </style>
-<zone name="title"><div class="g-tag">阶段进步</div><div class="g-title">{{#if student}}{{student}}的{{else}}孩子的{{/if}}进步报告</div>{{#if grade}}<div class="g-sub">{{grade}}{{#if period}} · {{period}}{{/if}}</div>{{else}}{{#if period}}<div class="g-sub">{{period}}</div>{{/if}}{{/if}}</zone>
-<zone name="panel">{{#each items}}<div class="g-item"><div class="g-name">{{name}}<span>{{from}} → <b>{{to}}</b></span></div>
-<div class="g-bar from"><i style="width:{{fromPct}}%"></i></div><div class="g-bar to"><i style="width:{{toPct}}%"></i></div></div>{{/each}}
-<div class="g-sum">{{summary}}</div>
-{{#if next}}<div class="g-next"><b>下阶段预告：</b>{{next}}</div>{{/if}}</zone>
-<zone name="foot"><span>{{#if teacher}}{{teacher}}{{/if}}{{#if date}}{{#if teacher}} · {{/if}}{{date}}{{/if}}</span></zone>
+<zone name="content"><div class="wk l-hi">{{#if student}}{{student}}家长，您好：{{else}}家长您好：{{/if}}</div>{{#if sub}}<div class="l-sub">{{sub}}</div>{{/if}}
+<div class="wk l-p">{{summary}}</div>
+<div class="l-bars">{{#each items}}<div class="l-bar"><div class="n"><span>{{name}}</span><b>{{from}} → {{to}}</b></div><div class="l-track"><i class="f" style="width:{{fromPct}}%"></i><i class="t" style="width:{{toPct}}%"></i></div></div>{{/each}}</div>
+{{#if next}}<div class="wk l-p">{{next}}</div>{{/if}}
+{{#if foot}}<div class="wk l-sign">{{foot}}</div>{{/if}}</zone>

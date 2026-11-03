@@ -1,16 +1,18 @@
-/* 所有版式共用的基础样式。颜色、字体、缩放都来自变量：
-   --accent 主色  --accent-soft/--accent-soft2 主色淡底  --ink 正文色  --muted 次要文字
-   --title-ink 标题色  --title-on 标题小标色  --title-sub 标题副文字色  --foot-ink 底部文字色
-   --font-title / --font-body / --font-latin 字体栈（见 manifest.json 的 fonts）
-   --s 整体缩放（渲染器按内容多少自动调，1 = 原始大小） */
+/* 所有版式共用的基础样式。颜色、字体、缩放都来自变量（manifest.json 里按模板设置）：
+   --accent 主色  --accent2 辅色  --hl 荧光笔底色（辅色半透明）  --paper 纸色  --ink 正文色  --muted 次要文字
+   --font-title 标题（得意黑）  --font-hand 手写体（霞鹜文楷）  --font-serif 数字衬线  --font-body / --font-latin 正文和英文
+   --s 整体缩放（渲染器按内容多少自动调，1 = 原始大小，不低于 0.8）
+   版式里的尺寸写成 1086×1448 画布上的像素，整体缩放用 zoom 完成。 */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:1086px;height:1448px;overflow:hidden}
 body{position:relative;font-family:var(--font-body);color:var(--ink)}
 .bg{position:absolute;left:0;top:0;width:1086px;height:1448px}
-.z{position:absolute;display:flex;flex-direction:column;overflow:hidden}
-.z.title{align-items:center;justify-content:center;text-align:center;font-size:calc(var(--s)*30px)}
-.z.panel{font-size:calc(var(--s)*30px);line-height:1.45}
-.z.foot{align-items:center;justify-content:center;font-size:calc(var(--s)*28px);font-weight:600;color:var(--foot-ink);text-align:center}
-.z>*{flex-shrink:0}
-.latin{font-family:var(--font-latin)}
+.z{position:absolute;overflow:hidden}
+.fit{zoom:var(--s)}
+.en{font-family:var(--font-latin)}
+.sm{font-family:var(--font-title);font-weight:400}
+.wk{font-family:var(--font-hand)}
+.chip{display:inline-block;border-radius:999px;padding:5px 20px;font-size:26px;font-weight:800;letter-spacing:2px;background:var(--accent);color:#fff}
+.hl{background:linear-gradient(transparent 58%,var(--hl) 58%);padding:0 4px;font-style:normal}
 b{font-weight:800}
+.foot{margin-top:14px;text-align:right;font-size:24px;color:var(--muted)}

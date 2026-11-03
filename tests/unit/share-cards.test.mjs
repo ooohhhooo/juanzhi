@@ -22,14 +22,23 @@ for (const t of mf.templates) {
   const p = templateImagePath(t)
   assert.ok(fs.existsSync(p), `${t.id} 底图存在`)
   assert.match(t.file, /\.jpg$/)
-  assert.ok(fs.statSync(p).size < 450 * 1024, `${t.id} 体积 ${fs.statSync(p).size}`)
+  assert.ok(fs.statSync(p).size < 400 * 1024, `${t.id} 体积 ${fs.statSync(p).size}`)
   assert.equal(fs.readFileSync(p).subarray(0, 2).toString('hex'), 'ffd8', `${t.id} 是 JPEG`)
-  for (const z of [t.panel, t.title, t.foot]) { assert.equal(z.length, 4); assert.ok(z[0] >= 0 && z[2] <= 1 && z[1] >= 0 && z[3] <= 1 && z[0] < z[2] && z[1] < z[3]) }
+  for (const z of [t.paper, t.content]) { assert.equal(z.length, 4); assert.ok(z[0] >= 0 && z[2] <= 1 && z[1] >= 0 && z[3] <= 1 && z[0] < z[2] && z[1] < z[3]) }
   assert.match(t.style.accent, /^#[0-9a-fA-F]{6}$/)
 }
 assert.equal(new Set(mf.templates.map(t => t.id)).size, 20)
-for (const k of ALL_KINDS) { const l = loadLayout(k); assert.ok(l.zones.title && l.zones.panel && l.zones.foot, `${k} 版式有三个区域`) }
+for (const k of ALL_KINDS) { const l = loadLayout(k); assert.ok(l.content.length > 50, `${k} 版式有内容区`) }
 assert.ok(fs.existsSync(path.resolve('resources/card-templates/layouts/base.css')))
+// 字体：manifest 登记的文件都在，许可文件在；学生卡内嵌得意黑、家长卡内嵌霞鹜文楷；体积合理
+assert.equal(mf.fonts.files.length, 2)
+let fontBytes = 0
+for (const f of mf.fonts.files) { const p = path.resolve('resources/card-templates/fonts', f.file); assert.ok(fs.existsSync(p), f.file); fontBytes += fs.statSync(p).size }
+assert.ok(fontBytes < 4 * 1024 * 1024, '字体合计 ≤ 4MB：' + fontBytes)
+for (const n of ['OFL-SmileySans.txt', 'OFL-LXGWWenKai.txt']) assert.match(fs.readFileSync(path.resolve('resources/card-templates/fonts', n), 'utf8'), /SIL OPEN FONT LICENSE Version 1.1/)
+assert.equal(mf.fonts.files.filter(f => f.audiences?.includes('student')).map(f => f.family).join(), 'Smiley')
+assert.equal(mf.fonts.files.filter(f => f.audiences?.includes('parent')).map(f => f.family).join(), 'WenKai')
+assert.deepEqual(listTemplates('student').map(t => t.id).slice(0, 2), ['stu-a', 'stu-a02']); assert.deepEqual(listTemplates('parent').map(t => t.id).slice(0, 2), ['par-e', 'par-e02'])
 
 // ── schema：长度上限截断并提示；数量不够报错 ──
 const longKnowledge = { title: '一二三四五六七八九十一二三四五六七八九十', hook: '引导', items: [{ left: 'go', right: 'went' }, { left: 'see', right: 'saw' }], example: { en: 'I went.', zh: '我去了。' } }
@@ -85,17 +94,17 @@ assert.equal(w1.student, '小雨'); assert.equal(w1.good, '小雨上课很专注
 const w2 = applyNamePolicy({ student: '张小雨', good: '张小雨上课很专注，小雨很棒', tips: '请和小雨一起读' }, 'none')
 assert.equal(w2.student, ''); assert.equal(w2.good, '孩子上课很专注，孩子很棒'); assert.equal(w2.tips, '请和孩子一起读')
 const ph = buildCardPage(listTemplates('parent')[0], 'weekly', prepareData('weekly', parseCardContent('weekly', { ...weekly, student: undefined }).data), 1)
-assert.ok(ph.includes('孩子的本周学习情况'))
+assert.ok(ph.includes('孩子这一周'))
 
 // ── 设置：默认模板、孩子称呼 ──
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-cards-'))
-assert.deepEqual(readCardSettings(dataDir), { defaults: { student: 's01', parent: 'p01' }, childName: 'first' })
-assert.throws(() => writeCardSettings(dataDir, { defaults: { student: 'p01' } }))
-writeCardSettings(dataDir, { defaults: { student: 's05' } }); writeCardSettings(dataDir, { childName: 'none' })
-assert.deepEqual(readCardSettings(dataDir), { defaults: { student: 's05', parent: 'p01' }, childName: 'none' })
+assert.deepEqual(readCardSettings(dataDir), { defaults: { student: 'stu-a', parent: 'par-e' }, childName: 'first' })
+assert.throws(() => writeCardSettings(dataDir, { defaults: { student: 'par-e' } }))
+writeCardSettings(dataDir, { defaults: { student: 'stu-a05' } }); writeCardSettings(dataDir, { childName: 'none' })
+assert.deepEqual(readCardSettings(dataDir), { defaults: { student: 'stu-a05', parent: 'par-e' }, childName: 'none' })
 fs.writeFileSync(path.join(dataDir, 'share-cards.json'), '{坏')
-assert.equal(readCardSettings(dataDir).defaults.student, 's01', '坏文件退回默认')
-writeCardSettings(dataDir, { defaults: { student: 's05' }, childName: 'first' })
+assert.equal(readCardSettings(dataDir).defaults.student, 'stu-a', '坏文件退回默认')
+writeCardSettings(dataDir, { defaults: { student: 'stu-a05' }, childName: 'first' })
 
 // ── 出图流程（假渲染）：用默认模板、存成图片产出、文件在 exports 里能发企业微信 ──
 const used = []
@@ -103,9 +112,9 @@ setCardRenderer(async (t, kind, data) => { used.push({ id: t.id, kind, data }); 
 const ctx = { sessionId: 'sess_c', dataDir }
 const m1 = await cardMake.run({ audience: 'student', kind: 'knowledge', content: longKnowledge }, ctx)
 assert.match(m1.message, /卡片已做好/); assert.match(m1.message, /截断/)
-assert.equal(used[0].id, 's05', '不给 templateId 用设置里的默认')
-const m2 = await cardMake.run({ audience: 'parent', kind: 'weekly', templateId: 'p03', content: weekly }, ctx)
-assert.equal(used[1].id, 'p03'); assert.equal(used[1].data.student, '小雨')
+assert.equal(used[0].id, 'stu-a05', '不给 templateId 用设置里的默认')
+const m2 = await cardMake.run({ audience: 'parent', kind: 'weekly', templateId: 'par-e03', content: weekly }, ctx)
+assert.equal(used[1].id, 'par-e03'); assert.equal(used[1].data.student, '小雨')
 const list = S.listOutputs({ dataDir, sessionId: 'sess_c' })
 assert.deepEqual(list.map(e => [e.id, e.type, e.status]), [['i1', 'image', 'done'], ['i2', 'image', 'done']])
 assert.equal(S.readContent({ dataDir, sessionId: 'sess_c' }, 'i1').type, 'image')
@@ -116,7 +125,7 @@ assert.equal(checkSendAllowed(p1, ctx, {}), null, '卡片图在会话 exports �
 await assert.rejects(() => cardMake.run({ audience: 'parent', kind: 'weekly', content: { ...weekly, tips: '加我 13812345678' } }, ctx), /手机号/)
 await assert.rejects(() => cardMake.run({ audience: 'parent', kind: 'weekly', content: { ...weekly, good: '全班第 2 名' } }, ctx), /排名/)
 await assert.rejects(() => cardMake.run({ audience: 'student', kind: 'weekly', content: weekly }, ctx), /对不上/)
-await assert.rejects(() => cardMake.run({ audience: 'student', kind: 'knowledge', templateId: 'p01', content: longKnowledge }, ctx), /家长用的/)
+await assert.rejects(() => cardMake.run({ audience: 'student', kind: 'knowledge', templateId: 'par-e', content: longKnowledge }, ctx), /家长用的/)
 await assert.rejects(() => cardMake.run({ audience: 'student', kind: 'knowledge', templateId: 'zz', content: longKnowledge }, ctx), /没有编号/)
 assert.equal(S.listOutputs({ dataDir, sessionId: 'sess_c' }).length, 2, '被拒的不生成产出')
 // 孩子称呼设为不写名字
@@ -125,7 +134,7 @@ await makeCard({ dataDir, sessionId: 'sess_c' }, { audience: 'parent', kind: 'we
 assert.equal(used[used.length - 1].data.student, '')
 // 模板列表工具
 const lst = await cardTemplates.run({ audience: 'student' }, ctx)
-assert.equal(lst.message.split('\n').length, 10); assert.ok(lst.message.includes('s05｜') && /s05｜[^\n]*｜默认/.test(lst.message))
+assert.equal(lst.message.split('\n').length, 10); assert.ok(lst.message.includes('stu-a05｜') && /stu-a05｜[^\n]*｜默认/.test(lst.message))
 assert.deepEqual(CARD_TOOLS.map(t => [t.name, t.level]), [['card_templates', 'read'], ['card_make', 'draft']])
 assert.match(cardMake.description, /手机号/); assert.match(cardMake.description, /排名/)
 setCardRenderer(null)
