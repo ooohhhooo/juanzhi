@@ -125,7 +125,7 @@ export interface TestDraft {
 async function testOne(kind: TestKind, draft: TestDraft | undefined): Promise<TestResult> {
   const saved = loadConfig()
   const cfg = { ...saved, ...(draft?.cfg ?? {}) }
-  const model = kind === 'vision' ? cfg.vision_model.trim() : kind === 'parse' ? parseModelOf(cfg) : cfg.model.trim()
+  const model = kind === 'vision' ? cfg.vision_model.trim() : kind === 'parse' ? parseModelOf(cfg) : cfg.model.trim() // 与 cost.ts 的 modelForKind 同一选择逻辑
   const t0 = Date.now()
   const done = (status: TestStatus, message: string, extra: Partial<TestResult> = {}): TestResult => ({ ok: status === 'ok' || status === 'warn', status, kind, message, latencyMs: Date.now() - t0, model, ...extra })
   const draftKey = draft?.apiKey?.trim()

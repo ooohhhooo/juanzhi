@@ -16,6 +16,10 @@ async function main() {
   seed(ud, { bboxes: {}, pageImage: pageImg, pageSize: { width: 1224, height: 1584 } })
   // 预置一条历史调用：课程匹配 输入 2.4 万 / 输出 1 万
   writeDb(ud, d => d.prepare("INSERT INTO ai_usage (paper_id, kind, model, prompt_tokens, completion_tokens, cached_tokens, ok) VALUES (NULL, 'course-match', 'm', 24000, 10000, 0, 1)").run())
+  // 再一条：主模型的报告调用，输入 10 万（其中缓存命中 2 万）/ 输出 5 万
+  writeDb(ud, d => d.prepare("INSERT INTO ai_usage (paper_id, kind, model, prompt_tokens, completion_tokens, cached_tokens, ok) VALUES (NULL, 'p3_report', 'mock-text-model', 100000, 50000, 20000, 1)").run())
+  // 旧版单组价格（输入 2 / 输出 8）：升级后应自动成为当前主模型的价格
+  writeDb(ud, d => d.prepare("INSERT OR REPLACE INTO settings (key, value_json) VALUES ('ai_prices', ?)").run(JSON.stringify({ inPer1M: 2, outPer1M: 8 })))
   await open(ud)
   await saveCfg(cfgFor(mock, { auto_parse: false }), SECRET)
 
@@ -35,17 +39,26 @@ async function main() {
   await T('ai-balance-refresh').click()
   check('余额', '查不到时显示「不支持在软件里查余额」', await waitFor(async () => /不支持在软件里查余额/.test(await txt('ai-balance-msg')), 8000))
 
-  // ── 2. 价格与本月用量 ──
-  check('用量', '本月用量里有「课程匹配」1 次，没填价格时提示可填价格换算', await waitFor(async () => /课程匹配/.test(await txt('ai-usage-month')) && /填写上面的价格/.test(await txt('ai-usage-month')), 8000))
-  await T('ai-price-in').fill('2'); await T('ai-price-out').fill('8')
+  // ── 2. 价格（按模型）与本月用量 ──
+  const pr0 = await ctx.page.evaluate(() => window.api.ai.getPrices())
+  const pm = pr0.models.find(m => m.model === 'mock-text-model')
+  check('价格', '旧版单组价格自动迁移成当前主模型的价格；未配置价格的模型为空', !!pm && pm.inPer1M === 2 && pm.outPer1M === 8 && pr0.models.find(m => m.model === 'm').inPer1M === null && pr0.models.find(m => m.model === 'm').other === true, JSON.stringify(pr0))
+  await ctx.page.reload(); await T('ai-settings').waitFor()
+  check('用量', '本月用量按任务 + 模型分行；没填价格的模型显示「未填价格」，合计注明不含', await waitFor(async () => { const t = await txt('ai-usage-month'); return /课程匹配/.test(t) && /报告（完整数据版）/.test(t) && /未填价格/.test(t) && /不含未填价格的模型/.test(t) }, 8000), await txt('ai-usage-month'))
+  check('用量', '迁移价格的主模型报告行：8 万×2 + 2 万×2 + 5 万×8 = ¥0.60（缓存价没填按输入价）', /¥0\.60/.test(await txt('ai-usage-month')), await txt('ai-usage-month'))
+  await T('ai-price-in-m').fill('2'); await T('ai-price-out-m').fill('8')
+  await T('ai-price-in-mock-text-model').fill('1'); await T('ai-price-out-mock-text-model').fill('4'); await T('ai-price-cached-mock-text-model').fill('0.1')
   await T('ai-price-save').click()
-  check('价格', '保存价格后，本月用量多出「约合」一列（2.4 万×2 + 1 万×8 = ¥0.13）', await waitFor(async () => /约合/.test(await txt('ai-usage-month')) && /¥0\.13/.test(await txt('ai-usage-month')), 8000), await txt('ai-usage-month'))
+  check('价格', '两个模型各填价格后，本月用量按模型显示金额：m 课程匹配 ¥0.13，主模型报告 ¥0.28（8 万×1 + 2 万×0.1 + 5 万×4），合计 ¥0.41，不再有「不含」注记', await waitFor(async () => { const t = await txt('ai-usage-month'); return /¥0\.13/.test(t) && /¥0\.28/.test(t) && /合计约 ¥0\.41/.test(t) && !/不含未填价格/.test(t) && !/未填价格/.test(t) }, 8000), await txt('ai-usage-month'))
   const pr = await ctx.page.evaluate(() => window.api.ai.getPrices())
-  check('价格', '价格存下来了', pr.inPer1M === 2 && pr.outPer1M === 8)
+  const g = n => pr.models.find(m => m.model === n)
+  check('价格', '价格按模型存下来了（含缓存价）', g('m').inPer1M === 2 && g('m').outPer1M === 8 && g('mock-text-model').inPer1M === 1 && g('mock-text-model').outPer1M === 4 && g('mock-text-model').cachedInPer1M === 0.1, JSON.stringify(pr))
 
-  // ── 3. 费用估算（接口层）：1 次课程匹配 = 历史平均 ──
+  // ── 3. 费用估算（接口层）：课程匹配没有主模型的历史，沿用最近用过的模型 m 的历史平均和价格 ──
   const est = await ctx.page.evaluate(() => window.api.ai.costEstimate({ task: 'course-match', calls: 2, fallbackTokens: 1000 }))
-  check('估算', '有历史时按历史平均估算：2 次 = 4.8 万输入 + 2 万输出', est.fromHistory && est.tokensIn === 48000 && est.tokensOut === 20000 && Math.abs(est.low - 0.256 * 0.8) < 1e-6, JSON.stringify(est))
+  check('估算', '有历史时按历史平均估算：2 次 = 4.8 万输入 + 2 万输出，按模型 m 的价格', est.fromHistory && est.tokensIn === 48000 && est.tokensOut === 20000 && Math.abs(est.low - 0.256 * 0.8) < 1e-6, JSON.stringify(est))
+  const est2 = await ctx.page.evaluate(() => window.api.ai.costEstimate({ task: 'report', calls: 1, fallbackTokens: 0 }))
+  check('估算', '报告走主模型的历史：1 次 = 10 万输入（2 万缓存）+ 5 万输出，约 ¥0.28', est2.fromHistory && est2.tokensIn === 100000 && Math.abs(est2.low - 0.282 * 0.8) < 1e-6, JSON.stringify(est2))
 
   // ── 4. 自定义余额查询优先 ──
   await ctx.page.evaluate(b => window.api.ai.setCustomBalance(b), { url: mock.baseUrl + '/dashboard/billing/subscription', balancePath: 'hard_limit_usd', totalPath: '', unit: '点' })

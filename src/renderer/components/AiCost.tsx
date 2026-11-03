@@ -6,7 +6,8 @@ import { Btn, UsageNote } from '../design'
 const sym = (c: string) => (c === 'CNY' ? '¥' : c === 'USD' ? '$' : '')
 const yuan = (n: number, c = 'CNY') => `${sym(c)}${Math.abs(n) >= 100 ? n.toFixed(1) : n.toFixed(2)}${sym(c) ? '' : ' ' + c}`
 const wan = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)} 万` : `${Math.max(1, Math.round(n / 100) * 100)}`)
-type KindRow = { kind: string; label: string; calls: number; prompt: number; completion: number; money: number | null }
+type KindRow = { kind: string; model: string; label: string; calls: number; prompt: number; completion: number; cached: number; money: number | null }
+type PriceDraft = Record<string, { inP: number | null; outP: number | null; cachedP: number | null }>
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 /** 一行余额：「账户余额：¥12.34（刷新）去充值」；不支持 / 失败时给白话说明 */
@@ -63,28 +64,43 @@ export function AiBalancePanel() {
   const [busy, setBusy] = useState(false)
   const { data: bal } = useQuery({ queryKey: ['aiBalance'], queryFn: () => window.api.ai.balance(), staleTime: 30_000 })
   const { data: prices } = useQuery({ queryKey: ['aiPrices'], queryFn: () => window.api.ai.getPrices(), staleTime: 0 })
-  const [pin, setPin] = useState<number | null>(null)
-  const [pout, setPout] = useState<number | null>(null)
-  useEffect(() => { if (prices) { setPin(prices.inPer1M); setPout(prices.outPer1M) } }, [prices])
+  const [draft, setDraft] = useState<PriceDraft>({})
+  useEffect(() => { if (prices) setDraft(Object.fromEntries(prices.models.map(m => [m.model, { inP: m.inPer1M, outP: m.outPer1M, cachedP: m.cachedInPer1M }]))) }, [prices])
+  const setField = (model: string, k: 'inP' | 'outP' | 'cachedP', v: number | null) => setDraft(d => ({ ...d, [model]: { ...(d[model] ?? { inP: null, outP: null, cachedP: null }), [k]: v } }))
   const refresh = async () => {
     setBusy(true)
     try { qc.setQueryData(['aiBalance'], await window.api.ai.balance(true)) } catch (e) { message.error(clean(e)) } finally { setBusy(false) }
   }
   const savePrices = async () => {
-    try { await window.api.ai.setPrices({ inPer1M: pin, outPer1M: pout }); qc.invalidateQueries({ queryKey: ['aiPrices'] }); qc.invalidateQueries({ queryKey: ['aiCost'] }); qc.invalidateQueries({ queryKey: ['usageByKind'] }); message.success('价格已保存') } catch (e) { message.error(clean(e)) }
+    try {
+      await window.api.ai.setPrices(Object.entries(draft).map(([model, d]) => ({ model, inPer1M: d.inP, outPer1M: d.outP, cachedInPer1M: d.cachedP })))
+      qc.invalidateQueries({ queryKey: ['aiPrices'] }); qc.invalidateQueries({ queryKey: ['aiCost'] }); qc.invalidateQueries({ queryKey: ['usageByKind'] }); message.success('价格已保存')
+    } catch (e) { message.error(clean(e)) }
   }
   return (
     <div style={{ marginTop: 12 }} data-testid="ai-balance-panel">
       {bal && <BalanceRow label="账户余额" r={bal.text} which="text" onRefresh={refresh} busy={busy} />}
       {bal?.vision && <BalanceRow label="视觉模型账户余额" r={bal.vision} which="vision" onRefresh={refresh} busy={busy} />}
       {bal && <p className="ewb-rep-note" style={{ margin: '4px 0 0' }}>服务商：{bal.providerName || '未识别'}</p>}
-      <div className="ewb-rep-row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <b>价格（元 / 百万 token）</b>
-        <span>输入</span><InputNumber size="small" min={0} max={100000} step={0.1} value={pin} onChange={v => setPin(v === null ? null : Number(v))} data-testid="ai-price-in" style={{ width: 90 }} />
-        <span>输出</span><InputNumber size="small" min={0} max={100000} step={0.1} value={pout} onChange={v => setPout(v === null ? null : Number(v))} data-testid="ai-price-out" style={{ width: 90 }} />
-        <Btn tone="secondary" size="small" data-testid="ai-price-save" onClick={savePrices}>保存价格</Btn>
+      <div style={{ marginTop: 10 }} data-testid="ai-prices">
+        <b>价格（元 / 百万 token，按模型分别填）</b>
+        {(prices?.models ?? []).map(m => {
+          const d = draft[m.model] ?? { inP: null, outP: null, cachedP: null }
+          const num = (k: 'inP' | 'outP' | 'cachedP', tid: string, w: number) => <InputNumber size="small" min={0} max={100000} step={0.1} value={d[k]} onChange={v => setField(m.model, k, v === null ? null : Number(v))} data-testid={`${tid}-${m.model}`} style={{ width: w }} />
+          return (
+            <div key={m.model} className="ewb-rep-row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }} data-testid={`ai-price-row-${m.model}`}>
+              <span className="ewb-set-mono" style={{ minWidth: 150 }}>{m.model}</span>
+              <span className="ewb-rep-note">{m.other ? '本月用过' : m.roles.join('、')}</span>
+              <span>输入</span>{num('inP', 'ai-price-in', 80)}
+              <span>输出</span>{num('outP', 'ai-price-out', 80)}
+              <span>缓存命中输入（可选）</span>{num('cachedP', 'ai-price-cached', 80)}
+              {(d.inP === null || d.outP === null) && <span className="ewb-rep-note" data-testid={`ai-price-missing-${m.model}`}>未填价格</span>}
+            </div>
+          )
+        })}
+        <div style={{ marginTop: 6 }}><Btn tone="secondary" size="small" data-testid="ai-price-save" onClick={savePrices}>保存价格</Btn></div>
       </div>
-      <p className="ewb-rep-note" style={{ margin: '4px 0 0' }}>按服务商控制台上的价格填写，填了才能把 token 换算成金额；留空则只显示 token。</p>
+      <p className="ewb-rep-note" style={{ margin: '4px 0 0' }}>按服务商控制台上的价格填写，填了才能把 token 换算成金额；没填价格的模型只显示 token。缓存价没填就按输入价算。</p>
       <CustomBalanceForm onSaved={() => { qc.invalidateQueries({ queryKey: ['aiCustomBalance'] }); void refresh() }} />
     </div>
   )
@@ -92,21 +108,26 @@ export function AiBalancePanel() {
 
 /** 设置 → AI 服务：本月用量（按任务类型）和上次实际花费 */
 export function AiUsageByKind() {
-  const { data: rows = [] } = useQuery({ queryKey: ['usageByKind'], queryFn: () => window.api.ai.usageByKind(), staleTime: 0 })
+  const { data } = useQuery({ queryKey: ['usageByKind'], queryFn: () => window.api.ai.usageByKind(), staleTime: 0 })
   const { data: last = [] } = useQuery({ queryKey: ['aiLastSpend'], queryFn: () => window.api.ai.lastSpend(), staleTime: 0 })
-  const { data: prices } = useQuery({ queryKey: ['aiPrices'], queryFn: () => window.api.ai.getPrices(), staleTime: 0 })
-  const priced = !!prices && prices.inPer1M !== null && prices.outPer1M !== null
+  const rows = data?.rows ?? []
   if (!rows.length && !last.length) return null
+  const anyPriced = rows.some(r => r.money !== null)
   return (
     <div style={{ marginTop: 12 }} data-testid="ai-usage-month">
       <b>本月用量</b>
-      <Table<KindRow> size="small" pagination={false} rowKey="kind" dataSource={rows} style={{ marginTop: 6 }} columns={[
+      <Table<KindRow> size="small" pagination={false} rowKey={r => `${r.kind}|${r.model}`} dataSource={rows} style={{ marginTop: 6 }} columns={[
         { title: '任务', dataIndex: 'label' },
-        { title: '调用次数', dataIndex: 'calls', width: 90 },
-        { title: 'token（输入 + 输出）', width: 190, render: (_: unknown, r: KindRow) => `${wan(r.prompt)} + ${wan(r.completion)}` },
-        ...(priced ? [{ title: '约合', width: 90, render: (_: unknown, r: KindRow) => (r.money === null ? '-' : yuan(r.money)) }] : [])
+        { title: '模型', dataIndex: 'model', width: 150, render: (m: string) => <span className="ewb-set-mono">{m || '-'}</span> },
+        { title: '调用次数', dataIndex: 'calls', width: 80 },
+        { title: 'token（输入 + 输出）', width: 170, render: (_: unknown, r: KindRow) => `${wan(r.prompt)} + ${wan(r.completion)}` },
+        { title: '约合', width: 90, render: (_: unknown, r: KindRow) => (r.money === null ? <span className="ewb-rep-note">未填价格</span> : yuan(r.money)) }
       ]} />
-      {!priced && rows.length > 0 && <p className="ewb-rep-note" style={{ margin: '4px 0 0' }}>填写上面的价格，就能换算成金额。</p>}
+      {rows.length > 0 && (
+        <p className="ewb-rep-note" style={{ margin: '4px 0 0' }} data-testid="ai-usage-total">
+          {anyPriced ? `本月合计约 ${yuan(data!.total)}` : '填写上面的价格，就能换算成金额。'}{anyPriced && data!.unpriced ? '（不含未填价格的模型）' : ''}
+        </p>
+      )}
       {last.length > 0 && <p className="ewb-rep-note" style={{ margin: '4px 0 0' }} data-testid="ai-last-spend">{last.map(l => `上次${l.label}实际花费约 ${yuan(l.amount, l.currency)}`).join('；')}（按前后余额之差，仅供参考；期间其他 AI 调用也会计入）</p>}
     </div>
   )

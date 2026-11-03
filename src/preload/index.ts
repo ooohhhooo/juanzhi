@@ -83,10 +83,10 @@ const api = {
     setCustomBalance: (c: { url: string; balancePath: string; totalPath: string; unit: string }): Promise<any> => ipcRenderer.invoke('ai:setCustomBalance', c),
     diagnose: (a: { message?: string; task?: string }): Promise<any> => ipcRenderer.invoke('ai:diagnose', a),
     getPrices: (): Promise<any> => ipcRenderer.invoke('ai:getPrices'),
-    setPrices: (p: { inPer1M: number | null; outPer1M: number | null }): Promise<any> => ipcRenderer.invoke('ai:setPrices', p),
+    setPrices: (p: Array<{ model: string; inPer1M: number | null; outPer1M: number | null; cachedInPer1M: number | null }>): Promise<any> => ipcRenderer.invoke('ai:setPrices', p),
     costEstimate: (a: { task: string; calls: number; fallbackTokens?: number }): Promise<any> => ipcRenderer.invoke('ai:costEstimate', a),
     lastSpend: (): Promise<any[]> => ipcRenderer.invoke('ai:lastSpend'),
-    usageByKind: (): Promise<any[]> => ipcRenderer.invoke('ai:usageByKind'),
+    usageByKind: (): Promise<any> => ipcRenderer.invoke('ai:usageByKind'),
   },
   stats: {
     overview: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('stats:overview', filter),

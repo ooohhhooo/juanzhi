@@ -49,11 +49,11 @@ interface ElectronAPI {
     getCustomBalance(): Promise<AiCustomBalance>
     setCustomBalance(c: AiCustomBalance): Promise<AiCustomBalance>
     diagnose(a: { message?: string; task?: string }): Promise<AiDiagnosis>
-    getPrices(): Promise<AiPrices>
-    setPrices(p: AiPrices): Promise<AiPrices>
+    getPrices(): Promise<{ models: AiModelPrice[] }>
+    setPrices(p: Array<Omit<AiModelPrice, 'roles' | 'other'>>): Promise<boolean>
     costEstimate(a: { task: 'course-match' | 'course-organize' | 'report'; calls: number; fallbackTokens?: number }): Promise<AiCostEstimate>
     lastSpend(): Promise<Array<{ task: string; label: string; amount: number; currency: string; at: string }>>
-    usageByKind(): Promise<Array<{ kind: string; label: string; calls: number; prompt: number; completion: number; money: number | null }>>
+    usageByKind(): Promise<{ rows: Array<{ kind: string; model: string; label: string; calls: number; prompt: number; completion: number; cached: number; money: number | null }>; total: number; unpriced: boolean }>
     compareAnalysis(scope: CompareScope): Promise<AnalysisState>
     analyzeCompare(scope: CompareScope, requestId: string): Promise<AnalysisResult>
     /** 看板抽屉里「只讲这一个考点」的 AI 分析：kpAnalysis 只读状态（不花钱），analyzeKp 流式生成（ai:chunk，ai.cancel 取消） */
@@ -428,7 +428,7 @@ interface PromptView {
 
 interface AiCustomBalance { url: string; balancePath: string; totalPath: string; unit: string }
 interface AiDiagnosis { cause: string; reasons: Array<{ text: string; fix: string }>; raw: string; balanceRelated: boolean }
-interface AiPrices { inPer1M: number | null; outPer1M: number | null }
+interface AiModelPrice { model: string; roles: string[]; other: boolean; inPer1M: number | null; outPer1M: number | null; cachedInPer1M: number | null }
 type AiBalance =
   | { status: 'ok'; providerName: string; amount: number | null; currency: string; unlimited?: boolean; text: string; note?: string; available: boolean; consoleUrl: string | null }
   | { status: 'unsupported' | 'error'; providerName: string; consoleUrl: string | null; message: string }
