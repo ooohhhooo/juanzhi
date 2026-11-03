@@ -99,6 +99,10 @@ const api = {
     filterOptions: (filter?: Record<string, unknown>): Promise<any> => (filter === undefined ? ipcRenderer.invoke('stats:filterOptions') : ipcRenderer.invoke('stats:filterOptions', filter)),
     exportMatrix: (filter: Record<string, unknown> | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('stats:exportMatrix', filter, level),
   },
+  analysisReport: {
+    export: (spec: unknown, format: 'xlsx' | 'html' | 'docx'): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('analysisReport:export', spec, format),
+    exportTable: (columns: unknown[], rows: unknown[], sheetName?: string): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('analysisReport:exportTable', columns, rows, sheetName)
+  },
   report: {
     list: (): Promise<any[]> => ipcRenderer.invoke('report:list'),
     get: (id: string): Promise<any> => ipcRenderer.invoke('report:get', id),

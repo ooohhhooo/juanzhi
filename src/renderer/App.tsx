@@ -27,6 +27,7 @@ import GlobalNotices from './components/GlobalNotices'
 // 设计预览（隐藏路由 /design、/design/overview）：只在开发模式（或 VITE_EWB_DESIGN=1 的预览构建）里存在。
 // 生产构建里这个条件是常量 false，路由、样板页和样张图片（design/assets/*.png）都不会进入 out/ 和安装包。
 const SHOW_DESIGN = import.meta.env.DEV || import.meta.env.VITE_EWB_DESIGN === '1'
+const AnalysisDemo = SHOW_DESIGN ? lazy(() => import('./analysis/AnalysisDemo')) : null   // 分析看板演示路由 /analysis-demo（仅开发与 e2e）
 const DesignRoutes = SHOW_DESIGN ? lazy(() => import('./design/DesignRoutes')) : null
 
 const queryClient = new QueryClient({
@@ -114,6 +115,7 @@ export default function App() {
             <GlobalNotices />
             <Routes>
               {DesignRoutes && <Route path="/design/*" element={<Suspense fallback={null}><DesignRoutes /></Suspense>} />}
+              {AnalysisDemo && <Route path="/analysis-demo" element={<Suspense fallback={null}><AnalysisDemo /></Suspense>} />}
               <Route element={<AppLayout />}>
                 <Route path="/" element={<PaperLibrary />} />
                 <Route path="/paper/:id" element={<PaperDetail />} />
