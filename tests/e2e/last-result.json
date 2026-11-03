@@ -1,15 +1,15 @@
 [
   {
     "feature": "迁移",
-    "name": "旧库(user_version=0)启动后升级到最新版本 v10（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10）",
+    "name": "旧库(user_version=0)启动后升级到最新版本 v11（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11）",
     "pass": true,
-    "detail": "user_version=10"
+    "detail": "user_version=11"
   },
   {
     "feature": "迁移",
     "name": "新增列与附件表齐全，旧数据保留",
     "pass": true,
-    "detail": "pages 列=id,paper_id,idx,image_rel,width,height,text_source,lines_json,text,ocr_conf,ocr_error,text_layer_chars"
+    "detail": "pages 列=id,paper_id,idx,image_rel,width,height,text_source,lines_json,text,ocr_conf,ocr_error,text_layer_chars,recognizer,ocr_lang,ocr_ms,rec_reason,quality_json"
   },
   {
     "feature": "迁移",
@@ -27,7 +27,7 @@
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-mMEUcw/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wCuqzw/userData/workbench-data"
   },
   {
     "feature": "CSP",
@@ -147,7 +147,7 @@
     "feature": "重复导入",
     "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
     "pass": true,
-    "detail": "duplicate_of=19a11d4f"
+    "detail": "duplicate_of=ef5199b8"
   },
   {
     "feature": "失败处理",
@@ -211,9 +211,9 @@
   },
   {
     "feature": "docx",
-    "name": "docx：文本入库且 [图1] 占位在原位，图片落盘并登记到 paper_assets，不造坐标",
+    "name": "docx：文本入库且 [图1] 占位在原位，图片落盘并登记到 paper_assets，页面图已生成、每行带坐标（M9）",
     "pass": true,
-    "detail": "docx 125字 assets=1"
+    "detail": "docx 123字 行=5 assets=1"
   },
   {
     "feature": "协议安全",
@@ -253,9 +253,9 @@
   },
   {
     "feature": "docx",
-    "name": "详情页：文字可见、图片内联且加载成功、无页面缩略图请求（不再破图）、无叠加开关",
+    "name": "详情页：Word 的页面图加载成功、没有破图缩略图",
     "pass": true,
-    "detail": "文字=1 图片ok=true 页图=0 开关=0"
+    "detail": "页面图ok=true 破图=0"
   },
   {
     "feature": "删除",
@@ -291,7 +291,7 @@
     "feature": "OCR 失败原因",
     "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
     "pass": true,
-    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-mMEUcw/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wCuqzw/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
   },
   {
     "feature": "OCR 失败原因",

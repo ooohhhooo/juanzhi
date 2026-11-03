@@ -8,7 +8,7 @@ export default function CoursesPage() {
   return (
     <Page data-testid="courses-page">
       <h1 className="ewb-rep-h1">课程大纲</h1>
-      <p className="ewb-set-lead">上传你自己的课程表（培训机构的课程大纲、学校的教学进度，或孩子在上的课），看板的“课程对照”页就能告诉你：容易出错的考点在哪一课讲，常考的考点哪些课没有覆盖。培训机构、学校、家长都能用。</p>
+      <p className="ewb-set-lead">上传课程表，看板的“课程对照”页就能告诉你：容易出错的考点在哪一课讲，常考的考点哪些课没有覆盖。</p>
       <CourseSettings />
     </Page>
   )

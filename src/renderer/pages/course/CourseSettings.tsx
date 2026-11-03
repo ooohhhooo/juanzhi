@@ -26,7 +26,6 @@ export default function CourseSettings() {
       <Panel title="我的课程大纲" data-testid="course-settings"
         aside={<Btn tone="secondary" size="small" icon={Plus} data-testid="course-add" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>}>
         <p className="ewb-rep-note" style={{ marginBottom: 12 }}>
-          课程大纲就是你自己的课程表（培训机构的课程大纲、学校的教学进度，或孩子在上的课），卷知会告诉你：试卷里容易出错的考点分别在哪一课讲，常考的考点哪些课没有覆盖。
           课程表只存在这台电脑上；整理和匹配时，内容会发给你在“AI 服务”里设置的模型，不会发给卷知开发者。
         </p>
         {cards && cards.length === 0 && (
