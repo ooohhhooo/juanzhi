@@ -198,6 +198,15 @@ interface ElectronAPI {
   ocr: {
     status(): Promise<{ available: boolean; detail: string; lang?: string }>
   }
+  connectors: {
+    types(): Promise<Array<{ id: string; name: string; description: string }>>
+    list(): Promise<ConnectorView[]>
+    save(req: { id?: string; type: string; name: string; config: Record<string, unknown> }): Promise<ConnectorView>
+    remove(id: string): Promise<boolean>
+    test(id: string): Promise<{ ok: boolean; message: string; connectors: ConnectorView[] }>
+    setAllowed(id: string, names: string[]): Promise<ConnectorView>
+    openShimo(): Promise<boolean>
+  }
   cli: {
     status(): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }>
     install(): Promise<{ ok: boolean; platform: string; path: string; dir: string; onPath: boolean; hint: string; warnings: string[] }>
@@ -826,3 +835,5 @@ declare module '*?raw' {
   const content: string
   export default content
 }
+
+interface ConnectorView { id: string; type: string; name: string; summary: string; secretSet: boolean; tools?: Array<{ name: string; description: string }>; allowed?: string[] }

@@ -7,6 +7,7 @@ import AiSettings from './AiSettings'
 import PromptSettings from './PromptSettings'
 import DataSettings from './DataSettings'
 import CliSettings from './CliSettings'
+import ConnectorSettings from './ConnectorSettings'
 import UpdateSettings from './UpdateSettings'
 import TaxonomySettings from './TaxonomySettings'
 import DiagnosticsPanel from '../components/DiagnosticsPanel'
@@ -72,7 +73,7 @@ export default function Settings() {
       <h1 className="ewb-rep-h1">设置</h1>
       <p className="ewb-set-lead">平时用到的就是下面前三组；技术设置都收在最后的「管理员设置」里，一般不用动。</p>
       <nav className="ewb-set-jump" aria-label="跳到">
-        {[['show', '显示与演示'], ['kp', '知识点'], ['about', '关于'], ['admin', '管理员设置']].map(([id, label]) => (
+        {[['show', '显示与演示'], ['kp', '知识点'], ['connectors', '连接器'], ['about', '关于'], ['admin', '管理员设置']].map(([id, label]) => (
           <button key={id} type="button" className="ewb-set-jump__btn" onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
         ))}
       </nav>
@@ -95,6 +96,12 @@ export default function Settings() {
         <h2 className="ewb-set-group">知识点</h2>
         <p className="ewb-set-groupdesc">AI 标题目、看板统计都按这棵树来；老师可以改名，加白话说明和例句。</p>
         <TaxonomySettings />
+      </section>
+
+      <section id="set-connectors" className="ewb-set-section">
+        <h2 className="ewb-set-group">连接器</h2>
+        <p className="ewb-set-groupdesc">把结果发到企业微信群，或放进石墨文档。</p>
+        <ConnectorSettings />
       </section>
 
       <section id="set-about" className="ewb-set-section">
