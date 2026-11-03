@@ -20,7 +20,7 @@ import { installIpcGuards } from './restart'
 import { registerTaxonomyIpc } from './ipc/taxonomy'
 import { registerCliIpc } from './ipc/cli'
 import { registerUpdateIpc } from './ipc/update'
-import { startAutoCheck, sweepStaleStages } from './update/service'
+import { startAutoCheck, sweepStaleStages, checkForUpdate } from './update/service'
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
@@ -190,7 +190,17 @@ if (cliArgs) {
       keepTryingRunLock(app.getPath('userData'), 'gui', rel => { releaseRunLock = rel })
     }
     // macOS：中文应用菜单（关于 / 隐藏 / 退出 都用产品名）；Windows / Linux 沿用默认菜单
-    if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate(buildMacMenuTemplate({ dev: !app.isPackaged }) as Electron.MenuItemConstructorOptions[]))
+    if (process.platform === 'darwin') {
+      // 「检查更新…」：跳到「设置 → 关于」并立刻检查一次（结果显示在那里的「软件更新」一行）
+      const tpl = buildMacMenuTemplate({ dev: !app.isPackaged }) as Electron.MenuItemConstructorOptions[]
+      const item = tpl[0].submenu && (tpl[0].submenu as Electron.MenuItemConstructorOptions[]).find(i => i.id === 'check-update')
+      if (item) item.click = () => {
+        const win = getMainWindow()
+        if (win) { if (win.isMinimized()) win.restore(); win.focus(); win.webContents.send('menu:navigate', '/settings?focus=about') }
+        checkForUpdate({ silent: false }).catch(e => console.warn(`[update] 菜单检查更新失败：${(e as Error).message}`))
+      }
+      Menu.setApplicationMenu(Menu.buildFromTemplate(tpl))
+    }
     registerProtocol()
 
     // 指定的数据目录不可用（比如放在移动硬盘上、没插）：不能悄悄用默认位置建一个空库——让老师选

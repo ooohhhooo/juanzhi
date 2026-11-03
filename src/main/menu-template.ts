@@ -6,13 +6,13 @@
  */
 import { PRODUCT_NAME } from './brand.ts'
 
-export interface MenuTemplateItem { label?: string; role?: string; type?: 'separator'; submenu?: MenuTemplateItem[] }
+export interface MenuTemplateItem { id?: string; label?: string; role?: string; type?: 'separator'; submenu?: MenuTemplateItem[] }
 
 export function buildMacMenuTemplate(opts: { dev: boolean }): MenuTemplateItem[] {
   const n = PRODUCT_NAME
   const t: MenuTemplateItem[] = [
     { label: n, submenu: [
-      { role: 'about', label: `关于${n}` }, { type: 'separator' },
+      { role: 'about', label: `关于${n}` }, { id: 'check-update', label: '检查更新…' }, { type: 'separator' },
       { role: 'hide', label: `隐藏${n}` }, { role: 'hideOthers', label: '隐藏其他' }, { role: 'unhide', label: '全部显示' }, { type: 'separator' },
       { role: 'quit', label: `退出${n}` }
     ] },

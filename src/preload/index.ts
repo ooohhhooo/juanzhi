@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'menu:navigate']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）

@@ -75,6 +75,9 @@ function GlobalDrop() {
   const ref = useRef({ importPaths, pathsFromDrop, navigate })
   ref.current = { importPaths, pathsFromDrop, navigate }
 
+  // 应用菜单「检查更新…」：主进程让页面跳到设置里的对应位置（只接受站内路径）
+  useEffect(() => window.api.on('menu:navigate', (to: unknown) => { if (typeof to === 'string' && to.startsWith('/')) ref.current.navigate(to) }), [])
+
   useEffect(() => {
     const over = (e: DragEvent) => e.preventDefault()
     const drop = async (e: DragEvent) => {

@@ -64,6 +64,8 @@ export default function Settings() {
   })
   const { data: about } = useQuery({ queryKey: ['app', 'info'], queryFn: () => window.api.app.info(), staleTime: Infinity })
   useEffect(() => { if (params.get('admin') === '1' && !adminOpen) void setAdminOpen(true) }, [params, adminOpen])
+  // ?focus=about：从菜单「检查更新…」进来，滚到「关于」（软件更新那一行）
+  useEffect(() => { const f = params.get('focus'); if (f && /^[a-z]+$/.test(f)) setTimeout(() => document.getElementById(`set-${f}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100) }, [params])
 
   return (
     <Page>
