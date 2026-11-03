@@ -35,9 +35,11 @@ export default function CropImage({ q, width = 260, onOpen, testid }: { q: PageL
   const [x, y, w, h] = padded!
   // 容器宽高比 = bbox 的真实像素宽高比；页面尺寸未知时先按图片自然尺寸，加载前占位
   const ratio = pw && ph ? (w * pw) / (h * ph) : 4
+  // 同一比例显示：整行宽的题（约占页宽 80%）占满 width，短题按它占页宽的比例缩窄——不然短题会被放大到满宽，字比旁边的题大好几倍
+  const shown = Math.max(80, Math.min(width, Math.round((w / 0.8) * width)))
   return (
     <div data-testid={testid} data-mode="crop" data-bbox={JSON.stringify(q.bbox)} onClick={onOpen} className={`ewb-ana-crop${onOpen ? ' ewb-ana-crop--click' : ''}`}
-      style={{ position: 'relative', width, aspectRatio: String(ratio), overflow: 'hidden' }}>
+      style={{ position: 'relative', width: shown, maxWidth: '100%', aspectRatio: String(ratio), overflow: 'hidden' }}>
       <img src={src} alt="题目截图" draggable={false} onLoad={e => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
         style={{ position: 'absolute', width: `${100 / w}%`, left: `${(-x / w) * 100}%`, top: `${(-y / h) * 100}%`, maxWidth: 'none', userSelect: 'none' }} />
       {onOpen && <span data-testid="zoom-hint" className="ewb-ana-crop__hint">点击放大</span>}
