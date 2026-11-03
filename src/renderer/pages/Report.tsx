@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { App, Checkbox, Collapse, Modal, Popconfirm, Tooltip } from 'antd'
 import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +8,8 @@ import PageViewer from '../stats/PageViewer'
 import type { ViewTarget } from '../stats/PageViewer'
 import { filterLabel, useScopeGuide, useStatsFilter } from '../stats/StatsFilter'
 import { NotCounted } from '../stats/Parts'
-import { cancelReport, dismissReportEntry, startReport, useLastDone, useReportEntry } from '../stats/reportStore'
+import { cancelReport, dismissReportEntry, onReportDone, retryReportJob, startReport, useReportJobs } from '../stats/reportStore'
+import type { ReportEntry } from '../stats/reportStore'
 import { READERS, READER_HINT, READER_LABEL } from '../../shared/report-post'
 import { AiDraftBadge, waitingText } from '../components/Plain'
 import { useElapsedSeconds } from '../hooks/useElapsed'
@@ -52,17 +53,45 @@ const READER_CAT: Record<ReportReader, string> = { boss: 'writing', parent: 'voc
 const ReaderChip = ({ reader, label, testid }: { reader: ReportReader; label: string; testid?: string }) => <span className={`ewb-rep-reader ewb-cat-${READER_CAT[reader]}`} data-testid={testid}><i aria-hidden />{label}</span>
 
 /** 等待 AI：状态条（结构同 design/ThinkingBar，文案按「思考 / 写 / 自动重试」三种情况由 waitingText 给出） */
-function Waiting({ text, seconds, onCancel }: { text: string; seconds: number; onCancel: () => void }) {
+function Waiting({ text, seconds, onCancel, queued }: { text: string; seconds: number; onCancel: () => void; queued?: boolean }) {
   const pct = Math.min(95, (seconds / 180) * 100)
   return (
     <div className="ewb-thinking" role="status" aria-live="off">
       <div className="ewb-thinking__row">
-        <StatusLabel kind="working">处理中</StatusLabel>
+        <StatusLabel kind={queued ? 'queued' : 'working'}>{queued ? '排队中' : '处理中'}</StatusLabel>
         <span className="ewb-thinking__text" data-testid="report-running">{text}</span>
         <span className="ewb-thinking__actions"><Btn tone="danger" size="small" icon={X} data-testid="report-cancel" onClick={onCancel}>取消生成</Btn></span>
       </div>
       <div className="ewb-thinking__rail" aria-hidden><div className="ewb-thinking__fill" style={{ transform: `scaleX(${pct / 100})` }} /></div>
     </div>
+  )
+}
+
+/** 「正在生成」列表里的一行：读者、筛选简述、进度、取消 / 重试 */
+function JobRow({ job, current, onPick, onRetry }: { job: ReportEntry; current: boolean; onPick: () => void; onRetry: () => void }) {
+  const sec = useElapsedSeconds(job.startedAt, job.status === 'running')
+  const progress = job.status === 'queued' ? '排队中'
+    : job.status === 'running' ? (job.step ? `第 ${job.step.index}/${job.step.total} 步：${job.step.label} · ${sec} 秒` : `${job.text.length > 0 ? '正在写' : '准备中'} · ${sec} 秒`)
+    : job.status === 'cancelled' ? '已取消' : '失败'
+  const live = job.status === 'queued' || job.status === 'running'
+  return (
+    <li className="ewb-rep-item" data-testid={`report-job-${job.requestId}`} data-status={job.status} data-reader={job.reader} data-current={current}
+      role="button" tabIndex={0} onClick={onPick} onKeyDown={e => { if (e.key === 'Enter') onPick() }}>
+      <div className="ewb-rep-item__title">{job.filterDesc}</div>
+      <div className="ewb-rep-item__tags">
+        <ReaderChip reader={job.reader} label={READER_LABEL[job.reader]} testid="report-job-reader" />
+        <span data-testid={`report-job-progress-${job.requestId}`}><StatusLabel kind={job.status === 'queued' ? 'queued' : job.status === 'running' ? 'working' : 'failed'}>{progress}</StatusLabel></span>
+      </div>
+      {job.status === 'error' && job.message && <div className="ewb-rep-muted" data-testid={`report-job-reason-${job.requestId}`}>{job.message}</div>}
+      <div className="ewb-rep-item__daterow">
+        {live
+          ? <Btn tone="quiet" size="small" icon={X} data-testid={`report-job-cancel-${job.requestId}`} onClick={e => { e.stopPropagation(); cancelReport(job.requestId) }}>取消</Btn>
+          : <>
+            <Btn tone="secondary" size="small" data-testid={`report-job-retry-${job.requestId}`} onClick={e => { e.stopPropagation(); onRetry() }}>重试</Btn>
+            <Btn tone="quiet" size="small" data-testid={`report-job-dismiss-${job.requestId}`} onClick={e => { e.stopPropagation(); dismissReportEntry(job.requestId) }}>关闭</Btn>
+          </>}
+      </div>
+    </li>
   )
 }
 
@@ -76,9 +105,13 @@ export default function Report() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const { filter, ready } = useStatsFilter()
-  const entry = useReportEntry()
+  const jobs = useReportJobs()
+  const [watchId, setWatchId] = useState<string | null>(null)
+  // 正在看的那份任务（下面的实时文字 / 失败提示都跟着它）：默认最新开始的一份
+  const entry = jobs.find(j => j.requestId === watchId) ?? jobs[jobs.length - 1] ?? null
+  const watchRef = useRef<string | null>(null)
+  watchRef.current = entry?.requestId ?? null
   const [role] = useRoleGuideRole()
-  const lastDone = useLastDone()
   const [reader, setReader] = useState<ReportReader>('full')
   // 加入课程对照（M9 §1.9）：只在有已启用、已整理好的课程大纲时可选；老板版不支持
   const [withCourse, setWithCourse] = useState(false)
@@ -95,6 +128,12 @@ export default function Report() {
   const [exporting, setExporting] = useState<'md' | 'pdf' | 'docx' | 'wechat' | null>(null)
   const [exported, setExported] = useState<ExportInfo | null>(null)
   const elapsed = useElapsedSeconds(entry?.startedAt, entry?.status === 'running')
+  const submit = (desc: string, rd: ReportReader, opts: ReportOptions | undefined) => {
+    const r = startReport(filter, desc, rd, opts)
+    setWatchId(r.requestId)
+    if (r.result === 'duplicate') message.info('这份报告已在生成')
+    else if (r.result === 'queued') message.info('已加入排队')
+  }
 
   const { data: list = [], isLoading } = useQuery({ queryKey: ['reports', 'list'], queryFn: () => window.api.report.list(), placeholderData: keepPreviousData })
   const { data: preview } = useQuery({ queryKey: ['reports', 'preview', filter, reader], queryFn: () => window.api.report.preview(filter, reader), enabled: ready, placeholderData: keepPreviousData })
@@ -105,24 +144,32 @@ export default function Report() {
   useScopeGuide(heads[0], heads.length > 1 ? heads[heads.length - 1] : undefined)
 
   // 新报告生成完成：自动选中它
-  useEffect(() => { if (lastDone) setSelected(lastDone.id) }, [lastDone?.id, lastDone?.at])
+  // 生成完成：正在看的那份自动打开，其余只提示，不抢焦点
+  useEffect(() => onReportDone(d => {
+    if (!d.reportId) return
+    if (watchRef.current === null || watchRef.current === d.requestId) setSelected(d.reportId)
+    else message.success(`${READER_LABEL[d.reader]}已生成`)
+  }), [message])
   useEffect(() => { setExported(null) }, [current])
 
   const running = entry?.status === 'running'
+  const queued = entry?.status === 'queued'
   const blockedExport = !!detail?.needsConfirm || !!detail?.blockReason
   const blockTip = detail?.blockReason ?? '家长版要先由老师点「我已核对」，才能导出'
   // 分段：单段重试、逐题勾「我核对过」、卡片存 / 复制成图片
-  const [retrying, setRetrying] = useState<string | null>(null)
+  const [retryingKeys, setRetryingKeys] = useState<Set<string>>(new Set())
+  const setRetrying = (k: string, on: boolean) => setRetryingKeys(prev => { const n = new Set(prev); if (on) n.add(k); else n.delete(k); return n })
   const retryPart = async (part: string) => {
     if (!detail) return
     const requestId = crypto.randomUUID()
-    setRetrying(part)
+    const rk = `${detail.id}:${part}`
+    setRetrying(rk, true)
     try {
       const r = await window.api.report.retryPart(detail.id, part, requestId)
       if (r.ok) message.success('这一部分已重新生成')
       else message.error(r.message ?? '这一部分没有生成成功')
     } catch (e) { message.error(clean(e)) }
-    finally { setRetrying(null); qc.invalidateQueries({ queryKey: ['reports'] }) }
+    finally { setRetrying(rk, false); qc.invalidateQueries({ queryKey: ['reports'] }) }
   }
   const tickVariant = async (variantId: string, ok: boolean) => {
     if (!detail) return
@@ -219,8 +266,8 @@ export default function Report() {
   const refs = (entry?.refs?.length ? entry.refs : detail?.refs) ?? []
   const retryActions = (e: NonNullable<typeof entry>) => (
     <>
-      {preview && !preview.blocked && <Btn tone="secondary" size="small" data-testid="report-retry" onClick={() => startReport(filter, preview.filterDesc, e.reader, e.reader === reader ? courseOptions : undefined)}>{e.status === 'error' ? '重试' : '重新生成'}</Btn>}
-      <Btn tone="quiet" size="small" data-testid="report-dismiss" onClick={dismissReportEntry}>关闭提示</Btn>
+      <Btn tone="secondary" size="small" data-testid="report-retry" onClick={() => { const r = retryReportJob(e.requestId); if (r) setWatchId(r.requestId) }}>{e.status === 'error' ? '重试' : '重新生成'}</Btn>
+      <Btn tone="quiet" size="small" data-testid="report-dismiss" onClick={() => dismissReportEntry(e.requestId)}>关闭提示</Btn>
     </>
   )
   return (
@@ -231,8 +278,8 @@ export default function Report() {
         <p className="ewb-rep-ask" id="rep-readers-label">这份报告给谁看？</p>
         <div className="ewb-rep-readers" role="radiogroup" aria-labelledby="rep-readers-label" data-testid="report-reader">
           {READERS.map(r => (
-            <label key={r} className={`ewb-rep-readeropt ewb-cat-${READER_CAT[r]}`} data-active={reader === r} data-disabled={running}>
-              <input type="radio" name="report-reader" value={r} checked={reader === r} disabled={running} onChange={() => setReader(r)} data-testid={`reader-${r}`} />
+            <label key={r} className={`ewb-rep-readeropt ewb-cat-${READER_CAT[r]}`} data-active={reader === r} data-disabled={false}>
+              <input type="radio" name="report-reader" value={r} checked={reader === r} onChange={() => setReader(r)} data-testid={`reader-${r}`} />
               <span className="ewb-rep-readeropt__name"><i aria-hidden />{READER_LABEL[r]}</span>
               <span className="ewb-rep-readeropt__hint" data-testid={reader === r ? 'reader-hint' : undefined}>{READER_HINT[r]}</span>
             </label>
@@ -241,18 +288,18 @@ export default function Report() {
         <div className="ewb-rep-course" data-testid="report-course-opt">
           {usable.length > 0 ? (
             <>
-              <Checkbox checked={withCourse && courseSupported} disabled={running || !courseSupported} data-testid="report-course-check"
+              <Checkbox checked={withCourse && courseSupported} disabled={!courseSupported} data-testid="report-course-check"
                 onChange={e => { setWithCourse(e.target.checked); if (e.target.checked && courseIds.length === 0) setCourseIds(usable.filter(o => o.match?.state === 'done').map(o => o.id)) }}>加入课程对照</Checkbox>
               {!courseSupported && <span className="ewb-rep-muted" data-testid="report-course-boss-hint">老板版不加课程对照</span>}
               {courseOn && (
                 <div className="ewb-rep-course__list" data-testid="report-course-list">
                   {usable.map(o => (
-                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={running || o.match?.state !== 'done'} data-testid={`report-course-outline-${o.id}`}
+                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={o.match?.state !== 'done'} data-testid={`report-course-outline-${o.id}`}
                       onChange={e => setCourseIds(e.target.checked ? [...courseIds, o.id] : courseIds.filter(x => x !== o.id))}>
                       {o.name}{o.match?.state !== 'done' ? '（还没有匹配完，先到「课程大纲」页点“开始匹配”）' : ''}
                     </Checkbox>
                   ))}
-                  {reader === 'parent' && <Checkbox checked={parentHint} disabled={running} data-testid="report-course-hint" onChange={e => setParentHint(e.target.checked)}>结尾加一句课程建议（超过 300 字会自动省略）</Checkbox>}
+                  {reader === 'parent' && <Checkbox checked={parentHint} data-testid="report-course-hint" onChange={e => setParentHint(e.target.checked)}>结尾加一句课程建议（超过 300 字会自动省略）</Checkbox>}
                   {pickedIds.length === 0 && <span className="ewb-rep-muted" data-testid="report-course-none">请至少选一个已匹配好的课程体系，否则这次不加课程对照</span>}
                 </div>
               )}
@@ -266,11 +313,11 @@ export default function Report() {
         <div className="ewb-rep-genrow">
           <span>按当前筛选生成：<b data-testid="report-scope">{filterLabel(filter)}{filter.sample ? ' · 示例数据' : ''}</b>
             {preview && <span className="ewb-rep-counts" data-testid="report-counts">共 {preview.papers} 份卷子、{preview.questions} 道题</span>}</span>
-          {!running && !preview?.blocked && <Btn tone="primary" icon={Sparkles} data-testid="report-generate" disabled={!preview || !ready} onClick={() => startReport(filter, preview!.filterDesc, reader, courseOptions)}>生成{READER_LABEL[reader]}</Btn>}
+          {!preview?.blocked && <Btn tone="primary" icon={Sparkles} data-testid="report-generate" disabled={!preview || !ready} onClick={() => submit(preview!.filterDesc, reader, courseOptions)}>生成{READER_LABEL[reader]}</Btn>}
         </div>
         <Collapse ghost size="small" className="ewb-rep-how" data-testid="report-how" items={[{ key: 'how', forceRender: true, label: <span className="ewb-rep-collapse-label">怎么算的？要花钱吗？（点开看）</span>, children: <div className="ewb-rep-stack"><NotCounted /><p className="ewb-rep-note">所有数字、知识点、例题都由程序先算好再交给 AI，AI 只负责把它写成人话，不自己数数；难易程度和“容易错”是 AI 估计，不是学生成绩。每生成一次会调用一次 AI（要花一点钱），生成的报告都会留在下面的历史里。</p></div> }]} />
-        {running ? (
-              <Waiting text={entry?.step ? `主文已写好，正在做第 ${entry.step.index}/${entry.step.total} 步：${entry.step.label}…… · 已用 ${elapsed} 秒（每一步可以单独失败、单独重试）` : waitingText({ seconds: elapsed, hasText: (entry?.text.length ?? 0) > 0, thinking: !!entry?.thinking, retried: !!entry?.retried })} seconds={elapsed} onCancel={cancelReport} />
+        {running || queued ? (
+              <Waiting queued={queued} text={queued ? '排队中，前面的报告写完就会开始' : entry?.step ? `主文已写好，正在做第 ${entry.step.index}/${entry.step.total} 步：${entry.step.label}…… · 已用 ${elapsed} 秒（每一步可以单独失败、单独重试）` : waitingText({ seconds: elapsed, hasText: (entry?.text.length ?? 0) > 0, thinking: !!entry?.thinking, retried: !!entry?.retried })} seconds={elapsed} onCancel={() => entry && cancelReport(entry.requestId)} />
             ) : preview?.blocked ? (
               preview.aiReady
                 ? <UsageNote kind="tip" data-testid="report-blocked">{preview.blocked}</UsageNote>
@@ -280,7 +327,7 @@ export default function Report() {
             ) : null}
       </section>
 
-      {entry && entry.status !== 'running' && (
+      {entry && (entry.status === 'error' || entry.status === 'cancelled') && (
         <div style={{ marginBottom: 'var(--ewb-sp-4)' }}>
           {entry.status === 'error'
             ? <UsageNote kind="mistake" label="失败" data-testid="report-error" title={entry.message} actions={retryActions(entry)}>
@@ -306,6 +353,17 @@ export default function Report() {
             <div data-testid="report-draft-text" className="ewb-rep-partial"><MarkdownView markdown={preview.draft.markdown} refs={preview.draft.refs} onView={setView} /></div>
           </div>
         }]} />
+      )}
+
+      {jobs.length > 0 && (
+        <div style={{ marginBottom: 'var(--ewb-sp-4)' }} data-testid="report-jobs">
+          <Panel title={`正在生成（${jobs.length}）`}>
+            <ul className="ewb-rep-list">
+              {jobs.map(j => <JobRow key={j.requestId} job={j} current={j.requestId === entry?.requestId} onPick={() => setWatchId(j.requestId)}
+                onRetry={() => { const r = retryReportJob(j.requestId); if (r) setWatchId(r.requestId) }} />)}
+            </ul>
+          </Panel>
+        </div>
       )}
 
       {running && entry && (
@@ -419,10 +477,10 @@ export default function Report() {
                         <Tooltip title={pt.retryBlock ?? ''}>
                           <span>
                             {pt.status === 'failed'
-                              ? <Btn tone="secondary" size="small" icon={RotateCw} data-testid={`part-retry-${pt.part}`} disabled={!pt.canRetry} loading={retrying === pt.part} onClick={() => retryPart(pt.part)}>重试这一部分</Btn>
+                              ? <Btn tone="secondary" size="small" icon={RotateCw} data-testid={`part-retry-${pt.part}`} disabled={!pt.canRetry} loading={retryingKeys.has(`${detail.id}:${pt.part}`)} onClick={() => retryPart(pt.part)}>重试这一部分</Btn>
                               : (
                                 <Popconfirm title="重新生成这一部分？" description={pt.part === 'variants' ? '会换一批新题，已经勾过的“我核对过”会清掉。' : '其他部分不会受影响。'} okText="重新生成" cancelText="取消" disabled={!pt.canRetry} onConfirm={() => retryPart(pt.part)}>
-                                  <Btn tone="quiet" size="small" icon={RotateCw} data-testid={`part-retry-${pt.part}`} disabled={!pt.canRetry} loading={retrying === pt.part}>重新生成这一部分</Btn>
+                                  <Btn tone="quiet" size="small" icon={RotateCw} data-testid={`part-retry-${pt.part}`} disabled={!pt.canRetry} loading={retryingKeys.has(`${detail.id}:${pt.part}`)}>重新生成这一部分</Btn>
                                 </Popconfirm>
                               )}
                           </span>
