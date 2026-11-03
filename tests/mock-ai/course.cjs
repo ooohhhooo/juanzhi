@@ -7,6 +7,8 @@
 //   matchBadQuote —— 每个知识点的第一条对应，quote 换成课次里没有的句子（应降为 low，标「仅凭主题推测」）
 //   matchBadLesson—— 每个知识点多给一条不存在的课次 #999999（应丢弃）
 //   matchBadJson  —— 匹配回答不是 JSON（这一批不保存）
+//   extractBad    —— 文字整理（p5_course_extract）的回答不是 JSON
+//   extractInvent —— 文字整理时多编一课原文里没有的（应被程序核对后去掉）
 //   advicePrice   —— 话术里混进价格 / 优惠 / 保证提分（应整句删除）
 //   adviceShort   —— 话术只有几十个字（应判失败）
 //   adviceLong    —— 话术远超 200 字（应告警，不裁剪）
@@ -15,9 +17,10 @@
 const COLS_RE = /请只判断「哪几行是表头/
 const MATCH_RE = /请判断每个考点在大纲的哪几课里讲到/
 const ADVICE_RE = /要写一段能直接发给家长的话（150–200 字/
+const EXTRACT_RE = /请把其中的「每一课」整理成表格的行/
 const HINT_RE = /要给家长版报告写结尾处的一句课程建议/
 
-const kindOf = (sys) => COLS_RE.test(sys) ? 'cols' : MATCH_RE.test(sys) ? 'match' : ADVICE_RE.test(sys) ? 'advice' : HINT_RE.test(sys) ? 'hint' : null
+const kindOf = (sys) => COLS_RE.test(sys) ? 'cols' : MATCH_RE.test(sys) ? 'match' : ADVICE_RE.test(sys) ? 'advice' : HINT_RE.test(sys) ? 'hint' : EXTRACT_RE.test(sys) ? 'extract' : null
 
 const FIELD_RULES = [
   ['textbook_ref', /对标|教材|课本/], ['level', /级别|等级/], ['seq', /课次|课序|序号/], ['title', /标题|课名/], ['theme', /主题|话题/],
@@ -83,7 +86,24 @@ function buildHint(user) {
   return `这类题常见易错，可以复习 ${tokens[0] ?? ''}。`
 }
 
+/** 文字整理：输入是「L12: 文字」逐行；课 = 以「第 N 课」或 Lesson N 开头的行，后面紧跟的「词汇：」「句型：」行归这一课。只摘输入里的原文 */
+function buildExtract(user, quirks) {
+  const lines = [...user.matchAll(/^L(\d+): (.*)$/gm)].map(m => ({ n: Number(m[1]), t: m[2] }))
+  const lessons = []
+  for (const l of lines) {
+    const m = /^(第\s*\d+\s*课|Lesson\s*\d+)[\s:：.、-]*(.+)$/i.exec(l.t)
+    if (m) { lessons.push({ line: l.n, level: '', seq: m[1], title: m[2].trim(), theme: '', words: '', patterns: '' }); continue }
+    const cur = lessons[lessons.length - 1]
+    const w = /^词汇[:：]\s*(.+)$/.exec(l.t), p = /^句型[:：]\s*(.+)$/.exec(l.t)
+    if (cur && w) cur.words = w[1]
+    if (cur && p) cur.patterns = p[1]
+  }
+  if (quirks.extractInvent) lessons.push({ line: 999, level: '', seq: '第99课', title: '凭空多出来的一课', theme: '', words: '', patterns: '' })
+  return JSON.stringify({ lessons })
+}
+
 function build(kind, user, quirks = {}) {
+  if (kind === 'extract') return quirks.extractBad ? '好的，我来整理……' : buildExtract(user, quirks)
   if (kind === 'cols') {
     if (quirks.colsBad) return '好的，我来看看这张表……'
     const j = buildCols(user)

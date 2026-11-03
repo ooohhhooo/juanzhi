@@ -38,6 +38,8 @@ import p5AdviceSystem from './prompts/p5_course_advice.system.txt?raw'
 import p5AdviceUser from './prompts/p5_course_advice.user.txt?raw'
 import p5HintSystem from './prompts/p5_course_hint.system.txt?raw'
 import p5HintUser from './prompts/p5_course_hint.user.txt?raw'
+import p5ExtractSystem from './prompts/p5_course_extract.system.txt?raw'
+import p5ExtractUser from './prompts/p5_course_extract.user.txt?raw'
 
 /** 内置提示词的版本号；改了资源文件就要同步提升，并在交付说明里记一笔 */
 export const PROMPT_DEFAULT_VERSION = 'v2.0'
@@ -66,7 +68,8 @@ const DEFAULTS: Record<string, string> = {
   'p5_course_cols.system': trimEnd(p5ColsSystem), 'p5_course_cols.user': trimEnd(p5ColsUser),
   'p5_course_match.system': trimEnd(p5MatchSystem), 'p5_course_match.user': trimEnd(p5MatchUser),
   'p5_course_advice.system': trimEnd(p5AdviceSystem), 'p5_course_advice.user': trimEnd(p5AdviceUser),
-  'p5_course_hint.system': trimEnd(p5HintSystem), 'p5_course_hint.user': trimEnd(p5HintUser)
+  'p5_course_hint.system': trimEnd(p5HintSystem), 'p5_course_hint.user': trimEnd(p5HintUser),
+  'p5_course_extract.system': trimEnd(p5ExtractSystem), 'p5_course_extract.user': trimEnd(p5ExtractUser)
 }
 
 const TITLES: Record<PromptId, string> = {
@@ -84,7 +87,8 @@ const TITLES: Record<PromptId, string> = {
   p5_course_cols: 'P5 课程对照：认列（只判断哪一列是什么，不复制内容）',
   p5_course_match: 'P5 课程对照：知识点 → 课次',
   p5_course_advice: 'P5 课程对照：家长沟通话术（看板）',
-  p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议'
+  p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议',
+  p5_course_extract: 'P5 课程对照：从 Word / PDF / 图片的文字里整理课程表'
 }
 
 const P1_COMMON = ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'FILE_NAME', 'KNOWN_META', 'BATCH_INFO', 'BATCH_PREFIX', 'PREV_CONTEXT']
@@ -101,7 +105,8 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p5_course_cols: ['SHEET_NAME', 'SHEET_PREVIEW'],
   p5_course_match: ['OUTLINE_LINES', 'KP_BATCH'],
   p5_course_advice: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
-  p5_course_hint: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE']
+  p5_course_hint: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
+  p5_course_extract: ['SOURCE_KIND', 'SOURCE_TEXT']
 }
 function overrides(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(SETTINGS_KEY) as { value_json: string } | undefined

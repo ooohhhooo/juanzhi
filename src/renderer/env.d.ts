@@ -117,7 +117,7 @@ interface ElectronAPI {
     readFile(path: string): Promise<CourseSource>
     readText(text: string): Promise<CourseSource>
     /** mode：ai = 让 AI 认列（课程内容会发给用户配置的 AI 服务）；guess = 只按表头文字猜；manual = 全部留空 */
-    suggest(req: { sessionId: string; mode: 'ai' | 'guess' | 'manual' }): Promise<{ items: Record<string, CourseSuggestItem>; model: string }>
+    suggest(req: { sessionId: string; mode: 'ai' | 'guess' | 'manual' }): Promise<{ items: Record<string, CourseSuggestItem>; model: string; source?: CourseSource }>
     /** 取消正在进行的“让 AI 认列”（关闭向导时调用） */
     suggestCancel(sessionId: string): Promise<boolean>
     preview(req: { sessionId: string; mappings: Record<string, CourseSheetMapping | null> }): Promise<CourseParsed>

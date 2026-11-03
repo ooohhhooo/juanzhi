@@ -12,7 +12,7 @@ fs.mkdirSync(outDir, { recursive: true })
 const DOCS = [
   { file: 'docs/prompts/v2-分读者与事实核对.md', ids: { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' } },
   { file: 'docs/prompts/v3-老师版升级.md', ids: { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' } },
-  { file: 'docs/prompts/v3-课程对照.md', ids: { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint' } }
+  { file: 'docs/prompts/v3-课程对照.md', ids: { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint', 五: 'p5_course_extract' } }
 ]
 // 每个提示词 system + user 两个文件；个数随文档里登记的 id 变（同名的后者覆盖前者，只算一次），不写死
 const EXPECTED = new Set(DOCS.flatMap(d => Object.values(d.ids))).size * 2

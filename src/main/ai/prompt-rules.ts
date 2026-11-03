@@ -1,5 +1,5 @@
 /** 提示词的校验规则（纯函数）：设置页保存时、数据包导入设置时用同一份，导入的提示词不能绕过保存时的检查 */
-export const PROMPT_IDS_ALL = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp', 'p3_tricks', 'p4_variant_gen', 'p4_variant_check', 'p5_course_cols', 'p5_course_match', 'p5_course_advice', 'p5_course_hint'] as const
+export const PROMPT_IDS_ALL = ['p1_text', 'p1_vision', 'p2_yoy', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p2_kp', 'p3_tricks', 'p4_variant_gen', 'p4_variant_check', 'p5_course_cols', 'p5_course_match', 'p5_course_advice', 'p5_course_hint', 'p5_course_extract'] as const
 export const MAX_PROMPT_CHARS = 60_000
 
 /** 缺了这些占位符，对应的提示词就拿不到关键输入 */
@@ -18,10 +18,11 @@ export const REQUIRED: Record<string, string[]> = {
   'p5_course_cols.user': ['SHEET_NAME', 'SHEET_PREVIEW'],
   'p5_course_match.user': ['OUTLINE_LINES', 'KP_BATCH'],
   'p5_course_advice.user': ['LOST_POINTS', 'COURSE_MATCH'],
-  'p5_course_hint.user': ['LOST_POINTS', 'COURSE_MATCH']
+  'p5_course_hint.user': ['LOST_POINTS', 'COURSE_MATCH'],
+  'p5_course_extract.user': ['SOURCE_KIND', 'SOURCE_TEXT']
 }
 
-export const isPromptKey = (k: string): boolean => /^(p1_text|p1_vision|p2_yoy|p3_report|p3_boss|p3_parent|p3_teacher|p2_kp|p3_tricks|p4_variant_gen|p4_variant_check|p5_course_cols|p5_course_match|p5_course_advice|p5_course_hint)\.(system|user)$/.test(k)
+export const isPromptKey = (k: string): boolean => /^(p1_text|p1_vision|p2_yoy|p3_report|p3_boss|p3_parent|p3_teacher|p2_kp|p3_tricks|p4_variant_gen|p4_variant_check|p5_course_cols|p5_course_match|p5_course_advice|p5_course_hint|p5_course_extract)\.(system|user)$/.test(k)
 
 /** 不合格返回原因，合格返回 null */
 export function promptProblem(key: string, text: string): string | null {

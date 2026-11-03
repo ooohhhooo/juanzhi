@@ -84,7 +84,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
   'stats hot': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'level'], summary: '重难点（综合得分排序）' },
   'stats compare': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'target', 'base', 'level', 'no-align'], summary: '同比：目标学年 vs 之前的学年' },
   'course list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '课程体系列表（名称、级别数、课数、匹配状态）' },
-  'course import': { args: { min: 1, max: 1, name: '<文件>' }, flags: ['name', 'scene', 'i-reviewed'], summary: '导入课程表（.xlsx / .csv）并整理；不带 --i-reviewed 时保存为草稿，要在窗口里确认后才参与对照' },
+  'course import': { args: { min: 1, max: 1, name: '<文件>' }, flags: ['name', 'scene', 'i-reviewed'], summary: '导入课程表（Excel、CSV、Word、PDF 或图片）并整理；不带 --i-reviewed 时保存为草稿，要在窗口里确认后才参与对照' },
   'course match': { args: { min: 1, max: 1, name: '<id>' }, flags: ['only-new', 'estimate-only', 'yes'], summary: '把知识点匹配到课程体系的课次（会调用 AI，输出里报用量）；--estimate-only 只估算不调用；预计用量很大时要加 --yes 才执行' },
   'report generate': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'reader', 'with-course'], summary: '生成报告；--with-course <id[,id]> 加入课程对照（体系要先匹配）' },
   'report list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '报告列表' },

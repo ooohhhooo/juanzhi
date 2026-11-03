@@ -52,7 +52,7 @@ import { sampleSheets, templateRows } from '../../src/main/course/template.ts'
 await assert.rejects(readXlsx(Buffer.from('not a zip')), e => e instanceof CourseFileError && /打不开/.test(e.message))
 await assert.rejects(readTable(Buffer.from('x'), '旧.xls'), e => e instanceof CourseFileError && /另存为/.test(e.message))
 await assert.rejects(readTable(Buffer.from('x'), 'a.numbers'), e => /Numbers/.test(e.message))
-await assert.rejects(readTable(Buffer.from('x'), 'a.pdf'), e => /粘贴表格/.test(e.message))
+await assert.rejects(readTable(Buffer.from('x'), 'a.pdf'), e => /选择文件/.test(e.message))
 await assert.rejects(readTable(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0]), 'noext'), e => /旧版 Excel/.test(e.message))
 
 // ── csv ──

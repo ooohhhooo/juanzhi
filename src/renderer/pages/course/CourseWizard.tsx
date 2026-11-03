@@ -98,8 +98,9 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
     if (!name.trim()) { message.warning('请先给课程体系起个名字'); return }
     setBusy(true)
     try {
-      const r = await window.api.course.suggest({ sessionId: src.sessionId, mode })
-      setSugg(r.items); setAiModel(mode === 'ai' ? r.model : '')
+      const r = await window.api.course.suggest({ sessionId: src.sessionId, mode: src.fromDoc?.aiOrganised ? 'ai' : mode })
+      if (r.source) { setSrc(r.source); setSheetName(r.source.sheets.find(x => !x.hidden)?.name ?? '') }   // Word / PDF / 图片：AI 整理出表之后换上表格预览
+      setSugg(r.items); setAiModel(mode === 'ai' || r.source ? r.model : '')
       const m: Mappings = Object.fromEntries(Object.entries(r.items).map(([k, v]) => [k, v.mapping]))
       setMappings(m)
       await reparse(m)
@@ -200,8 +201,10 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
             onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
             <FileSpreadsheet size={28} aria-hidden />
             {src
-              ? <><b data-testid="course-file-name">已读取：{src.name}</b><span className="ewb-rep-note">{src.sheets.filter(s => !s.hidden).length} 张工作表{src.sheets.some(s => s.hidden) ? `（另有 ${src.sheets.filter(s => s.hidden).length} 张隐藏的，已跳过）` : ''}，共 {src.sheets.reduce((n, s) => n + s.rows, 0)} 行</span></>
-              : <><b>把 .xlsx 或 .csv 课程表拖到这里</b><span className="ewb-rep-note">旧版 .xls 请用 Excel 另存为 .xlsx；Word / PDF 版请先复制到 Excel，或用下面的“粘贴表格”</span></>}
+              ? <><b data-testid="course-file-name">已读取：{src.name}</b>{src.fromDoc?.pending
+                ? <span className="ewb-rep-note" data-testid="course-doc-note">{src.fromDoc.label}，{src.fromDoc.pages > 1 ? `${src.fromDoc.pages} 页，` : ''}约 {src.fromDoc.chars} 字。点“下一步”后由 AI 整理成表格，需要你核对。</span>
+                : <span className="ewb-rep-note">{src.sheets.filter(s => !s.hidden).length} 张{src.fromDoc ? '表格' : '工作表'}{src.sheets.some(s => s.hidden) ? `（另有 ${src.sheets.filter(s => s.hidden).length} 张隐藏的，已跳过）` : ''}，共 {src.sheets.reduce((n, s) => n + s.rows, 0)} 行</span>}</>
+              : <><b>上传课程表（Excel、CSV、Word、PDF 或图片）</b><span className="ewb-rep-note">拖到这里，或点“选择文件”。旧版 .xls / .doc 请先另存为 .xlsx / .docx。</span></>}
             <Btn tone={src ? 'secondary' : 'primary'} size="small" loading={reading} data-testid="course-pick" onClick={pick}>{src ? '换一个文件' : '选择文件'}</Btn>
           </div>
           {src?.warnings.length ? <UsageNote kind="caution">{src.warnings.join('；')}</UsageNote> : null}
@@ -230,15 +233,17 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
               <span className="ewb-rep-note">只改界面里的叫法，不影响功能。</span>
             </div>
             <div className="ewb-crs-field"><label htmlFor="course-term">学期或季度备注（可选）</label><Input id="course-term" data-testid="course-term" value={termNote} maxLength={100} onChange={e => setTermNote(e.target.value)} placeholder="例如：2026 秋季" style={{ maxWidth: 360 }} /></div>
-            <div className="ewb-crs-field">
+            {!src?.fromDoc?.aiOrganised && <div className="ewb-crs-field">
               <span className="ewb-crs-field__label">怎么认出每一列是什么</span>
               <Radio.Group data-testid="course-mode" value={mode} onChange={e => setMode(e.target.value)}>
                 <Radio value="ai" data-testid="course-mode-ai">让 AI 帮忙认列{aiReady ? '' : '（还没配置 AI 服务，会按表头文字猜）'}</Radio>
                 <Radio value="manual" data-testid="course-mode-manual">手动指定每一列</Radio>
               </Radio.Group>
-            </div>
+            </div>}
           </div>
-          <UsageNote kind="caution" title="隐私">课程内容会发送给你在“AI 服务”里设置的模型来帮忙整理；不会发给卷知开发者。AI 只判断哪一列是什么，不会改写表格里的内容。不想发送：选“手动指定每一列”。</UsageNote>
+          <UsageNote kind="caution" title="隐私">{src?.fromDoc?.aiOrganised
+            ? '文件里的文字会发送给你在“AI 服务”里设置的模型来整理成表格；不会发给卷知开发者。AI 只能照抄原文，找不到原文的课会被去掉。'
+            : '课程内容会发送给你在“AI 服务”里设置的模型来帮忙整理；不会发给卷知开发者。AI 只判断哪一列是什么，不会改写表格里的内容。不想发送：选“手动指定每一列”。'}</UsageNote>
           <div className="ewb-rep-row" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
             {busy && <Btn tone="secondary" data-testid="course-suggest-cancel" onClick={() => { if (src) void window.api.course.suggestCancel(src.sessionId) }}>取消</Btn>}
             <Btn tone="primary" disabled={!src} loading={busy} data-testid="course-next" onClick={goStep2}>下一步：核对整理结果</Btn>
@@ -249,6 +254,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
       {step === 2 && src && (
         <div data-testid="course-step2">
           <p className="ewb-crs-headline" style={{ fontSize: 'var(--ewb-fs-lg)' }} data-testid="course-summary">{summary}</p>
+          {src.fromDoc && <UsageNote kind="caution" data-testid="course-doc-warning">{src.fromDoc.aiOrganised ? `这张表是 AI 从 ${src.fromDoc.label} 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。` : `这张表直接取自 ${src.fromDoc.label} 里的表格，请核对后再保存。`}</UsageNote>}
           {replace && diff && <UsageNote kind="tip" data-testid="course-diff">相对现有的「{replace.name}」：新增 {diff.added} 课、修改 {diff.changed} 课、删除 {diff.removed} 课；已有的知识点对应里 {diff.affectedMaps} 条涉及改动的课，需要重新匹配。老师确认过的对应只要课还在就保留{diff.lockedLost > 0 ? `；但有 ${diff.lockedLost} 条确认过的对应会因为课被删而丢失` : ''}。替换后需要整体重新匹配。</UsageNote>}
           {Object.values(sugg).some(s => s.error) && <UsageNote kind="caution">{Object.values(sugg).filter(s => s.error).map(s => s.error).filter((x, i, a) => a.indexOf(x) === i).join('；')}</UsageNote>}
           {warnings.length > 0 && (

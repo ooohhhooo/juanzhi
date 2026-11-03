@@ -1,0 +1,5 @@
+文件类型：{{SOURCE_KIND}}
+
+{{SOURCE_TEXT}}
+
+请按 system 的要求只输出 JSON。
