@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'menu:navigate']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'datasets:progress', 'menu:navigate']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -137,6 +137,21 @@ const api = {
     clearSample: (): Promise<any> => ipcRenderer.invoke('data:clearSample'),
   },
   /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
+  datasets: {
+    /** 弹对话框选 Excel / CSV，返回路径（已登记） */
+    pick: (): Promise<string[]> => ipcRenderer.invoke('datasets:pick'),
+    /** 导入若干文件（路径必须来自 pick 或 getPathForFile）；进度见事件 `datasets:progress` */
+    import: (paths: string[]): Promise<Array<{ file: string; ok: boolean; id?: string; error?: string }>> => ipcRenderer.invoke('datasets:import', paths),
+    list: (): Promise<any[]> => ipcRenderer.invoke('datasets:list'),
+    profile: (id: string): Promise<any> => ipcRenderer.invoke('datasets:profile', id),
+    profileText: (id: string, table?: string): Promise<string> => ipcRenderer.invoke('datasets:profileText', id, table),
+    /** 前 100 行预览（界面显示真名） */
+    preview: (id: string, table: string): Promise<{ columns: Array<{ name: string; label: string; type: string; sensitive: boolean }>; rows: unknown[][]; total: number }> => ipcRenderer.invoke('datasets:preview', id, table),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('datasets:remove', id),
+    setSensitive: (id: string, table: string, column: string, sensitive: boolean): Promise<boolean> => ipcRenderer.invoke('datasets:setSensitive', id, table, column, sensitive),
+    rename: (id: string, name: string): Promise<boolean> => ipcRenderer.invoke('datasets:rename', id, name),
+    setNote: (id: string, note: string): Promise<boolean> => ipcRenderer.invoke('datasets:setNote', id, note)
+  },
   course: {
     list: (): Promise<any[]> => ipcRenderer.invoke('course:list'),
     get: (id: string): Promise<any> => ipcRenderer.invoke('course:get', id),

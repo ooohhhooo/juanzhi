@@ -1,0 +1,158 @@
+import React, { useEffect, useState } from 'react'
+import { App, Drawer, Input, Popconfirm, Switch, Table, Tabs, Tag } from 'antd'
+import { Inbox, Trash2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Btn, EmptyState, Icon, Page } from '../../design'
+import '../../design/page-report.css'
+import '../../design/page-library.css'
+import '../../design/page-course.css'
+
+const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+const TYPE_LABEL: Record<string, string> = { integer: '整数', real: '小数', date: '日期', datetime: '日期时间', boolean: '是否', text: '文本', select: '选项', multi: '多选' }
+const pct = (x: number) => `${Math.round(x * 1000) / 10}%`
+const fmtSize = (b: number) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
+
+interface Progress { fileName: string; phase: string; message: string; done: number; total: number }
+
+/** 数据页：把 Excel / CSV 导入成本机的数据集，看概况和前 100 行，标记敏感列。数据只存在这台电脑上。 */
+export default function DatasetsPage() {
+  const { message } = App.useApp()
+  const qc = useQueryClient()
+  const [over, setOver] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<Progress | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const { data: list = [] } = useQuery({ queryKey: ['datasets', 'list'], queryFn: () => window.api.datasets.list() })
+  const refresh = () => qc.invalidateQueries({ queryKey: ['datasets'] })
+
+  useEffect(() => window.api.on('datasets:progress', (p: Progress) => setProgress(p)), [])
+
+  const doImport = async (paths: string[]) => {
+    if (!paths.length || busy) return
+    setBusy(true)
+    setProgress({ fileName: '', phase: 'read', message: '正在读取文件…', done: 0, total: 1 })
+    try {
+      const rs = await window.api.datasets.import(paths)
+      const ok = rs.filter(r => r.ok).length
+      if (ok) message.success(`已导入 ${ok} 个文件`)
+      for (const r of rs.filter(x => !x.ok)) message.error(`${r.file}：${r.error}`, 6)
+    } catch (e) { message.error(clean(e)) } finally { setBusy(false); setProgress(null); refresh() }
+  }
+  const pick = async () => { const paths = await window.api.datasets.pick(); await doImport(paths) }
+  const drop = async (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    ;(e.nativeEvent as unknown as { __ewbHandled?: boolean }).__ewbHandled = true
+    setOver(false)
+    const paths: string[] = []
+    for (const f of Array.from(e.dataTransfer.files)) { try { const p = window.api.getPathForFile(f); if (p) paths.push(p) } catch { /* 忽略 */ } }
+    await doImport(paths)
+  }
+  const remove = async (id: string) => { try { await window.api.datasets.remove(id); message.success('已删除'); if (openId === id) setOpenId(null); refresh() } catch (e) { message.error(clean(e)) } }
+
+  return (
+    <Page data-testid="datasets-page">
+      <h1 className="ewb-rep-h1">数据</h1>
+      <p className="ewb-set-lead">导入 Excel 或 CSV，之后可以让助手查询和分析。数据只存在这台电脑上，发给 AI 前姓名、手机号等敏感列会换成代号。</p>
+      <div
+        data-testid="datasets-drop" data-over={over ? 'true' : 'false'} className="ewb-lib-drop" role="button" tabIndex={0}
+        onDrop={drop} onDragOver={e => { e.preventDefault(); e.stopPropagation(); setOver(true) }} onDragLeave={e => { e.preventDefault(); setOver(false) }}
+        onClick={() => void pick()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void pick() } }}>
+        <div className="ewb-lib-drop__icon"><Icon as={Inbox} size={32} /></div>
+        <p className="ewb-lib-drop__main">拖入文件到此处，或点击选择</p>
+        <p className="ewb-lib-drop__sub">支持 .xlsx 和 .csv，最多 50 万行、200 MB</p>
+      </div>
+      {progress && (
+        <div className="ewb-lib-progress" data-testid="datasets-progress" style={{ marginBottom: 16 }}>
+          <div className="ewb-lib-progress__text">{progress.fileName ? `${progress.fileName}：` : ''}{progress.message}</div>
+          <div className="ewb-thinking__rail" aria-hidden><div className="ewb-thinking__fill" style={{ transform: `scaleX(${progress.total ? Math.min(1, progress.done / progress.total) : 0})` }} /></div>
+        </div>
+      )}
+      {list.length === 0 && !busy && <EmptyState inline title="还没有数据" description="导入后会在这里列出，可以查看每列的概况。" />}
+      <div className="ewb-crs-cards" data-testid="datasets-list">
+        {list.map(d => (
+          <article key={d.id} className="ewb-crs-card" data-testid={`dataset-${d.id}`} data-name={d.name}>
+            <div className="ewb-crs-card__head">
+              <span className="ewb-crs-card__name" data-testid="dataset-name">{d.name}</span>
+              <span className="ewb-rep-row">
+                <Btn tone="secondary" size="small" data-testid="dataset-open" onClick={() => setOpenId(d.id)}>查看</Btn>
+                <Popconfirm title="删除这个数据集？" description="数据文件会一并删除，不能恢复。" okText="删除" cancelText="取消" onConfirm={() => void remove(d.id)}>
+                  <Btn tone="danger" size="small" icon={Trash2} data-testid="dataset-remove">删除</Btn>
+                </Popconfirm>
+              </span>
+            </div>
+            <p className="ewb-rep-note" data-testid="dataset-summary">
+              {d.sourceFile} · {d.tables.map(t => `${t.name} ${t.rows} 行`).join('，')} · {fmtSize(d.sizeBytes)}
+              {d.tables.some(t => t.columns.some(c => c.sensitive)) && <Tag style={{ marginLeft: 8 }}>含敏感列</Tag>}
+            </p>
+          </article>
+        ))}
+      </div>
+      <DatasetDrawer id={openId} onClose={() => setOpenId(null)} onChanged={refresh} />
+    </Page>
+  )
+}
+
+function DatasetDrawer({ id, onClose, onChanged }: { id: string | null; onClose: () => void; onChanged: () => void }) {
+  const { message } = App.useApp()
+  const { data: d } = useQuery({ queryKey: ['datasets', 'one', id], queryFn: () => window.api.datasets.profile(id!), enabled: !!id })
+  const [note, setNote] = useState('')
+  useEffect(() => { setNote(d?.note ?? '') }, [d?.id, d?.note])
+  const setSens = async (table: string, col: string, v: boolean) => {
+    try { await window.api.datasets.setSensitive(id!, table, col, v); onChanged() } catch (e) { message.error(clean(e)) }
+  }
+  return (
+    <Drawer open={!!id} onClose={onClose} width={860} title={d?.name ?? '数据集'} destroyOnHidden data-testid="dataset-drawer">
+      {d && (
+        <>
+          <div className="ewb-rep-row" style={{ marginBottom: 12 }}>
+            <Input value={note} placeholder="备注（可选，如数据来源、时间范围）" maxLength={200} data-testid="dataset-note" onChange={e => setNote(e.target.value)}
+              onBlur={() => { if (note !== d.note) void window.api.datasets.setNote(d.id, note).then(onChanged).catch(e => message.error(clean(e))) }} />
+          </div>
+          <Tabs items={d.tables.map(t => ({
+            key: t.name, label: `${t.name}（${t.rows} 行）`,
+            children: (
+              <div data-testid={`dataset-table-${t.name}`}>
+                {t.notes.map(n => <p key={n} className="ewb-rep-note">{n}</p>)}
+                <Table size="small" pagination={false} rowKey="name" data-testid="dataset-profile" dataSource={t.columns}
+                  columns={[
+                    { title: '列', dataIndex: 'label', render: (_: string, c) => <span data-testid={`dataset-col-${c.name}`}>{c.label}</span> },
+                    { title: '类型', dataIndex: 'type', width: 80, render: (v: string) => TYPE_LABEL[v] ?? v },
+                    { title: '空值', width: 70, render: (_: unknown, c) => pct(c.profile.nullRate) },
+                    { title: '取值数', width: 80, render: (_: unknown, c) => c.profile.distinct },
+                    {
+                      title: '范围 / 常见取值', render: (_: unknown, c) => {
+                        const p = c.profile
+                        if (c.sensitive) return <span className="ewb-rep-note">敏感列，不显示</span>
+                        if (typeof p.min === 'number') return `${p.min} – ${p.max}，均值 ${p.mean}`
+                        if (p.min !== undefined) return `${p.min} 至 ${p.max}`
+                        if (p.top?.length) return p.top.slice(0, 4).map(x => `${x.value} ${pct(x.share)}`).join('、')
+                        return p.examples.join(' | ')
+                      }
+                    },
+                    { title: '用途提示', render: (_: unknown, c) => c.profile.hints[0] ?? '' },
+                    {
+                      title: '敏感', width: 70, render: (_: unknown, c) => (
+                        <Switch size="small" checked={c.sensitive} aria-label={`${c.label} 敏感列`} data-testid={`dataset-sens-${c.name}`} onChange={v => void setSens(t.name, c.name, v)} />
+                      )
+                    }
+                  ]} />
+                <h4 style={{ margin: '16px 0 8px' }}>前 100 行</h4>
+                <Preview id={d.id} table={t.name} version={t.columns.map(c => c.sensitive).join()} />
+              </div>
+            )
+          }))} />
+        </>
+      )}
+    </Drawer>
+  )
+}
+
+function Preview({ id, table }: { id: string; table: string; version: string }) {
+  const { data } = useQuery({ queryKey: ['datasets', 'preview', id, table], queryFn: () => window.api.datasets.preview(id, table) })
+  if (!data) return null
+  return (
+    <Table size="small" pagination={false} scroll={{ x: 'max-content', y: 360 }} data-testid="dataset-preview" rowKey="__i"
+      columns={data.columns.map((c, i) => ({ title: c.label, key: c.name, render: (_: unknown, r: Record<string, unknown>) => String((r.__v as unknown[])[i] ?? ''), ellipsis: true, width: 120 }))}
+      dataSource={data.rows.map((r, i) => ({ __i: i, __v: r }))} />
+  )
+}
