@@ -316,6 +316,15 @@ const api = {
     board: (sessionId: string): Promise<any> => ipcRenderer.invoke('agent-outputs:board', sessionId),
     export: (sessionId: string, id: string, format: 'docx' | 'pdf' | 'xlsx' | 'csv' | 'md'): Promise<any> => ipcRenderer.invoke('agent-outputs:export', sessionId, id, format),
     reveal: (sessionId: string, id: string): Promise<boolean> => ipcRenderer.invoke('agent-outputs:reveal', sessionId, id),
+    copyImage: (sessionId: string, id: string): Promise<boolean> => ipcRenderer.invoke('agent-outputs:copyImage', sessionId, id),
+    saveImage: (sessionId: string, id: string): Promise<{ saved: boolean; path?: string }> => ipcRenderer.invoke('agent-outputs:saveImage', sessionId, id),
+  },
+  /** 分享卡片：模板列表（含默认 / 孩子称呼设置）、示例预览、改默认模板、改孩子称呼 */
+  cards: {
+    templates: (): Promise<any> => ipcRenderer.invoke('cards:templates'),
+    preview: (id: string, thumb: boolean, kind?: string): Promise<string> => ipcRenderer.invoke('cards:preview', id, thumb, kind),
+    setDefault: (audience: 'student' | 'parent', id: string): Promise<any> => ipcRenderer.invoke('cards:setDefault', audience, id),
+    setChildName: (mode: 'first' | 'none'): Promise<any> => ipcRenderer.invoke('cards:setChildName', mode),
   },
   /** 反馈问题：打开 GitHub 新建 Issue 页（预填版本、系统；地址由主进程生成） */
   feedback: {

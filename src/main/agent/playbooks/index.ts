@@ -7,6 +7,7 @@ import attendanceLateness from './attendance-lateness.md?raw'
 import learningWeekly from './learning-weekly.md?raw'
 import refundReasons from './refund-reasons.md?raw'
 import renewal from './renewal.md?raw'
+import shareCards from './share-cards.md?raw'
 import satisfactionNps from './satisfaction-nps.md?raw'
 import studentFollowupList from './student-followup-list.md?raw'
 import weeklyReport from './weekly-report.md?raw'
@@ -18,6 +19,7 @@ export const BUILTIN_PLAYBOOK_FILES: Record<string, string> = {
   './refund-reasons.md': refundReasons,
   './renewal.md': renewal,
   './satisfaction-nps.md': satisfactionNps,
+  './share-cards.md': shareCards,
   './student-followup-list.md': studentFollowupList,
   './weekly-report.md': weeklyReport
 }

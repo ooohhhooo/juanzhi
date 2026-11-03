@@ -1,0 +1,15 @@
+<style>
+.m-head{text-align:center;margin-bottom:10px}
+.m-title{font-size:58px;color:#2B2A3D;line-height:1.1;margin-top:6px}
+.m-lines{font-size:42px;line-height:1.55;font-weight:800;text-align:center;margin:8px 0 6px}
+.m-lines em{font-style:normal;color:var(--accent);background:linear-gradient(transparent 58%,var(--hl) 58%);padding:0 4px}
+.m-sep{border-top:3px dashed var(--accent-soft);margin:12px 0 10px}
+.m-row{display:flex;gap:14px;align-items:center;margin:8px 0}
+.m-label{flex:none;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:22px;font-weight:800;padding:3px 14px}
+.m-text{font-size:30px;font-weight:600}
+</style>
+<zone name="content"><div class="m-head"><span class="chip">{{#if tag}}{{tag}}{{else}}背口诀{{/if}}</span><div class="sm m-title">{{title}}</div></div>
+<div class="m-lines">{{#each lines}}<div>{{{html}}}</div>{{/each}}</div>
+<div class="m-sep"></div>
+{{#each examples}}<div class="m-row"><span class="m-label">{{label}}</span><span class="m-text en">{{text}}</span></div>{{/each}}
+{{#if foot}}<div class="foot">{{foot}}</div>{{/if}}</zone>

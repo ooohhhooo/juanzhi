@@ -45,6 +45,16 @@ function analysis(round, toolTexts) {
   return (steps[Math.min(round, steps.length - 1)] ?? steps[steps.length - 1])()
 }
 
+/** 分享卡片剧本（虚构学生）：列模板 → 学生知识卡 → 家长本周学情卡 → 回答；「再做一张卡」只出一张学生卡（不指定模板，用设置里的默认） */
+function cards(round, again) {
+  const knowledge = { audience: 'student', kind: 'knowledge', content: { title: '不规则动词过去式', hook: '说昨天的事，动词要「变身」！', items: [{ left: 'go', right: 'went' }, { left: 'see', right: 'saw' }, { left: 'eat', right: 'ate' }, { left: 'have', right: 'had' }], example: { en: 'I **went** to the park yesterday.', zh: '我昨天去了公园。' }, warning: '小心！不是 goed，也不是 eated', signature: '小雨的英语小卡', date: '11 月 3 日' } }
+  const weekly = { audience: 'parent', kind: 'weekly', content: { student: '张小雨', grade: '四年级', week: '11 月第 1 周', metrics: [{ value: '4/4', label: '按时到课' }, { value: '86%', label: '课后练习正确率' }, { value: '+12%', label: '比上周' }], learned: '一般过去时：说昨天的事，动词要变成过去式。', good: '课堂上主动回答问题，规则动词加 -ed 基本不出错。', improve: '不规则动词（go→went、eat→ate）偶尔还会写错。', tips: '每天 5 分钟，请孩子用英语说一件昨天做的事。', teacher: '辅导老师 林老师', date: '11 月 3 日' } }
+  const steps = again
+    ? [() => ({ content: '', toolCalls: [call('card_make', knowledge, 0)] }), () => ({ content: '又做好了一张卡片。', toolCalls: [] })]
+    : [() => ({ content: '', toolCalls: [call('card_templates', { audience: 'student' }, 0)] }), () => ({ content: '', toolCalls: [call('card_make', knowledge, 1)] }), () => ({ content: '', toolCalls: [call('card_make', weekly, 2)] }), () => ({ content: '两张卡片都做好了，请在右侧预览。', toolCalls: [] })]
+  return (steps[Math.min(round, steps.length - 1)])()
+}
+
 /** 返回 { content, toolCalls, opts } */
 function next(body) {
   const msgs = body.messages
@@ -62,6 +72,8 @@ function next(body) {
   const toolTexts = after.filter(m => m.role === 'tool').map(m => textOf(m.content))
 
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
+  if (/再做一张卡/.test(q)) return cards(round, true)
+  if (/做卡片/.test(q)) return cards(round, false)
   if (/满意度/.test(q)) return analysis(round, toolTexts)
   if (/慢慢/.test(q)) return { content: '好的，我慢慢来。'.repeat(40), toolCalls: [], opts: { pieceChars: 6, chunkDelayMs: 350 } }
   if (/周报/.test(q) && lastMsg.role === 'user' && /^用户想修改计划/.test(textOf(lastMsg.content))) {

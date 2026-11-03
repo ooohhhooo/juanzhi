@@ -32,6 +32,8 @@ module.exports = {
   files: [
     'out/**/*',
     'package.json',
+    // 分享卡片的模板底图、版式和字体（src/main/cards 从 app.getAppPath()/resources/card-templates 读）
+    'resources/card-templates/**/*',
     '!**/._*',
     '!**/.DS_Store',
     // pdf.js 只需要渲染进程里读的 legacy/build/pdf.mjs、pdf.worker.mjs，以及 cmaps / standard_fonts（ewb://pdfjs 协议读它们）；其余整套（web 查看器、types、非 legacy 构建、图像解码器）不要

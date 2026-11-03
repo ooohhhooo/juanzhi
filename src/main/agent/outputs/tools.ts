@@ -3,8 +3,9 @@
  * level：'auto' = 只写本会话自己的产出目录，不需要用户同意；'write' = 会在会话目录外产生新文件，需要用户同意。
  * ctx 由集成方提供：sessionId 和 dataDir（单测用假的）。
  */
+import path from 'node:path'
 import { z } from 'zod'
-import { listOutputs, readDoc, createDoc, writeSection, saveTable, cleanMarks } from './store.ts'
+import { listOutputs, readDoc, createDoc, writeSection, saveTable, cleanMarks, sessionDir } from './store.ts'
 import { exportOutput } from './export.ts'
 import type { OutputExportFormat } from '../../../shared/agent-outputs.ts'
 
@@ -57,7 +58,7 @@ export const outputsList = tool({
   description: '列出本次任务已有的产出（文档、看板、表格、说明）：编号、类型、名称、状态。',
   params: z.object({}),
   level: 'auto',
-  run: (_a, c) => listOutputs(sc(c)).map(e => ({ id: e.id, type: e.type, name: e.name, status: e.status, updatedAt: e.updatedAt }))
+  run: (_a, c) => listOutputs(sc(c)).map(e => ({ id: e.id, type: e.type, name: e.name, status: e.status, updatedAt: e.updatedAt, ...(e.type === 'image' && e.file ? { path: path.join(sessionDir(sc(c)), e.file) } : {}) }))
 })
 
 export const outputExport = tool({

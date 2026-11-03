@@ -468,3 +468,5 @@ npm run dist:win       # 打 Windows 安装包（安装版 + 免安装版）
 ## 许可
 
 [MIT](LICENSE) © 2026 ooohhhooo。可以免费使用、修改和分发。
+
+分享卡片内嵌了两款开源字体（SIL OFL-1.1，许可文件在 `resources/card-templates/fonts/`）：[得意黑 Smiley Sans](https://github.com/atelier-anchor/smiley-sans)、[霞鹜文楷 LXGW WenKai](https://github.com/lxgw/LxgwWenKai)（已子集化）。

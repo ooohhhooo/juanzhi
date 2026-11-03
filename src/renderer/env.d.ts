@@ -1,3 +1,4 @@
+interface CardTemplateInfo { id: string; name: string; scene: string; accent: string }
 interface ElectronAPI {
   getPathForFile(file: File): string
   papers: {
@@ -256,6 +257,14 @@ interface ElectronAPI {
     board(sessionId: string): Promise<any | null>
     export(sessionId: string, id: string, format: import('../shared/agent-outputs').OutputExportFormat): Promise<{ saved: boolean; path?: string; format?: string; bytes?: number; fellBackTo?: 'csv' }>
     reveal(sessionId: string, id: string): Promise<boolean>
+    copyImage(sessionId: string, id: string): Promise<boolean>
+    saveImage(sessionId: string, id: string): Promise<{ saved: boolean; path?: string }>
+  }
+  cards: {
+    templates(): Promise<{ student: CardTemplateInfo[]; parent: CardTemplateInfo[]; settings: { defaults: { student: string; parent: string }; childName: 'first' | 'none' } }>
+    preview(id: string, thumb: boolean, kind?: string): Promise<string>
+    setDefault(audience: 'student' | 'parent', id: string): Promise<any>
+    setChildName(mode: 'first' | 'none'): Promise<any>
   }
   feedback: {
     url(): Promise<string>

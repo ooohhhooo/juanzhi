@@ -49,8 +49,8 @@ export function safeFileStem(name: string): string {
   const t = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').slice(0, 60).trim()
   return t || '未命名'
 }
-const PREFIX: Record<OutputType, string> = { md: 'd', note: 'n', table: 't', board: 'b' }
-const EXT: Record<OutputType, string> = { md: '.md', note: '.md', table: '.csv', board: '' }
+const PREFIX: Record<OutputType, string> = { md: 'd', note: 'n', table: 't', board: 'b', image: 'i' }
+const EXT: Record<OutputType, string> = { md: '.md', note: '.md', table: '.csv', board: '', image: '.png' }
 
 function uniqueFile(idx: IndexFile, name: string, type: OutputType, id: string, dir: string): string {
   const stem = safeFileStem(name)
@@ -136,6 +136,23 @@ export function setStatus(s: Scope, id: string, status: OutputStatus): void {
   writeIndex(s, idx)
 }
 
+// ───────────── 图片（分享卡片）─────────────
+
+/** 存一张图片产出：放在会话的 exports/ 下（企业微信发文件只认这个目录），每次新建一项，不覆盖旧图 */
+export function saveImage(s: Scope, name: string, png: Buffer, card: NonNullable<OutputEntry['card']>): OutputEntry {
+  const idx = readIndex(s)
+  const e = newEntry(s, idx, 'image', name, { card })
+  const dir = path.join(sessionDir(s), 'exports')
+  let f = `exports/${safeFileStem(e.name)}.png`
+  if (idx.items.some(x => x.file === f && x.id !== e.id) || fs.existsSync(path.join(sessionDir(s), f))) f = `exports/${safeFileStem(e.name)}-${e.id}.png`
+  fs.mkdirSync(dir, { recursive: true })
+  e.file = f
+  atomicWrite(path.join(sessionDir(s), f), png)
+  e.status = 'done'; e.updatedAt = Date.now()
+  writeIndex(s, idx)
+  return e
+}
+
 // ───────────── 表格 ─────────────
 
 const MAX_COLS = 100
@@ -214,6 +231,11 @@ export function readContent(s: Scope, id: string): OutputContent {
   if (!e) throw new Error(`找不到产出 ${id}`)
   if (e.type === 'board') return { type: 'board', boardId: e.boardId ?? e.id }
   if (e.type === 'table') { const t = readTableRows(s, id); return { type: 'table', columns: t.columns, rows: t.rows.slice(0, 200), totalRows: t.rows.length } }
+  if (e.type === 'image') {
+    if (!e.file) throw new Error('找不到图片文件')
+    const buf = fs.readFileSync(path.join(sessionDir(s), e.file))
+    return { type: 'image', dataUrl: 'data:image/png;base64,' + buf.toString('base64'), width: e.card?.width ?? 0, height: e.card?.height ?? 0 }
+  }
   const d = readDoc(s, id)
   return { type: e.type, markdown: cleanMarks(d.markdown), written: d.sections.length, total: e.total }
 }

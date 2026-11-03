@@ -139,7 +139,7 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
   assert.equal(merged.find(x => x.name === '学情周报').source, 'user', '同名用户覆盖内置')
   const opsNames = playbooksForRole(merged, 'ops').map(x => x.name)
   assert.ok(opsNames.includes('测试剧本') && opsNames.includes('renewal') && !opsNames.includes('学情周报'), '按角色过滤（用户版学情周报只给辅导老师）')
-  assert.equal(builtin.length, 7, '内置剧本一共 7 个：6 个数据分析 + 学情周报')
+  assert.equal(builtin.length, 8, '内置剧本一共 8 个：6 个数据分析 + 学情周报 + 分享卡片')
   assert.match(playbookCatalog([weekly]), /^- 学情周报：/)
   // 系统提示：规矩 + 角色 + 剧本目录；不含机构名
   const sp = buildSystemPrompt({ role: getRole('ops'), scene: 'school', playbooks: [weekly], today: '2026-11-03' })

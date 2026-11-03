@@ -24,7 +24,7 @@ export const TOOL_LABELS: Record<string, string> = {
   text_classify: '文字归类', board_start: '新建看板', board_add_finding: '写核心发现', board_add_section: '加看板章节', board_add_block: '加图表或表格',
   board_set_caliber: '写口径说明', board_preview: '看板预览', board_export: '导出看板',
   doc_create: '新建汇报', doc_write_section: '写汇报小节', doc_read: '读汇报', table_save: '保存名单', outputs_list: '看已有产出', output_export: '导出产出',
-  connectors_list: '看已连接的外部', wecom_send: '发到企业微信'
+  card_templates: '看卡片模板', card_make: '做分享卡片', connectors_list: '看已连接的外部', wecom_send: '发到企业微信'
 }
 
 export interface BridgeOptions {
