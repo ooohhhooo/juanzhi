@@ -141,7 +141,7 @@ export interface SuggestResult { items: Record<string, SuggestItem>; model: stri
 const emptyMapping = (): SheetMapping => ({ headerRows: 1, levelName: '', columns: [], skipMarkers: [], uncertain: [] })
 const aiReady = () => { const c = loadConfig(); return !!(c.base_url && parseModelOf(c) && getApiKey()) }
 
-async function jsonCall(o: { kind: string; model: string; system: string; user: string; signal?: AbortSignal; maxTokens?: number }): Promise<{ content: string; model: string }> {
+export async function jsonCall(o: { kind: string; model: string; system: string; user: string; signal?: AbortSignal; maxTokens?: number }): Promise<{ content: string; model: string }> {
   const cfg = loadConfig()
   const lim = effectiveMaxTokens(cfg, o.model)
   const t0 = Date.now()

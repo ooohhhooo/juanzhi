@@ -9,7 +9,8 @@ import { KP_SEEDS_V1, QTYPE_SEEDS_V1 } from '../../src/main/seed/taxonomy.ts'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DOCS = [
   ['docs/prompts/v2-分读者与事实核对.md', { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }],
-  ['docs/prompts/v3-老师版升级.md', { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' }]
+  ['docs/prompts/v3-老师版升级.md', { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' }],
+  ['docs/prompts/v4-文字归类.md', { 一: 'p6_classify_propose', 二: 'p6_classify_assign' }]
 ]
 
 // 与 scripts/extract-prompts.cjs 同样的规则，独立再实现一遍

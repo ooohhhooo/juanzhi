@@ -1,0 +1,9 @@
+这一列的名字：{{FIELD_NAME}}
+
+【类别】（每行：类别名：定义）
+{{CATEGORIES}}
+
+【要归类的文字】
+{{TEXT_LINES}}
+
+请按 system 的要求只输出 JSON。
