@@ -23,6 +23,9 @@ export class AiError extends Error {
   }
 }
 
+/** 最近一次失败的调用（给诊断用；detail 已脱敏，不含密钥） */
+export const lastAiFailure: { err: AiError | null; model: string; at: number } = { err: null, model: '', at: 0 }
+
 export interface ImagePart { type: 'image_url'; image_url: { url: string } }
 export interface TextPart { type: 'text'; text: string }
 export interface ChatMessage {
@@ -382,7 +385,7 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
         lastTruncated.detail += `；加大到 ${maxTokens} 后被服务商拒绝（${err.detail.slice(0, 120)}）`
         err = lastTruncated
       }
-      if (err.code !== 'aborted') emitCall(req, startedAt, { error: err })
+      if (err.code !== 'aborted') { emitCall(req, startedAt, { error: err }); lastAiFailure.err = err; lastAiFailure.model = req.model; lastAiFailure.at = Date.now() }
       if (err.code !== 'truncated' && err.code !== 'empty') req.onAttempt?.({ attempt, ok: false, error: err })
       // 服务商不认 response_format：去掉后重试（不计入重试次数）
       if (err.code === 'bad_request' && jsonMode && /response_format|json_object|json_schema/i.test(err.detail)) {
