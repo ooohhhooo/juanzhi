@@ -169,7 +169,7 @@ export function checkFinal(audience: Audience, data: unknown): string | null {
 export type ChildNameMode = 'first' | 'none'
 const COMPOUND = ['欧阳', '司马', '上官', '诸葛', '东方', '皇甫', '尉迟', '公孙', '慕容', '令狐', '长孙', '夏侯', '宇文', '司徒', '轩辕']
 
-/** 去掉姓：张小雨 → 小雨；欧阳小雨 → 小雨；已经是「小雨」这样的称呼就保持；英文名取第一个词 */
+/** 去掉姓：王小明 → 小明；两个字的（李雨）用「小 + 名」→ 小雨；欧阳小雨 → 小雨；已经是「小雨」这样的称呼就保持；英文名取第一个词 */
 export function givenName(full: string): string {
   const n = full.trim()
   if (!n) return ''
@@ -177,6 +177,7 @@ export function givenName(full: string): string {
   const chars = [...n]
   if (chars.length <= 1) return n
   if (/^[小阿]/.test(n) && chars.length <= 3) return n
+  if (chars.length === 2) return '小' + chars[1]   // 单姓单名：李雨 → 小雨
   if (chars.length >= 4 && COMPOUND.includes(chars.slice(0, 2).join(''))) return chars.slice(2).join('')
   if (chars.length === 3 && COMPOUND.includes(chars.slice(0, 2).join(''))) return chars.slice(2).join('')
   return chars.slice(1).join('')

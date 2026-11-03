@@ -79,7 +79,7 @@ assert.equal(checkFinal('parent', { x: '比上周进步了 12%' }), null)
 assert.equal(checkFinal('student', { x: '排名' }), null, '学生卡不查排名')
 
 // ── 孩子称呼：只写名 / 不写名字 ──
-assert.equal(givenName('张小雨'), '小雨'); assert.equal(givenName('欧阳小雨'), '小雨'); assert.equal(givenName('小雨'), '小雨'); assert.equal(givenName('Lucy Wang'), 'Lucy'); assert.equal(givenName('李雨'), '雨')
+assert.equal(givenName('张小雨'), '小雨'); assert.equal(givenName('欧阳小雨'), '小雨'); assert.equal(givenName('小雨'), '小雨'); assert.equal(givenName('Lucy Wang'), 'Lucy'); assert.equal(givenName('李雨'), '小雨'); assert.equal(givenName('小雨'), '小雨'); assert.equal(givenName('王小明'), '小明'); assert.equal(givenName('欧阳雨'), '雨'); assert.equal(givenName('小明'), '小明')
 const w1 = applyNamePolicy({ student: '张小雨', good: '张小雨上课很专注', tips: '请和小雨一起读' }, 'first')
 assert.equal(w1.student, '小雨'); assert.equal(w1.good, '小雨上课很专注')
 const w2 = applyNamePolicy({ student: '张小雨', good: '张小雨上课很专注，小雨很棒', tips: '请和小雨一起读' }, 'none')
