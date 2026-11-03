@@ -27,6 +27,19 @@ export const LIMITS = { sheets: 20, rows: 5000, cols: 60, cellChars: 2000 } as c
 export const ZIP_LIMITS = { entries: 1000, entryBytes: 50 * 1024 * 1024, totalBytes: 200 * 1024 * 1024, sharedStrings: 300_000, sharedChars: 30_000_000 } as const
 const BOMB_MSG = '这个文件解压后太大，不像正常的课程表（可能已损坏或不安全），已拒绝读取'
 
+/** 读表的可调上限（数据集导入用更大的行数 / 体积）。不传 = 课程表的默认上限，行为不变 */
+export interface ReadOpts {
+  rows?: number
+  cols?: number
+  entryBytes?: number
+  totalBytes?: number
+  sharedStrings?: number
+  sharedChars?: number
+  /** 超过上限的提示里怎么称呼这个文件（默认「课程表」） */
+  label?: string
+}
+const bombMsg = (o?: ReadOpts) => (o?.label ? BOMB_MSG.replace('课程表', o.label) : BOMB_MSG)
+
 // ───────────────────────── 文字清理 ─────────────────────────
 
 const ENTITY: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
@@ -146,7 +159,8 @@ function numberText(raw: string): string {
 export interface Budget { used: number }
 
 /** 解压一个条目并按「实际解压出的字节数」计数，超过上限立刻停（目录里声明的大小可以是假的） */
-export function readText(zip: JSZip, p: string, budget: Budget): Promise<string | null> {
+export function readText(zip: JSZip, p: string, budget: Budget, opts?: ReadOpts): Promise<string | null> {
+  const entryMax = opts?.entryBytes ?? ZIP_LIMITS.entryBytes, totalMax = opts?.totalBytes ?? ZIP_LIMITS.totalBytes
   const f = zip.file(p) ?? zip.file(p.replace(/^\//, ''))
   if (!f) return Promise.resolve(null)
   return new Promise((resolve, reject) => {
@@ -156,7 +170,7 @@ export function readText(zip: JSZip, p: string, budget: Budget): Promise<string 
     const fail = (e: Error) => { if (done) return; done = true; try { h.pause() } catch { /* 已结束 */ } reject(e) }
     h.on('data', ((d: Uint8Array) => {
       n += d.length; budget.used += d.length
-      if (n > ZIP_LIMITS.entryBytes || budget.used > ZIP_LIMITS.totalBytes) fail(new CourseFileError(BOMB_MSG))
+      if (n > entryMax || budget.used > totalMax) fail(new CourseFileError(bombMsg(opts)))
       else chunks.push(d)
     }) as (x: never) => void)
     h.on('error', () => fail(new CourseFileError('这个文件打不开，可能已损坏')))
@@ -166,40 +180,42 @@ export function readText(zip: JSZip, p: string, budget: Budget): Promise<string 
 }
 
 /** 解一个 xlsx（Buffer / Uint8Array） */
-export async function readXlsx(buf: Uint8Array): Promise<TableRead> {
+export async function readXlsx(buf: Uint8Array, opts?: ReadOpts): Promise<TableRead> {
+  const entryMax = opts?.entryBytes ?? ZIP_LIMITS.entryBytes, totalMax = opts?.totalBytes ?? ZIP_LIMITS.totalBytes
+  const maxRows = opts?.rows ?? LIMITS.rows, maxCols = opts?.cols ?? LIMITS.cols
   let zip: JSZip
   try { zip = await JSZip.loadAsync(buf) } catch { throw new CourseFileError('这个文件打不开，可能已损坏，或者不是 .xlsx 表格') }
   // 先看目录（这时还没有解压任何东西）：条目数、每个条目声明的解压后大小
   const entries = Object.values(zip.files)
-  if (entries.length > ZIP_LIMITS.entries) throw new CourseFileError(BOMB_MSG)
+  if (entries.length > ZIP_LIMITS.entries) throw new CourseFileError(bombMsg(opts))
   let declared = 0
   for (const e of entries) {
     const sz = Number((e as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0)
-    if (sz > ZIP_LIMITS.entryBytes) throw new CourseFileError(BOMB_MSG)
+    if (sz > entryMax) throw new CourseFileError(bombMsg(opts))
     declared += sz
   }
-  if (declared > ZIP_LIMITS.totalBytes) throw new CourseFileError(BOMB_MSG)
+  if (declared > totalMax) throw new CourseFileError(bombMsg(opts))
   const budget: Budget = { used: 0 }
-  const wb = await readText(zip, 'xl/workbook.xml', budget)
+  const wb = await readText(zip, 'xl/workbook.xml', budget, opts)
   if (!wb) throw new CourseFileError('这个文件里没有找到工作表，请用 Excel 或 WPS 重新另存为 .xlsx')
-  const relsXml = (await readText(zip, 'xl/_rels/workbook.xml.rels', budget)) ?? ''
+  const relsXml = (await readText(zip, 'xl/_rels/workbook.xml.rels', budget, opts)) ?? ''
   const rels = new Map<string, string>()
   for (const m of scanElements(relsXml, 'Relationship')) {
     const id = attr(m.attrs, 'Id'), target = attr(m.attrs, 'Target')
     if (id && target) rels.set(id, target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//, '')}`)
   }
-  const sharedXml = await readText(zip, 'xl/sharedStrings.xml', budget)
+  const sharedXml = await readText(zip, 'xl/sharedStrings.xml', budget, opts)
   const shared: string[] = []
   let sharedChars = 0
   if (sharedXml) {
     for (const m of scanElements(sharedXml, 'si')) {
       const t = siText(m.body)
       sharedChars += t.length
-      if (shared.length >= ZIP_LIMITS.sharedStrings || sharedChars > ZIP_LIMITS.sharedChars) throw new CourseFileError(BOMB_MSG)
+      if (shared.length >= (opts?.sharedStrings ?? ZIP_LIMITS.sharedStrings) || sharedChars > (opts?.sharedChars ?? ZIP_LIMITS.sharedChars)) throw new CourseFileError(bombMsg(opts))
       shared.push(t)
     }
   }
-  const dateXf = dateStyles(await readText(zip, 'xl/styles.xml', budget))
+  const dateXf = dateStyles(await readText(zip, 'xl/styles.xml', budget, opts))
 
   const sheetTags = [...scanElements(wb, 'sheet')].map(m => m.attrs)
   const warnings: string[] = []
@@ -212,23 +228,23 @@ export async function readXlsx(buf: Uint8Array): Promise<TableRead> {
     const state = attr(tag, 'state')
     const rid = attr(tag, 'r:id') ?? attr(tag, 'id')
     const path = (rid && rels.get(rid)) || `xl/worksheets/sheet${idx}.xml`
-    const xml = await readText(zip, path, budget)
+    const xml = await readText(zip, path, budget, opts)
     if (xml == null) continue
-    const parsed = parseSheetXml(xml, shared, dateXf)
-    if (parsed.truncated) warnings.push(`「${name}」超过 ${LIMITS.rows} 行或 ${LIMITS.cols} 列，多出的部分已忽略`)
+    const parsed = parseSheetXml(xml, shared, dateXf, maxRows, maxCols)
+    if (parsed.truncated) warnings.push(`「${name}」超过 ${maxRows} 行或 ${maxCols} 列，多出的部分已忽略`)
     sheets.push({ name, hidden: state === 'hidden' || state === 'veryHidden', rows: parsed.rows, mergedFilled: parsed.merged })
   }
   if (!sheets.length) throw new CourseFileError('这个文件里没有读到任何工作表')
   return { sheets, warnings }
 }
 
-function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>): { rows: string[][]; merged: boolean; truncated: boolean } {
+function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>, maxRows: number = LIMITS.rows, maxCols: number = LIMITS.cols): { rows: string[][]; merged: boolean; truncated: boolean } {
   const grid: string[][] = []
   let maxC = 0, truncated = false
   for (const m of scanElements(xml, 'c')) {
     const pos = parseRef(attr(m.attrs, 'r') ?? '')
     if (!pos) continue
-    if (pos.r >= LIMITS.rows || pos.c >= LIMITS.cols) { truncated = true; continue }
+    if (pos.r >= maxRows || pos.c >= maxCols) { truncated = true; continue }
     const body = m.body
     const t = attr(m.attrs, 't')
     const s = parseInt(attr(m.attrs, 's') ?? '-1', 10)
@@ -257,8 +273,8 @@ function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>): { ro
     if (!p1 || !p2) continue
     const v = grid[p1.r]?.[p1.c]
     if (!v) continue
-    for (let r = p1.r; r <= Math.min(p2.r, LIMITS.rows - 1); r++) {
-      for (let c = p1.c; c <= Math.min(p2.c, LIMITS.cols - 1); c++) {
+    for (let r = p1.r; r <= Math.min(p2.r, maxRows - 1); r++) {
+      for (let c = p1.c; c <= Math.min(p2.c, maxCols - 1); c++) {
         if (r === p1.r && c === p1.c) continue
         while (grid.length <= r) grid.push([])
         if (!grid[r][c]) { grid[r][c] = v; merged = true; if (c + 1 > maxC) maxC = c + 1 }
@@ -320,12 +336,13 @@ export function parseCsv(text: string, delimiter?: string): string[][] {
   return rows
 }
 
-export function readCsvText(text: string, name: string): TableRead {
+export function readCsvText(text: string, name: string, opts?: ReadOpts): TableRead {
+  const maxRows = opts?.rows ?? LIMITS.rows, maxColsAll = opts?.cols ?? LIMITS.cols
   const warnings: string[] = []
   let rows = parseCsv(text).map(r => r.map(cleanCell))
-  if (rows.length > LIMITS.rows) { rows = rows.slice(0, LIMITS.rows); warnings.push(`超过 ${LIMITS.rows} 行，多出的部分已忽略`) }
+  if (rows.length > maxRows) { rows = rows.slice(0, maxRows); warnings.push(`超过 ${maxRows} 行，多出的部分已忽略`) }
   let maxC = Math.max(0, ...rows.map(r => r.length))
-  if (maxC > LIMITS.cols) { maxC = LIMITS.cols; warnings.push(`超过 ${LIMITS.cols} 列，多出的部分已忽略`) }
+  if (maxC > maxColsAll) { maxC = maxColsAll; warnings.push(`超过 ${maxColsAll} 列，多出的部分已忽略`) }
   rows = rows.map(r => Array.from({ length: maxC }, (_, c) => r[c] ?? ''))
   while (rows.length && rows[rows.length - 1].every(x => !x)) rows.pop()
   if (!rows.length) throw new CourseFileError('这个表里没有读到任何内容')
@@ -333,7 +350,7 @@ export function readCsvText(text: string, name: string): TableRead {
 }
 
 /** 按文件名和文件头判断格式并读取（文件名只用来判断扩展名，不进日志） */
-export async function readTable(buf: Uint8Array, fileName: string): Promise<TableRead> {
+export async function readTable(buf: Uint8Array, fileName: string, opts?: ReadOpts): Promise<TableRead> {
   const ext = (/\.([A-Za-z0-9]+)$/.exec(fileName)?.[1] ?? '').toLowerCase()
   if (ext === 'xls') throw new CourseFileError('这是旧版 Excel 格式（.xls），请用 Excel 或 WPS 打开后「另存为」.xlsx 再上传')
   if (ext === 'numbers') throw new CourseFileError('这是 Numbers 文件，请在 Numbers 里「导出为」Excel（.xlsx）或 CSV 后再上传')
@@ -343,11 +360,11 @@ export async function readTable(buf: Uint8Array, fileName: string): Promise<Tabl
   const zipMagic = buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b
   const oleMagic = buf.length > 4 && buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11 && buf[3] === 0xe0
   if (oleMagic) throw new CourseFileError('这是旧版 Excel 格式（.xls），请用 Excel 或 WPS 打开后「另存为」.xlsx 再上传')
-  if (ext === 'xlsx' || ext === 'xlsm' || (zipMagic && !ext)) return readXlsx(buf)
+  if (ext === 'xlsx' || ext === 'xlsm' || (zipMagic && !ext)) return readXlsx(buf, opts)
   if (ext === 'csv' || ext === 'txt' || ext === 'tsv' || ext === '') {
     const name = fileName.replace(/\.[^.]+$/, '').slice(0, 40) || '课程表'
     const d = decodeTextInfo(buf)
-    const r = readCsvText(d.text, name)
+    const r = readCsvText(d.text, name, opts)
     if (d.encoding === 'gbk') r.warnings.push('这个文件不是 UTF-8，已按 GBK 读取；如果下面的文字有乱码，请用 Excel 另存为 UTF-8 的 CSV 或 .xlsx 再上传')
     if (d.suspicious) r.warnings.push('读出来的文字里有疑似乱码，请核对；乱码的话请用 Excel 另存为 .xlsx 再上传')
     return r

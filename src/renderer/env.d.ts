@@ -112,6 +112,19 @@ interface ElectronAPI {
     loadSample(): Promise<{ papers: number; questions: number; alreadyLoaded: boolean }>
     clearSample(): Promise<{ papers: number; reports: number }>
   }
+  /** 数据集（数据页）：Excel / CSV 导入成本机的 SQLite，供分析 Agent 查询。类型定义见 src/main/analysis/types.ts */
+  datasets: {
+    pick(): Promise<string[]>
+    import(paths: string[]): Promise<Array<{ file: string; ok: boolean; id?: string; error?: string }>>
+    list(): Promise<DatasetMetaView[]>
+    profile(id: string): Promise<DatasetMetaView>
+    profileText(id: string, table?: string): Promise<string>
+    preview(id: string, table: string): Promise<{ columns: Array<{ name: string; label: string; type: string; sensitive: boolean }>; rows: unknown[][]; total: number }>
+    remove(id: string): Promise<boolean>
+    setSensitive(id: string, table: string, column: string, sensitive: boolean): Promise<boolean>
+    rename(id: string, name: string): Promise<boolean>
+    setNote(id: string, note: string): Promise<boolean>
+  }
   /** 课程对照（设置 → 课程大纲；看板「课程对照」页签） */
   course: {
     list(): Promise<CourseOutlineCard[]>
@@ -330,6 +343,15 @@ interface UpdateStateView {
   error?: { message: string; manual: boolean }
   blocker?: { code: string; message: string }
   announce?: boolean
+}
+
+interface DatasetColumnView {
+  name: string; label: string; type: string; sensitive: boolean; sensitiveAuto: boolean; derived?: boolean
+  profile: { nonNull: number; nullRate: number; distinct: number; min?: number | string; max?: number | string; mean?: number; p50?: number; top?: Array<{ value: string; count: number; share: number }>; examples: string[]; hints: string[] }
+}
+interface DatasetMetaView {
+  id: string; name: string; sourceFile: string; importedAt: string; note: string; sizeBytes: number
+  tables: Array<{ name: string; sheet: string; rows: number; notes: string[]; views: Array<{ column: string; view: string }>; columns: DatasetColumnView[] }>
 }
 
 interface Window {
