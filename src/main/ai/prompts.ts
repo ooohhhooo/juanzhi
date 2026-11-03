@@ -30,6 +30,14 @@ import p4GenSystem from './prompts/p4_variant_gen.system.txt?raw'
 import p4GenUser from './prompts/p4_variant_gen.user.txt?raw'
 import p4CheckSystem from './prompts/p4_variant_check.system.txt?raw'
 import p4CheckUser from './prompts/p4_variant_check.user.txt?raw'
+import p5ColsSystem from './prompts/p5_course_cols.system.txt?raw'
+import p5ColsUser from './prompts/p5_course_cols.user.txt?raw'
+import p5MatchSystem from './prompts/p5_course_match.system.txt?raw'
+import p5MatchUser from './prompts/p5_course_match.user.txt?raw'
+import p5AdviceSystem from './prompts/p5_course_advice.system.txt?raw'
+import p5AdviceUser from './prompts/p5_course_advice.user.txt?raw'
+import p5HintSystem from './prompts/p5_course_hint.system.txt?raw'
+import p5HintUser from './prompts/p5_course_hint.user.txt?raw'
 
 /** 内置提示词的版本号；改了资源文件就要同步提升，并在交付说明里记一笔 */
 export const PROMPT_DEFAULT_VERSION = 'v2.0'
@@ -54,7 +62,11 @@ const DEFAULTS: Record<string, string> = {
   'p2_kp.system': trimEnd(p2KpSystem), 'p2_kp.user': trimEnd(p2KpUser),
   'p3_tricks.system': trimEnd(p3TricksSystem), 'p3_tricks.user': trimEnd(p3TricksUser),
   'p4_variant_gen.system': trimEnd(p4GenSystem), 'p4_variant_gen.user': trimEnd(p4GenUser),
-  'p4_variant_check.system': trimEnd(p4CheckSystem), 'p4_variant_check.user': trimEnd(p4CheckUser)
+  'p4_variant_check.system': trimEnd(p4CheckSystem), 'p4_variant_check.user': trimEnd(p4CheckUser),
+  'p5_course_cols.system': trimEnd(p5ColsSystem), 'p5_course_cols.user': trimEnd(p5ColsUser),
+  'p5_course_match.system': trimEnd(p5MatchSystem), 'p5_course_match.user': trimEnd(p5MatchUser),
+  'p5_course_advice.system': trimEnd(p5AdviceSystem), 'p5_course_advice.user': trimEnd(p5AdviceUser),
+  'p5_course_hint.system': trimEnd(p5HintSystem), 'p5_course_hint.user': trimEnd(p5HintUser)
 }
 
 const TITLES: Record<PromptId, string> = {
@@ -68,7 +80,11 @@ const TITLES: Record<PromptId, string> = {
   p2_kp: 'P2 单个考点分析（看板抽屉）',
   p3_tricks: 'P3 老师版：口诀大招',
   p4_variant_gen: 'P4 老师版：同类变形题（出题）',
-  p4_variant_check: 'P4 老师版：变形题独立解答（第二次核对）'
+  p4_variant_check: 'P4 老师版：变形题独立解答（第二次核对）',
+  p5_course_cols: 'P5 课程对照：认列（只判断哪一列是什么，不复制内容）',
+  p5_course_match: 'P5 课程对照：知识点 → 课次',
+  p5_course_advice: 'P5 课程对照：家长沟通话术（看板）',
+  p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议'
 }
 
 const P1_COMMON = ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'FILE_NAME', 'KNOWN_META', 'BATCH_INFO', 'BATCH_PREFIX', 'PREV_CONTEXT']
@@ -81,7 +97,11 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p2_kp: ['FILTER_DESC', 'PAPER_COUNT', 'YEARS', 'SAMPLE_WARNING', 'KP_NAME', 'KP_DATA', 'KP_SAMPLES', 'EVIDENCE'],
   p3_tricks: ['ERROR_ITEMS', 'EVIDENCE'],
   p4_variant_gen: ['VARIANT_KPS', 'EVIDENCE'],
-  p4_variant_check: ['QUESTIONS']
+  p4_variant_check: ['QUESTIONS'],
+  p5_course_cols: ['SHEET_NAME', 'SHEET_PREVIEW'],
+  p5_course_match: ['OUTLINE_LINES', 'KP_BATCH'],
+  p5_course_advice: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
+  p5_course_hint: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE']
 }
 function overrides(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(SETTINGS_KEY) as { value_json: string } | undefined
@@ -121,7 +141,7 @@ export function promptViews(): PromptView[] {
       views.push({
         id, part, title: TITLES[id], text, defaultText: DEFAULTS[k], isCustom: o[k] !== undefined && o[k] !== DEFAULTS[k],
         version: defaultVersionOf(id), defaultUpdated: o[k] !== undefined && o[k] !== DEFAULTS[k] && baseVersionOf(k, b) !== defaultVersionOf(id),
-        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: true   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）、P2（M3）、P3（M4）现在都用
+        unknownPlaceholders: unknownPlaceholders(text, PLACEHOLDERS[id]), usedInM2: true   // 字段名沿用旧的；含义是「当前版本会被用到」：P1 两版（M2）、P2（M3）、P3/P4（报告）、课程对照四个现在都用
       })
     }
   }

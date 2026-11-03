@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -112,9 +112,9 @@ const api = {
   },
   data: {
     info: (): Promise<any> => ipcRenderer.invoke('data:info'),
-    exportPack: (): Promise<any> => ipcRenderer.invoke('data:exportPack'),
+    exportPack: (opts?: { withCourse?: boolean }): Promise<any> => ipcRenderer.invoke('data:exportPack', opts),
     pickPack: (): Promise<any> => ipcRenderer.invoke('data:pickPack'),
-    importPack: (token: string, mode: 'merge' | 'overwrite'): Promise<any> => ipcRenderer.invoke('data:importPack', token, mode),
+    importPack: (token: string, mode: 'merge' | 'overwrite', opts?: { updateCourses?: boolean }): Promise<any> => ipcRenderer.invoke('data:importPack', token, mode, opts),
     discardPack: (token: string): Promise<boolean> => ipcRenderer.invoke('data:discardPack', token),
     deleteBackup: (name: string): Promise<boolean> => ipcRenderer.invoke('data:deleteBackup', name),
     openBackup: (name: string): Promise<boolean> => ipcRenderer.invoke('data:openBackup', name),
@@ -124,6 +124,37 @@ const api = {
     sampleStatus: (): Promise<{ loaded: boolean; papers: number; questions: number }> => ipcRenderer.invoke('data:sampleStatus'),
     loadSample: (): Promise<any> => ipcRenderer.invoke('data:loadSample'),
     clearSample: (): Promise<any> => ipcRenderer.invoke('data:clearSample'),
+  },
+  /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
+  course: {
+    list: (): Promise<any[]> => ipcRenderer.invoke('course:list'),
+    get: (id: string): Promise<any> => ipcRenderer.invoke('course:get', id),
+    maps: (id: string): Promise<any[]> => ipcRenderer.invoke('course:maps', id),
+    search: (outlineIds: string[], q: string): Promise<any[]> => ipcRenderer.invoke('course:search', outlineIds, q),
+    setActive: (id: string, active: boolean): Promise<boolean> => ipcRenderer.invoke('course:setActive', id, active),
+    rename: (id: string, name: string): Promise<boolean> => ipcRenderer.invoke('course:rename', id, name),
+    confirmDraft: (id: string): Promise<boolean> => ipcRenderer.invoke('course:confirmDraft', id),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('course:remove', id),
+    pickFile: (): Promise<any> => ipcRenderer.invoke('course:pickFile'),
+    readFile: (path: string): Promise<any> => ipcRenderer.invoke('course:readFile', path),
+    readText: (text: string): Promise<any> => ipcRenderer.invoke('course:readText', text),
+    suggest: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:suggest', req),
+    suggestCancel: (sessionId: string): Promise<boolean> => ipcRenderer.invoke('course:suggestCancel', sessionId),
+    preview: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:preview', req),
+    diff: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:diff', req),
+    save: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:save', req),
+    template: (kind: 'blank' | 'sample'): Promise<any> => ipcRenderer.invoke('course:template', kind),
+    matchEstimate: (id: string, onlyNew: boolean): Promise<any> => ipcRenderer.invoke('course:matchEstimate', id, onlyNew),
+    matchProgress: (id: string): Promise<any> => ipcRenderer.invoke('course:matchProgress', id),
+    matchCancel: (id: string): Promise<boolean> => ipcRenderer.invoke('course:matchCancel', id),
+    match: (id: string, onlyNew: boolean): Promise<any> => ipcRenderer.invoke('course:match', id, onlyNew),
+    mapEdit: (edit: Record<string, unknown>): Promise<boolean> => ipcRenderer.invoke('course:mapEdit', edit),
+    dashboard: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:dashboard', scope),
+    exportGaps: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:exportGaps', scope),
+    adviceState: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:adviceState', scope),
+    adviceGenerate: (scope: Record<string, unknown>, requestId: string): Promise<any> => ipcRenderer.invoke('course:adviceGenerate', scope, requestId),
+    adviceConfirm: (scope: Record<string, unknown>, acknowledged?: string[]): Promise<any> => ipcRenderer.invoke('course:adviceConfirm', scope, acknowledged ?? []),
+    adviceCopy: (scope: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:adviceCopy', scope),
   },
   app: {
     info: (): Promise<any> => ipcRenderer.invoke('app:info'),

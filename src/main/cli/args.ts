@@ -18,7 +18,8 @@ export const EXIT_CODES = {
   export_blocked: 11,
   busy: 12,
   data_unavailable: 13,
-  ai_failed: 14
+  ai_failed: 14,
+  course_not_matched: 15
 } as const
 export type CliErrorCode = keyof typeof EXIT_CODES
 
@@ -82,7 +83,10 @@ export const COMMANDS: Record<string, CommandSpec> = {
   'stats overview': { args: { min: 0, max: 0, name: '' }, flags: FILTER_FLAGS, summary: '总览' },
   'stats hot': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'level'], summary: '重难点（综合得分排序）' },
   'stats compare': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'target', 'base', 'level', 'no-align'], summary: '同比：目标学年 vs 之前的学年' },
-  'report generate': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'reader'], summary: '生成报告' },
+  'course list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '课程体系列表（名称、级别数、课数、匹配状态）' },
+  'course import': { args: { min: 1, max: 1, name: '<文件>' }, flags: ['name', 'scene', 'i-reviewed'], summary: '导入课程表（.xlsx / .csv）并整理；不带 --i-reviewed 时保存为草稿，要在窗口里确认后才参与对照' },
+  'course match': { args: { min: 1, max: 1, name: '<id>' }, flags: ['only-new', 'estimate-only', 'yes'], summary: '把知识点匹配到课程体系的课次（会调用 AI，输出里报用量）；--estimate-only 只估算不调用；预计用量很大时要加 --yes 才执行' },
+  'report generate': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'reader', 'with-course'], summary: '生成报告；--with-course <id[,id]> 加入课程对照（体系要先匹配）' },
   'report list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '报告列表' },
   'report show': { args: { min: 1, max: 1, name: '<id>' }, flags: [], summary: '一份报告的详情' },
   'report export': { args: { min: 1, max: 1, name: '<id>' }, flags: ['format', 'out', 'overwrite'], summary: '导出报告文件（md / docx / pdf）；目标文件已存在时要加 --overwrite 才覆盖' },
@@ -90,7 +94,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
 }
 
 /** 不带值的参数（其余参数都要带一个值） */
-const BOOLEAN_FLAGS = new Set(['wait', 'overwrite', 'i-reviewed', 'include-reviewing', 'include-duplicates', 'no-align', 'quiet', 'help'])
+const BOOLEAN_FLAGS = new Set(['wait', 'overwrite', 'i-reviewed', 'only-new', 'estimate-only', 'yes', 'include-reviewing', 'include-duplicates', 'no-align', 'quiet', 'help'])
 /** 所有命令都接受的全局参数 */
 const GLOBAL_FLAGS = ['out', 'result-file', 'timeout', 'quiet', 'help']
 
@@ -170,7 +174,7 @@ export function parseArgs(args: string[]): ParsedArgs {
   if (!command) {
     if (help || words.length === 0) return { command: '', positionals: [], flags, resultFile: null, jsonOut: null, timeoutSec: DEFAULT_TIMEOUT_SEC, quiet: false, help: true }
     const first = words[0]
-    if (['papers', 'stats', 'report'].includes(first)) {
+    if (['papers', 'stats', 'report', 'course'].includes(first)) {
       const subs = Object.keys(COMMANDS).filter(c => c.startsWith(first + ' ')).map(c => c.split(' ')[1]).join(' / ')
       throw usage(words.length >= 2 ? `没有「${first} ${words[1]}」这个命令。${first} 的子命令：${subs}` : `「${first}」后面要接子命令：${subs}`)
     }

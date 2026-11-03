@@ -3,6 +3,7 @@ import { Tabs } from 'antd'
 import DistributionTab from './DistributionTab'
 import CompareTab from './CompareTab'
 import HotTab from './HotTab'
+import CourseTab from './CourseTab'
 import MethodologyButton from '../../stats/Methodology'
 import { filterLabel, useStatsFilter } from '../../stats/StatsFilter'
 import { Page } from '../../design'
@@ -18,7 +19,8 @@ export default function Dashboard() {
         items={[
           { key: 'dist', label: '分布', children: <DistributionTab /> },
           { key: 'compare', label: '同比', children: <CompareTab /> },
-          { key: 'hot', label: '重难点', children: <HotTab /> }
+          { key: 'hot', label: '重难点', children: <HotTab /> },
+          { key: 'course', label: '课程对照', children: <CourseTab /> }
         ]} />
     </Page>
   )

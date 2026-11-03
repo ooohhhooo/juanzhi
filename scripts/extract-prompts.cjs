@@ -1,5 +1,5 @@
 // 把 docs/prompts 里的提示词正文原样抽成资源文件（v1 保留作历史，不再抽）。
-// 依次读 v2（分读者与事实核对）和 v3（老师版升级），后读的覆盖先读的：p3_teacher 以 v3 为准，v2 里的那份只是历史。
+// 依次读 v2（分读者与事实核对）、v3（老师版升级）和 v3-课程对照，后读的覆盖先读的：p3_teacher 以 v3 为准，v2 里的那份只是历史。
 // 用法：node scripts/extract-prompts.cjs     输出：src/main/ai/prompts/<id>.<system|user>.txt
 // 提示词有改动时重新跑一次并同步更新对应提示词的版本号（src/main/ai/prompts.ts 的 PROMPT_VERSIONS / PROMPT_DEFAULT_VERSION）。
 const fs = require('node:fs')
@@ -11,9 +11,11 @@ fs.mkdirSync(outDir, { recursive: true })
 
 const DOCS = [
   { file: 'docs/prompts/v2-分读者与事实核对.md', ids: { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' } },
-  { file: 'docs/prompts/v3-老师版升级.md', ids: { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' } }
+  { file: 'docs/prompts/v3-老师版升级.md', ids: { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' } },
+  { file: 'docs/prompts/v3-课程对照.md', ids: { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint' } }
 ]
-const EXPECTED = 22
+// 每个提示词 system + user 两个文件；个数随文档里登记的 id 变（同名的后者覆盖前者，只算一次），不写死
+const EXPECTED = new Set(DOCS.flatMap(d => Object.values(d.ids))).size * 2
 const result = new Map()
 
 for (const doc of DOCS) {

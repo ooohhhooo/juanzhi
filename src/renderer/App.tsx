@@ -6,6 +6,7 @@ import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
 import PaperLibrary from './pages/PaperLibrary'
 import PaperDetail from './pages/PaperDetail'
+import CoursesPage from './pages/course/CoursesPage'
 import Settings from './pages/Settings'
 import QueuePage from './pages/QueuePage'
 import ReviewList from './pages/review/ReviewList'
@@ -111,6 +112,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<PaperLibrary />} />
                 <Route path="/paper/:id" element={<PaperDetail />} />
+                <Route path="/courses" element={<CoursesPage />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/overview" element={<Overview />} />
                 <Route path="/dashboard" element={<Dashboard />} />

@@ -34,6 +34,7 @@ export const ASSET_REL_RE = /^media\/\d{1,4}\.(?:png|jpg|gif)$/
 
 export const MAX_PAPERS = 100_000
 export const MAX_QUESTIONS = 5_000_000
+export const MAX_COURSE_LESSONS = 200_000
 
 export interface StagedInfo {
   /** 包里数据库原来的版本 */
@@ -139,6 +140,16 @@ export function prepareStagedDb(dbPath: string, deps: { openDb: OpenDb; migrate:
       }
     }
     validateKpRows(db.prepare(`SELECT code, parent_code, name, level, intro_grade, note, ${KP_PLAIN_FIELDS.map(f => f[0]).join(', ')} FROM kps`).all() as any[])
+    // 课程大纲（course_*）：体系 id 会被拼进界面请求，必须是 UUID；课次数量设上限
+    {
+      const has = (t: string) => (db.prepare(`PRAGMA table_info("${t}")`).all() as any[]).length > 0
+      if (has('course_outlines')) {
+        for (const r of db.prepare('SELECT id FROM course_outlines').all() as any[]) {
+          if (typeof r.id !== 'string' || !UUID_RE.test(r.id)) throw new PackError('bad_content', '数据包里有课程体系的编号格式不对（不是 UUID），已拒绝导入')
+        }
+        if (has('course_lessons') && count('SELECT COUNT(*) c FROM course_lessons') > MAX_COURSE_LESSONS) throw new PackError('too_big', '数据包里的课程课次数量超出上限，已拒绝导入')
+      }
+    }
     const fk = db.prepare('PRAGMA foreign_key_check').all() as any[]
     if (fk.length) throw new PackError('bad_content', `数据包里的数据有 ${fk.length} 处引用不存在的记录（例如题目指向不存在的试卷），已拒绝导入`)
     const pages = count('SELECT COUNT(*) c FROM pages')

@@ -16,6 +16,10 @@ import { exportBlock, exportReportTo, PARENT_DRAFT_WARNING } from '../report/exp
 import { getReport } from '../report/service'
 import { assertExportTarget } from './outfile'
 import { collectDiagnostics, writeDiagnosticsZip } from '../diagnostics'
+import { createOutline, getOutline, listOutlines } from '../course/store'
+import { MATCH_CONFIRM_TOKENS, estimateMatch, previewOutline, readSourceFile, runMatch, suggestMappings } from '../course/service'
+import { SCENES } from '../course/store'
+import type { Scene } from '../course/store'
 import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags } from './args'
 import type { ParsedArgs } from './args'
 
@@ -220,9 +224,27 @@ function reportOut(r: NonNullable<ReturnType<typeof getReport>>) {
   }
 }
 
+/** --with-course <id[,id]>：每个体系都要存在、是正式的（不是草稿）、并且已经匹配完；否则报 course_not_matched */
+function courseIdsFromFlags(flags: Record<string, string | true>): string[] {
+  const v = flags['with-course']
+  if (v === undefined) return []
+  if (v === true || !v.trim()) throw new CliError('usage', '--with-course 需要一个或几个课程体系 id（用逗号分隔），可以用 course list 查')
+  const ids = [...new Set(v.split(',').map(x => x.trim()).filter(Boolean))]
+  const cards = listOutlines(getDb())
+  for (const id of ids) {
+    needUuid(id, '课程体系')
+    const c = cards.find(x => x.id === id)
+    if (!c) throw new CliError('not_found', `找不到这个课程体系：${id}`)
+    if (c.status !== 'active') throw new CliError('invalid_state', `课程体系「${c.name}」还是草稿，请先在卷知窗口里确认（侧栏「课程大纲」）`)
+    if (c.match.state !== 'done') throw new CliError('course_not_matched', `课程体系「${c.name}」还没有匹配完（状态：${c.match.state}）。请先运行 course match ${id}`)
+  }
+  return ids
+}
+
 async function reportGenerate(ctx: CliCtx) {
   const reader = readerFromFlags(ctx.args.flags)
   requireAi()
+  const courseIds = courseIdsFromFlags(ctx.args.flags)
   const filter = statsFilterFromFlags(ctx.args.flags)
   const requestId = crypto.randomUUID()
   let chars = 0, lastLog = 0
@@ -234,14 +256,84 @@ async function reportGenerate(ctx: CliCtx) {
     }
   }
   ctx.log('生成报告……')
-  const res = await ctx.invokeWithSender(sender, 'report:generate', filter, requestId, reader)
+  const res = await ctx.invokeWithSender(sender, 'report:generate', filter, requestId, reader, courseIds.length ? { courseIds } : undefined)
   if (!res.ok) {
     const code = res.code === 'no_data' || res.code === 'bad_prompt' ? 'invalid_state' : res.code === 'no_ai' ? 'ai_not_configured' : res.code === 'busy' ? 'busy' : 'ai_failed'
     throw new CliError(code, res.message ?? '生成报告失败', res.detail ? { detail: res.detail } : undefined)
   }
   const r = getReport(res.reportId)
   if (!r) throw new CliError('internal', '报告生成了但读不回来')
-  return reportOut(r)
+  return { ...reportOut(r), ...(courseIds.length ? { courseIds } : {}) }
+}
+
+// ───────────────────────── course ─────────────────────────
+
+const matchLabel: Record<string, string> = { none: '未匹配', partial: '部分已匹配（有新的知识点）', stale: '大纲已更新，需要重新匹配', done: '已匹配' }
+
+async function courseList(_ctx: CliCtx) {
+  const items = listOutlines(getDb())
+  return {
+    outlines: items.map(o => ({ id: o.id, name: o.name, scene: o.scene, status: o.status, draft: o.status === 'draft', active: o.active, levels: o.levels, lessons: o.lessons, match: o.match.state, matchLabel: matchLabel[o.match.state], matchedKps: o.match.checked, totalKps: o.match.total, createdAt: o.createdAt })),
+    note: items.some(o => o.status === 'draft') ? '草稿（draft）不参与对照：请在卷知窗口的侧栏的“课程大纲”页里打开核对并确认。' : undefined
+  }
+}
+
+async function courseImport(ctx: CliCtx) {
+  const file = path.resolve(ctx.args.positionals[0])
+  allowPath(file)   // 路径是使用者在命令行里明确给出的：等同于在选择对话框里选了它
+  const sceneFlag = ctx.args.flags.scene
+  if (sceneFlag !== undefined && (sceneFlag === true || !SCENES.includes(sceneFlag as Scene))) throw new CliError('usage', '--scene 只能是 org（培训机构）、school（学校）、family（家长）或 other')
+  const nameFlag = ctx.args.flags.name
+  if (nameFlag === true) throw new CliError('usage', '--name 需要一个名字')
+  let src
+  try { src = await readSourceFile(file) } catch (e) { throw new CliError('invalid_state', (e as Error).message) }
+  const mode = isAiReady() ? 'ai' : 'guess'
+  ctx.log(mode === 'ai' ? '让 AI 认列（课程表里的内容会发给你配置的 AI 服务）……' : '没有配置 AI 服务，按表头文字猜列……')
+  const sug = await suggestMappings(src.sessionId, mode).catch(e => { throw new CliError('ai_failed', (e as Error).message) })
+  const mappings = Object.fromEntries(Object.entries(sug.items).map(([k, v]) => [k, v.mapping]))
+  const parsed = previewOutline(src.sessionId, mappings)
+  const lessons = parsed.levels.reduce((n, l) => n + l.lessons.length, 0)
+  if (!lessons) throw new CliError('invalid_state', '没有识别出任何一课：请换成模板格式（课次 / 级别 / 主题 / 课程标题 / …），或在卷知窗口里手动指定每一列', { warnings: parsed.warnings.map(w => w.text) })
+  const reviewed = ctx.args.flags['i-reviewed'] === true
+  const id = createOutline(getDb(), {
+    name: typeof nameFlag === 'string' && nameFlag.trim() ? nameFlag.trim().slice(0, 60) : src.name.slice(0, 60) || '课程体系',
+    scene: (typeof sceneFlag === 'string' ? sceneFlag : 'other') as Scene, termNote: '', sourceName: src.name, sourceHash: src.hash, mapping: mappings, warnings: parsed.warnings,
+    aiModel: mode === 'ai' ? sug.model : '', status: reviewed ? 'active' : 'draft', levels: parsed.levels
+  })
+  const d = getOutline(getDb(), id)!
+  return {
+    id, name: d.card.name, status: d.card.status, draft: !reviewed, levels: d.card.levels, lessons: d.card.lessons, columnsFrom: mode === 'ai' ? 'ai' : 'headers',
+    warnings: parsed.warnings.map(w => w.text),
+    note: reviewed
+      ? '已按 --i-reviewed 保存为正式课程体系：请确认你确实核对过 AI 认列和整理的结果。下一步可以运行 course match 把知识点匹配到课。'
+      : '保存为草稿（不参与对照）：请在卷知窗口的侧栏的“课程大纲”页里打开，核对整理结果后点“确认使用”；或核对后重新带 --i-reviewed 导入。'
+  }
+}
+
+async function courseMatch(ctx: CliCtx) {
+  const id = needUuid(ctx.args.positionals[0], '课程体系')
+  requireAi()
+  const db = getDb()
+  const o = listOutlines(db).find(x => x.id === id)
+  if (!o) throw new CliError('not_found', `找不到这个课程体系：${id}`)
+  if (o.status !== 'active') throw new CliError('invalid_state', `课程体系「${o.name}」还是草稿，请先在卷知窗口里确认（侧栏「课程大纲」）`)
+  const onlyNew = ctx.args.flags['only-new'] === true
+  const est = estimateMatch(db, id, onlyNew)
+  if (ctx.args.flags['estimate-only'] === true) return { id, name: o.name, estimate: est, confirmThresholdTokens: MATCH_CONFIRM_TOKENS, note: '只是估算，没有调用 AI。' }
+  if (est.needsConfirm && ctx.args.flags.yes !== true) {
+    throw new CliError('confirmation_required', `这次匹配预计用量约 ${est.tokens} token（超过 ${MATCH_CONFIRM_TOKENS}），要花不少 AI 用量。请先告诉使用者；他同意后再加 --yes 重新运行（只想看估算可以用 --estimate-only）`, { estimate: est })
+  }
+  const before = (db.prepare('SELECT COALESCE(MAX(id), 0) m FROM ai_usage').get() as any).m as number
+  let lastLog = 0
+  ctx.log('匹配知识点到课程……（会调用 AI，花用量）')
+  const r = await runMatch(db, id, { onlyNew, onProgress: p => { if (Date.now() - lastLog > 3000) { lastLog = Date.now(); ctx.log(`第 ${p.done}/${p.total} 批`) } } })
+  const u = db.prepare("SELECT COUNT(*) calls, COALESCE(SUM(prompt_tokens), 0) p, COALESCE(SUM(completion_tokens), 0) c FROM ai_usage WHERE id > ? AND kind = 'course-match'").get(before) as any
+  const usage = { calls: u.calls, promptTokens: u.p, completionTokens: u.c }
+  if (!r.ok) {
+    const code = r.code === 'no_ai' ? 'ai_not_configured' : r.code === 'busy' ? 'busy' : r.code === 'not_found' ? 'not_found' : r.code === 'empty' || r.code === 'no_kps' ? 'invalid_state' : 'ai_failed'
+    throw new CliError(code, r.message ?? '匹配失败', { usage, done: r.done, total: r.total })
+  }
+  return { id, name: o.name, batches: r.total, matched: r.matched, none: r.none, dropped: r.dropped, usage, note: '匹配结果是 AI 的建议，每条都带原文依据，请老师在看板“课程对照”里核对；人工确认过的不会被重新匹配覆盖。' }
 }
 
 async function reportList(ctx: CliCtx) {
@@ -294,6 +386,7 @@ const HANDLERS: Record<string, (ctx: CliCtx) => Promise<unknown>> = {
   status, import: importCmd,
   'papers list': papersList, 'papers show': papersShow, 'papers confirm': papersConfirm,
   'stats overview': statsOverview, 'stats hot': statsHot, 'stats compare': statsCompare,
+  'course list': courseList, 'course import': courseImport, 'course match': courseMatch,
   'report generate': reportGenerate, 'report list': reportList, 'report show': reportShow, 'report export': reportExport,
   diagnostics: diagnosticsCmd
 }
