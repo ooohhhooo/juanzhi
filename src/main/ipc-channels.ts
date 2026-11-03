@@ -25,7 +25,9 @@ export const WRITE_CHANNELS = new Set([
   // 数据集（分析 Agent 的数据底座）：导入 / 删除 / 改标记 / 改名 / 备注都写 <数据目录>/datasets/
   'datasets:import', 'datasets:remove', 'datasets:setSensitive', 'datasets:rename', 'datasets:setNote',
   // 连接器：写设置表；connectors:test 会往外部发测试消息或启动 MCP 子进程并刷新工具缓存
-  'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test'
+  'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test',
+  // 助手：agent:run / agent:checkTools 会调用 AI 并写 ai_usage、会话记录；setScene 写设置；deleteSession 删记录
+  'agent:run', 'agent:checkTools', 'agent:checkEffort', 'agent:setScene', 'agent:deleteSession', 'agent:saveRole', 'agent:deleteRole', 'agent:importRole', 'agent:saveSettings'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
 export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
@@ -53,5 +55,7 @@ export const READONLY_CHANNELS = new Set([
   'connectors:types', 'connectors:list', 'connectors:openShimo',   // openShimo 只用浏览器打开石墨官网
   // 助手产出：list / read 只读；export 只写用户在「另存为」里选的文件；reveal 只在文件管理器里显示（产出本身由 Agent 工具写，不走 IPC）
   'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:export', 'agent-outputs:reveal',
+  // 助手的读取类：角色 / 状态 / 剧本 / 历史 / 引用解析；stop / answer / approve 只改内存里正在跑的那次提问
+  'agent:roles', 'agent:status', 'agent:models', 'agent:modelInfo', 'agent:tools', 'agent:customRoles', 'agent:settings', 'agent:exportRole', 'agent:playbooks', 'agent:sessions', 'agent:session', 'agent:cites', 'agent:stop', 'agent:answer', 'agent:approve',
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

@@ -38,6 +38,7 @@ import { closeAllMcp } from './connectors/mcp-client'
 import { registerCourseIpc } from './ipc/course'
 import { registerDatasetsIpc } from './ipc/datasets'
 import { registerAgentOutputsIpc } from './ipc/agent-outputs'
+import { registerAgentIpc } from './ipc/agent'
 import { startCliMode } from './cli/run'
 import { acquireRunLock, clearLockFile, inspectRunLock, keepTryingRunLock, processLooksLikeJuanzhi } from './cli/lock'
 
@@ -262,6 +263,7 @@ if (cliArgs) {
     registerDatasetsIpc()
     registerConnectorsIpc()
     registerAgentOutputsIpc()
+    registerAgentIpc()
     createWindow()
     sweepStaleStages()
     startAutoCheck()   // 启动时静默查一次（间隔至少 1 小时），开着时每 4 小时再查；命令行模式不走这里，测试（自定义数据目录）默认不查

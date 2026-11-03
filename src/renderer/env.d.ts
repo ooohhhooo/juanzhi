@@ -374,6 +374,59 @@ interface DatasetMetaView {
   tables: Array<{ name: string; sheet: string; rows: number; notes: string[]; views: Array<{ column: string; view: string }>; columns: DatasetColumnView[] }>
 }
 
+/** 内置助手 */
+interface AgentPlanItem { content: string; status: 'todo' | 'doing' | 'done' }
+interface AgentSessionView { id: string; role: string; title: string; scene: string; status: string; dataRev: number | null; tokensIn: number; tokensOut: number; createdAt: string; updatedAt: string; stale: boolean }
+type AgentStepKind = 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'plan' | 'ask' | 'answer' | 'error'
+interface AgentStepRow { sessionId: string; seq: number; parentId: number | null; branchId: string; kind: AgentStepKind; payload: any; tokens: number; ms: number; createdAt: string }
+interface AgentStatus { configured: boolean; model: string; toolSupport: 'yes' | 'no' | 'unknown'; reason: string }
+interface AgentCite { kind: 'q' | 'lesson' | 'stu'; id: string; ok: boolean; label: string; paperId?: string | null; outlineId?: string }
+/** agent:event 通道推来的事件（sessionId 标明属于哪个对话） */
+type AgentMode = 'direct' | 'plan' | 'auto'
+type AgentApproval = 'ask-all' | 'ask-external'
+type AgentEffort = 'auto' | 'off' | 'low' | 'medium' | 'high'
+interface AgentModelInfo { model: string; roles: string[]; toolSupport: 'yes' | 'no' | 'unknown'; efforts: AgentEffort[]; effortSupport: 'yes' | 'no' | 'unknown'; canTurnOff: boolean }
+interface AgentCustomRole { id: string; name: string; description: string; tools: string[]; suggestions: string[]; defaultPlaybook?: string; notes: string }
+type AgentEventMsg =
+  | { sessionId: string; type: 'step'; seq: number; parentId: number | null; branchId: string; kind: AgentStepKind; payload: any; tokens: number; ms: number }
+  | { sessionId: string; type: 'step-update'; seq: number; payload: any }
+  | { sessionId: string; type: 'delta'; text: string }
+  | { sessionId: string; type: 'reset' }
+  | { sessionId: string; type: 'status'; text: string }
+  | { sessionId: string; type: 'progress'; rounds: number; tokensIn: number; tokensOut: number; money: number | null; limitTokens: number; model?: string; effort?: string }
+  | { sessionId: string; type: 'approval'; id: string; name: string; args: unknown; summary: string }
+  | { sessionId: string; type: 'done'; status: string; rounds?: number; error?: { code: string; message: string } | null }
+
+interface ElectronAPI {
+  agent: {
+    roles(): Promise<{ scene: 'org' | 'school'; prefs: { mode: AgentMode; approval: AgentApproval; byRole: Record<string, { model: string; effort: AgentEffort }> }; roles: Array<{ id: string; name: string; suggestions: string[]; custom: boolean }> }>
+    status(model?: string): Promise<AgentStatus>
+    models(): Promise<AgentModelInfo[]>
+    modelInfo(model: string): Promise<AgentModelInfo>
+    tools(): Promise<Array<{ name: string; label: string; level: 'read' | 'write' }>>
+    customRoles(): Promise<AgentCustomRole[]>
+    settings(): Promise<{ orgContext: string; orgContextMax: number; clipped: boolean; contextLimit: number | null; contextLimitEffective: number; contextLimitDefault: number }>
+    saveSettings(p: { orgContext?: string; contextLimit?: number | null }): Promise<unknown>
+    saveRole(r: Partial<AgentCustomRole> & { name: string }): Promise<AgentCustomRole>
+    deleteRole(id: string): Promise<boolean>
+    importRole(): Promise<{ picked: false } | { picked: true; ok: true; role: AgentCustomRole; droppedTools: number } | { picked: true; ok: false; error: string }>
+    exportRole(id: string): Promise<{ saved: boolean; path?: string }>
+    checkEffort(model: string): Promise<AgentModelInfo>
+    playbooks(): Promise<{ dir: string; items: Array<{ name: string; description: string; source: 'builtin' | 'user' }> }>
+    sessions(): Promise<AgentSessionView[]>
+    session(id: string): Promise<{ session: AgentSessionView; steps: AgentStepRow[]; running: boolean } | null>
+    cites(refs: Array<{ kind: string; id: string }>): Promise<AgentCite[]>
+    setScene(scene: 'org' | 'school'): Promise<'org' | 'school'>
+    /** 发一次很小的请求，检测当前模型支不支持工具调用（结果缓存） */
+    checkTools(model?: string): Promise<AgentStatus>
+    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string }): Promise<{ sessionId: string; branchId: string }>
+    deleteSession(id: string): Promise<boolean>
+    stop(sessionId: string): Promise<boolean>
+    answer(sessionId: string, askId: string, answer: string): Promise<boolean>
+    approve(sessionId: string, id: string, ok: boolean): Promise<boolean>
+  }
+}
+
 interface Window {
   api: ElectronAPI
 }

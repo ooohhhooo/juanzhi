@@ -10,7 +10,7 @@ import { StatsFilterSchema } from '../stats/filter'
 // M4：onboarding_done = 首次启动引导是否已关闭；default_textbook = 引导里选的教材版本（AI 没读出教材时作默认值）
 // 新增：show_internal_codes = 界面和报告里显示知识点 / 题型的内部代码（默认隐藏）；admin_open = 设置页的「管理员设置」是否展开；
 // role_guide_dismissed = 首页的「我是运营 / 我是辅导老师」引导是否已收起；role_guide_role = 上次选的角色
-const ALLOWED_KEYS = new Set(['ui_theme', 'ui_language', 'ui_stats_filter', 'ui_stats_filter_stash', 'onboarding_done', 'default_textbook', 'show_internal_codes', 'admin_open', 'role_guide_dismissed', 'role_guide_role', 'beta_welcome_seen'])
+const ALLOWED_KEYS = new Set(['ui_theme', 'ui_language', 'ui_stats_filter', 'ui_stats_filter_stash', 'onboarding_done', 'default_textbook', 'show_internal_codes', 'admin_open', 'role_guide_dismissed', 'role_guide_role', 'beta_welcome_seen', 'start_page'])
 
 const SettingsKeySchema = z.string().refine(
   k => ALLOWED_KEYS.has(k),
@@ -34,6 +34,7 @@ export function registerSettingsIpc(): void {
     }
     if (['onboarding_done', 'show_internal_codes', 'admin_open', 'role_guide_dismissed', 'beta_welcome_seen'].includes(key) && typeof value !== 'boolean') throw new Error('设置值必须是布尔值')
     if (key === 'role_guide_role' && !(value === null || value === 'ops' || value === 'tutor')) throw new Error('角色必须是 ops 或 tutor')
+    if (key === 'start_page' && !(value === null || value === 'library' || value === 'assistant')) throw new Error('打开卷知时先进入的页面必须是试卷库或助手')
     if (key === 'default_textbook' && !(value === null || (typeof value === 'string' && value.length <= 100))) throw new Error('教材版本必须是不超过 100 字的文字')
     const json = JSON.stringify(value)
     if (json === undefined) throw new Error('设置值必须能序列化为 JSON')

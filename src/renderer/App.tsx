@@ -19,6 +19,7 @@ import { StatsFilterProvider } from './stats/StatsFilter'
 import { installChunkListener } from './stats/analysisStore'
 import { installReportChunkListener } from './stats/reportStore'
 import Report from './pages/Report'
+import Assistant from './pages/Assistant'
 import Guide from './pages/Guide'
 import Help from './pages/Help'
 import RestartGate from './components/RestartGate'
@@ -46,6 +47,17 @@ const queryClient = new QueryClient({
 const STATS_SOURCES = new Set(['papers', 'questions', 'taxonomy', 'materials', 'pages', 'aiConfig', 'prompts'])
 // 报告的「是否过期」随这些变化重新核对（报告列表和单份报告的查询键都以 'reports' 开头）
 const REPORT_SOURCES = new Set([...STATS_SOURCES, 'reports'])
+
+/** 打开卷知时先进入哪里：设置里选了「助手」才跳；没选过（默认）保持试卷库。只在刚打开、停在首页时跳一次 */
+function StartPage() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!window.api?.settings) return
+    if (location.hash && location.hash !== '#/' && location.hash !== '#') return
+    void window.api.settings.get('start_page').then(v => { if (v === 'assistant' && (!location.hash || location.hash === '#/' || location.hash === '#')) navigate('/assistant', { replace: true }) }, () => undefined)
+  }, [])
+  return null
+}
 
 function DataChangeListener() {
   useEffect(() => {
@@ -114,6 +126,7 @@ export default function App() {
           <HashRouter>
             <DataChangeListener />
             <GlobalDrop />
+            <StartPage />
             <RestartGate />
             <UpdateNotice />
             <GlobalNotices />
@@ -132,6 +145,7 @@ export default function App() {
                 <Route path="/review" element={<ReviewList />} />
                 <Route path="/review/:id" element={<ReviewPage />} />
                 <Route path="/report" element={<Report />} />
+                <Route path="/assistant" element={<Assistant />} />
                 <Route path="/guide" element={<Guide />} />
                 <Route path="/help" element={<Help />} />
                 <Route path="/assistant-canvas-demo" element={<Suspense fallback={null}><AssistantCanvasDemo /></Suspense>} />

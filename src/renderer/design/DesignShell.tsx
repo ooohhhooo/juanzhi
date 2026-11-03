@@ -3,10 +3,11 @@
  * 正式路由的外框还是旧的（AppLayout），用户确认审美后第二阶段再替换。
  */
 import React, { useState } from 'react'
-import { BookOpenText, ChartColumn, ClipboardCheck, Database, FileSearch, GraduationCap, Library, ListOrdered, Settings } from 'lucide-react'
+import { BookOpenText, Sparkles, ChartColumn, ClipboardCheck, Database, FileSearch, GraduationCap, Library, ListOrdered, Settings } from 'lucide-react'
 import Contents, { type ContentsItem } from './Contents'
 
 export const NAV_ITEMS = (queue: number, review: number, courseReview = 0): ContentsItem[] => [
+  { key: '/assistant', label: '助手', tag: '助手', icon: Sparkles },
   { key: '/datasets', label: '数据', tag: '数据', icon: Database },
   { key: '/overview', label: '总览', tag: '总览', icon: BookOpenText },
   { key: '/', label: '试卷库', tag: '试卷', icon: Library },
