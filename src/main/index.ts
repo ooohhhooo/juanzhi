@@ -16,6 +16,7 @@ import { registerParseIpc } from './ipc/parse'
 import { registerQuestionIpc } from './ipc/questions'
 import { registerStatsIpc } from './ipc/stats'
 import { registerReportIpc } from './ipc/report'
+import { registerAnalysisReportIpc } from './ipc/analysis-report'
 import { registerDataIpc } from './ipc/data'
 import { installIpcGuards } from './restart'
 import { registerTaxonomyIpc } from './ipc/taxonomy'
@@ -248,6 +249,7 @@ if (cliArgs) {
     registerQuestionIpc()
     registerStatsIpc()
     registerReportIpc()
+    registerAnalysisReportIpc()
     registerDataIpc()
     registerTaxonomyIpc()
     registerCliIpc()

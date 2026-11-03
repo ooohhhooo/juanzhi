@@ -72,6 +72,11 @@ interface ElectronAPI {
     filterOptions(filter?: StatsFilter): Promise<{ years: number[]; textbooks: string[]; regions: string[] }>
     exportMatrix(filter: StatsFilter | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }>
   }
+  analysisReport: {
+    /** 弹保存对话框，把看板导出成 Excel / 网页 / Word；取消返回 { saved: false } */
+    export(spec: unknown, format: 'xlsx' | 'html' | 'docx'): Promise<{ saved: boolean; path?: string; bytes?: number }>
+    exportTable(columns: Array<{ key: string; label: string; format?: 'text' | 'percent' | 'number' | 'score' }>, rows: Array<Record<string, string | number | null>>, sheetName?: string): Promise<{ saved: boolean; path?: string; bytes?: number }>
+  }
   report: {
     list(): Promise<ReportItem[]>
     get(id: string): Promise<ReportDetail | null>
