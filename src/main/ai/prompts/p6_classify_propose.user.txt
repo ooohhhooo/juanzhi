@@ -1,0 +1,9 @@
+这一列的名字：{{FIELD_NAME}}
+共有 {{TOTAL_COUNT}} 条文字，下面抽取了其中 {{SAMPLE_COUNT}} 条（每行前面是编号）：
+
+{{TEXT_LINES}}
+
+【用户已有的类别（可能为空）】
+{{EXISTING_CATEGORIES}}
+
+请按 system 的要求只输出 JSON。
