@@ -608,6 +608,40 @@ export const MIGRATIONS: Array<(db: any) => void> = [
       );
       CREATE INDEX IF NOT EXISTS idx_report_variants_r ON report_variants(report_id, seq);
     `)
+  },
+
+  // v11 → v12（内置助手 Agent）：会话和每一步的记录，只加表，不动旧表。
+  //  - agent_sessions：一次对话一行（角色、标题、状态、最近一次回答时的 data_rev——数据变了以后打开旧回答提示「数据已更新」）；
+  //  - agent_steps：对话里的每一步（用户提问 / 模型文字 / 工具调用 / 工具结果 / 计划 / 提问 / 最终回答 / 出错），按 seq 排序，可回看、可接着追问；
+  //    parent_id = 上一步的 seq、branch_id = 所在分支（主线是 main）：用户可以对任意一条回答「从这里追问」，新问题挂在那一步下面形成分支，分支的上下文只含从根到该节点的路径。
+  (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS agent_sessions (
+        id TEXT PRIMARY KEY,
+        role TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        scene TEXT NOT NULL DEFAULT 'org',
+        status TEXT NOT NULL DEFAULT 'idle',
+        data_rev INTEGER,
+        tokens_in INTEGER NOT NULL DEFAULT 0,
+        tokens_out INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_agent_sessions_u ON agent_sessions(updated_at DESC);
+      CREATE TABLE IF NOT EXISTS agent_steps (
+        session_id TEXT NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
+        seq INTEGER NOT NULL,
+        parent_id INTEGER,
+        branch_id TEXT NOT NULL DEFAULT 'main',
+        kind TEXT NOT NULL,
+        payload_json TEXT NOT NULL DEFAULT '{}',
+        tokens INTEGER NOT NULL DEFAULT 0,
+        ms INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        PRIMARY KEY (session_id, seq)
+      );
+    `)
   }
 ]
 

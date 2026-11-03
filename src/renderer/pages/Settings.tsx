@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { App, Descriptions, Switch } from 'antd'
+import { App, Descriptions, Select, Switch } from 'antd'
 import { BookOpen, CircleHelp, ScanSearch, Settings as SettingsIcon } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -62,6 +62,7 @@ export default function Settings() {
     staleTime: 0,
     enabled: adminOpen
   })
+  const { data: startPage = null } = useQuery({ queryKey: ['settings', 'start_page'], queryFn: () => window.api.settings.get('start_page') as Promise<string | null>, staleTime: 0 })
   const { data: about } = useQuery({ queryKey: ['app', 'info'], queryFn: () => window.api.app.info(), staleTime: Infinity })
   useEffect(() => { if (params.get('admin') === '1' && !adminOpen) void setAdminOpen(true) }, [params, adminOpen])
   // ?focus=about：从菜单「检查更新…」进来，滚到「关于」（软件更新那一行）
@@ -103,6 +104,11 @@ export default function Settings() {
       <div className="ewb-set-panel">
         <Panel title="关于" data-testid="about-card">
           <Descriptions column={1} size="small">
+            <Descriptions.Item label="打开卷知时先进入">
+              <Select size="small" style={{ width: 140 }} data-testid="start-page" value={startPage === 'assistant' ? 'assistant' : 'library'}
+                options={[{ value: 'library', label: '试卷库' }, { value: 'assistant', label: '助手' }]}
+                onChange={async v => { await window.api.settings.set('start_page', v); qc.invalidateQueries({ queryKey: ['settings', 'start_page'] }); message.success('下次打开卷知时生效') }} />
+            </Descriptions.Item>
             <Descriptions.Item label="软件">卷知 · 小学英语试卷分析 —— 帮助教师分析试卷中的知识点分布和考频趋势（离线桌面软件，数据只存在这台电脑上，没有服务器、不用登录）</Descriptions.Item>
             <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）<span className="ewb-lib-tag" style={{ marginLeft: 8 }} data-testid="about-beta">公测版</span></Descriptions.Item>
             <Descriptions.Item label="遇到问题"><DiagnosticsPanel /></Descriptions.Item>

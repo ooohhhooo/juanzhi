@@ -28,9 +28,20 @@ export const lastAiFailure: { err: AiError | null; model: string; at: number } =
 
 export interface ImagePart { type: 'image_url'; image_url: { url: string } }
 export interface TextPart { type: 'text'; text: string }
+/** OpenAI 兼容的工具调用：模型要调用哪个工具、参数（JSON 字符串） */
+export interface ToolCall { id: string; type: 'function'; function: { name: string; arguments: string } }
+/** 给模型看的工具清单项（parameters 是 JSON Schema） */
+export interface ToolSpec { type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }
+export type ToolChoice = 'auto' | 'none' | 'required'
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
+  role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | Array<TextPart | ImagePart>
+  /** assistant 消息：本轮发起的工具调用 */
+  tool_calls?: ToolCall[]
+  /** tool 消息：对应哪一次工具调用 */
+  tool_call_id?: string
+  /** 推理模型（如 DeepSeek 思考模式）要求把上一轮的思考原样带回 */
+  reasoning_content?: string
 }
 
 export interface Usage {
@@ -53,6 +64,11 @@ export interface ChatRequest {
   maxTokens?: number
   /** response_format: json_object；服务商不支持时自动去掉重试一次 */
   jsonMode?: boolean
+  /** 工具调用（function calling）：给了就按 OpenAI 的 tools 字段发出 */
+  tools?: ToolSpec[]
+  toolChoice?: ToolChoice
+  /** 额外要并进请求体的字段（如 reasoning_effort）；由调用方按服务商适配 */
+  extraBody?: Record<string, unknown>
   stream?: boolean
   onDelta?: (text: string) => void
   /** 单次请求的超时（毫秒）；流式时指「两次数据之间」的最长空闲 */
@@ -84,6 +100,10 @@ export interface ChatRequest {
 
 export interface ChatResult {
   content: string
+  /** 模型发起的工具调用（没有就是空数组） */
+  toolCalls: ToolCall[]
+  /** 思考内容原文（推理模型有工具调用时要带回去；没有就是空串） */
+  reasoningText: string
   finishReason: string
   usage: Usage
   model: string
@@ -170,6 +190,19 @@ function parseUsage(u: any): Usage {
   }
 }
 
+/** 把服务商返回的 tool_calls 整理成统一形状（缺 id 的补一个；没有名字的丢掉） */
+export function parseToolCalls(raw: unknown): ToolCall[] {
+  if (!Array.isArray(raw)) return []
+  const out: ToolCall[] = []
+  for (const t of raw) {
+    const name = typeof t?.function?.name === 'string' ? t.function.name.trim() : ''
+    if (!name) continue
+    const a = t.function.arguments
+    out.push({ id: typeof t.id === 'string' && t.id ? t.id : `call_${out.length}_${Math.random().toString(36).slice(2, 8)}`, type: 'function', function: { name, arguments: typeof a === 'string' ? a : a == null ? '' : JSON.stringify(a) } })
+  }
+  return out
+}
+
 type OnceResult = Omit<ChatResult, 'attempts' | 'maxTokensUsed' | 'escalated' | 'fellBackTo'>
 
 async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolean, maxTokens: number | undefined, deadline: number): Promise<OnceResult> {
@@ -197,6 +230,8 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
     if (sendTemperature && req.temperature !== undefined) body.temperature = req.temperature
     if (maxTokens) body.max_tokens = maxTokens
     if (jsonMode) body.response_format = { type: 'json_object' }
+    if (req.extraBody) for (const [k, v] of Object.entries(req.extraBody)) if (!(k in body)) body[k] = v
+    if (req.tools?.length) { body.tools = req.tools; body.tool_choice = req.toolChoice ?? 'auto' }
     if (req.stream) body.stream_options = { include_usage: true }
 
     let res: Response
@@ -235,6 +270,8 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
       const rc = choice?.message?.reasoning_content ?? choice?.message?.reasoning
       return {
         content: String(choice?.message?.content ?? ''),
+        toolCalls: parseToolCalls(choice?.message?.tool_calls),
+        reasoningText: typeof rc === 'string' ? rc : '',
         finishReason: String(choice?.finish_reason ?? ''),
         usage: parseUsage(json?.usage),
         model: String(json?.model ?? req.model),
@@ -254,6 +291,8 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
     let sawDone = false
     // 推理模型先输出 reasoning_content（思考），再输出 content（正文）：思考不计入正文，只数字数、给界面显示进度
     let reasoningChars = 0
+    let reasoningText = ''
+    const tcAcc: Array<{ id: string; name: string; args: string }> = []
     const t0 = Date.now()
     let lastThink = 0
     // 一行 SSE：只认 data: 行；[DONE] 记下来；其余按 JSON 增量处理
@@ -271,8 +310,20 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
       const rd = c?.delta?.reasoning_content ?? c?.delta?.reasoning
       if (typeof rd === 'string' && rd) {
         reasoningChars += rd.length
+        reasoningText += rd
         const now = Date.now()
         if (req.onThinking && (lastThink === 0 || now - lastThink >= 1000)) { lastThink = now; req.onThinking({ chars: reasoningChars, ms: now - t0 }) }
+      }
+      // 工具调用的增量：按 index 拼接，id / name 通常只在第一块出现，arguments 分多块
+      const tcd = c?.delta?.tool_calls
+      if (Array.isArray(tcd)) {
+        for (const t of tcd) {
+          const i = Number.isInteger(t?.index) ? t.index : tcAcc.length
+          const cur = (tcAcc[i] ??= { id: '', name: '', args: '' })
+          if (t?.id) cur.id = String(t.id)
+          if (t?.function?.name) cur.name += String(t.function.name)
+          if (typeof t?.function?.arguments === 'string') cur.args += t.function.arguments
+        }
       }
       const delta = c?.delta?.content
       if (typeof delta === 'string' && delta) {
@@ -308,7 +359,8 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
     if (!finish && !sawDone) {
       throw new AiError('network', `数据流意外结束（服务端提前关闭了连接，没有收到结束标记），已收到的 ${content.length} 字不完整`, null, 'eof-without-finish')
     }
-    return { content, finishReason: finish, usage, model, reasoningChars }
+    const toolCalls = parseToolCalls(tcAcc.filter(Boolean).map(t => ({ id: t.id, type: 'function', function: { name: t.name, arguments: t.args } })))
+    return { content, toolCalls, reasoningText, finishReason: finish, usage, model, reasoningChars }
   } finally {
     clearTimeout(timer)
     clearTimeout(totalTimer)
@@ -348,7 +400,7 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
         te.partial = r.content
         throw te
       }
-      if (!r.content.trim()) {
+      if (!r.content.trim() && r.toolCalls.length === 0) {
         if (!emptyRetried) { emptyRetried = true; continue }
         throw new AiError('empty', '模型返回了空内容（重试后仍为空）', null, `reasoning ${r.reasoningChars} 字；finish_reason=${r.finishReason || '无'}`)
       }

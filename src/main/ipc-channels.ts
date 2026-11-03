@@ -21,6 +21,8 @@ export const WRITE_CHANNELS = new Set([
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
   'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup',
   // 课程对照（beta.2）：写课程表、匹配结果、话术缓存；course:suggest / course:match / course:adviceGenerate 会调用 AI 并写 ai_usage，所以归写入类
+  // 助手：agent:run / agent:checkTools 会调用 AI 并写 ai_usage、会话记录；setScene 写设置；deleteSession 删记录
+  'agent:run', 'agent:checkTools', 'agent:checkEffort', 'agent:setScene', 'agent:deleteSession', 'agent:saveRole', 'agent:deleteRole', 'agent:importRole', 'agent:saveSettings',
   'course:setActive', 'course:rename', 'course:confirmDraft', 'course:remove', 'course:suggest', 'course:save', 'course:jobStart', 'course:match', 'course:mapEdit', 'course:adviceGenerate', 'course:adviceConfirm'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
@@ -43,5 +45,7 @@ export const READONLY_CHANNELS = new Set([
   // 课程对照的读取类：列表 / 详情 / 看板 / 状态；pickFile、readFile、readText 只读用户选的文件到内存；template、exportGaps 只写用户选的位置；adviceCopy 只写剪贴板；matchCancel 只改内存
   'course:list', 'course:get', 'course:maps', 'course:search', 'course:pickFile', 'course:readFile', 'course:readText', 'course:preview', 'course:diff', 'course:template',
   'course:suggestCancel', 'course:jobs', 'course:jobTake', 'course:jobCancel', 'course:jobRemove', 'course:jobRetry', 'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:adviceState', 'course:adviceCopy',
+  // 助手的读取类：角色 / 状态 / 剧本 / 历史 / 引用解析；stop / answer / approve 只改内存里正在跑的那次提问
+  'agent:roles', 'agent:status', 'agent:models', 'agent:modelInfo', 'agent:tools', 'agent:customRoles', 'agent:settings', 'agent:exportRole', 'agent:playbooks', 'agent:sessions', 'agent:session', 'agent:cites', 'agent:stop', 'agent:answer', 'agent:approve',
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

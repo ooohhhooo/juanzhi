@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'menu:navigate']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'menu:navigate', 'agent:event']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -135,6 +135,33 @@ const api = {
     sampleStatus: (): Promise<{ loaded: boolean; papers: number; questions: number }> => ipcRenderer.invoke('data:sampleStatus'),
     loadSample: (): Promise<any> => ipcRenderer.invoke('data:loadSample'),
     clearSample: (): Promise<any> => ipcRenderer.invoke('data:clearSample'),
+  },
+  /** 内置助手：角色、历史会话、提问（过程走 agent:event 事件）、停止、回答提问、同意 / 拒绝写操作 */
+  agent: {
+    roles: (): Promise<any> => ipcRenderer.invoke('agent:roles'),
+    status: (model?: string): Promise<any> => ipcRenderer.invoke('agent:status', model),
+    models: (): Promise<any[]> => ipcRenderer.invoke('agent:models'),
+    modelInfo: (model: string): Promise<any> => ipcRenderer.invoke('agent:modelInfo', model),
+    tools: (): Promise<any[]> => ipcRenderer.invoke('agent:tools'),
+    customRoles: (): Promise<any[]> => ipcRenderer.invoke('agent:customRoles'),
+    settings: (): Promise<any> => ipcRenderer.invoke('agent:settings'),
+    saveSettings: (p: { orgContext?: string; contextLimit?: number | null }): Promise<any> => ipcRenderer.invoke('agent:saveSettings', p),
+    saveRole: (r: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('agent:saveRole', r),
+    deleteRole: (id: string): Promise<boolean> => ipcRenderer.invoke('agent:deleteRole', id),
+    importRole: (): Promise<any> => ipcRenderer.invoke('agent:importRole'),
+    exportRole: (id: string): Promise<{ saved: boolean; path?: string }> => ipcRenderer.invoke('agent:exportRole', id),
+    checkEffort: (model: string): Promise<any> => ipcRenderer.invoke('agent:checkEffort', model),
+    playbooks: (): Promise<any> => ipcRenderer.invoke('agent:playbooks'),
+    sessions: (): Promise<any[]> => ipcRenderer.invoke('agent:sessions'),
+    session: (id: string): Promise<any> => ipcRenderer.invoke('agent:session', id),
+    cites: (refs: Array<{ kind: string; id: string }>): Promise<any[]> => ipcRenderer.invoke('agent:cites', refs),
+    setScene: (scene: 'org' | 'school'): Promise<'org' | 'school'> => ipcRenderer.invoke('agent:setScene', scene),
+    checkTools: (model?: string): Promise<any> => ipcRenderer.invoke('agent:checkTools', model),
+    run: (a: Record<string, unknown>): Promise<{ sessionId: string; branchId: string }> => ipcRenderer.invoke('agent:run', a),
+    deleteSession: (id: string): Promise<boolean> => ipcRenderer.invoke('agent:deleteSession', id),
+    stop: (sessionId: string): Promise<boolean> => ipcRenderer.invoke('agent:stop', sessionId),
+    answer: (sessionId: string, askId: string, answer: string): Promise<boolean> => ipcRenderer.invoke('agent:answer', sessionId, askId, answer),
+    approve: (sessionId: string, id: string, ok: boolean): Promise<boolean> => ipcRenderer.invoke('agent:approve', sessionId, id, ok),
   },
   /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
   course: {

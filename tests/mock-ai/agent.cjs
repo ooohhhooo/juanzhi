@@ -1,0 +1,78 @@
+// 助手（Agent）的模拟模型：请求里带 tools 时走这里。按「最后一条用户消息」里的关键字选一套预设的工具调用序列：
+//   · 含「周报」  → 列计划 → ask_user → 一次并行两个工具（看整体 + 更新计划）→ 查某知识点的题 → 最终回答（带真实题目引用 + 一个假引用）
+//   · 含「慢慢」  → 一条很慢的流式文字回答（给「停止」按钮用）
+//   · 含「卡住」  → 一直重复同一个工具调用（测卡住检测）
+//   · 其余       → 一句普通回答
+// 测试连接用的探测（工具名 ping）→ 返回一个 ping 工具调用；mock.agentNoTools = true 时对带 tools 的请求一律 400（模型不支持工具）。
+const sleepMs = ms => new Promise(r => setTimeout(r, ms))
+
+const textOf = c => (typeof c === 'string' ? c : (c ?? []).filter(p => p.type === 'text').map(p => p.text).join('\n'))
+const call = (name, args, n) => ({ id: `mock_call_${name}_${n}`, type: 'function', function: { name, arguments: JSON.stringify(args) } })
+
+/** 返回 { content, toolCalls, opts } */
+function next(body) {
+  const msgs = body.messages
+  const toolNames = (body.tools ?? []).map(t => t.function?.name)
+  if (toolNames.includes('ping') && toolNames.length === 1) return { content: '', toolCalls: [call('ping', { word: 'ok' }, 0)] }
+  let lastUser = -1
+  // 程序自己插进去的 user 消息（确认计划 / 修改意见 / 整理后的摘要）不算用户提问
+  msgs.forEach((m, i) => { if (m.role === 'user' && !/^(用户确认了计划|用户想修改计划|【前面内容的摘要】)/.test(textOf(m.content))) lastUser = i })
+  const q = textOf(msgs[lastUser]?.content)
+  const after = msgs.slice(lastUser + 1)
+  const revisions = after.filter(m => m.role === 'user' && /^用户想修改计划/.test(textOf(m.content)))
+  // 修改计划的那一轮不算脚本里的步骤：它只是重新出一份计划
+  const round = after.filter(m => m.role === 'assistant' && m.tool_calls?.length).length - revisions.length
+  const lastMsg = msgs[msgs.length - 1]
+  const toolTexts = after.filter(m => m.role === 'tool').map(m => textOf(m.content))
+
+  if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
+  if (/慢慢/.test(q)) return { content: '好的，我慢慢来。'.repeat(40), toolCalls: [], opts: { pieceChars: 6, chunkDelayMs: 350 } }
+  if (/周报/.test(q) && lastMsg.role === 'user' && /^用户想修改计划/.test(textOf(lastMsg.content))) {
+    return { content: '好的，按你的意见改一下。', toolCalls: [call('update_plan', { items: [{ content: '确认范围（已审核）', status: 'doing' }, { content: '查最常考和最易错的知识点', status: 'todo' }, { content: '写周报', status: 'todo' }] }, 'r' + revisions.length)] }
+  }
+  if (/周报/.test(q)) {
+    const plan = (a, b, c) => ({ items: [{ content: '确认范围', status: a }, { content: '查最常考和最易错的知识点', status: b }, { content: '写周报', status: c }] })
+    if (round === 0) return { content: '好的，我先列个计划。', toolCalls: [call('update_plan', plan('doing', 'todo', 'todo'), 0)] }
+    if (round === 1) return { content: '', toolCalls: [call('ask_user', { question: '周报要看哪个范围？', options: ['全部年级', '只看四年级'], allowOther: true }, 1)] }
+    if (round === 2) return { content: '', toolCalls: [call('update_plan', plan('done', 'doing', 'todo'), 2), call('stats_overview', { top: 3 }, 2)] }
+    if (round === 3) {
+      const stats = toolTexts.find(t => /最常考的知识点/.test(t)) ?? ''
+      const code = /（代码 ([A-Z0-9_.]+)）/.exec(stats)?.[1] ?? 'GR'
+      return { content: '', toolCalls: [call('kp_questions', { kp: code, limit: 3 }, 3)] }
+    }
+    const qs = toolTexts.find(t => /\[\[q:/.test(t)) ?? ''
+    const qid = /\[\[q:([^\]]+)\]\]/.exec(qs)?.[1] ?? 'none'
+    const ans = ['## 学情周报', '', '**结论**：这批试卷的易错点集中在语法。', '', `- 代表题：[[q:${qid}]]`, '- 一个对不上的引用：[[q:not-a-real-id]]', '', '| 项目 | 说明 |', '| --- | --- |', '| 范围 | 已审核的试卷 |'].join('\n')
+    return { content: ans, toolCalls: [] }
+  }
+  return { content: round > 0 ? '查完了，这是模拟回答。' : '这是模拟的助手回答。', toolCalls: [] }
+}
+
+/** 按 OpenAI 的格式把（文字 + 工具调用）发出去；stream 时 id/name 在第一块，arguments 拆两块 */
+async function send(res, body, out, stream) {
+  const usage = { prompt_tokens: Math.ceil(JSON.stringify(body.messages).length / 1.6), completion_tokens: Math.ceil((out.content.length + JSON.stringify(out.toolCalls).length) / 1.6), prompt_cache_hit_tokens: 0 }
+  const finish = out.toolCalls.length ? 'tool_calls' : 'stop'
+  if (!stream) {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ id: 'mock-agent', object: 'chat.completion', model: body.model, choices: [{ index: 0, message: { role: 'assistant', content: out.content || null, ...(out.toolCalls.length ? { tool_calls: out.toolCalls } : {}) }, finish_reason: finish }], usage }))
+    return
+  }
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' })
+  const w = d => res.write(`data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta: d, finish_reason: null }] })}\n\n`)
+  const piece = out.opts?.pieceChars ?? Math.max(1, Math.ceil(out.content.length / 4))
+  for (let i = 0; i < out.content.length; i += piece) {
+    w({ content: out.content.slice(i, i + piece) })
+    if (out.opts?.chunkDelayMs) await sleepMs(out.opts.chunkDelayMs)
+    if (res.destroyed || res.writableEnded) return
+  }
+  out.toolCalls.forEach((t, index) => {
+    const a = t.function.arguments, h = Math.floor(a.length / 2)
+    w({ tool_calls: [{ index, id: t.id, type: 'function', function: { name: t.function.name, arguments: a.slice(0, h) } }] })
+    w({ tool_calls: [{ index, function: { arguments: a.slice(h) } }] })
+  })
+  res.write(`data: ${JSON.stringify({ model: body.model, choices: [{ index: 0, delta: {}, finish_reason: finish }] })}\n\n`)
+  res.write(`data: ${JSON.stringify({ model: body.model, choices: [], usage })}\n\n`)
+  res.end('data: [DONE]\n\n')
+}
+
+module.exports = { next, send }

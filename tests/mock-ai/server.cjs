@@ -11,6 +11,7 @@ const p2 = require('./p2.cjs')
 const p3 = require('./p3.cjs')
 const p4 = require('./p4.cjs')
 const course = require('./course.cjs')
+const agent = require('./agent.cjs')
 const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 /** 从 data URL 里读出图片尺寸（PNG 看 IHDR，JPEG 找 SOF 段），E2E 用它核对「发给模型的图已缩小」 */
@@ -190,6 +191,18 @@ async function startMock(opts = {}) {
         }
         if (state.delayMs) await new Promise(r => setTimeout(r, state.delayMs))
 
+        // 思考强度试探（带 reasoning_effort、不带 tools 的极小请求）：认这个参数，回一个字
+        if (body.reasoning_effort && !body.tools) { rec.body_effort = body.reasoning_effort; return reply(res, { model: body.model, content: '好', usage: { prompt_tokens: 10, completion_tokens: 1 } }, body.stream) }
+        // 助手（带 tools 的请求）：按预设脚本返回工具调用 / 文字；agentNoTools = 模拟「模型不支持工具调用」
+        if (Array.isArray(body.tools) && body.tools.length) {
+          rec.isAgent = true
+          rec.body_effort = body.reasoning_effort
+          rec.toolNames = body.tools.map(t => t.function?.name)
+          rec.messages = body.messages
+          if (state.agentNoTools) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: "tools / tool_choice is not supported by this model" } })); return }
+          return agent.send(res, body, agent.next(body), body.stream)
+        }
+
         const usageOf = (c) => usageFor(sys, user, c, body.stream)
         if (d && d.type === 'empty') return reply(res, { model: body.model, content: '', usage: usageOf('') }, body.stream)
         if (d && d.type === 'badjson') {
@@ -323,6 +336,9 @@ async function startMock(opts = {}) {
     get variantGenRequests() { return state.requests.filter(r => r.isVgen) },
     get variantCheckRequests() { return state.requests.filter(r => r.isVcheck) },
     get kpRequests() { return state.kpRequests || [] },
+    /** 助手的请求（带 tools 的） */
+    get agentRequests() { return state.requests.filter(r => r.isAgent) },
+    set agentNoTools(v) { state.agentNoTools = v },
     /** 课程对照的请求（认列 cols / 匹配 match / 话术 advice / 一句话 hint） */
     get courseRequests() { return state.requests.filter(r => r.courseKind) },
     /** 课程对照每次应答前的延迟（毫秒），测进度条和取消用 */
@@ -335,7 +351,7 @@ async function startMock(opts = {}) {
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },
-    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.courseDelayMs = 0; state.reasoning = null; state.seenSystems.clear() },
+    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.courseDelayMs = 0; state.reasoning = null; state.agentNoTools = false; state.seenSystems.clear() },
     resetStats() { state.requests.length = 0; state.maxInflight = 0 },
     async stop() {
       for (const s of sockets) s.destroy()
