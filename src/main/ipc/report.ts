@@ -100,6 +100,17 @@ export function registerReportIpc(): void {
     return { text, chars: text.length }
   })
 
+  /** 老师版「可发给家长的话」复制给家长：没点「我已核对」不给复制（和课程看板里的话术同一道门槛）；过期的报告也不给 */
+  ipcMain.handle('report:copyCourseAdvice', async (_e, rawId: unknown) => {
+    const report = getReport(IdSchema.parse(rawId))
+    if (!report) throw new Error('这份报告已经不存在了')
+    if (!report.courseAdvice) throw new Error('这份报告里没有课程建议')
+    if (!report.confirmedAt) throw new Error('请先点「我已核对」，确认这段话没问题再复制给家长')
+    if (report.status === 'stale') throw new Error('这份报告已经过期（数据或课程有变化），请重新生成并核对后再复制')
+    clipboard.writeText(report.courseAdvice)
+    return { text: report.courseAdvice, chars: report.courseAdvice.length }
+  })
+
   /** 导出：弹系统「另存为」（Markdown 的图片放进同名文件夹；PDF 用隐藏窗口打印；Word 直接写 .docx）。取消返回 { saved: false } */
   ipcMain.handle('report:export', async (_e, rawId: unknown, rawFmt: unknown) => {
     const id = IdSchema.parse(rawId)

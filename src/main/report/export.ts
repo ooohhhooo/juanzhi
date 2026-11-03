@@ -129,7 +129,8 @@ export async function exportDocx(report: ReportDetail, docxPath: string, dataNot
     const c = cropForRef(r)
     if (c) images.set(r.token, { png: c.png, width: c.width, height: c.height })
   }
-  const buf = await buildDocx({ title: exportTitle(report), markdown: report.markdown, images, footer: footerNote(report, dataNote || '数据来源：本地校考卷') })
+  const buf = await buildDocx({ title: report.title || exportTitle(report),   // 家长版 Word 也带和其他三个版本一样的报告标题行（PDF 的页面标题仍是“给家长的话”）
+     markdown: report.markdown, images, footer: footerNote(report, dataNote || '数据来源：本地校考卷') })
   fs.writeFileSync(docxPath, buf)
   cleanAppleDouble(path.dirname(docxPath), [path.basename(docxPath)])
   return { docxPath, bytes: buf.length, images: images.size }

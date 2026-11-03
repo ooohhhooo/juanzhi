@@ -124,6 +124,8 @@
 .ewb-rep-readeropt__name i { width: 10px; height: 10px; border-radius: 50%; background: var(--cat); }
 .ewb-rep-readeropt__hint { font-size: var(--ewb-fs-md); line-height: 1.55; color: var(--ewb-ink-2); }
 .ewb-rep-readeropt[data-active="true"] .ewb-rep-readeropt__hint { color: var(--ewb-ink); }
+.ewb-rep-course { margin-top: var(--ewb-sp-3); font-size: var(--ewb-fs-md); }
+.ewb-rep-course__list { display: flex; flex-direction: column; gap: var(--ewb-sp-1); margin: var(--ewb-sp-2) 0 0 var(--ewb-sp-5); }
 .ewb-rep-genrow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ewb-sp-3); margin-top: var(--ewb-sp-4); font-size: var(--ewb-fs-md); }
 .ewb-rep-how { margin-top: var(--ewb-sp-1); }
 .ewb-rep-empty { margin: var(--ewb-sp-4) 0; padding: var(--ewb-sp-4) 0 0; border-top: 1px solid var(--ewb-line); font-size: var(--ewb-fs-md); color: var(--ewb-ink-2); max-width: 46em; }

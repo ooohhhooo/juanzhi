@@ -244,7 +244,8 @@ function courseIdsFromFlags(flags: Record<string, string | true>): string[] {
 async function reportGenerate(ctx: CliCtx) {
   const reader = readerFromFlags(ctx.args.flags)
   requireAi()
-  const courseIds = courseIdsFromFlags(ctx.args.flags)
+  let courseIds = courseIdsFromFlags(ctx.args.flags)
+  if (courseIds.length && reader === 'boss') { ctx.log('老板版不加课程对照，已忽略 --with-course'); courseIds = [] }
   const filter = statsFilterFromFlags(ctx.args.flags)
   const requestId = crypto.randomUUID()
   let chars = 0, lastLog = 0
@@ -256,7 +257,7 @@ async function reportGenerate(ctx: CliCtx) {
     }
   }
   ctx.log('生成报告……')
-  const res = await ctx.invokeWithSender(sender, 'report:generate', filter, requestId, reader, courseIds.length ? { courseIds } : undefined)
+  const res = await ctx.invokeWithSender(sender, 'report:generate', filter, requestId, reader, courseIds.length ? { course: { outlineIds: courseIds }, ...(reader === 'parent' ? { parentHint: true } : {}) } : undefined)
   if (!res.ok) {
     const code = res.code === 'no_data' || res.code === 'bad_prompt' ? 'invalid_state' : res.code === 'no_ai' ? 'ai_not_configured' : res.code === 'busy' ? 'busy' : 'ai_failed'
     throw new CliError(code, res.message ?? '生成报告失败', res.detail ? { detail: res.detail } : undefined)

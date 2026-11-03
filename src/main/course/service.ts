@@ -42,7 +42,7 @@ import type { MatchEntry } from './match'
 import { applyMatchBatch, lessonRows, matchState, targetKps } from './store'
 import { courseDashboard } from './stats'
 import type { CourseDashboard } from './stats'
-import { buildAdviceInputs, courseRowsOf } from './report-section'
+import { buildAdviceInputs, buildHintInputs, courseRowsOf } from './report-section'
 import type { CourseScene } from './report-section'
 import { finishAdvice, sanitizePartial } from './advice-post'
 import { TEMPLATE_HEADERS, templateRows, sampleSheets } from './template'
@@ -339,7 +339,9 @@ export interface AdvicePrepared {
   eligible: number
 }
 
-export function prepareAdvice(db: Db, scope: AdviceScope): AdvicePrepared {
+/** kind = 'hint'：家长版结尾一句话（p5_course_hint，只放 1 个考点）；默认是老师版的话术（p5_course_advice） */
+export function prepareAdvice(db: Db, scope: AdviceScope, kind: 'advice' | 'hint' = 'advice'): AdvicePrepared {
+  const pid = kind === 'hint' ? 'p5_course_hint' : 'p5_course_advice'
   const dash = courseDashboard(db, scope.filter, scope.outlineIds)
   const sc = paperScope(scope.filter)
   const counts = scopeCounts(db, sc)
@@ -354,16 +356,16 @@ export function prepareAdvice(db: Db, scope: AdviceScope): AdvicePrepared {
   const warning = p3SampleWarning({ dist: { papers: counts.papers, coverage: { questions: 0, scored: 0, tagged: 0 } } as any, cmp: null, distinctGrades: 1, distinctExamTypes: 1 })
   const picked = [...withInfo].sort((a, b) => b.errorCount - a.errorCount || b.papers - a.papers).slice(0, 5)
   const evidence = collectEvidence(db, sc, { codes: picked.map(r => r.code) })
-  const inp = buildAdviceInputs(withInfo, { scene, filterDesc, sampleWarning: warning, evidenceText: evidence.text })
-  const system = promptText('p5_course_advice', 'system')
-  const userTpl = promptText('p5_course_advice', 'user')
+  const inp = (kind === 'hint' ? buildHintInputs : buildAdviceInputs)(withInfo, { scene, filterDesc, sampleWarning: warning, evidenceText: evidence.text })
+  const system = promptText(pid, 'system')
+  const userTpl = promptText(pid, 'user')
   let user = ''
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, inp.placeholders) } catch (e) { promptError = (e as Error).message }
   // 体系内容改了（rev）、对应结果改了（用户文本里的课令牌和课名变了）、提示词变了、范围变了 → 缓存键变 → 已过期
   const revs = dash.outlines.map(o => `${o.id}:${(db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(o.id) as any)?.rev ?? 0}`).sort().join(',')
-  const keys = cacheKeys(scopeObject(scope), system, `${user}\u0000${revs}`)
-  return { dash, scene, system, user, promptError, promptVersion: promptVersionFor('p5_course_advice'), labels: inp.labels, evidenceStatements: evidence.statements, eligible: inp.used.length, ...keys }
+  const keys = cacheKeys(kind === 'hint' ? { ...scopeObject(scope), kind: 'course_hint' } : scopeObject(scope), system, `${user}\u0000${revs}`)
+  return { dash, scene, system, user, promptError, promptVersion: promptVersionFor(pid), labels: inp.labels, evidenceStatements: evidence.statements, eligible: inp.used.length, ...keys }
 }
 
 export interface AdviceState {

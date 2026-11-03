@@ -64,7 +64,7 @@ const registry = new Map<string, ReportPartDef>()
 
 export function registerReportPart(def: ReportPartDef): void { registry.set(def.id, def) }
 export const getPartDef = (id: string): ReportPartDef | undefined => registry.get(id)
-export const allPartMetas = (): PartMeta[] => [...registry.values()].map(({ id, label, placement, order, readers, ai }) => ({ id, label, placement, order, readers, ai }))
+export const allPartMetas = (): PartMeta[] => [...registry.values()].map(({ id, label, placement, order, readers, ai, omitWhenEmpty }) => ({ id, label, placement, order, readers, ai, omitWhenEmpty }))
 
 /** 这个读者、这些选项下，这次生成要跑的附加段（按 order） */
 export function partsFor(reader: ReportReader, options: ReportOptions, base: Omit<PartContext, 'signal' | 'mainMarkdown' | 'options' | 'reader'>): ReportPartDef[] {

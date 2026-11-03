@@ -8,6 +8,7 @@
 //   · 数据包：默认带课程，勾选“不带课程大纲”则不带；删除体系后回到空状态；草稿的确认
 //   · 命令行：course import（草稿 / --i-reviewed）、course list、course match（草稿拒绝）、report generate --with-course 未匹配 → 退出码 15
 //   · 浅色 / 深色截图 docs/screenshots/m10a-*.png
+// 报告里的课程对照（M9 §1.9）：老师版 / 完整版 / 家长版（截图 docs/screenshots/m10c-*.png）。
 // 用法：npm run test:e2e:m10a   （沙箱外运行：Electron、本地端口都被沙箱限制）
 const M = require('./m4-lib.cjs')
 const { SPEC, seed } = require('./fixtures-m3.cjs')
@@ -21,6 +22,8 @@ const q = (sql, ...p) => withDb(ctx.ud, d => d.prepare(sql).all(...p))
 const q1 = (sql, ...p) => q(sql, ...p)[0]
 /** 截图前等提示条消失、动画结束，免得截到半截的抽屉或盖在内容上的提示 */
 const shot10 = async name => { await ctx.page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 8000 }).catch(() => {}); await sleep(700); await ctx.page.screenshot({ path: path.join(shots, `m10a-${name}.png`) }) }
+/** 报告里的课程对照截图（m10c-） */
+const shot10c = async name => { await ctx.page.waitForFunction(() => !document.querySelector('.ant-message-notice'), null, { timeout: 8000 }).catch(() => {}); await sleep(700); await ctx.page.screenshot({ path: path.join(shots, `m10c-${name}.png`) }) }
 const setTheme = async mode => { await goto('#/'); await ctx.page.evaluate(m => localStorage.setItem('ewb-theme-pref', m), mode); await ctx.page.reload(); await T('dropzone').waitFor({ timeout: 30000 }) }
 const reload = async () => { await ctx.page.reload(); await sleep(1500) }
 const openCourseTab = async () => {
@@ -285,6 +288,111 @@ async function main() {
     check('话术', '没有自动重新生成：话术请求总数没有增加', mock.courseRequests.filter(r => r.courseKind === 'advice').length === 2)
   }
 
+  // ───────────────────────── 7b. 报告里的课程对照（m10c-） ─────────────────────────
+  {
+    const reportRows = () => q('SELECT * FROM reports ORDER BY created_at, rowid')
+    const partsOf = id => Object.fromEntries(q('SELECT part, status, message FROM report_parts WHERE report_id = ?', id).map(p => [p.part, p]))
+    const pickReader = async r => { await T(`reader-${r}`).locator('xpath=ancestor::label').click(); await sleep(400) }
+    const gen = async (reader, { course = true, hint = true } = {}) => {
+      const before = reportRows().length
+      await setFilter({ grade: '4' }, '#/report'); await T('report-page').waitFor()
+      if (await T('report-dismiss').count()) await T('report-dismiss').click()
+      await pickReader(reader)
+      if (course) {
+        await T('report-course-check').locator('xpath=ancestor::label').click()
+        await T('report-course-list').waitFor({ timeout: 8000 })
+        if (reader === 'parent' && !hint) await T('report-course-hint').locator('xpath=ancestor::label').click()
+      }
+      await sleep(400)
+      await T('report-generate').click()
+      const done = await waitFor(() => {
+        const rows = reportRows()
+        if (rows.length <= before) return false
+        const ps = q('SELECT status FROM report_parts WHERE report_id = ?', rows[rows.length - 1].id)
+        return ps.length > 0 && ps.every(x => x.status !== 'running')
+      }, 120000, 500)
+      await sleep(1200)
+      const row = reportRows()[reportRows().length - 1]
+      return { ok: !!done, row, parts: partsOf(row.id) }
+    }
+
+    // 老板版：不支持课程对照
+    await setFilter({ grade: '4' }, '#/report'); await T('report-page').waitFor()
+    await pickReader('boss')
+    check('报告课程', '老板版：“加入课程对照”不可勾，并写明老板版不加', (await T('report-course-check').isDisabled()) && (await T('report-course-boss-hint').count()) === 1)
+
+    // 老师版
+    mock.resetStats()
+    const t = await gen('teacher')
+    const opt = JSON.parse(t.row.options_json ?? 'null')
+    check('报告课程', '老师版：勾选的体系随报告保存（reports.options_json = {course:{outlineIds:[…]}}），列表上有“含课程对照”标签', t.ok && opt?.course?.outlineIds?.length === 1 && opt.course.outlineIds[0] === oid && (await page.locator(`[data-testid=report-item-${t.row.id}]`).innerText()).includes('含课程对照'), t.row.options_json)
+    const tMd = t.row.markdown
+    check('报告课程', '老师版：新小节“课程对照与选课建议”（课程列表由程序拼）+ 子节“可发给家长的话”，课程段状态 ok', t.parts.course_teacher?.status === 'ok' && /## 课程对照与选课建议/.test(tMd) && /### 可发给家长的话/.test(tMd) && /示例体系 A · /.test(tMd) && !/\[课#/.test(tMd), JSON.stringify(t.parts.course_teacher))
+    check('报告课程', '老师版：话术只调用一次 p5_course_advice，不调用家长一句话；课程小节在“学习进步建议”之前', mock.courseRequests.filter(r => r.courseKind === 'advice').length === 1 && mock.courseRequests.filter(r => r.courseKind === 'hint').length === 0 && tMd.indexOf('课程对照与选课建议') < tMd.indexOf('学习进步建议'))
+    check('报告课程', '老师版：话术里没有价格 / 优惠 / 保证提分', !FORBID.test(tMd.slice(tMd.indexOf('### 可发给家长的话'))))
+    await T('report-copy-advice').waitFor({ timeout: 10000 })
+    check('报告课程', '“复制给家长”在没点“我已核对”前是灰的', await T('report-copy-advice').isDisabled())
+    await ctx.app.evaluate(({ clipboard }) => clipboard.writeText('旧内容'))
+    const tryCopy = await page.evaluate(async id => { try { await window.api.report.copyCourseAdvice(id); return 'ok' } catch (e) { return String(e.message) } }, t.row.id)
+    check('报告课程', '主进程也拦着：没核对时直接调用复制接口被拒绝，剪贴板没变', /我已核对/.test(tryCopy) && (await clipboard()) === '旧内容', tryCopy)
+    await T('report-body').scrollIntoViewIfNeeded().catch(() => {})
+    await shot10c('teacher-light')
+    await T('report-confirm').click(); await T('confirm-dialog').waitFor()
+    await T('confirm-ok').click()
+    await waitFor(async () => !(await T('report-copy-advice').isDisabled()), 10000)
+    await T('report-copy-advice').click()
+    await waitFor(async () => (await clipboard()) !== '旧内容', 8000)
+    const clipT = await clipboard()
+    check('报告课程', '点“我已核对”后才能复制；复制的是那一段话（没有“未核实”标记和 AI 草稿提示）', clipT.length >= 100 && !/〔|AI 草稿/.test(clipT) && /示例体系 A/.test(clipT), clipT.slice(0, 80))
+
+    // 过期：课程体系 rev 变了 → 已过期；改回来 → 又是最新（只改 rev，不碰对应）
+    await goto('#/report'); await T('report-page').waitFor()
+    const itemSel = `[data-testid=report-item-${t.row.id}]`
+    await page.locator(itemSel).waitFor()
+    const was = await page.locator(itemSel).getAttribute('data-status')
+    writeDb(ud, db => db.prepare('UPDATE course_outlines SET rev = rev + 1 WHERE id = ?').run(oid))
+    await page.reload(); await T('report-page').waitFor(); await page.locator(itemSel).waitFor()
+    const stale = await waitFor(async () => (await page.locator(itemSel).getAttribute('data-status')) === 'stale', 10000)
+    check('报告课程', '课程体系内容更新（rev + 1）：这份带课程对照的报告显示“已过期”，且没有自动重新生成', was === 'fresh' && !!stale && reportRows().length === 1 + 0 + reportRows().length - 1)
+    writeDb(ud, db => db.prepare('UPDATE course_outlines SET rev = rev - 1 WHERE id = ?').run(oid))
+    await page.reload(); await T('report-page').waitFor(); await page.locator(itemSel).waitFor()
+    check('报告课程', '改回去后又是“最新”', await waitFor(async () => (await page.locator(itemSel).getAttribute('data-status')) === 'fresh', 10000))
+
+    // 完整版
+    mock.resetStats()
+    const f = await gen('full')
+    const fMd = f.row.markdown
+    check('报告课程', '完整版：末尾“课程对照”表（知识点 | 出现份数 | AI 估计易错题数 | 对应课程 | 把握），全部由程序拼，没有任何 AI 课程请求', f.parts.course_full?.status === 'ok' && /## 课程对照\n/.test(fMd) && fMd.includes('| 知识点 | 出现份数 | AI 估计易错题数 | 对应课程（最多 3 课） | 把握 |') && mock.courseRequests.length === 0, JSON.stringify(f.parts.course_full))
+    check('报告课程', '完整版：表在文末（没有“学习进步建议”之后的别的小节），对应课程是完整课名', fMd.lastIndexOf('## 课程对照') > fMd.lastIndexOf('\n## ', fMd.lastIndexOf('## 课程对照') - 1) && /\| .*示例体系 A · .*\|/.test(fMd))
+    await T('report-body').scrollIntoViewIfNeeded().catch(() => {})
+    await page.locator('table').last().scrollIntoViewIfNeeded().catch(() => {})
+    await shot10c('full-light')
+
+    // 家长版（带一句话）
+    mock.resetStats()
+    const pa = await gen('parent')
+    const pMd = pa.row.markdown
+    const pWx = await page.evaluate(id => window.api.report.get(id).then(r => r.chars), pa.row.id)
+    const kept = /这类题常见易错/.test(pMd)
+    const pWarn = JSON.parse(pa.row.warnings_json ?? '[]')
+    check('报告课程', '家长版：p5_course_hint 只调用一次；一句话要么追加（带课名）、要么因加上会超过 300 字被丢弃并记告警；复制到微信字数始终不超过 300', pa.parts.course_hint?.status === 'ok' && mock.courseRequests.filter(r => r.courseKind === 'hint').length === 1 && pWx <= 300 && (kept ? /示例体系 A|基础|第/.test(pMd.slice(pMd.indexOf('这类题常见易错'))) : pWarn.some(w => /超过 300 字，已省略/.test(w))), `kept=${kept} chars=${pWx} warn=${JSON.stringify(pWarn)}`)
+    check('报告课程', '家长版：没有老师版的课程小节 / 表格 / “可发给家长的话”', !/课程对照与选课建议|可发给家长的话|\| 知识点 \|/.test(pMd))
+    await shot10c('parent-light')
+
+    // 家长版不勾一句话 / 不勾课程：报告里没有课程内容，也没有课程请求
+    mock.resetStats()
+    const pn = await gen('parent', { course: false })
+    check('报告课程', '不勾“加入课程对照”：没有课程段、options_json 为空、没有任何课程请求（与原来完全一致）', pn.row.options_json === null && !pn.parts.course_hint && !/这类题常见易错/.test(pn.row.markdown) && mock.courseRequests.length === 0)
+
+    // 选项区截图（勾选后）
+    await setFilter({ grade: '4' }, '#/report'); await T('report-page').waitFor()
+    await pickReader('teacher')
+    await T('report-course-check').locator('xpath=ancestor::label').click()
+    await T('report-course-list').waitFor({ timeout: 8000 })
+    await T('report-course-opt').scrollIntoViewIfNeeded()
+    await shot10c('options-light')
+  }
+
   // ───────────────────────── 8. 数据包 ─────────────────────────
   {
     await goto('#/settings'); await T('data-pack').waitFor()
@@ -435,6 +543,12 @@ async function main() {
     writeDb(ud, db => db.exec("DELETE FROM course_outlines"))
     await openCourseTab()
     check('删除', '体系都删掉后，看板回到空状态', await T('course-empty').waitFor({ timeout: 15000 }).then(() => true, () => false))
+    await setFilter({ grade: '4' }, '#/report'); await T('report-page').waitFor()
+    check('报告课程', '没有课程大纲时：“加入课程对照”置灰，并指向“课程大纲”页', (await T('report-course-disabled').count()) === 1 && (await T('report-course-check').count()) === 0 && /课程大纲/.test(await txt('report-course-disabled')))
+    await T('report-course-link').click()
+    check('报告课程', '点提示里的“课程大纲”：跳到课程大纲页', await waitFor(async () => (await page.evaluate(() => location.hash)) === '#/courses', 8000))
+    await setFilter({ grade: '4' }, '#/report'); await T('report-page').waitFor()
+    await shot10c('options-disabled-light')
   }
 
   const errs = ctx.consoleErrors.filter(e => !/Failed to load resource|DevTools|Autofill/.test(e))
@@ -476,6 +590,9 @@ async function main() {
     check('命令行', 'course match：退出码 0，返回批次、matched / none 和用量（usage.calls ≥ 1）', m.code === 0 && m.json?.ok && m.json.data.usage.calls >= 1 && m.json.data.batches >= 1 && /AI 的建议/.test(m.json.data.note), (m.o + m.e).slice(0, 300))
     const lst2 = await cli(['course', 'list'])
     check('命令行', '匹配后 course list 的状态是“done”，--with-course 不再报 15', lst2.json.data.outlines.find(o => o.id === activeId)?.match === 'done')
+    const wc = await cli(['report', 'generate', '--reader', 'full', '--with-course', activeId])
+    const wcRow = withDb(ud, d => d.prepare('SELECT * FROM reports ORDER BY created_at DESC, rowid DESC LIMIT 1').get())
+    check('命令行', 'report generate --with-course：体系 id 作为 options 传进报告生成（options_json = {course:{outlineIds:[…]}}，不再是没人读的第 4 个参数）', wc.code === 0 && wc.json?.ok && JSON.parse(wcRow?.options_json ?? 'null')?.course?.outlineIds?.[0] === activeId && wc.json.data.courseIds?.[0] === activeId, (wc.o + wc.e).slice(0, 300) + ' ' + wcRow?.options_json)
     const help = await cli([])
     check('命令行', '帮助里有 course list / import / match 和退出码 course_not_matched = 15', ['course list', 'course import', 'course match'].every(c => help.json.data.commands.some(x => x.command === c || x.name === c || String(x.usage ?? x.command ?? '').includes(c))) && help.json.data.exitCodes.course_not_matched === 15, JSON.stringify(help.json?.data?.exitCodes).slice(0, 120))
   }

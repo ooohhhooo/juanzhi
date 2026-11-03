@@ -77,6 +77,8 @@ interface ElectronAPI {
     export(id: string, fmt: 'md' | 'pdf' | 'docx'): Promise<{ saved: boolean; path?: string; dir?: string | null; images?: number; missingImages?: number; bytes?: number }>
     /** 老师点「我已核对」。家长版必须带 acknowledged = 勾了「已确认无误」的未核实句子原文（每句未核实的话要么已删掉、要么在这里），有矛盾句或内容太少一律拒绝（白话 message）；其他版本可省略 */
     confirm(id: string, acknowledged?: string[]): Promise<boolean>
+    /** 老师版「可发给家长的话」复制给家长：要先点「我已核对」，且报告没过期 */
+    copyCourseAdvice(id: string): Promise<{ text: string; chars: number }>
     /** 复制到微信：纯文本写进系统剪贴板，同时返回文本 */
     copyWechat(id: string): Promise<{ text: string; chars: number }>
     /** 在文件管理器里显示刚导出的文件 */
@@ -646,6 +648,8 @@ interface ReportOptions {
 // ── M4：报告与数据 ──
 interface ReportItem {
   id: string
+  /** 生成时勾了「加入课程对照」 */
+  hasCourse: boolean
   title: string
   createdAt: string
   model: string | null
@@ -707,6 +711,8 @@ interface ReportDetail extends ReportItem {
   unverified: UnverifiedItem[]
   parts: ReportPartView[]
   variants: ReportVariantView[]
+  /** 老师版「可发给家长的话」；没有课程对照为 null */
+  courseAdvice: string | null
 }
 interface ReportPreview {
   filterDesc: string

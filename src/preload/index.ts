@@ -106,6 +106,7 @@ const api = {
     /** 核对时从报告里删掉清单里的一句「未核实 / 矛盾」的话（正文里连标记一起删）；已核对的报告不能再改。返回更新后的报告 */
     removeSentence: (id: string, sentence: string): Promise<any> => ipcRenderer.invoke('report:removeSentence', id, sentence),
     // 复制到微信：纯文本写进系统剪贴板
+    copyCourseAdvice: (id: string): Promise<{ text: string; chars: number }> => ipcRenderer.invoke('report:copyCourseAdvice', id),
     copyWechat: (id: string): Promise<{ text: string; chars: number }> => ipcRenderer.invoke('report:copyWechat', id),
     // 在文件夹里显示刚导出的文件
     reveal: (path: string): Promise<boolean> => ipcRenderer.invoke('report:reveal', path),

@@ -25,6 +25,8 @@ export interface PartMeta {
   readers: ReportReader[]
   /** 是否调用 AI（false = 程序拼装，不花钱） */
   ai: boolean
+  /** 成功但内容为空时不显示占位（段可以“有意什么都不加”） */
+  omitWhenEmpty?: boolean
 }
 
 /** 内置的几段。其它段（课程对照……）由 registerReportPart 登记 */
@@ -86,6 +88,8 @@ export function assembleReport(main: string, parts: PartText[], metas: PartMeta[
     let at: Placement = m.placement
     if (at === 'after_methods' && !hasMethods) at = 'before_advice'
     if (at === 'before_advice' && !hasAdvice) at = 'tail'
+    // omitWhenEmpty 的段成功但没有内容（如家长版加上课程建议会超 300 字而被丢弃）= 这一段不出现，不留“没有生成”的占位
+    if (m.omitWhenEmpty && p.status === 'ok' && !p.markdown.trim()) continue
     const text = p.status === 'ok' && p.markdown.trim() ? p.markdown.trim() : placeholderFor(m.label, p.status)
     blocks[at].push(text)
   }
