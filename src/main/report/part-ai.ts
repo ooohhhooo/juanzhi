@@ -16,7 +16,7 @@ export interface PartChatResult { content: string; model: string; usage: Usage }
  * @param kind 记在 ai_usage 里的用途名（如 p3_tricks）
  * @param model 不传就用「写报告用的模型」（设置里的 model）
  */
-export async function partChat(o: { system: string; user: string; kind: string; signal?: AbortSignal; model?: string }): Promise<PartChatResult> {
+export async function partChat(o: { system: string; user: string; kind: string; signal?: AbortSignal; model?: string; /** 默认要求返回 JSON；课程话术 / 一句话是纯文字，传 false */ json?: boolean }): Promise<PartChatResult> {
   const cfg = loadConfig()
   const key = getApiKey()
   if (!cfg.base_url || !cfg.model || !key) throw new AiError('auth', '尚未配置 AI 服务')
@@ -25,7 +25,7 @@ export async function partChat(o: { system: string; user: string; kind: string; 
   const t0 = Date.now()
   try {
     const r = await chat({
-      baseUrl: cfg.base_url, apiKey: key, model, stream: false, jsonMode: true, temperature: 0.4, maxTokens: lim.maxTokens,
+      baseUrl: cfg.base_url, apiKey: key, model, stream: false, jsonMode: o.json !== false, temperature: 0.4, maxTokens: lim.maxTokens,
       messages: [{ role: 'system', content: o.system }, { role: 'user', content: o.user }],
       timeoutMs: cfg.timeout_sec * 1000, maxRetries: 2, backoffMs: 1000, signal: o.signal, fetchImpl: net.fetch as unknown as typeof fetch,
       escalateOnLength: { ceiling: lim.ceiling }, maxTokensFallback: lim.fallback

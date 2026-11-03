@@ -69,13 +69,13 @@ export function installReportChunkListener(queryClient: QueryClient): () => void
   return () => { unsub?.(); unsub = null }
 }
 
-export async function startReport(filter: StatsFilter, filterDesc: string, reader: ReportReader = 'full'): Promise<void> {
+export async function startReport(filter: StatsFilter, filterDesc: string, reader: ReportReader = 'full', options?: ReportOptions): Promise<void> {
   if (entry?.status === 'running') return
   const requestId = crypto.randomUUID()
   activeId = requestId
   setEntry({ requestId, status: 'running', text: '', refs: [], filterDesc, reader, startedAt: Date.now() })
   try {
-    const r = await window.api.report.generate(filter, requestId, reader)
+    const r = await window.api.report.generate(filter, requestId, reader, options)
     const cur = entry as ReportEntry | null
     if (!cur || cur.requestId !== requestId) return
     if (r.ok || (r.cancelled && r.reportId)) { finishOk(requestId, r.reportId); return }

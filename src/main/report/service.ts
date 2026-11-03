@@ -41,6 +41,9 @@ import type { ChunkEvent, GenerateResult } from '../stats/analysis'
 import type { UnverifiedItem } from '../ai/chunk'
 import { effectiveStatus, getPartDef, isGenerating, loadParts, metaOf, partsFor, reassemble, runParts, saveMainPart } from './parts-run'
 import type { PartRowDb } from './parts-run'
+import './course-parts'   // 登记课程对照三段（老师版 / 完整版 / 家长版一句话）
+import { cacheOptionsOf, courseOutlineIds, extractCourseAdvice } from './course-part-logic'
+import { courseSig } from '../course/report-sig'
 import { removeSentence } from '../../shared/factcheck'
 import type { ReportOptions } from '../../shared/report-options'
 
@@ -97,7 +100,9 @@ export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full'
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, input.placeholders) } catch (e) { promptError = (e as Error).message }
   // 生成选项（课程对照等）参与缓存键；没有选项时和 beta.3 之前的键完全一致，旧报告不会因此变成「已过期」
-  const keys = cacheKeys(hasOptions(options) ? { kind: KIND, reader, filter: normalizeFilter(filter), options } : { kind: KIND, reader, filter: normalizeFilter(filter) }, system, user)
+  // 勾了课程对照时，体系 rev 和知识点对应的指纹也进缓存键：课程变了报告就「已过期」
+  const cacheOpts = hasOptions(options) ? cacheOptionsOf(options, courseSig(db, courseOutlineIds(options))) : null
+  const keys = cacheKeys(cacheOpts ? { kind: KIND, reader, filter: normalizeFilter(filter), options: cacheOpts } : { kind: KIND, reader, filter: normalizeFilter(filter) }, system, user)
   const title = reportTitle({ filter, grades: src.grades ?? [], semesters: src.semesters ?? [], examTypes: src.examTypes ?? [], years: src.years, reader, date: today(), paperCount: Number(input.placeholders.PAPER_COUNT) })
   return { reader, input, src, system, user, promptError, promptVersion: promptVersionFor(id), templateSig: templateSig(system, userTpl), cacheKey: keys.cacheKey, rev, desc: describeFilterDb(filter, src.grades ?? [], Number(input.placeholders.PAPER_COUNT)), title }
 }
@@ -125,6 +130,8 @@ export interface ReportItem {
   confirmedAt: string | null
   /** 家长版必须先核对才能导出 / 复制 */
   needsConfirm: boolean
+  /** 生成时勾了「加入课程对照」 */
+  hasCourse: boolean
   /** 事实核对里没对上证据的句子数（已在正文里标了「未核实」） */
   unverifiedCount: number
   /** 现在不能「我已核对」、复制、导出的原因（白话，如「这份家长版内容太少，建议重新生成」）；可以用时为 null。界面据此把按钮置灰并显示这句话 */
@@ -166,6 +173,8 @@ export interface ReportDetail extends ReportItem {
   parts: ReportPartView[]
   /** 老师版的 AI 变形题（逐题勾「我核对过」后才进答题卡） */
   variants: ReportVariantView[]
+  /** 老师版「可发给家长的话」（去掉未核实标记）；没有课程对照时为 null。「复制给家长」只在老师点了「我已核对」后可用 */
+  courseAdvice: string | null
 }
 
 /**
@@ -212,7 +221,9 @@ function checkRow(row: any, memo: Map<string, PreparedReport>): CheckRecord {
   const rev = currentRev()
   const reader = readerOf(row)
   const sig = currentTemplateSig(reader)
-  const hit = reusableCheck(row, rev, sig)
+  // 带课程对照的报告：课程体系 / 对应的改动不会让数据修订号变化，所以不走“修订号没变就沿用”的捷径，每次都现算
+  const withCourse = courseOutlineIds(parseJson<ReportOptions>(row.options_json, {})).length > 0
+  const hit = withCourse ? null : reusableCheck(row, rev, sig)
   if (hit) return hit
   const key = `${reader}|${row.filter_json ?? '{}'}|${row.options_json ?? ''}`
   let p = memo.get(key)
@@ -220,7 +231,9 @@ function checkRow(row: any, memo: Map<string, PreparedReport>): CheckRecord {
   const reasons: Array<'data' | 'prompt'> = []
   if (row.template_sig !== p.templateSig) reasons.push('prompt')
   if (row.fingerprint !== p.input.fingerprint) reasons.push('data')
-  const chk: CheckRecord = { fresh: row.cache_key === p.cacheKey, reasons, promptError: p.promptError, empty: p.input.empty }
+  const fresh = row.cache_key === p.cacheKey
+  if (!fresh && reasons.length === 0) reasons.push('data')   // 只有课程体系 / 对应变了：也算“数据有变化”
+  const chk: CheckRecord = { fresh, reasons, promptError: p.promptError, empty: p.input.empty }
   getDb().prepare('UPDATE reports SET checked_rev = ?, checked_sig = ?, checked_json = ? WHERE id = ?').run(p.rev, p.templateSig, JSON.stringify(chk), row.id)
   return chk
 }
@@ -240,6 +253,7 @@ function itemOf(row: any, memo: Map<string, PreparedReport>): ReportItem {
     promptVersion: row.prompt_version,
     // 家长版的字数 = 复制到微信的字数（界面显示的、说明里写的 ≤ 300 都是这个口径）；其他版本是正文字数
     chars: reader === 'parent' ? markdownToWechat(row.markdown ?? '', { spaced: true }).length : (row.markdown ?? '').length,
+    hasCourse: courseOutlineIds(parseJson<ReportOptions>(row.options_json, {})).length > 0,
     aiDraft: true, confirmedAt: row.confirmed_at ?? null, needsConfirm: reader === 'parent' && !row.confirmed_at, unverifiedCount: verify.length,
     blockReason: confirmBlockReason({ reader, markdown: row.markdown ?? '', unverified: verify })
   }
@@ -276,12 +290,14 @@ function variantViews(reportId: string): ReportVariantView[] {
   })
 }
 
+const courseAdviceOf = (md: string): string | null => { const a = extractCourseAdvice(md); return a ? stripMarks(a).trim() : null }
+
 export function getReport(id: string): ReportDetail | null {
   const row = getDb().prepare('SELECT * FROM reports WHERE id = ? AND kind = ?').get(id, KIND) as any
   if (!row) return null
   const item = itemOf(row, new Map())
   // 旧报告里 AI 套在引用外面的反引号（`[卷名 · 题号]`）读出来时去掉
-  return { ...item, markdown: fixBackticks(row.markdown ?? ''), refs: refreshRefs(parseJson<CitationRef[]>(row.refs_json, [])), unverified: parseJson<UnverifiedItem[]>(row.verify_json, []), parts: partViews(row, item), variants: variantViews(id) }
+  return { ...item, markdown: fixBackticks(row.markdown ?? ''), refs: refreshRefs(parseJson<CitationRef[]>(row.refs_json, [])), unverified: parseJson<UnverifiedItem[]>(row.verify_json, []), parts: partViews(row, item), variants: variantViews(id), courseAdvice: courseAdviceOf(row.markdown ?? '') }
 }
 
 /** 这份报告还在生成附加段：核对、勾选、删句、删除、导出 / 复制都先拒绝（内容还没定，别让半成品出去，也别让生成中的行被删掉） */

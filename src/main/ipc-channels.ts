@@ -35,7 +35,7 @@ export const READONLY_CHANNELS = new Set([
   'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',
   'questions:list', 'questions:summary', 'queue:pause', 'queue:state',
-  'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:reveal', 'report:cardImage',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示；cardImage 只写剪贴板或用户在「另存为」里选的文件
+  'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:copyCourseAdvice', 'report:reveal', 'report:cardImage',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示；cardImage 只写剪贴板或用户在「另存为」里选的文件
   'settings:get', 'settings:getDataDir', 'settings:openDataDir',
   'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
   'taxonomy:tree',

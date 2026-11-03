@@ -80,6 +80,16 @@ export default function Report() {
   const [role] = useRoleGuideRole()
   const lastDone = useLastDone()
   const [reader, setReader] = useState<ReportReader>('full')
+  // 加入课程对照（M9 §1.9）：只在有已启用、已整理好的课程大纲时可选；老板版不支持
+  const [withCourse, setWithCourse] = useState(false)
+  const [courseIds, setCourseIds] = useState<string[]>([])
+  const [parentHint, setParentHint] = useState(true)
+  const { data: outlines = [] } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
+  const usable = (outlines as any[]).filter(o => o.status === 'active' && o.active)
+  const courseSupported = reader !== 'boss'
+  const courseOn = withCourse && courseSupported && usable.length > 0
+  const pickedIds = courseIds.filter(id => usable.some(o => o.id === id))
+  const courseOptions: ReportOptions | undefined = courseOn && pickedIds.length ? { course: { outlineIds: pickedIds }, ...(reader === 'parent' && parentHint ? { parentHint: true } : {}) } : undefined
   const [selected, setSelected] = useState<string | null>(null)
   const [view, setView] = useState<ViewTarget | null>(null)
   const [exporting, setExporting] = useState<'md' | 'pdf' | 'docx' | 'wechat' | null>(null)
@@ -151,6 +161,13 @@ export default function Report() {
     } catch (e) { message.error(clean(e)) }
     finally { setExporting(null) }
   }
+  const copyAdvice = async () => {
+    if (!detail) return
+    try {
+      const r = await window.api.report.copyCourseAdvice(detail.id)
+      message.success(`已复制 ${r.chars} 字给家长的话`)
+    } catch (e) { message.error(clean(e)) }
+  }
   const copyWechat = async () => {
     if (!detail) return
     setExporting('wechat')
@@ -202,7 +219,7 @@ export default function Report() {
   const refs = (entry?.refs?.length ? entry.refs : detail?.refs) ?? []
   const retryActions = (e: NonNullable<typeof entry>) => (
     <>
-      {preview && !preview.blocked && <Btn tone="secondary" size="small" data-testid="report-retry" onClick={() => startReport(filter, preview.filterDesc, e.reader)}>{e.status === 'error' ? '重试' : '重新生成'}</Btn>}
+      {preview && !preview.blocked && <Btn tone="secondary" size="small" data-testid="report-retry" onClick={() => startReport(filter, preview.filterDesc, e.reader, e.reader === reader ? courseOptions : undefined)}>{e.status === 'error' ? '重试' : '重新生成'}</Btn>}
       <Btn tone="quiet" size="small" data-testid="report-dismiss" onClick={dismissReportEntry}>关闭提示</Btn>
     </>
   )
@@ -221,10 +238,35 @@ export default function Report() {
             </label>
           ))}
         </div>
+        <div className="ewb-rep-course" data-testid="report-course-opt">
+          {usable.length > 0 ? (
+            <>
+              <Checkbox checked={withCourse && courseSupported} disabled={running || !courseSupported} data-testid="report-course-check"
+                onChange={e => { setWithCourse(e.target.checked); if (e.target.checked && courseIds.length === 0) setCourseIds(usable.filter(o => o.match?.state === 'done').map(o => o.id)) }}>加入课程对照</Checkbox>
+              {!courseSupported && <span className="ewb-rep-muted" data-testid="report-course-boss-hint">老板版不加课程对照</span>}
+              {courseOn && (
+                <div className="ewb-rep-course__list" data-testid="report-course-list">
+                  {usable.map(o => (
+                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={running || o.match?.state !== 'done'} data-testid={`report-course-outline-${o.id}`}
+                      onChange={e => setCourseIds(e.target.checked ? [...courseIds, o.id] : courseIds.filter(x => x !== o.id))}>
+                      {o.name}{o.match?.state !== 'done' ? '（还没有匹配完，先到「课程大纲」页点“开始匹配”）' : ''}
+                    </Checkbox>
+                  ))}
+                  {reader === 'parent' && <Checkbox checked={parentHint} disabled={running} data-testid="report-course-hint" onChange={e => setParentHint(e.target.checked)}>结尾加一句课程建议（超过 300 字会自动省略）</Checkbox>}
+                  {pickedIds.length === 0 && <span className="ewb-rep-muted" data-testid="report-course-none">请至少选一个已匹配好的课程体系，否则这次不加课程对照</span>}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="ewb-rep-muted" data-testid="report-course-disabled">
+              <Checkbox disabled>加入课程对照</Checkbox> 还没有可用的课程大纲：先到左边的 <a className="ewb-rep-link" role="button" tabIndex={0} data-testid="report-course-link" onClick={() => nav('/courses')} onKeyDown={e => { if (e.key === 'Enter') nav('/courses') }}>课程大纲</a> 页上传并整理好，再回来勾选
+            </span>
+          )}
+        </div>
         <div className="ewb-rep-genrow">
           <span>按当前筛选生成：<b data-testid="report-scope">{filterLabel(filter)}{filter.sample ? ' · 示例数据' : ''}</b>
             {preview && <span className="ewb-rep-counts" data-testid="report-counts">共 {preview.papers} 份卷子、{preview.questions} 道题</span>}</span>
-          {!running && !preview?.blocked && <Btn tone="primary" icon={Sparkles} data-testid="report-generate" disabled={!preview || !ready} onClick={() => startReport(filter, preview!.filterDesc, reader)}>生成{READER_LABEL[reader]}</Btn>}
+          {!running && !preview?.blocked && <Btn tone="primary" icon={Sparkles} data-testid="report-generate" disabled={!preview || !ready} onClick={() => startReport(filter, preview!.filterDesc, reader, courseOptions)}>生成{READER_LABEL[reader]}</Btn>}
         </div>
         <Collapse ghost size="small" className="ewb-rep-how" data-testid="report-how" items={[{ key: 'how', forceRender: true, label: <span className="ewb-rep-collapse-label">怎么算的？要花钱吗？（点开看）</span>, children: <div className="ewb-rep-stack"><NotCounted /><p className="ewb-rep-note">所有数字、知识点、例题都由程序先算好再交给 AI，AI 只负责把它写成人话，不自己数数；难易程度和“容易错”是 AI 估计，不是学生成绩。每生成一次会调用一次 AI（要花一点钱），生成的报告都会留在下面的历史里。</p></div> }]} />
         {running ? (
@@ -296,6 +338,7 @@ export default function Report() {
                       <ReaderChip reader={r.reader as ReportReader} label={r.readerLabel} testid="reader-tag" />
                       {r.status === 'stale' ? <StatusLabel kind="queued">已过期</StatusLabel> : <StatusLabel kind="done">最新</StatusLabel>}
                       {r.needsConfirm && <StatusLabel kind="pending">待老师核对</StatusLabel>}
+                      {r.hasCourse && <StatusLabel kind="done">含课程对照</StatusLabel>}
                       {r.filter.sample && <StatusLabel kind="done">示例数据</StatusLabel>}
                     </div>
                   </li>
@@ -310,6 +353,11 @@ export default function Report() {
             <Panel title={<span data-testid="report-title">{detail.readerLabel} · {detail.createdAt}</span>}>
               <div className="ewb-rep-actions">
                 {!detail.confirmedAt && role === 'ops' && <Btn tone="secondary" icon={ClipboardList} data-testid="report-hand-over" onClick={handOver}>交给老师核对</Btn>}
+                {detail.courseAdvice && (
+                  <Tooltip title={detail.confirmedAt ? (detail.status === 'stale' ? '这份报告已过期，请重新生成并核对后再复制' : '复制“可发给家长的话”这一段') : '先读一遍，没问题再点“我已核对”，之后才能复制给家长'}>
+                    <Btn tone="secondary" icon={Copy} data-testid="report-copy-advice" disabled={!detail.confirmedAt || detail.status === 'stale'} onClick={copyAdvice}>复制给家长</Btn>
+                  </Tooltip>
+                )}
                 {!detail.confirmedAt && <Btn tone="secondary" icon={ShieldCheck} data-testid="report-confirm" disabled={!!detail.blockReason && conflictCount === 0} onClick={confirm}>我已核对</Btn>}
                 <Tooltip title={blockedExport ? (detail?.blockReason ?? '家长版要先由老师点「我已核对」，才能复制') : '复制成纯文本（带换行和序号），可以直接粘贴到微信'}>
                   <Btn tone="secondary" icon={Copy} data-testid="report-copy-wechat" disabled={blockedExport} loading={exporting === 'wechat'} onClick={copyWechat}>复制到微信</Btn>
