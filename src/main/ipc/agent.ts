@@ -9,7 +9,8 @@ import {
   agentSettingsView, agentStatus, allPlaybooks, answerApproval, answerAsk, checkEffortSupport, checkToolSupport, customRoles, exportRole, getScene, importRoleText,
   modelInfo, queryRecord, sessionView, initAgent, modelsView, removeRole, resetStaleRunning, rolesView, saveAgentSettings, saveRole, setScene, startRun, stopRun, toolList, userPlaybookDir, allToolNames
 } from '../agent/service'
-import { deleteSkill, importSkillFile, importSkillFolder, listUserSkillFiles, saveSkill, skillText } from '../agent/playbooks/manage'
+import { cancelRoleDraft, generateRoleDraft } from '../agent/role-draft-runtime'
+import { deleteSkill,importSkillFile, importSkillFolder, listUserSkillFiles, saveSkill, skillText } from '../agent/playbooks/manage'
 import { BUILTIN_PLAYBOOK_FILES } from '../agent/playbooks/index'
 import { parsePlaybook } from '../agent/playbooks/parse'
 import { deleteSession, listSessions } from '../agent/store'
@@ -105,7 +106,16 @@ export function registerAgentIpc(): void {
   })
   ipcMain.handle('agent:deleteSession', async (_e, id: unknown) => deleteSession(db(), IdSchema.parse(id)))
   ipcMain.handle('agent:saveRole', async (_e, raw: unknown) => saveRole(RoleInput.parse(raw)))
-  ipcMain.handle('agent:deleteRole', async (_e, id: unknown) => removeRole(IdSchema.parse(id)))
+  // 让助手生成角色草稿：调用用户配置的 AI；可取消
+  ipcMain.handle('agent:roleDraft', async (_e, raw: unknown) => {
+    const p = z.object({
+      reqId: z.string().min(1).max(60),
+      answers: z.object({ job: z.string().max(60), tasks: z.array(z.string().max(30)).max(12), reportTo: z.string().max(30), style: z.string().max(30), extra: z.string().max(400) })
+    }).parse(raw)
+    return generateRoleDraft(p.reqId, p.answers)
+  })
+  ipcMain.handle('agent:roleDraftCancel', async (_e, reqId: unknown) => cancelRoleDraft(z.string().min(1).max(60).parse(reqId)))
+  ipcMain.handle('agent:deleteRole',async (_e, id: unknown) => removeRole(IdSchema.parse(id)))
   ipcMain.handle('agent:importRole', async () => {
     const win = getMainWindow()
     const opts = { title: '导入角色', properties: ['openFile' as const], filters: [{ name: '角色文件', extensions: ['json'] }] }

@@ -27,7 +27,7 @@ export const WRITE_CHANNELS = new Set([
   // 连接器：写设置表；connectors:test 会往外部发测试消息或启动 MCP 子进程并刷新工具缓存
   'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test',
   // 助手：agent:run / agent:checkTools 会调用 AI 并写 ai_usage、会话记录；setScene 写设置；deleteSession 删记录
-  'agent:playbookSave', 'agent:playbookDelete', 'agent:playbookImport', 'agent:run', 'agent:checkTools', 'agent:checkEffort', 'agent:setScene', 'agent:deleteSession', 'agent:saveRole', 'agent:deleteRole', 'agent:importRole', 'agent:saveSettings'
+  'agent:playbookSave', 'agent:playbookDelete', 'agent:playbookImport', 'agent:run', 'agent:checkTools', 'agent:checkEffort', 'agent:setScene', 'agent:deleteSession', 'agent:saveRole', 'agent:roleDraft', 'agent:roleDraftCancel', 'agent:deleteRole', 'agent:importRole', 'agent:saveSettings'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
 export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])

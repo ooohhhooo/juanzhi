@@ -7,6 +7,8 @@ import { Btn, UsageNote } from '../design'
 import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
 import { AssistantSettingsModal, RoleModal } from './assistant-dialogs'
+import RoleWizard from './assistant-role-wizard'
+import { popularTemplates } from '../../main/agent/role-templates'
 import Composer, { chipsToHint } from './assistant-composer'
 import type { Chip } from './assistant-composer'
 import AiErrorExplain from '../components/AiErrorExplain'
@@ -226,6 +228,9 @@ export default function Assistant() {
   const [effort, setEffort] = useState<AgentEffort>('auto')
   const [roleModal, setRoleModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [wizard, setWizard] = useState<{ open: boolean; tpl: string | null }>({ open: false, tpl: null })
+  const [roleChosen, setRoleChosen] = useState(() => { try { return window.localStorage.getItem('ewb-as-role-chosen') === '1' } catch { return true } })
+  const markChosen = () => { setRoleChosen(true); try { window.localStorage.setItem('ewb-as-role-chosen', '1') } catch { /* 忽略 */ } }
   const branchRef = useRef('main')
   branchRef.current = branchId
   const [stale, setStale] = useState(false)
@@ -511,6 +516,15 @@ export default function Assistant() {
 
           {empty && curRole && (
             <div className="ewb-as-empty" data-testid="assistant-empty">
+              {!roleChosen && (
+                <div className="ewb-rw-guide" data-testid="assistant-role-guide">
+                  <h3 className="ewb-rw-guide__h">先选一个最像你的角色</h3>
+                  <div className="ewb-rw-guide__row">
+                    {popularTemplates(rolesData?.scene ?? 'org').map(t => <button key={t.id} type="button" className="ewb-rw-chip" data-testid={`assistant-guide-${t.id}`} onClick={() => setWizard({ open: true, tpl: t.id })}>{t.names[rolesData?.scene ?? 'org']}</button>)}
+                    <button type="button" className="ewb-rw-chip ewb-rw-chip--more" data-testid="assistant-guide-more" onClick={() => setWizard({ open: true, tpl: null })}>更多…</button>
+                  </div>
+                </div>
+              )}
               <h2 className="ewb-as-empty__h">今天要做什么？</h2>
               <p className="ewb-as-empty__p">数据只在这台电脑上，人名和手机号不会发给 AI。我只根据软件里的数据回答，查不到的会直接告诉你。</p>
               <div className="ewb-as-suggest" data-testid="assistant-suggest">
@@ -555,7 +569,7 @@ export default function Assistant() {
           <div className="ewb-as-rolebar" role="group" aria-label="我的身份">
             <span className="ewb-as-rolebar__k">我是</span>
             <div className="ewb-as-seg ewb-as-seg--small">
-              {roles.map(r => <button key={r.id} type="button" data-testid={`assistant-role-${r.id}`} aria-pressed={r.id === curRole?.id} onClick={() => { if (r.id !== curRole?.id) { newChat(); setRole(r.id) } }}>{r.name}</button>)}
+              {roles.map(r => <button key={r.id} type="button" data-testid={`assistant-role-${r.id}`} aria-pressed={r.id === curRole?.id} onClick={() => { markChosen(); if (r.id !== curRole?.id) { newChat(); setRole(r.id) } }}>{r.name}</button>)}
             </div>
           </div>
         )}
@@ -570,10 +584,11 @@ export default function Assistant() {
         />}
       </section>
 
+      <RoleWizard open={wizard.open} scene={rolesData?.scene ?? 'org'} startTemplate={wizard.tpl} onClose={() => setWizard({ open: false, tpl: null })} onSaved={id => { markChosen(); if (id) { newChat(); setRole(id) } }} />
       <RoleModal open={roleModal.open} roleId={roleModal.id} onClose={() => setRoleModal({ open: false, id: null })} onSaved={id => { if (id) { newChat(); setRole(id) } else { newChat(); setRole(roles[0]?.id ?? 'ops') } }} />
       <AssistantSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} extra={{
         scene: rolesData?.scene, onScene: setScene, curRoleName: curRole?.name, curRoleCustom: !!curRole?.custom,
-        onNewRole: () => setRoleModal({ open: true, id: null }), onImportRole: importRole, onEditRole: () => curRole && setRoleModal({ open: true, id: curRole.id })
+        onNewRole: () => setWizard({ open: true, tpl: null }), onImportRole: importRole, onEditRole: () => curRole && setRoleModal({ open: true, id: curRole.id })
       }} />
       <AssistantSidePanel foldBelow={1280}
         mode={sideMode} onModeChange={setSideMode}

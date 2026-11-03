@@ -195,7 +195,7 @@ async function main() {
 
   // ── 9. 自定义角色：新建 → 使用 → 导出 / 导入 → 删除 ──
   await goto('#/overview'); await goto('#/assistant'); await T('assistant-page').waitFor()
-  await T('assistant-settings-open').click(); await T('assistant-role-new').click(); await T('role-modal').waitFor()
+  await T('assistant-settings-open').click(); await T('assistant-role-new').click(); await T('role-wizard-blank').click(); await T('role-modal').waitFor()
   await T('role-name').fill('续费跟进'); await T('role-desc').fill('关心续费，说话简短。')
   await ctx.page.locator('[data-testid=role-tools] label', { hasText: '看整体情况' }).click()
   await T('role-suggest').fill('今年哪些知识点最难？\n哪些课最该补？')

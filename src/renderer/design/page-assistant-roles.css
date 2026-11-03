@@ -1,0 +1,21 @@
+/* 新建角色向导、首次使用引导（类名前缀 ewb-rw-）。颜色只用 --ewb-* 变量。 */
+.ewb-rw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 6px; }
+.ewb-rw-card { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 2px; align-content: start; padding: 10px 12px; border: 1px solid var(--ewb-line); border-radius: 10px; background: var(--ewb-page); }
+.ewb-rw-card:hover:not(:disabled) { border-color: var(--ewb-primary); background: var(--ewb-primary-soft); }
+.ewb-rw-card:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }
+.ewb-rw-card:disabled { opacity: 0.55; cursor: not-allowed; }
+.ewb-rw-card--ai { border-style: dashed; border-color: var(--ewb-primary); }
+.ewb-rw-card__icon { color: var(--ewb-primary); display: inline-flex; }
+.ewb-rw-card__name { font-weight: 700; color: var(--ewb-ink); }
+.ewb-rw-card__who { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-rw-spin { animation: ewb-rw-spin 1s linear infinite; }
+@keyframes ewb-rw-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ewb-rw-spin { animation: none; } }
+
+.ewb-rw-guide { display: grid; gap: 8px; justify-items: center; margin-bottom: var(--ewb-sp-4); padding: 12px 14px; border: 1px solid var(--ewb-line); border-radius: 12px; background: var(--ewb-note); }
+.ewb-rw-guide__h { margin: 0; font-size: var(--ewb-fs-md); font-weight: 700; color: var(--ewb-ink); }
+.ewb-rw-guide__row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.ewb-rw-chip { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 14px; border: 1px solid var(--ewb-primary); border-radius: var(--ewb-r-pill); color: var(--ewb-primary); font-weight: 600; font-size: var(--ewb-fs-sm); }
+.ewb-rw-chip:hover { background: var(--ewb-primary-soft); }
+.ewb-rw-chip:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }
+.ewb-rw-chip--more { border-style: dashed; }
