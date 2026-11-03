@@ -149,7 +149,8 @@ export function registerDataIpc(): void {
   })
 
   // ───────── 导入：第二步，确认后写入 ─────────
-  ipcMain.handle('data:importPack', async (_e, rawToken: unknown, rawMode: unknown) => withOp('导入数据包', async () => {
+  ipcMain.handle('data:importPack', async (_e, rawToken: unknown, rawMode: unknown, rawOpts?: unknown) => withOp('导入数据包', async () => {
+    const opts = z.object({ updateCourses: z.boolean().default(false) }).default({}).parse(rawOpts ?? {})
     const token = z.string().uuid().parse(rawToken)
     const mode = z.enum(['merge', 'overwrite']).parse(rawMode)
     if (!pending || pending.token !== token) throw new Error('这个数据包的读取结果已经失效，请重新选择数据包')
@@ -158,7 +159,7 @@ export function registerDataIpc(): void {
     const deps = { db: getDb(), dataDir: getDataDir(), filesDir: getFilesDir(), fault: process.env.EWB_TEST_FAULT || null }
     const staged = { dbPath: pending.dbPath, filesDir: pending.filesDir }
     try {
-      const report = mode === 'merge' ? applyMerge(deps, staged) : applyOverwrite(deps, staged)
+      const report = mode === 'merge' ? applyMerge(deps, staged, opts) : applyOverwrite(deps, staged)
       discardPending()
       // 导入进来的卷子也要走同一套截图框修正（别的机器解析出来的框没有留白，PAD = 0 之后会裁得偏紧）；后台做，不挡导入结果
       void refineImported(mode === 'merge' ? (report.newPaperIds ?? []) : 'all').catch(e => console.warn(`[crop] 导入后修框失败：${(e as Error).message}`))

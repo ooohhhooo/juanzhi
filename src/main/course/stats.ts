@@ -198,7 +198,8 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
 
 /** 没覆盖清单 → CSV（带 BOM，Excel 直接打开）；字段里的引号、逗号、换行按 RFC 4180 转义 */
 export function gapsToCsv(gaps: GapRow[], head: { filterDesc: string; outlineNames: string[]; scene: string }): string {
-  const q = (s: string | number) => { const t = String(s); return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t }
+  // 以 = + - @ Tab 回车 开头的格子前面加单引号：考点名 / 体系名是用户自己上传的，不能让 Excel 当公式执行
+  const q = (s: string | number) => { let t = String(s); if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = `'${t}`; return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t }
   const lines = [
     ['说明', `${head.scene === 'school' ? '教学进度里没有安排的常考点' : '常考但课程没覆盖的考点'}（AI 匹配的结果，请教研核对）`],
     ['范围', head.filterDesc], ['课程体系', head.outlineNames.join('、')], [],

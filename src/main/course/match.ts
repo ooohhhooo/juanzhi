@@ -56,6 +56,29 @@ export function kpBatchBlock(kps: KpLite[]): { text: string; tokens: Map<string,
   return { text: lines.join('\n'), tokens }
 }
 
+/** 能拿来核对的文字：只有标题、主题、要点、教材对标；不含级别名和「第 N 课」这类标签（否则 quote 写个「基础级」「第 5 课」就算过） */
+export function lessonQuoteText(l: { title?: string; theme?: string; textbookRef?: string; points?: Array<{ text: string }> }): string {
+  return [l.title, l.theme, l.textbookRef, ...(l.points ?? []).map(p => p.text)].map(x => (x ?? '').trim()).filter(Boolean).join(' ')
+}
+
+/** quote 太短没有证明力：至少 3 个汉字，或 2 个英文单词，或 1 个 5 个字母以上的英文单词 */
+export function quoteLongEnough(q: string): boolean {
+  const cjk = (q.match(/[\u4e00-\u9fff]/g) ?? []).length
+  const words = q.match(/[A-Za-z]+/g) ?? []
+  return cjk >= 3 || words.length >= 2 || words.some(w => w.length >= 5)
+}
+
+/** quote 和知识点有没有关系：含知识点的例词 / 例句里的单词（3 个字母以上），或知识点名里连续两个汉字 */
+export function quoteTouchesKp(q: string, kp: Partial<KpLite> | undefined): boolean {
+  if (!kp) return true
+  const low = q.toLowerCase()
+  const words = [kp.hintWords ?? '', kp.exampleEn ?? ''].join(' ').split(/[^A-Za-z']+/).map(w => w.toLowerCase()).filter(w => w.length >= 3)
+  if (words.some(w => low.includes(w))) return true
+  const name = kp.name ?? ''
+  for (let i = 0; i + 1 < name.length; i++) if (/[\u4e00-\u9fff]{2}/.test(name.slice(i, i + 2)) && q.includes(name.slice(i, i + 2))) return true
+  return !words.length && !name   // 没有任何可比的信息就不卡
+}
+
 const norm = (s: string) => s.toLowerCase().replace(/[\s　]+/g, '')
 
 export interface MatchEntry { code: string; none: boolean; maps: Array<{ lessonId: number; confidence: Confidence; quote: string; reason: string; quoteOk: boolean }> }
@@ -67,7 +90,7 @@ const stripFence = (s: string) => s.trim().replace(/^```(?:json)?\s*/i, '').repl
  * 校验一批回答。回答格式：{"results":[{"kp":"K1","lesson":"#12","confidence":"high","quote":"…","reason":"…"}, {"kp":"K2","none":true}]}
  * 同一个 kp 出现多条 = 多个对应（最多 5 个）。批里没出现的 kp 不产生条目（保持「没检查过」）。
  */
-export function parseMatchResponse(text: string, ctx: { tokens: Map<string, string>; lessons: Map<number, { searchText: string }> }): MatchParse {
+export function parseMatchResponse(text: string, ctx: { tokens: Map<string, string>; lessons: Map<number, { searchText: string; quoteText?: string }>; kps?: Map<string, Partial<KpLite>> }): MatchParse {
   let j: any
   try { j = JSON.parse(stripFence(text)) } catch {
     const m = /\{[\s\S]*\}/.exec(text)
@@ -92,9 +115,10 @@ export function parseMatchResponse(text: string, ctx: { tokens: Map<string, stri
     if (e.maps.length >= 5) { dropped++; continue }
     let confidence: Confidence = it.confidence === 'high' || it.confidence === 'medium' ? it.confidence : 'low'
     const quote = typeof it.quote === 'string' ? it.quote.trim().slice(0, 120) : ''
-    const quoteOk = !!quote && norm(lesson.searchText).includes(norm(quote))
+    const quoteOk = !!quote && quoteLongEnough(quote) && norm(lesson.quoteText ?? lesson.searchText).includes(norm(quote))
     let reason = typeof it.reason === 'string' ? it.reason.trim().slice(0, 60) : ''
     if (!quoteOk) { confidence = 'low'; reason = reason ? `仅凭主题推测：${reason}` : '仅凭主题推测（没有找到课次里的原文依据）' }
+    else if (confidence === 'high' && !quoteTouchesKp(quote, ctx.kps?.get(code))) { confidence = 'medium'; reason = reason ? `原文依据与考点关联不明显：${reason}` : '原文依据与考点关联不明显' }
     e.maps.push({ lessonId: id, confidence, quote: quoteOk ? quote : '', reason, quoteOk })
   }
   for (const e of byKp.values()) e.none = e.maps.length === 0

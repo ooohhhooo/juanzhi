@@ -52,7 +52,9 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
       ) : (
         <div className="ewb-rep-row" style={{ gap: 8 }}>
           {card.match.state !== 'done' && (
-            <Btn tone="primary" size="small" data-testid="match-start" onClick={() => run(false)}>{card.match.state === 'partial' ? `补匹配新知识点（${card.match.total - card.match.checked} 个）` : card.match.state === 'stale' ? '重新匹配' : '开始匹配'}</Btn>
+            <Popconfirm disabled={!est?.needsConfirm} title={`这次匹配预计用量约 ${wan(est?.tokens ?? 0)} token，比较多（实际以服务商为准）。确定开始吗？`} okText="确定开始" cancelText="取消" onConfirm={() => run(false)}>
+              <Btn tone="primary" size="small" data-testid="match-start" onClick={est?.needsConfirm ? undefined : () => run(false)}>{card.match.state === 'partial' ? `补匹配新知识点（${card.match.total - card.match.checked} 个）` : card.match.state === 'stale' ? '重新匹配' : '开始匹配'}</Btn>
+            </Popconfirm>
           )}
           {card.match.state === 'partial' && <Popconfirm title="整体重新匹配会再调用多次模型（产生 token 费用），人工确认过的对应会保留。确定吗？" okText="重新匹配" cancelText="取消" onConfirm={() => run(true)}><Btn tone="secondary" size="small" data-testid="match-redo">整体重新匹配</Btn></Popconfirm>}
           {card.match.state === 'done' && <Popconfirm title="重新匹配会再调用多次模型（产生 token 费用）。人工确认 / 否决过的对应会保留。确定吗？" okText="重新匹配" cancelText="取消" onConfirm={() => run(true)}><Btn tone="quiet" size="small" data-testid="match-redo">重新匹配</Btn></Popconfirm>}

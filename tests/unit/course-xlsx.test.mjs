@@ -1,8 +1,9 @@
 // 课程表读取：xlsx（共享字符串、合并单元格、多行表头、隐藏 sheet、数字 / 日期单元格、重复的列名）、csv（UTF-8 / BOM / GBK / 引号换行 / 制表符粘贴）、
 // 以及我们自己生成的模板能被读回来。全部内容虚构。
 import assert from 'node:assert/strict'
+import JSZip from 'jszip'
 import { makeXlsx } from './helpers/xlsx.mjs'
-import { buildXlsx, readTable, readXlsx, parseCsv, decodeText, readCsvText, CourseFileError, LIMITS } from '../../src/main/course/table-read.ts'
+import { buildXlsx, readTable, readXlsx, parseCsv, decodeText, decodeTextInfo, readCsvText, CourseFileError, LIMITS } from '../../src/main/course/table-read.ts'
 import { sampleSheets, templateRows } from '../../src/main/course/template.ts'
 
 // ── xlsx：共享字符串 + 富文本 + 注音、数字、日期、合并单元格、隐藏 sheet ──
@@ -81,6 +82,41 @@ await assert.rejects(readTable(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0]), 'noe
   assert.deepEqual(sample.sheets.map(s => s.name), ['基础级', '进阶级'])
   assert.equal(sample.sheets[0].rows.length, 6)
   assert.equal(sample.sheets[0].rows[5][3], '第 5 课 Animals')
+}
+
+// ── 压缩炸弹：声明的 / 实际的解压大小太大 → 白话拒绝；条目太多也拒绝 ──
+{
+  const big = async (files) => { const z = new JSZip(); for (const [n, size] of files) z.file(n, Buffer.alloc(size)); return z.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }) }
+  const t0 = Date.now()
+  await assert.rejects(readXlsx(await big([['xl/workbook.xml', 60 * 1024 * 1024]])), e => e instanceof CourseFileError && /解压后太大/.test(e.message), '单个条目超过 50 MB')
+  await assert.rejects(readXlsx(await big([1, 2, 3, 4, 5].map(i => [`xl/x${i}.xml`, 45 * 1024 * 1024]))), e => e instanceof CourseFileError && /解压后太大/.test(e.message), '合计超过 200 MB')
+  const many = new JSZip(); for (let i = 0; i < 1200; i++) many.file(`f${i}.txt`, 'x')
+  await assert.rejects(readXlsx(await many.generateAsync({ type: 'nodebuffer' })), e => e instanceof CourseFileError && /解压后太大/.test(e.message), '条目超过 1000 个')
+  assert.ok(Date.now() - t0 < 15000, '拒绝是在解压之前 / 一超限就停，不会把炸弹解压完')
+}
+
+// ── 重复的、没闭合的标签：线性扫描，很快结束（不能卡死主进程） ──
+{
+  const z = new JSZip()
+  z.file('xl/workbook.xml', '<workbook><sheets><sheet name="甲" sheetId="1" r:id="rId1"/></sheets></workbook>')
+  z.file('xl/_rels/workbook.xml.rels', '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+  z.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData>' + '<c r="A1" t="inlineStr"><is><t>x'.repeat(200000) + '</sheetData></worksheet>')
+  z.file('xl/sharedStrings.xml', '<sst>' + '<si><rPh><t>'.repeat(100000) + '</sst>')
+  z.file('xl/styles.xml', '<styleSheet><cellXfs>' + '<xf numFmtId="14"'.repeat(100000) + '</styleSheet>')
+  const t0 = Date.now()
+  await readXlsx(await z.generateAsync({ type: 'nodebuffer' })).catch(e => assert.ok(e instanceof CourseFileError))
+  assert.ok(Date.now() - t0 < 3000, `大量没闭合的标签应当很快结束，用了 ${Date.now() - t0} ms`)
+}
+
+// ── 乱码提示 ──
+{
+  const gbk = Buffer.from([0xbf, 0xce, 0xb4, 0xce, 0x2c, 0xb1, 0xea, 0xcc, 0xe2, 0x0a, 0x31, 0x2c, 0xc4, 0xe3, 0xba, 0xc3, 0x0a])
+  const r = await readTable(gbk, 'g.csv')
+  assert.ok(r.warnings.some(w => /GBK/.test(w)), 'GBK 读取要提示')
+  assert.equal(decodeTextInfo(Buffer.from('课次,标题\n1,你好', 'utf8')).suspicious, false)
+  const moji = Buffer.from('a,b\n' + 'ï»¿Ã©Ã¨,锟斤拷锟斤拷\n'.repeat(5), 'utf8')
+  assert.equal(decodeTextInfo(moji).suspicious, true)
+  assert.ok((await readTable(moji, 'm.csv')).warnings.some(w => /乱码/.test(w)))
 }
 
 console.log('course-xlsx.test ✓')

@@ -15,7 +15,7 @@ import { courseDashboard, gapsToCsv } from '../course/stats'
 import { SCENES, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
-  readSourceFile, readSourceText, runMatch, sessionOf, suggestMappings
+  cancelSuggest, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings
 } from '../course/service'
 import type { AdviceScope } from '../course/service'
 
@@ -52,10 +52,13 @@ const SaveSchema = z.object({
   scene: z.enum(SCENES as [string, ...string[]]),
   termNote: z.string().max(100).default(''),
   replaceId: IdSchema.optional(),
-  levels: LevelsSchema,
+  /** 界面改过格子时才带；没改过只带 sessionId + mappings，由主进程用会话里的整理结果 */
+  levels: LevelsSchema.optional(),
   warnings: WarningsSchema.default([]),
   mappings: MappingsSchema.default({}),
-  aiModel: z.string().max(120).default('')
+  aiModel: z.string().max(120).default(''),
+  /** 替换会删掉老师确认 / 手工指定的对应时，用户在确认框里明确同意 */
+  confirmLockedLoss: z.boolean().default(false)
 })
 
 const ScopeSchema = z.object({ filter: FilterArg, outlineIds: OutlineIds })
@@ -94,7 +97,9 @@ export function registerCourseIpc(): void {
     return ok
   })
   ipcMain.handle('course:remove', async (_e, id: unknown) => {
-    const ok = removeOutline(db(), IdSchema.parse(id))
+    const oid = IdSchema.parse(id)
+    if (outlineBusy(oid)) throw new Error('这个课程体系正在匹配 / 生成家长建议，请等它结束或先取消，再删除')
+    const ok = removeOutline(db(), oid)
     log.info('course', '删除课程体系', { ok })
     notifyDataChanged('course')
     return ok
@@ -126,27 +131,32 @@ export function registerCourseIpc(): void {
       return fileFailure(e)
     }
   })
+  ipcMain.handle('course:suggestCancel', async (_e, sid: unknown) => cancelSuggest(IdSchema.parse(sid)))
   ipcMain.handle('course:preview', async (_e, raw: unknown) => {
     const p = z.object({ sessionId: IdSchema, mappings: MappingsSchema }).parse(raw)
     try { return previewOutline(p.sessionId, p.mappings) } catch (e) { return fileFailure(e) }
   })
   ipcMain.handle('course:diff', async (_e, raw: unknown) => {
-    const p = z.object({ id: IdSchema, levels: LevelsSchema }).parse(raw)
-    return diffOutline(db(), p.id, p.levels)
+    const p = z.object({ id: IdSchema, sessionId: IdSchema.optional(), mappings: MappingsSchema.default({}), levels: LevelsSchema.optional() }).parse(raw)
+    try { return diffOutline(db(), p.id, resolveLevels(p.sessionId, p.mappings, p.levels as never).levels) } catch (e) { return fileFailure(e) }
   })
 
   ipcMain.handle('course:save', async (_e, raw: unknown) => {
     const p = SaveSchema.parse(raw)
     const src = p.sessionId ? (() => { try { return sessionOf(p.sessionId!) } catch { return null } })() : null
-    const common = { sourceName: src?.name ?? '', sourceHash: src?.hash ?? '', mapping: p.mappings, warnings: p.warnings as never, aiModel: p.aiModel, levels: p.levels as never }
+    let resolved
+    try { resolved = resolveLevels(p.sessionId, p.mappings, p.levels as never) } catch (e) { return fileFailure(e) }
+    const levels = resolved.levels.filter(l => l.lessons.length)
+    const common = { sourceName: src?.name ?? '', sourceHash: src?.hash ?? '', mapping: p.mappings, warnings: (p.warnings.length ? p.warnings : resolved.warnings.slice(0, 300)) as never, aiModel: p.aiModel, levels }
     if (p.replaceId) {
-      const r = replaceOutline(db(), p.replaceId, common)
+      if (outlineBusy(p.replaceId)) throw new Error('这个课程体系正在匹配 / 生成家长建议，请等它结束或先取消，再替换')
+      const r = replaceOutline(db(), p.replaceId, { ...common, confirmLockedLoss: p.confirmLockedLoss })
       log.info('course', '替换课程体系', { added: r.added, changed: r.changed, removed: r.removed })
       notifyDataChanged('course')
       return { id: p.replaceId, replaced: true, ...r }
     }
     const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active' })
-    log.info('course', '保存课程体系', { levels: p.levels.length, lessons: p.levels.reduce((n, l) => n + l.lessons.length, 0) })
+    log.info('course', '保存课程体系', { levels: levels.length, lessons: levels.reduce((n, l) => n + l.lessons.length, 0) })
     notifyDataChanged('course')
     return { id, replaced: false }
   })
@@ -184,7 +194,7 @@ export function registerCourseIpc(): void {
     const edit = z.union([
       z.object({ op: z.enum(['confirm', 'reject', 'reset']), kp: z.string().max(80), lessonId: z.number().int() }),
       z.object({ op: z.literal('add'), outlineId: IdSchema, kp: z.string().max(80), lessonId: z.number().int() }),
-      z.object({ op: z.literal('none'), outlineId: IdSchema, kp: z.string().max(80) })
+      z.object({ op: z.literal('none'), outlineId: IdSchema, kp: z.string().max(80), force: z.boolean().optional() })
     ]).parse(raw)
     const ok = editMap(db(), edit as never)
     notifyDataChanged('course')

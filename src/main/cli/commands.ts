@@ -17,7 +17,7 @@ import { getReport } from '../report/service'
 import { assertExportTarget } from './outfile'
 import { collectDiagnostics, writeDiagnosticsZip } from '../diagnostics'
 import { createOutline, getOutline, listOutlines } from '../course/store'
-import { previewOutline, readSourceFile, runMatch, suggestMappings } from '../course/service'
+import { MATCH_CONFIRM_TOKENS, estimateMatch, previewOutline, readSourceFile, runMatch, suggestMappings } from '../course/service'
 import { SCENES } from '../course/store'
 import type { Scene } from '../course/store'
 import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags } from './args'
@@ -235,7 +235,7 @@ function courseIdsFromFlags(flags: Record<string, string | true>): string[] {
     needUuid(id, '课程体系')
     const c = cards.find(x => x.id === id)
     if (!c) throw new CliError('not_found', `找不到这个课程体系：${id}`)
-    if (c.status !== 'active') throw new CliError('invalid_state', `课程体系「${c.name}」还是草稿，请先在卷知窗口里确认（设置 → 课程大纲）`)
+    if (c.status !== 'active') throw new CliError('invalid_state', `课程体系「${c.name}」还是草稿，请先在卷知窗口里确认（侧栏「课程大纲」）`)
     if (c.match.state !== 'done') throw new CliError('course_not_matched', `课程体系「${c.name}」还没有匹配完（状态：${c.match.state}）。请先运行 course match ${id}`)
   }
   return ids
@@ -274,7 +274,7 @@ async function courseList(_ctx: CliCtx) {
   const items = listOutlines(getDb())
   return {
     outlines: items.map(o => ({ id: o.id, name: o.name, scene: o.scene, status: o.status, draft: o.status === 'draft', active: o.active, levels: o.levels, lessons: o.lessons, match: o.match.state, matchLabel: matchLabel[o.match.state], matchedKps: o.match.checked, totalKps: o.match.total, createdAt: o.createdAt })),
-    note: items.some(o => o.status === 'draft') ? '草稿（draft）不参与对照：请在卷知窗口的“设置 → 课程大纲”里打开核对并确认。' : undefined
+    note: items.some(o => o.status === 'draft') ? '草稿（draft）不参与对照：请在卷知窗口的侧栏的“课程大纲”页里打开核对并确认。' : undefined
   }
 }
 
@@ -306,7 +306,7 @@ async function courseImport(ctx: CliCtx) {
     warnings: parsed.warnings.map(w => w.text),
     note: reviewed
       ? '已按 --i-reviewed 保存为正式课程体系：请确认你确实核对过 AI 认列和整理的结果。下一步可以运行 course match 把知识点匹配到课。'
-      : '保存为草稿（不参与对照）：请在卷知窗口的“设置 → 课程大纲”里打开，核对整理结果后点“确认使用”；或核对后重新带 --i-reviewed 导入。'
+      : '保存为草稿（不参与对照）：请在卷知窗口的侧栏的“课程大纲”页里打开，核对整理结果后点“确认使用”；或核对后重新带 --i-reviewed 导入。'
   }
 }
 
@@ -316,11 +316,17 @@ async function courseMatch(ctx: CliCtx) {
   const db = getDb()
   const o = listOutlines(db).find(x => x.id === id)
   if (!o) throw new CliError('not_found', `找不到这个课程体系：${id}`)
-  if (o.status !== 'active') throw new CliError('invalid_state', `课程体系「${o.name}」还是草稿，请先在卷知窗口里确认（设置 → 课程大纲）`)
+  if (o.status !== 'active') throw new CliError('invalid_state', `课程体系「${o.name}」还是草稿，请先在卷知窗口里确认（侧栏「课程大纲」）`)
+  const onlyNew = ctx.args.flags['only-new'] === true
+  const est = estimateMatch(db, id, onlyNew)
+  if (ctx.args.flags['estimate-only'] === true) return { id, name: o.name, estimate: est, confirmThresholdTokens: MATCH_CONFIRM_TOKENS, note: '只是估算，没有调用 AI。' }
+  if (est.needsConfirm && ctx.args.flags.yes !== true) {
+    throw new CliError('confirmation_required', `这次匹配预计用量约 ${est.tokens} token（超过 ${MATCH_CONFIRM_TOKENS}），要花不少 AI 用量。请先告诉使用者；他同意后再加 --yes 重新运行（只想看估算可以用 --estimate-only）`, { estimate: est })
+  }
   const before = (db.prepare('SELECT COALESCE(MAX(id), 0) m FROM ai_usage').get() as any).m as number
   let lastLog = 0
   ctx.log('匹配知识点到课程……（会调用 AI，花用量）')
-  const r = await runMatch(db, id, { onlyNew: ctx.args.flags['only-new'] === true, onProgress: p => { if (Date.now() - lastLog > 3000) { lastLog = Date.now(); ctx.log(`第 ${p.done}/${p.total} 批`) } } })
+  const r = await runMatch(db, id, { onlyNew, onProgress: p => { if (Date.now() - lastLog > 3000) { lastLog = Date.now(); ctx.log(`第 ${p.done}/${p.total} 批`) } } })
   const u = db.prepare("SELECT COUNT(*) calls, COALESCE(SUM(prompt_tokens), 0) p, COALESCE(SUM(completion_tokens), 0) c FROM ai_usage WHERE id > ? AND kind = 'course-match'").get(before) as any
   const usage = { calls: u.calls, promptTokens: u.p, completionTokens: u.c }
   if (!r.ok) {

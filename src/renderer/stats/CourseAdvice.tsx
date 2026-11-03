@@ -56,7 +56,7 @@ export default function CourseAdvice({ scope }: { scope: CourseAdviceScope }) {
             <span style={{ flex: 1, minWidth: 260 }} data-testid="advice-running"><ThinkingBar elapsedSeconds={elapsed} label={entry.text ? 'AI 正在写' : entry.thinking ? 'AI 正在思考' : 'AI 正在准备'} /></span>
             <Btn size="small" tone="secondary" data-testid="advice-cancel" onClick={() => cancelAnalysis(scope)}>取消生成</Btn>
           </div>
-          <div className="ewb-crs-advice__text" data-testid="advice-text">{entry.text.replace(/\[课#(\d+)\]/g, '「课」') || 'AI 在认真写，请稍等，不需要操作。'}</div>
+          <div className="ewb-crs-advice__text" data-testid="advice-text">AI 在认真写，请稍等，不需要操作。写好并检查过（不含价格、夸大的话）后会一次性显示在这里。</div>
         </>
       ) : entry?.status === 'error' ? (
         <>

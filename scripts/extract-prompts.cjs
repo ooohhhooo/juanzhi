@@ -43,4 +43,5 @@ for (const line of src) {
 }
 }
 console.log(written.join('\n'))
-if (written.length !== 24) { console.error(`期望 24 个文件，实际 ${written.length}`); process.exit(1) }
+const expected = DOCS.reduce((n, d) => n + Object.keys(d.ids).length * 2, 0)   // 每个提示词 system + user 两个文件；随文档里登记的 id 变，不写死个数
+if (written.length !== expected) { console.error(`期望 ${expected} 个文件，实际 ${written.length}`); process.exit(1) }

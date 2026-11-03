@@ -83,7 +83,7 @@ interface ElectronAPI {
     /** withCourse 默认 true：数据包里带上课程大纲；取消勾选传 false */
     exportPack(opts?: { withCourse?: boolean }): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
     pickPack(): Promise<{ picked: false } | { picked: true; token: string; fileName: string; manifest: PackManifest; info: { originalVersion: number; migrated: boolean; papers: number; questions: number; pages: number; samplePapers: number; kpTextFolded: number }; summary: PackSummary }>
-    importPack(token: string, mode: 'merge' | 'overwrite'): Promise<ImportReport>
+    importPack(token: string, mode: 'merge' | 'overwrite', opts?: { updateCourses?: boolean }): Promise<ImportReport>
     discardPack(token: string): Promise<boolean>
     deleteBackup(name: string): Promise<boolean>
     openBackup(name: string): Promise<boolean>
@@ -112,11 +112,14 @@ interface ElectronAPI {
     readText(text: string): Promise<CourseSource>
     /** mode：ai = 让 AI 认列（课程内容会发给用户配置的 AI 服务）；guess = 只按表头文字猜；manual = 全部留空 */
     suggest(req: { sessionId: string; mode: 'ai' | 'guess' | 'manual' }): Promise<{ items: Record<string, CourseSuggestItem>; model: string }>
+    /** 取消正在进行的“让 AI 认列”（关闭向导时调用） */
+    suggestCancel(sessionId: string): Promise<boolean>
     preview(req: { sessionId: string; mappings: Record<string, CourseSheetMapping | null> }): Promise<CourseParsed>
-    diff(req: { id: string; levels: CourseLevelDraft[] }): Promise<{ added: number; changed: number; removed: number; affectedMaps: number }>
+    /** 改过格子才带 levels；没改过只带 sessionId + mappings */
+    diff(req: { id: string; sessionId?: string; mappings?: Record<string, CourseSheetMapping | null>; levels?: CourseLevelDraft[] }): Promise<{ added: number; changed: number; removed: number; affectedMaps: number; lockedLost: number; lockedRecheck: number }>
     save(req: CourseSaveRequest): Promise<{ id: string; replaced: boolean; added?: number; changed?: number; removed?: number; affectedMaps?: number }>
     template(kind: 'blank' | 'sample'): Promise<{ saved: boolean; path?: string }>
-    matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number }>
+    matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number; needsConfirm: boolean }>
     matchProgress(id: string): Promise<CourseMatchProgress | null>
     matchCancel(id: string): Promise<boolean>
     match(id: string, onlyNew: boolean): Promise<{ ok: boolean; cancelled?: boolean; code?: string; message?: string; done: number; total: number; matched: number; none: number; dropped: number }>
@@ -541,7 +544,8 @@ interface CourseSaveRequest {
   scene: 'org' | 'school' | 'family' | 'other'
   termNote?: string
   replaceId?: string
-  levels: CourseLevelDraft[]
+  levels?: CourseLevelDraft[]
+  confirmLockedLoss?: boolean
   warnings?: Array<{ kind: string; sheet: string; row: number; text: string }>
   mappings?: Record<string, CourseSheetMapping | null>
   aiModel?: string
@@ -680,6 +684,7 @@ interface PackManifest {
 interface PackSummary {
   coursesInPack?: number
   coursesNew?: number
+  coursesNewer?: number
   papersInPack: number
   questionsInPack: number
   pagesInPack: number
@@ -701,6 +706,7 @@ interface ImportReport {
   kpsRemapped: number
   reportsAdded: number
   coursesAdded?: number
+  coursesUpdated?: number
   missingPageImages: number
   promptsImported: number
   promptsKeptLocal: number

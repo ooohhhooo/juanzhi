@@ -18,20 +18,25 @@ export default function CourseSettings() {
   const [detail, setDetail] = useState<string | null>(null)
   const { data: cards } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
   const refresh = () => qc.invalidateQueries({ queryKey: ['course'] })
+  const tpl = async (kind: 'blank' | 'sample') => { try { const r = await window.api.course.template(kind); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }
   const run = async (fn: () => Promise<unknown>, ok?: string) => { try { await fn(); if (ok) message.success(ok); refresh() } catch (e) { message.error(clean(e)) } }
 
   return (
     <div className="ewb-set-panel">
-      <Panel title="课程大纲" data-testid="course-settings"
-        aside={<Btn tone={cards && cards.length ? 'secondary' : 'primary'} size="small" icon={Plus} data-testid="course-add" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>}>
+      <Panel title="我的课程大纲" data-testid="course-settings"
+        aside={<Btn tone="secondary" size="small" icon={Plus} data-testid="course-add" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>}>
         <p className="ewb-rep-note" style={{ marginBottom: 12 }}>
-          上传你自己的课程表（培训机构的课程大纲、学校的教学进度，或孩子在上的课），卷知会告诉你：试卷里容易出错的考点分别在哪一课讲，常考的考点哪些课没有覆盖。
+          课程大纲就是你自己的课程表（培训机构的课程大纲、学校的教学进度，或孩子在上的课），卷知会告诉你：试卷里容易出错的考点分别在哪一课讲，常考的考点哪些课没有覆盖。
           课程表只存在这台电脑上；整理和匹配时，内容会发给你在“AI 服务”里设置的模型，不会发给卷知开发者。
         </p>
         {cards && cards.length === 0 && (
           <EmptyState inline title="还没有上传课程大纲" description="上传以后，看板的“课程对照”页就能用了。"
             steps={['上传课程表（.xlsx 或 .csv，也可以先下载模板）', '核对 AI 整理的结果，保存', '让 AI 把知识点对应到课，再到看板里看']}
-            action={<Btn tone="secondary" data-testid="course-add-empty" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>} />
+            action={<span className="ewb-rep-row" style={{ justifyContent: 'center' }}>
+              <Btn tone="primary" data-testid="course-add-empty" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>
+              <Btn tone="secondary" data-testid="course-empty-blank" onClick={() => void tpl('blank')}>下载空白模板</Btn>
+              <Btn tone="secondary" data-testid="course-empty-sample" onClick={() => void tpl('sample')}>看示例</Btn>
+            </span>} />
         )}
         <div className="ewb-crs-cards" data-testid="course-cards">
           {(cards ?? []).map(c => {

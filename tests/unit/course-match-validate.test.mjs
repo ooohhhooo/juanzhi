@@ -1,7 +1,7 @@
 // 知识点 → 课次 匹配的校验与落库：令牌不存在、quote 不在课次原文里降级、锁定不被覆盖、被否决不再加回、重新匹配后锁定保留、分批切分。
 import assert from 'node:assert/strict'
 import { newDb, useTree } from './helpers/db.mjs'
-import { parseMatchResponse, planMerge, outlineLine, kpBatchBlock, kpSig, batchKps, mergeEntries, chunkLines, isMainMap, lessonSearchText } from '../../src/main/course/match.ts'
+import { quoteLongEnough, quoteTouchesKp, parseMatchResponse, planMerge, outlineLine, kpBatchBlock, kpSig, batchKps, mergeEntries, chunkLines, isMainMap, lessonSearchText } from '../../src/main/course/match.ts'
 import { createOutline, applyMatchBatch, editMap, matchState, targetKps, getOutline, existingMaps, mapRows } from '../../src/main/course/store.ts'
 import { addPaper } from './helpers/db.mjs'
 
@@ -48,6 +48,22 @@ const resp = r => JSON.stringify({ results: r })
   assert.equal(isMainMap({ state: 'suggested', confidence: 'low' }), false)
   assert.equal(isMainMap({ state: 'confirmed', confidence: 'low' }), true, '老师确认过的按主要对应算')
   assert.equal(isMainMap({ state: 'rejected', confidence: 'high' }), false)
+}
+
+// ── quote 核对更严：太短不算、级别名 / 课次标签不算、和知识点无关的只能到 medium ──
+{
+  assert.equal(quoteLongEnough('cat'), false); assert.equal(quoteLongEnough('cat dog'), true); assert.equal(quoteLongEnough('visited'), true); assert.equal(quoteLongEnough('动物'), false); assert.equal(quoteLongEnough('过去式'), true)
+  const ls = new Map([[12, { searchText: '基础级 5 第 5 课 Animals 动物 cat, dog, fish', quoteText: 'Animals 动物 cat, dog, fish' }]])
+  const tk = new Map([['K1', 'GR.A']])
+  const kps = new Map([['GR.A', { name: '宠物名词', hintWords: 'dog / puppy', exampleEn: '' }]])
+  const r = (quote, conf = 'high', k = kps) => parseMatchResponse(resp([{ kp: 'K1', lesson: '#12', confidence: conf, quote }]), { tokens: tk, lessons: ls, kps: k }).entries[0].maps[0]
+  assert.equal(r('基础级 5').confidence, 'low', '级别名 / 课次编号不在可核对的文字里')
+  assert.equal(r('第 5 课').confidence, 'low')
+  assert.equal(r('cat').confidence, 'low', '3 个字母的单个单词太短')
+  assert.deepEqual([r('cat, dog').confidence, r('cat, dog').quoteOk], ['high', true], '含知识点例词 dog')
+  assert.equal(r('Animals 动物').confidence, 'medium', '依据和知识点没有重叠：最高 medium')
+  assert.equal(r('Animals 动物', 'high', new Map()).confidence, 'high', '没有知识点信息就不卡')
+  assert.equal(quoteTouchesKp('宠物店', { name: '宠物名词' }), true)
 }
 
 // ── 合并计划 ──

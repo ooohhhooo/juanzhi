@@ -69,6 +69,17 @@ const rows = [
   assert.deepEqual(fin.usedLessonIds, [12])
 }
 {
+  // 家长 / 学校场景：话术里的课名不带体系名；课名里有营销词的课不放进输入
+  const o2 = { filterDesc: '全部', sampleWarning: '', evidenceText: '（无）' }
+  const fam = buildAdviceInputs(rows, { ...o2, scene: 'family' })
+  assert.equal(fam.labels.get(12), '基础级 · 第 5 课《Animals》')
+  assert.ok(!fam.placeholders.COURSE_MATCH.includes('示例体系 A'))
+  const sch = buildAdviceInputs(rows, { ...o2, scene: 'school' })
+  assert.ok(!sch.labels.get(12).includes('示例体系'))
+  const bad = buildAdviceInputs([{ ...rows[0], lessons: [L(31, 1, '限免体验'), L(32, 2, 'Plain')] }], { ...o2, scene: 'org' })
+  assert.deepEqual([...bad.labels.keys()], [32], '课名带“限免”的那一课不进输入')
+}
+{
   // 看板结果 → 报告用的行：低把握不进；老师确认过的按高算
   const dash = { rows: [{ code: 'A', name: 'A', papers: 1, paperTotal: 2, errorCount: 1, score: 0, tags: [], checked: true, maybe: [],
     main: [{ lessonId: 1, outlineName: 'O', levelName: 'L', noLabel: '1', seq: 1, title: 't', textbookRef: '', confidence: 'low', state: 'confirmed' }, { lessonId: 2, outlineName: 'O', levelName: 'L', noLabel: '2', seq: 2, title: 'u', textbookRef: '', confidence: 'medium', state: 'suggested' }] },

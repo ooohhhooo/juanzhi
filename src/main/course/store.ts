@@ -4,7 +4,7 @@
  */
 import crypto from 'node:crypto'
 import { safeKpName } from '../../shared/code-guard.ts'
-import { lessonSearchText, kpSig, planMerge } from './match.ts'
+import { lessonSearchText, lessonQuoteText, kpSig, planMerge } from './match.ts'
 import type { KpLite, LessonLite, MatchEntry, ExistingMap } from './match.ts'
 import { lessonHash, planReplace, countsOf } from './replace-diff.ts'
 import type { OldLesson, ReplaceCounts } from './replace-diff.ts'
@@ -30,7 +30,16 @@ export interface OutlineInput {
   levels: ParsedLevel[]
 }
 
-const json = <T>(s: string | null | undefined, fallback: T): T => { try { return s ? JSON.parse(s) : fallback } catch { return fallback } }
+/** 读库里的 JSON 文本：解析失败、或形状和 fallback 不一样（该是数组却是对象 / 字符串……）一律用 fallback——数据包里来的内容不能把界面搞崩 */
+const json = <T>(s: string | null | undefined, fallback: T): T => {
+  try {
+    if (!s) return fallback
+    const v = JSON.parse(s)
+    if (Array.isArray(fallback)) return Array.isArray(v) ? v as T : fallback
+    if (fallback !== null && typeof fallback === 'object') return v !== null && typeof v === 'object' && !Array.isArray(v) ? v as T : fallback
+    return v as T
+  } catch { return fallback }
+}
 const uuid = () => crypto.randomUUID()
 
 function insertLessons(db: Db, outlineId: string, levelId: number, levelName: string, lessons: ParsedLesson[]): void {
@@ -62,7 +71,7 @@ export function createOutline(db: Db, input: OutlineInput): string {
 }
 
 /** 替换前的比对（不改库）：新增 / 修改 / 删除多少课，以及涉及改动的课上已有多少条知识点对应 */
-export function diffOutline(db: Db, id: string, levels: ParsedLevel[]): ReplaceCounts & { affectedMaps: number } {
+export function diffOutline(db: Db, id: string, levels: ParsedLevel[]): ReplaceCounts & { affectedMaps: number; lockedLost: number; lockedRecheck: number } {
   const old = oldLessons(db, id)
   const plan = planReplace(old, levels)
   const touched = [...plan.changed.map(c => c.id), ...plan.removedIds]
@@ -71,7 +80,16 @@ export function diffOutline(db: Db, id: string, levels: ParsedLevel[]): ReplaceC
     const q = db.prepare('SELECT COUNT(*) c FROM course_kp_map WHERE lesson_id = ? AND locked = 0')
     for (const t of touched) affected += (q.get(t) as any).c
   }
-  return { ...countsOf(plan), affectedMaps: affected }
+  return { ...countsOf(plan), affectedMaps: affected, ...lockedImpact(db, plan) }
+}
+
+/** 替换会影响多少条老师确认 / 锁定的对应：课被删（含整个级别被删）= 丢失；课的内容变了 = 需要重新核对 */
+function lockedImpact(db: Db, plan: ReturnType<typeof planReplace>): { lockedLost: number; lockedRecheck: number } {
+  const q = db.prepare("SELECT COUNT(*) c FROM course_kp_map WHERE lesson_id = ? AND (locked = 1 OR state = 'confirmed')")
+  let lost = 0, recheck = 0
+  for (const rid of plan.removedIds) lost += (q.get(rid) as any).c
+  for (const c of plan.changed) recheck += (q.get(c.id) as any).c
+  return { lockedLost: lost, lockedRecheck: recheck }
 }
 
 const oldLessons = (db: Db, id: string): OldLesson[] =>
@@ -82,11 +100,13 @@ const oldLessons = (db: Db, id: string): OldLesson[] =>
  * 替换内容（同一个体系 id，保留匹配结果）：按（级别 + 课次）配对；内容变了的课清掉没锁定的 AI 建议，锁定的保留；
  * 被删的课连同它的对应一起删（外键级联）。有任何改动 rev + 1，匹配状态因此变成「大纲已更新，需要重新匹配」。
  */
-export function replaceOutline(db: Db, id: string, input: Pick<OutlineInput, 'sourceName' | 'sourceHash' | 'mapping' | 'warnings' | 'aiModel' | 'levels'>): ReplaceCounts & { affectedMaps: number } {
+export function replaceOutline(db: Db, id: string, input: Pick<OutlineInput, 'sourceName' | 'sourceHash' | 'mapping' | 'warnings' | 'aiModel' | 'levels'> & { confirmLockedLoss?: boolean }): ReplaceCounts & { affectedMaps: number; lockedLost: number; lockedRecheck: number } {
   const total = input.levels.reduce((n, l) => n + l.lessons.length, 0)
   if (input.levels.length > MAX_LEVELS || total > MAX_LESSONS) throw new Error('级别或课次太多')
   const old = oldLessons(db, id)
   const plan = planReplace(old, input.levels)
+  const impact = lockedImpact(db, plan)
+  if (impact.lockedLost > 0 && !input.confirmLockedLoss) throw new Error(`需要确认：替换会删掉 ${impact.lockedLost} 条老师确认 / 手工指定的知识点对应（它们所在的课或级别不在新表里了）。请在确认框里明确同意后再替换`)
   const cnt = db.prepare('SELECT COUNT(*) c FROM course_kp_map WHERE lesson_id = ? AND locked = 0')
   let affected = 0
   for (const t of [...plan.changed.map(c => c.id), ...plan.removedIds]) affected += (cnt.get(t) as any).c   // 先数（删级别会级联删课次和对应）
@@ -112,8 +132,16 @@ export function replaceOutline(db: Db, id: string, input: Pick<OutlineInput, 'so
         lessonSearchText({ levelName: n.levelName, noLabel: l.noLabel, title: l.title, theme: l.theme, textbookRef: l.textbookRef, points: l.points }), n.hash, lid)
     }
     for (const c of plan.changed) {
-      db.prepare('DELETE FROM course_kp_map WHERE lesson_id = ? AND locked = 0').run(c.id)   // 没锁定的 AI 建议作废；锁定的人工结果保留
+      db.prepare('DELETE FROM course_kp_map WHERE lesson_id = ? AND locked = 0').run(c.id)   // 没锁定的 AI 建议作废；锁定的人工结果保留……
       write(c.id, c.next)
+      // ……但课的内容变了：锁定的对应要重新核对。原文依据不在新内容里的，退回成“待确认的建议”（解除锁定，之后重新匹配可以更新它）；手工指定的留着，只加一句提醒
+      const qt = lessonQuoteText({ title: c.next.lesson.title, theme: c.next.lesson.theme, textbookRef: c.next.lesson.textbookRef, points: c.next.lesson.points })
+      for (const m of db.prepare('SELECT kp_code, quote, source, reason FROM course_kp_map WHERE lesson_id = ?').all(c.id) as any[]) {
+        const gone = m.quote && !qt.toLowerCase().replace(/\s+/g, '').includes(String(m.quote).toLowerCase().replace(/\s+/g, ''))
+        const note = '课程内容已更新，需要重新核对'
+        if (gone) db.prepare("UPDATE course_kp_map SET state = 'suggested', locked = 0, confidence = 'low', reason = ? WHERE kp_code = ? AND lesson_id = ?").run(`${note}：${m.reason ?? ''}`.slice(0, 80), m.kp_code, c.id)
+        else db.prepare('UPDATE course_kp_map SET reason = ? WHERE kp_code = ? AND lesson_id = ?').run(`${note}：${m.reason ?? ''}`.slice(0, 80), m.kp_code, c.id)
+      }
     }
     for (const s of plan.same) write(s.id, s.next)   // 内容没变：只同步级别归属和显示顺序
     const insertAdded = (n: { levelName: string; lesson: ParsedLesson }) => insertLessons(db, id, lvByName.get(n.levelName)!, n.levelName, [n.lesson])
@@ -123,11 +151,15 @@ export function replaceOutline(db: Db, id: string, input: Pick<OutlineInput, 'so
     db.prepare(`UPDATE course_outlines SET source_name = ?, source_hash = ?, mapping_json = ?, warnings_json = ?, ai_model = ?, status = 'active', rev = rev + ?, updated_at = datetime('now','localtime') WHERE id = ?`)
       .run(input.sourceName, input.sourceHash, JSON.stringify(input.mapping ?? null), JSON.stringify(input.warnings), input.aiModel, changedAny ? 1 : 0, id)
     db.exec('COMMIT')
-    return { ...counts, affectedMaps: affected }
+    return { ...counts, affectedMaps: affected, ...impact }
   } catch (e) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw e }
 }
 
 export function removeOutline(db: Db, id: string): boolean {
+  // 话术缓存没有外键：用到这个体系的一并删掉（里面是按这个体系写的文字，体系没了就不该留着）
+  for (const r of db.prepare('SELECT scope_key, outline_ids_json FROM course_advice').all() as any[]) {
+    if (json<string[]>(r.outline_ids_json, []).includes(id)) db.prepare('DELETE FROM course_advice WHERE scope_key = ?').run(r.scope_key)
+  }
   return Number(db.prepare('DELETE FROM course_outlines WHERE id = ?').run(id).changes) > 0
 }
 
@@ -259,7 +291,7 @@ export type MapEdit =
   | { op: 'reject'; kp: string; lessonId: number }
   | { op: 'reset'; kp: string; lessonId: number }
   | { op: 'add'; outlineId: string; kp: string; lessonId: number }
-  | { op: 'none'; outlineId: string; kp: string }
+  | { op: 'none'; outlineId: string; kp: string; force?: boolean }
 
 /** 人工修正：确认 / 否决（锁定，重新匹配永不覆盖）、取消、手工添加、「其实没有对应的课」。立即生效，不调用 AI */
 export function editMap(db: Db, e: MapEdit): boolean {
@@ -280,6 +312,9 @@ export function editMap(db: Db, e: MapEdit): boolean {
       const cur = db.prepare('SELECT kp_sig FROM course_kp_check WHERE outline_id = ? AND kp_code = ?').get(e.outlineId, e.kp) as any
       db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, 'matched', ?, ?, 'manual', '')`).run(e.outlineId, e.kp, o.rev, cur?.kp_sig ?? '')
     } else {
+      // 老师确认过的对应不能被悄悄翻成“不对”：有的话先问（force 才继续）
+      const confirmed = (db.prepare("SELECT COUNT(*) c FROM course_kp_map WHERE outline_id = ? AND kp_code = ? AND state = 'confirmed'").get(e.outlineId, e.kp) as any).c as number
+      if (confirmed > 0 && !e.force) { db.exec('ROLLBACK'); throw new Error(`需要确认：这个考点有 ${confirmed} 条老师确认过的对应，标成“没有对应的课”会把它们也改成“不对”`) }
       db.prepare("UPDATE course_kp_map SET state = 'rejected', locked = 1 WHERE outline_id = ? AND kp_code = ?").run(e.outlineId, e.kp)
       const cur = db.prepare('SELECT kp_sig FROM course_kp_check WHERE outline_id = ? AND kp_code = ?').get(e.outlineId, e.kp) as any
       db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, 'user_none', ?, ?, 'manual', '')`).run(e.outlineId, e.kp, o.rev, cur?.kp_sig ?? '')

@@ -7,6 +7,7 @@
  * 不依赖 electron 和数据库，单测直接加载。所有文字避免价格、营销、夸大；说「涉及」「可以复习」，不说「学完就能提分」。
  */
 import { lessonName } from './map.ts'
+import { FORBIDDEN_RE } from './advice-post.ts'
 import type { CourseDashboard } from './stats.ts'
 
 export interface CourseLessonRef {
@@ -39,8 +40,8 @@ export interface CourseKpRow {
 export type CourseScene = 'org' | 'school' | 'family' | 'other'
 
 /** 「示例体系 A · 基础级 · 第 5 课《Animals》」 */
-export function lessonFullName(l: Pick<CourseLessonRef, 'outlineName' | 'levelName' | 'noLabel' | 'seq' | 'title'>): string {
-  return [l.outlineName, l.levelName, lessonName(l)].filter(Boolean).join(' · ')
+export function lessonFullName(l: Pick<CourseLessonRef, 'outlineName' | 'levelName' | 'noLabel' | 'seq' | 'title'>, o: { omitOutline?: boolean } = {}): string {
+  return [o.omitOutline ? '' : l.outlineName, l.levelName, lessonName(l)].filter(Boolean).join(' · ')
 }
 
 /** 看板结果 → 报告用的行：只留高 / 中把握（或老师确认）的对应，没有对应课的考点不要 */
@@ -106,13 +107,16 @@ export const token = (lessonId: number): string => `[课#${lessonId}]`
 
 function inputs(rows: CourseKpRow[], max: number, o: { scene: CourseScene; filterDesc: string; sampleWarning: string; evidenceText: string; lessonsPer: number }): AdviceInputs {
   // 有 AI 估计易错题的考点优先，其次出现份数多的
-  const used = rows.filter(r => r.lessons.length > 0).slice().sort((a, b) => b.errorCount - a.errorCount || b.papers - a.papers || (a.code < b.code ? -1 : 1)).slice(0, max)
+  // 给家长看的文字：学校 / 家长场景不带体系名（家长自己知道是哪套课）；课名里有价格 / 营销 / 夸大词的那一课不放进去
+  const omitOutline = o.scene === 'family' || o.scene === 'school'
+  const safe = rows.map(r => ({ ...r, lessons: r.lessons.filter(l => !FORBIDDEN_RE.test(lessonFullName(l, { omitOutline }))) }))
+  const used = safe.filter(r => r.lessons.length > 0).slice().sort((a, b) => b.errorCount - a.errorCount || b.papers - a.papers || (a.code < b.code ? -1 : 1)).slice(0, max)
   const labels = new Map<number, string>()
   const lost = used.map(r => [oneLine(r.name), oneLine(r.plain ?? '') || '—', r.exampleEn ? oneLine(`${r.exampleEn} ${r.exampleZh ?? ''}`) : '—'].join(' | '))
   const match = used.map(r => {
     const ls = top(r, o.lessonsPer)
-    for (const l of ls) labels.set(l.lessonId, lessonFullName(l))
-    return `${oneLine(r.name)} → ${ls.map(l => `${token(l.lessonId)} ${lessonFullName(l)}`).join('；')}`
+    for (const l of ls) labels.set(l.lessonId, lessonFullName(l, { omitOutline }))
+    return `${oneLine(r.name)} → ${ls.map(l => `${token(l.lessonId)} ${lessonFullName(l, { omitOutline })}`).join('；')}`
   })
   return {
     placeholders: {

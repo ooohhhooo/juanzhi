@@ -68,6 +68,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
   const [pick, setPick] = useState<PickResult | null>(null)
   const [mode, setMode] = useState<'merge' | 'overwrite'>('merge')
   const [ack, setAck] = useState(false)
+  const [updateCourses, setUpdateCourses] = useState(false)
   const [picking, setPicking] = useState(false)
   const [importing, setImporting] = useState(false)
   const [report, setReport] = useState<ImportReport | null>(null)
@@ -75,7 +76,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
     setPicking(true); setPackMsg(null); setProgress('')
     try {
       const r = await window.api.data.pickPack()
-      if (r.picked) { setPick(r); setMode('merge'); setAck(false) }
+      if (r.picked) { setPick(r); setMode('merge'); setAck(false); setUpdateCourses(false) }
     } catch (e) { setPackMsg({ type: 'error', text: clean(e) }) } finally { setPicking(false); setProgress('') }
   }
   const cancelPick = () => { if (pick) window.api.data.discardPack(pick.token).catch(() => undefined); setPick(null) }
@@ -83,7 +84,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
     if (!pick) return
     setImporting(true)
     try {
-      const r = await window.api.data.importPack(pick.token, mode)
+      const r = await window.api.data.importPack(pick.token, mode, { updateCourses: mode === 'merge' && updateCourses })
       setPick(null); setReport(r)
       qc.invalidateQueries()
     } catch (e) { setPick(null); setPackMsg({ type: 'error', text: clean(e) }) } finally { setImporting(false) }
@@ -201,6 +202,9 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
                 <Radio value="overwrite" data-testid="pack-mode-overwrite"><b>覆盖</b>：用数据包替换本机现有的全部数据（试卷、题目、标注、知识点树、报告）。会先自动备份当前数据，出错会自动恢复。</Radio>
               </Space>
             </Radio.Group>
+            {mode === 'merge' && (s.coursesNewer ?? 0) > 0 && (
+              <UsageNote kind="tip" title={`有 ${s.coursesNewer} 个课程体系，数据包里的版本比本机的新`}><Checkbox data-testid="pack-update-courses" checked={updateCourses} onChange={e => setUpdateCourses(e.target.checked)}>用数据包里的版本更新它们（本机该体系的匹配结果会被包里的替换）；不勾就保持本机的</Checkbox></UsageNote>
+            )}
             {mode === 'overwrite' && (
               <UsageNote kind="mistake" label="注意" title={`覆盖会替换本机现有的 ${s.livePapers} 份试卷和所有标注`}><Checkbox data-testid="pack-ack" checked={ack} onChange={e => setAck(e.target.checked)}>我知道了：现有数据会先备份到数据目录下的 backups 文件夹，然后被数据包替换</Checkbox></UsageNote>
             )}
@@ -212,7 +216,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
       <Modal open={!!report} title="导入完成" footer={<Btn tone="primary" data-testid="pack-result-ok" onClick={() => setReport(null)}>知道了</Btn>} onCancel={() => setReport(null)} destroyOnHidden>
         {report && (
           <Space direction="vertical" size={6} data-testid="pack-result">
-            <div data-testid="pack-result-text">{report.mode === 'merge' ? '合并' : '覆盖'}导入完成：新增 {report.papersAdded} 份试卷、{report.questionsAdded} 道题{report.mode === 'merge' ? `；跳过 ${report.papersSkipped} 份已存在的` : ''}{report.kpsAdded ? `；知识点树新增 ${report.kpsAdded} 个` : ''}{report.kpsRemapped ? `（其中 ${report.kpsRemapped} 个因编号撞车换了新编号，题目标注已跟着换）` : ''}{report.reportsAdded ? `；报告 ${report.reportsAdded} 份` : ''}{report.coursesAdded ? `；课程体系 ${report.coursesAdded} 个` : ''}。</div>
+            <div data-testid="pack-result-text">{report.mode === 'merge' ? '合并' : '覆盖'}导入完成：新增 {report.papersAdded} 份试卷、{report.questionsAdded} 道题{report.mode === 'merge' ? `；跳过 ${report.papersSkipped} 份已存在的` : ''}{report.kpsAdded ? `；知识点树新增 ${report.kpsAdded} 个` : ''}{report.kpsRemapped ? `（其中 ${report.kpsRemapped} 个因编号撞车换了新编号，题目标注已跟着换）` : ''}{report.reportsAdded ? `；报告 ${report.reportsAdded} 份` : ''}{report.coursesAdded ? `；课程体系 ${report.coursesAdded} 个` : ''}{report.coursesUpdated ? `；更新了 ${report.coursesUpdated} 个课程体系` : ''}。</div>
             {report.sameFileAsExisting > 0 && <UsageNote kind="tip">{`${report.sameFileAsExisting} 份和本机另一份是同一个文件：已标为重复，统计时只算一份`}</UsageNote>}
             {report.promptsImported > 0 && <UsageNote kind="tip" data-testid="pack-prompts-note">{`导入了 ${report.promptsImported} 条自定义提示词，之后的 AI 分析和报告会按它们来写；想恢复默认，到「设置 → 提示词」里逐条恢复。`}</UsageNote>}
             {report.promptsKeptLocal > 0 && <UsageNote kind="tip" data-testid="pack-prompts-kept">{`数据包里有 ${report.promptsKeptLocal} 条自定义提示词，本机已经有自己的设置，保持不变（没有覆盖）。`}</UsageNote>}

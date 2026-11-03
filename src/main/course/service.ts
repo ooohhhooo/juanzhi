@@ -34,23 +34,24 @@ import { p3SampleWarning } from '../stats/p3'
 import { CourseFileError, buildXlsx, readTable } from './table-read'
 import type { TableRead } from './table-read'
 import { applyMapping, buildOutline, guessMapping } from './map'
-import type { SheetMapping } from './map'
+import type { ParsedLevel, ParsedOutline, SheetMapping } from './map'
+import { MAX_LESSONS, MAX_LEVELS } from './store'
 import { parseColsResponse, sheetPreview } from './cols-ai'
-import { batchKps, chunkLines, kpBatchBlock, mergeEntries, outlineLine, parseMatchResponse } from './match'
+import { batchKps, chunkLines, kpBatchBlock, lessonQuoteText, mergeEntries, outlineLine, parseMatchResponse } from './match'
 import type { MatchEntry } from './match'
 import { applyMatchBatch, lessonRows, matchState, targetKps } from './store'
 import { courseDashboard } from './stats'
 import type { CourseDashboard } from './stats'
 import { buildAdviceInputs, courseRowsOf } from './report-section'
 import type { CourseScene } from './report-section'
-import { finishAdvice } from './advice-post'
+import { finishAdvice, sanitizePartial } from './advice-post'
 import { TEMPLATE_HEADERS, templateRows, sampleSheets } from './template'
 
 type Db = any
 
 // ───────────────────────── 读文件：会话 ─────────────────────────
 
-interface Session { name: string; hash: string; read: TableRead; at: number }
+interface Session { name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null }
 const sessions = new Map<string, Session>()
 const MAX_SESSIONS = 4
 
@@ -64,9 +65,10 @@ export interface SourceInfo {
 
 function remember(name: string, hash: string, read: TableRead): SourceInfo {
   const sessionId = crypto.randomUUID()
-  sessions.set(sessionId, { name, hash, read, at: Date.now() })
+  sessions.set(sessionId, { name, hash, read, at: Date.now(), ctl: null, parsed: null })
   while (sessions.size > MAX_SESSIONS) {
     const oldest = [...sessions.entries()].sort((a, b) => a[1].at - b[1].at)[0]
+    oldest[1].ctl?.abort()
     sessions.delete(oldest[0])
   }
   return {
@@ -133,8 +135,23 @@ async function jsonCall(o: { kind: string; model: string; system: string; user: 
  * 给每张表（隐藏的跳过）建议一份列映射。mode：ai = 让 AI 认列（课程内容会发给用户配置的 AI 服务，向导里已明说）；
  * guess = 只按表头文字猜（不联网）；manual = 全部留空让用户自己选。AI 出错 / 回答不合格时退回本地猜测，并在 error 里说明。
  */
-export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 'manual', signal?: AbortSignal): Promise<SuggestResult> {
+export function cancelSuggest(sessionId: string): boolean {
+  const s = sessions.get(sessionId)
+  if (!s?.ctl) return false
+  s.ctl.abort()
+  return true
+}
+
+export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 'manual'): Promise<SuggestResult> {
   const s = sessionOf(sessionId)
+  s.ctl?.abort()
+  const ctl = new AbortController()
+  s.ctl = ctl
+  const signal = ctl.signal
+  try { return await suggestInner(s, mode, signal) } finally { if (s.ctl === ctl) s.ctl = null }
+}
+
+async function suggestInner(s: Session, mode: 'ai' | 'guess' | 'manual', signal: AbortSignal): Promise<SuggestResult> {
   const cfg = loadConfig()
   const model = parseModelOf(cfg)
   const items: Record<string, SuggestItem> = {}
@@ -162,9 +179,28 @@ export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 
   return { items, model }
 }
 
+function checkLimits(levels: ParsedLevel[]): void {
+  const total = levels.reduce((n, l) => n + l.lessons.length, 0)
+  if (levels.length > MAX_LEVELS) throw new CourseFileError(`识别出的级别太多（${levels.length} 个，最多 ${MAX_LEVELS} 个）：请检查“级别”那一列是不是选错了`)
+  if (total > MAX_LESSONS) throw new CourseFileError(`识别出的课太多（${total} 课，最多 ${MAX_LESSONS} 课）：请检查表头行数和列类型`)
+}
+
+/** 套用列映射并把整理结果留在主进程的读取会话里：之后的比对 / 保存只需要 sessionId + 映射，不用把整张课程表来回传 */
 export function previewOutline(sessionId: string, mappings: Record<string, SheetMapping | null | undefined>) {
   const s = sessionOf(sessionId)
-  return buildOutline(s.read.sheets, mappings)
+  const o = buildOutline(s.read.sheets, mappings)
+  checkLimits(o.levels)
+  s.parsed = o
+  return o
+}
+
+/** 保存 / 比对用的课：界面改过格子就带着改过的 levels；没改过就用会话里的（按映射重新套用一遍，结果和预览一致） */
+export function resolveLevels(sessionId: string | undefined, mappings: Record<string, SheetMapping | null | undefined>, edited?: ParsedLevel[]): { levels: ParsedLevel[]; warnings: ParsedOutline['warnings'] } {
+  if (edited) { checkLimits(edited); return { levels: edited, warnings: sessionId && sessions.get(sessionId)?.parsed?.warnings || [] } }
+  if (!sessionId) throw new CourseFileError('缺少课程表的读取记录，请重新选择文件')
+  const o = buildOutline(sessionOf(sessionId).read.sheets, mappings)
+  checkLimits(o.levels)
+  return { levels: o.levels.filter(l => l.lessons.length), warnings: o.warnings }
 }
 
 /** 向导第 2 步的列识别条：每个 sheet 的某一行套用后能识别多少课（预览用的快速校验） */
@@ -189,9 +225,12 @@ export { TEMPLATE_HEADERS }
 
 export interface MatchProgress { outlineId: string; done: number; total: number; phase: 'running' | 'done' | 'cancelled' | 'error'; message?: string }
 const matchJobs = new Map<string, { ctl: AbortController; progress: MatchProgress }>()
-export const matchBusy = (): boolean => matchJobs.size > 0
+export const matchBusy = (outlineId?: string): boolean => (outlineId ? matchJobs.has(outlineId) : matchJobs.size > 0)
 export const matchProgressOf = (outlineId: string): MatchProgress | null => matchJobs.get(outlineId)?.progress ?? null
 export function cancelMatch(outlineId: string): boolean { const j = matchJobs.get(outlineId); if (!j) return false; j.ctl.abort(); return true }
+
+/** 预计用量超过这个数（token）就必须先明确确认：界面弹确认，命令行要加 --yes */
+export const MATCH_CONFIRM_TOKENS = 200_000
 
 /** 预估规模（点「开始匹配」之前给用户看）：课数、知识点数、批次数、预计 token */
 export function estimateMatch(db: Db, outlineId: string, onlyNew: boolean) {
@@ -203,7 +242,8 @@ export function estimateMatch(db: Db, outlineId: string, onlyNew: boolean) {
   const outlineChars = lines.reduce((n, l) => n + l.length + 1, 0)
   const promptTokens = Math.ceil((batches * chunks * (outlineChars / Math.max(1, chunks) + 1400)) / 1.6)
   const outTokens = kps.length * 60
-  return { lessons: lessons.length, kps: kps.length, batches: batches * chunks, tokens: promptTokens + outTokens }
+  const tokens = promptTokens + outTokens
+  return { lessons: lessons.length, kps: kps.length, batches: batches * chunks, tokens, needsConfirm: tokens > MATCH_CONFIRM_TOKENS }
 }
 
 function pendingKps(db: Db, outlineId: string, onlyNew: boolean) {
@@ -233,7 +273,8 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
   const userTpl = promptText('p5_course_match', 'user')
   const version = promptVersionFor('p5_course_match')
   const chunks = chunkLines(lessons.map(outlineLine))
-  const lessonText = new Map(lessons.map(l => [l.id, { searchText: l.searchText }]))
+  const lessonText = new Map(lessons.map(l => [l.id, { searchText: l.searchText, quoteText: lessonQuoteText(l) }]))
+  const kpInfo = new Map(kps.map(k => [k.code, k]))
   const chunkIds = (() => { let i = 0; return chunks.map(c => { const ids = lessons.slice(i, i + c.length).map(l => l.id); i += c.length; return new Set(ids) }) })()
   const batches = batchKps(kps)
   const ctl = new AbortController()
@@ -252,7 +293,7 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
         const user = fillTemplate(userTpl, { OUTLINE_LINES: chunks[ci].join('\n'), KP_BATCH: blk.text })
         const r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal })
         const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
-        const p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub })
+        const p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo })
         if (!p.entries.length && p.problems.length) throw new AiError('bad_request', 'AI 的回答不是有效的 JSON，这一批没有保存')
         dropped += p.dropped
         parts.push(p.entries)
@@ -370,6 +411,9 @@ export function adviceState(db: Db, scope: AdviceScope): AdviceState {
 const inflight = new Map<string, AbortController>()
 const busyScopes = new Set<string>()
 export const adviceBusy = (): boolean => inflight.size > 0
+/** 这个体系现在有没有匹配 / 话术任务在跑（替换、删除、导入数据包之前要确认没有） */
+const adviceOutlines = new Map<string, string[]>()   // 请求号 → 它用到的体系
+export const outlineBusy = (outlineId: string): boolean => matchJobs.has(outlineId) || [...adviceOutlines.values()].some(ids => ids.includes(outlineId))
 export function cancelAdvice(requestId: string): boolean { const c = inflight.get(requestId); if (!c) return false; c.abort(); return true }
 
 export interface AdviceResult { ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; partial?: string; markdown?: string; warnings?: string[]; unverified?: UnverifiedItem[] }
@@ -386,9 +430,12 @@ export async function generateAdvice(db: Db, scope: AdviceScope, requestId: stri
   const cfg = loadConfig()
   const ctl = new AbortController()
   inflight.set(requestId, ctl)
+  adviceOutlines.set(requestId, scope.outlineIds)
   busyScopes.add(p.scopeKey)
   const offGone = senderGone(() => ctl.abort())
-  const stream = createStream({ cfg, system: p.system, user: p.user, requestId, send, signal: ctl.signal })
+  // 给家长的话没过滤之前不给用户看：流式的正文增量不转发，界面只显示“AI 正在写”，写完过滤后一次性显示
+  const sendStream = (ev: ChunkEvent) => { if (ev.type !== 'delta') send(ev) }
+  const stream = createStream({ cfg, system: p.system, user: p.user, requestId, send: sendStream, signal: ctl.signal })
   try {
     send({ id: requestId, type: 'start', scopeKey: p.scopeKey, refs: [] })
     const r = await stream.run()
@@ -411,7 +458,7 @@ export async function generateAdvice(db: Db, scope: AdviceScope, requestId: stri
     send({ id: requestId, type: 'done', markdown: fin.text, refs: [], warnings, unverified })
     return { ok: true, markdown: fin.text, warnings, unverified }
   } catch (e) {
-    const partial = stream.partial(e)
+    const partial = sanitizePartial(stream.partial(e), p.labels)   // 半截文字也要先过滤，不能把没过滤的原文给用户看
     stream.dispose()
     if (e instanceof AiError && e.code === 'aborted') { send({ id: requestId, type: 'cancelled', partial }); return { ok: false, cancelled: true, code: 'aborted', message: '已取消', partial } }
     const err = e instanceof AiError ? e : new AiError('network', (e as Error).message)
@@ -421,7 +468,7 @@ export async function generateAdvice(db: Db, scope: AdviceScope, requestId: stri
     send({ id: requestId, type: 'error', code: err.code, message: fr.message, detail: fr.detail, partial })
     return { ok: false, code: err.code, message: fr.message, detail: fr.detail, partial }
   } finally {
-    stream.dispose(); offGone(); inflight.delete(requestId); busyScopes.delete(p.scopeKey)
+    stream.dispose(); offGone(); inflight.delete(requestId); adviceOutlines.delete(requestId); busyScopes.delete(p.scopeKey)
   }
 }
 

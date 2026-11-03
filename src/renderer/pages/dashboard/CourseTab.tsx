@@ -24,7 +24,7 @@ const pct = (x: number | null) => (x === null ? '—' : `${Math.round(x * 100)}%
  */
 export default function CourseTab() {
   const { filter } = useStatsFilter()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const nav = useNavigate()
   const qc = useQueryClient()
   const { data: cards, isLoading } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
@@ -49,7 +49,7 @@ export default function CourseTab() {
           description={draftOnly ? '有课程表还是草稿（命令行导入的），请先到“设置 → 课程大纲”核对并确认使用。' : cards.length ? '课程大纲都已暂停“参与对照”，到设置里打开就能用。' : '上传你自己的课程表（课程大纲、教学进度，或孩子在上的课），卷知帮你对照。'}
           steps={['上传课程表（.xlsx 或 .csv，也可以先下载模板）', '核对 AI 整理的结果', '开始匹配：让 AI 把知识点对应到课']}
           action={<span className="ewb-rep-row" style={{ justifyContent: 'center' }}>
-            <Btn tone="primary" data-testid="course-go-upload" onClick={() => nav('/settings#course')}>去上传课程大纲</Btn>
+            <Btn tone="primary" data-testid="course-go-upload" onClick={() => nav('/courses')}>去上传课程大纲</Btn>
             <Btn tone="secondary" data-testid="course-go-template" onClick={async () => { try { const r = await window.api.course.template('blank'); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }}>下载空白模板</Btn>
           </span>} />
         <p className="ewb-rep-note" style={{ textAlign: 'center' }}>课程表只存在这台电脑上；整理和匹配时，内容会发给你在“AI 服务”里设置的模型，不会发给卷知开发者。</p>
@@ -63,6 +63,14 @@ export default function CourseTab() {
   const w = wordsOf(usable[0].scene)
   const addableOutlines = usable.filter(c => ids.includes(c.id)).map(c => ({ id: c.id, name: c.name }))
   const edit = async (e: CourseMapEdit) => { try { await window.api.course.mapEdit(e); qc.invalidateQueries({ queryKey: ['course'] }) } catch (err) { message.error(clean(err)) } }
+  // “这个考点其实没有对应的课”：有老师确认过的对应时先问，不悄悄把它们翻成“不对”
+  const markNone = async (outlineId: string, kp: string) => {
+    try { await window.api.course.mapEdit({ op: 'none', outlineId, kp }); qc.invalidateQueries({ queryKey: ['course'] }) } catch (err) {
+      const m = clean(err)
+      if (!m.startsWith('需要确认')) { message.error(m); return }
+      modal.confirm({ title: '这个考点有老师确认过的对应', content: m.replace(/^需要确认：/, ''), okText: '仍然标记', cancelText: '不改', onOk: async () => { try { await window.api.course.mapEdit({ op: 'none', outlineId, kp, force: true }); qc.invalidateQueries({ queryKey: ['course'] }) } catch (e2) { message.error(clean(e2)) } } })
+    }
+  }
   const sceneAll = d?.outlines.every(o => o.scene === 'school')
   const headline = d && d.ready
     ? (d.summary.lostPoints === 0
@@ -80,7 +88,7 @@ export default function CourseTab() {
               onClick={() => setPicked(ids.includes(c.id) ? ids.filter(x => x !== c.id) : [...ids, c.id])}>{c.name}</button>
           ))}
         </div>
-        <Btn tone="quiet" size="small" data-testid="course-manage" onClick={() => nav('/settings#course')}>管理课程大纲</Btn>
+        <Btn tone="quiet" size="small" data-testid="course-manage" onClick={() => nav('/courses')}>管理课程大纲</Btn>
       </div>
 
       {ids.length === 0 && <UsageNote kind="tip">请在上面点选至少一个课程。</UsageNote>}
@@ -219,7 +227,7 @@ export default function CourseTab() {
       )}
 
       <Drawer open={!!open} onClose={() => setOpen(null)} width="min(640px, 94vw)" destroyOnHidden title="课程详情" data-testid="course-drawer">
-        {open && <LessonDrawer row={open.row} lesson={open.ref} filter={filter} onView={setView} onEdit={async e => { await edit(e); setOpen(null) }} onNone={() => { void edit({ op: 'none', outlineId: open.ref.outlineId, kp: open.row.code }); setOpen(null) }} />}
+        {open && <LessonDrawer row={open.row} lesson={open.ref} filter={filter} onView={setView} onEdit={async e => { await edit(e); setOpen(null) }} onNone={() => { void markNone(open.ref.outlineId, open.row.code); setOpen(null) }} />}
       </Drawer>
       <PageViewer target={view} onClose={() => setView(null)} />
       <LessonPicker open={!!pick} kpCode={pick?.code ?? ''} kpName={pick?.name ?? ''} outlines={addableOutlines} onClose={() => setPick(null)} />

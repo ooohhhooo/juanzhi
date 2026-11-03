@@ -40,17 +40,23 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
   const [parsed, setParsed] = useState<CourseParsed | null>(null)
   const [sheetName, setSheetName] = useState('')
   const [levelIdx, setLevelIdx] = useState(0)
-  const [diff, setDiff] = useState<{ added: number; changed: number; removed: number; affectedMaps: number } | null>(null)
+  const [diff, setDiff] = useState<{ added: number; changed: number; removed: number; affectedMaps: number; lockedLost: number; lockedRecheck: number } | null>(null)
+  const [edited, setEdited] = useState(false)   // 预览里手改过格子：保存时才把整理结果带回主进程；没改过就只带 sessionId + 列映射
   const [collide, setCollide] = useState<CourseOutlineCard | null>(null)
   const [saving, setSaving] = useState(false)
   const { data: cards } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list(), enabled: open })
   const { data: ai } = useQuery({ queryKey: ['ai', 'config'], queryFn: () => window.api.ai.getConfig(), enabled: open })
   const seq = useRef(0)
+  const sidRef = useRef<string | null>(null)
+  sidRef.current = src?.sessionId ?? null
+  // 关闭向导（或离开页面）时取消还在进行的“让 AI 认列”，免得白白花用量
+  useEffect(() => { if (!open && sidRef.current) void window.api.course.suggestCancel(sidRef.current).catch(() => undefined) }, [open])
+  useEffect(() => () => { if (sidRef.current) void window.api.course.suggestCancel(sidRef.current).catch(() => undefined) }, [])
 
   useEffect(() => {
     if (!open) return
     setStep(1); setSrc(null); setPasteText(''); setName(replace?.name ?? ''); setScene((replace?.scene as Scene) ?? 'org'); setTermNote(replace?.termNote ?? ''); setMode('ai')
-    setMappings({}); setSugg({}); setParsed(null); setSheetName(''); setLevelIdx(0); setDiff(null); setCollide(null)
+    setEdited(false); setMappings({}); setSugg({}); setParsed(null); setSheetName(''); setLevelIdx(0); setDiff(null); setCollide(null)
   }, [open, replace?.id])
 
   const takeSource = (s: CourseSource | null) => {
@@ -83,7 +89,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
     try {
       const p = await window.api.course.preview({ sessionId: src.sessionId, mappings: m })
       if (my !== seq.current) return
-      setParsed(p)
+      setParsed(p); setEdited(false)
       setLevelIdx(i => Math.min(i, Math.max(0, p.levels.length - 1)))
     } catch (e) { message.error(clean(e)) }
   }
@@ -113,7 +119,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
 
   // 编辑预览（只改内存里的 parsed；列识别条一变会重新套用，之前手改的格子会被覆盖——所以先定列、再改格子）
   const levels = parsed?.levels ?? []
-  const edit = (fn: (ls: CourseLevelDraft[]) => CourseLevelDraft[]) => setParsed(p => (p ? { ...p, levels: fn(p.levels.map(l => ({ ...l, lessons: l.lessons.map(x => ({ ...x })) }))) } : p))
+  const edit = (fn: (ls: CourseLevelDraft[]) => CourseLevelDraft[]) => { setEdited(true); setParsed(p => (p ? { ...p, levels: fn(p.levels.map(l => ({ ...l, lessons: l.lessons.map(x => ({ ...x })) }))) } : p)) }
   const setLesson = (i: number, patch: Partial<CourseLevelDraft['lessons'][number]>) => edit(ls => { Object.assign(ls[levelIdx].lessons[i], patch); return ls })
   const totalLessons = levels.reduce((n, l) => n + l.lessons.length, 0)
   const warnings = parsed?.warnings ?? []
@@ -121,18 +127,19 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
   // 替换：算一遍涉及多少课、多少条对应
   useEffect(() => {
     if (!replace || step !== 2 || !parsed) { setDiff(null); return }
-    const t = setTimeout(() => { window.api.course.diff({ id: replace.id, levels: parsed.levels.filter(l => l.lessons.length) }).then(setDiff, () => setDiff(null)) }, 200)
+    const t = setTimeout(() => { window.api.course.diff({ id: replace.id, sessionId: src?.sessionId, mappings: payloadMappings(), ...(edited ? { levels: parsed.levels.filter(l => l.lessons.length) } : {}) }).then(setDiff, () => setDiff(null)) }, 200)
     return () => clearTimeout(t)
-  }, [replace?.id, step, parsed])
+  }, [replace?.id, step, parsed, edited])
 
-  const doSave = async (replaceId?: string, asName?: string) => {
+  const payloadMappings = () => Object.fromEntries(Object.entries(mappings).filter(([, v]) => v)) as Record<string, CourseSheetMapping>
+  const doSave = async (replaceId?: string, asName?: string, confirmLockedLoss = false) => {
     if (!src || !parsed) return
     const ls = parsed.levels.filter(l => l.lessons.length)
     if (!ls.length) { message.error('没有可保存的课：请回到上面检查表头行数和列类型'); return }
     setSaving(true)
     try {
       const r = await window.api.course.save({
-        sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, levels: ls, warnings: parsed.warnings.slice(0, 300), mappings: Object.fromEntries(Object.entries(mappings).filter(([, v]) => v)) as Record<string, CourseSheetMapping>, aiModel
+        sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, ...(edited ? { levels: ls } : {}), warnings: parsed.warnings.slice(0, 300), mappings: payloadMappings(), aiModel, confirmLockedLoss
       })
       message.success(replaceId ? `已替换：新增 ${r.added} 课、修改 ${r.changed} 课、删除 ${r.removed} 课` : '已保存课程体系')
       qc.invalidateQueries({ queryKey: ['course'] })
@@ -145,8 +152,14 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
       const d = diff
       modal.confirm({
         title: `替换「${replace.name}」`,
-        content: d ? `新增 ${d.added} 课、修改 ${d.changed} 课、删除 ${d.removed} 课。${d.affectedMaps ? `已有的知识点对应里，有 ${d.affectedMaps} 条涉及改动的课，需要重新匹配；` : ''}老师确认过的对应只要课还在就保留。` : '内容会按“级别 + 课次”比对后更新。',
-        okText: '替换', cancelText: '再看看', okButtonProps: { 'data-testid': 'course-replace-ok' } as never, onOk: () => doSave(replace.id)
+        content: d ? (
+          <div>
+            <p>新增 {d.added} 课、修改 {d.changed} 课、删除 {d.removed} 课。{d.affectedMaps ? `已有的知识点对应里，有 ${d.affectedMaps} 条涉及改动的课，需要重新匹配；` : ''}替换后需要整体重新匹配（暂不支持只重跑改动的课）。</p>
+            {d.lockedRecheck > 0 && <p>有 {d.lockedRecheck} 条老师确认 / 手工指定的对应所在的课内容变了：原文依据找不到的会退回“待确认”，请重新核对。</p>}
+            {d.lockedLost > 0 && <p style={{ color: 'var(--ewb-red-ink)' }} data-testid="course-locked-lost"><b>注意：有 {d.lockedLost} 条老师确认 / 手工指定的对应，因为它们所在的课（或整个级别）不在新表里，替换后会被删掉。</b></p>}
+          </div>
+        ) : '内容会按“级别 + 课次”比对后更新。',
+        okText: d && d.lockedLost > 0 ? `我知道了，仍然替换（会删 ${d.lockedLost} 条确认）` : '替换', okButtonProps: { 'data-testid': 'course-replace-ok', danger: !!d && d.lockedLost > 0 } as never, cancelText: '再看看', onOk: () => doSave(replace.id, undefined, !!d && d.lockedLost > 0)
       })
       return
     }
@@ -227,6 +240,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
           </div>
           <UsageNote kind="caution" title="隐私">课程内容会发送给你在“AI 服务”里设置的模型来帮忙整理；不会发给卷知开发者。AI 只判断哪一列是什么，不会改写表格里的内容。不想发送：选“手动指定每一列”。</UsageNote>
           <div className="ewb-rep-row" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+            {busy && <Btn tone="secondary" data-testid="course-suggest-cancel" onClick={() => { if (src) void window.api.course.suggestCancel(src.sessionId) }}>取消</Btn>}
             <Btn tone="primary" disabled={!src} loading={busy} data-testid="course-next" onClick={goStep2}>下一步：核对整理结果</Btn>
           </div>
         </div>
@@ -235,7 +249,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
       {step === 2 && src && (
         <div data-testid="course-step2">
           <p className="ewb-crs-headline" style={{ fontSize: 'var(--ewb-fs-lg)' }} data-testid="course-summary">{summary}</p>
-          {replace && diff && <UsageNote kind="tip" data-testid="course-diff">相对现有的「{replace.name}」：新增 {diff.added} 课、修改 {diff.changed} 课、删除 {diff.removed} 课；已有的知识点对应里 {diff.affectedMaps} 条涉及改动的课，需要重新匹配。老师确认过的对应只要课还在就保留。</UsageNote>}
+          {replace && diff && <UsageNote kind="tip" data-testid="course-diff">相对现有的「{replace.name}」：新增 {diff.added} 课、修改 {diff.changed} 课、删除 {diff.removed} 课；已有的知识点对应里 {diff.affectedMaps} 条涉及改动的课，需要重新匹配。老师确认过的对应只要课还在就保留{diff.lockedLost > 0 ? `；但有 ${diff.lockedLost} 条确认过的对应会因为课被删而丢失` : ''}。替换后需要整体重新匹配。</UsageNote>}
           {Object.values(sugg).some(s => s.error) && <UsageNote kind="caution">{Object.values(sugg).filter(s => s.error).map(s => s.error).filter((x, i, a) => a.indexOf(x) === i).join('；')}</UsageNote>}
           {warnings.length > 0 && (
             <UsageNote kind="caution" title="需要你看一眼" data-testid="course-warnings">

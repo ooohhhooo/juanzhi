@@ -1,6 +1,6 @@
 // M9 beta.2 端到端：课程对照。全程 mock AI（本地端口），不调用真实服务；课程表全部由程序现场生成（虚构数据）。
 //   · 空状态：看板“课程对照”教你怎么开始（三步 + 去上传 + 隐私说明）
-//   · 上传向导：下载虚构示例 → 选文件 → AI 只认列（请求里没有内部代码）→ 预览（每个级别 5 课）→ 改一格 → 保存 → 体系卡片
+//   · 侧栏「课程大纲」页（试卷库下面）：空状态、上传向导：下载虚构示例 → 选文件 → AI 只认列（请求里没有内部代码）→ 预览（每个级别 5 课）→ 改一格 → 保存 → 体系卡片
 //   · 匹配：预估规模 → 开始 → 进度 → 完成；课程内容不进日志；quote 不在课次原文里的降为 low
 //   · 看板四块：丢分考点 → 课程（数字对得上数据库）、体系 × 级别、常考但没覆盖（含 CSV）、家长沟通建议
 //   · 人工修正：点“不对”立即生效，重新匹配不恢复；“我知道是哪一课”；“其实没有”
@@ -62,14 +62,15 @@ async function main() {
     check('空状态', '不显示任何“默认课程”', !/示例体系|基础级/.test(t))
     await shot10('empty-light')
     await T('course-go-upload').click()
-    check('空状态', '点“去上传课程大纲”：跳到设置里的“课程大纲”一节', await waitFor(async () => (await T('course-settings').count()) > 0, 8000))
+    check('空状态', '点“去上传课程大纲”：跳到侧栏的“课程大纲”页（侧栏该项高亮）', await waitFor(async () => (await T('course-settings').count()) > 0 && (await page.evaluate(() => location.hash)) === '#/courses', 8000) && (await page.locator('.ewb-contents__link[aria-current=page]').first().getAttribute('aria-label').catch(() => '')) === '课程大纲')
   }
 
   // ───────────────────────── 2. 上传向导 ─────────────────────────
   const sampleXlsx = path.join(work, '课程表示例（虚构）.xlsx')
   {
-    await goto('#/settings'); await T('course-settings').waitFor()
-    await T('course-settings').scrollIntoViewIfNeeded()
+    await goto('#/courses'); await T('course-settings').waitFor()
+    await shot10('courses-empty-light')
+    check('空状态', '课程大纲页空状态：说明它是做什么的，有“添加课程大纲”主按钮、“下载空白模板”、“看示例”', (await T('course-add-empty').count()) === 1 && (await T('course-empty-blank').count()) === 1 && (await T('course-empty-sample').count()) === 1 && /课程表/.test(await txt('courses-page')))
     await T('course-add-empty').click()
     await T('course-wizard').waitFor()
     // 下载虚构示例 / 空白模板（程序运行时生成）
@@ -187,7 +188,7 @@ async function main() {
     // 同一课也可能经另一个三级知识点（比如“不规则变化”的例词 visited）对到这个考点，所以按数据库重算期望值
     check('修正', '看板上的数字立即变化（按数据库重算：被否决的不再算），并且没有再调用 AI', await waitFor(async () => Number(await T('course-row-GR.TENSE.PAST').getAttribute('data-main')) === dbMain2('GR.TENSE.PAST'), 8000) && mock.courseRequests.length === 0, `before=${before}`)
     // 重新匹配不恢复被否决的、不覆盖锁定的
-    await goto('#/settings'); await T('course-settings').waitFor()
+    await goto('#/courses'); await T('course-settings').waitFor()
     mock.resetStats()
     await T('match-redo').first().click()
     await page.locator('.ant-popconfirm .ant-btn-primary, .ant-popover .ant-btn-primary').last().click()
@@ -277,9 +278,10 @@ async function main() {
     for (let i = 0, n = await T('advice-ack').count(); i < n; i++) await T('advice-ack').nth(i).click()
     await T('advice-confirm-ok').click()
     await waitFor(async () => !(await T('advice-copy').isDisabled()), 10000)
-    const someMap = q1("SELECT kp_code, lesson_id FROM course_kp_map WHERE state = 'suggested' AND confidence IN ('high','medium') LIMIT 1")
-    await page.evaluate(m => window.api.course.mapEdit({ op: 'reject', kp: m.kp_code, lessonId: m.lesson_id }), someMap)
-    check('话术', '课程对应有变化：建议标“已过期”，不再允许复制（不自动重新生成）', await waitFor(async () => (await T('advice-stale').count()) > 0 && (await T('advice-copy').isDisabled()), 10000))
+    // 知识点的白话释义变了（话术提示词里用到它）：缓存键必变；写库后重新打开看板
+    writeDb(ud, db => db.prepare("UPDATE kps SET plain = '改过的白话说明' WHERE code = 'GR.TENSE.PAST'").run())
+    await openCourseTab(); await T('course-headline').waitFor({ timeout: 20000 })
+    check('话术', '数据有变化（知识点说明改了）：建议标“已过期”，不再允许复制（不自动重新生成）', await waitFor(async () => (await T('advice-stale').count()) > 0 && (await T('advice-copy').isDisabled()), 10000))
     check('话术', '没有自动重新生成：话术请求总数没有增加', mock.courseRequests.filter(r => r.courseKind === 'advice').length === 2)
   }
 
@@ -310,13 +312,13 @@ async function main() {
         INSERT INTO course_levels (outline_id, name, sort) VALUES ('00000000-0000-4000-8000-00000000d001', '甲级', 0);`)
       db.exec(`INSERT INTO course_lessons (outline_id, level_id, seq, no_label, title, search_text, text_hash) VALUES ('00000000-0000-4000-8000-00000000d001', (SELECT id FROM course_levels WHERE name = '甲级'), 1, '1', 'Draft lesson', 'Draft lesson', 'x')`)
     })
-    await reload(); await goto('#/settings'); await T('course-settings').waitFor()
+    await reload(); await goto('#/courses'); await T('course-settings').waitFor()
     const draftCard = page.locator('[data-testid^=course-card-][data-draft=true]')
     await draftCard.waitFor()
     check('草稿', '命令行导入的草稿：卡片写“草稿 · 还没确认，不参与对照”，没有匹配按钮', /不参与对照/.test(await draftCard.innerText()) && (await draftCard.locator('[data-testid=match-start]').count()) === 0)
     await openCourseTab(); await T('course-headline').waitFor({ timeout: 20000 })
     check('草稿', '草稿不出现在看板的体系选择里', (await page.locator('[data-testid^=course-pick-]').count()) === 1)
-    await goto('#/settings'); await T('course-settings').waitFor()
+    await goto('#/courses'); await T('course-settings').waitFor()
     await draftCard.locator('[data-testid=course-confirm-draft]').click()
     check('草稿', '点“确认使用”后变成正式体系（可以匹配）', await waitFor(() => q1("SELECT status FROM course_outlines WHERE name = '命令行导入的草稿'").status === 'active', 8000))
     // 这个草稿体系没匹配过：停用它，免得后面的看板因为“还有体系没匹配完”不显示数字
@@ -327,7 +329,7 @@ async function main() {
     await waitFor(() => q1('SELECT active FROM course_outlines WHERE id = ?', oid).active === 0, 8000)
     await openCourseTab(); await sleep(1200)
     check('停用', '关掉“参与对照”：看板里不再出现这个体系', (await page.locator(`[data-testid=course-pick-${oid}]`).count()) === 0)
-    await goto('#/settings'); await T('course-settings').waitFor()
+    await goto('#/courses'); await T('course-settings').waitFor()
     await page.locator(`[data-testid=course-card-${oid}]`).locator('[data-testid=course-active]').click()
     await waitFor(() => q1('SELECT active FROM course_outlines WHERE id = ?', oid).active === 1, 8000)
   }
@@ -367,7 +369,7 @@ async function main() {
     }
     await T('course-file-name').waitFor({ timeout: 10000 })
     await sleep(1500)
-    check('替换', '拖入文件：读成课程表（显示文件名），没有被当成试卷导入，页面也没有跳走', (await txt('course-file-name')).includes('替换用') && q1('SELECT COUNT(*) c FROM papers').c === papersBefore && (await page.evaluate(() => location.hash)).startsWith('#/settings'), `papers=${q1('SELECT COUNT(*) c FROM papers').c}/${papersBefore}`)
+    check('替换', '拖入文件：读成课程表（显示文件名），没有被当成试卷导入，页面也没有跳走', (await txt('course-file-name')).includes('替换用') && q1('SELECT COUNT(*) c FROM papers').c === papersBefore && (await page.evaluate(() => location.hash)).startsWith('#/courses'), `papers=${q1('SELECT COUNT(*) c FROM papers').c}/${papersBefore}`)
     check('替换', '重新上传：名称沿用原来的，不能改', (await T('course-name').inputValue()) === '示例体系 A' && (await T('course-name').isDisabled()))
     await page.locator('label:has([data-testid=course-mode-manual])').click()
     await T('course-next').click()
@@ -395,16 +397,16 @@ async function main() {
   // ───────────────────────── 11. 深色截图 ─────────────────────────
   {
     // 先把状态恢复成已匹配，截图更有代表性
-    await goto('#/settings'); await T('course-settings').waitFor()
+    await goto('#/courses'); await T('course-settings').waitFor()
     await page.locator(`[data-testid=course-card-${oid}]`).locator('[data-testid=match-start]').click()
     await waitFor(async () => /已匹配/.test(await page.locator(`[data-testid=course-card-${oid}]`).locator('[data-testid=course-match-state]').innerText().catch(() => '')), 60000)
     await setTheme('dark')
-    await goto('#/settings'); await T('course-settings').waitFor(); await T('course-settings').scrollIntoViewIfNeeded(); await sleep(500); await shot10('settings-dark')
+    await goto('#/courses'); await T('course-settings').waitFor(); await T('course-settings').scrollIntoViewIfNeeded(); await sleep(500); await shot10('courses-dark')
     await page.locator(`[data-testid=course-card-${oid}]`).locator('[data-testid=course-view]').click()
     await T('course-detail').waitFor(); await sleep(400); await shot10('detail-dark'); await page.keyboard.press('Escape')
     await openCourseTab(); await T('course-headline').waitFor({ timeout: 20000 }); await sleep(600); await shot10('dashboard-dark')
     await page.locator('[data-testid=course-chip]').first().click(); await T('course-drawer').waitFor(); await sleep(500); await shot10('drawer-dark'); await page.keyboard.press('Escape')
-    await goto('#/settings'); await T('course-settings').waitFor()
+    await goto('#/courses'); await T('course-settings').waitFor()
     await T('course-reupload').first().click(); await T('course-wizard').waitFor(); await sleep(300); await shot10('wizard-step1-dark')
     // 第 2 步的深色截图：读入示例文件、让 AI 认列
     await stubOpen([sampleXlsx])
@@ -425,7 +427,7 @@ async function main() {
 
   // ───────────────────────── 12. 删除 ─────────────────────────
   {
-    await goto('#/settings'); await T('course-settings').waitFor()
+    await goto('#/courses'); await T('course-settings').waitFor()
     await page.locator(`[data-testid=course-card-${oid}]`).locator('[data-testid=course-delete]').click()
     await T('course-delete-ok').click()
     await waitFor(() => q1('SELECT COUNT(*) c FROM course_outlines WHERE id = ?', oid).c === 0, 8000)

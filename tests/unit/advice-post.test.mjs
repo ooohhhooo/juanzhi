@@ -1,6 +1,6 @@
 // 家长沟通话术的程序侧收尾：价格词 / 营销词 / 夸大词整句删除、数字 + 元、未知令牌、字数告警、不足 80 字判失败、事实核对。
 import assert from 'node:assert/strict'
-import { finishAdvice, FORBIDDEN_RE, countChars, replaceLessonTokens } from '../../src/main/course/advice-post.ts'
+import { finishAdvice, FORBIDDEN_RE, countChars, replaceLessonTokens, sanitizePartial, safeLabels } from '../../src/main/course/advice-post.ts'
 
 const labels = new Map([[12, '示例体系 A · 基础级 · 第 5 课《Animals》'], [15, '示例体系 A · 基础级 · 第 8 课《Family》']])
 // 约 170 个汉字的正常话术（含两个课令牌）
@@ -30,9 +30,11 @@ const good = '这类试卷里常见的易错点是动词过去式。孩子在家
   assert.ok(r.removedSentences >= 1)
   assert.ok(r.warnings.some(w => w.includes('已删除') && w.includes('价格、营销或夸大承诺')))
   assert.equal(r.ok, true)
-  // 课名里带「第一」之类的字不能误伤（禁用词检查在令牌替换之前）
+  // 课名里带营销 / 夸大词（比如“最好”）：这一课整个不用；只带「第一」这种普通字的课名不受影响
   const first = finishAdvice(good, new Map([[12, '甲体系 · 第一级 · 第一课《最好的开始》'], [15, '乙']]), { range: [150, 220] })
-  assert.ok(first.text.includes('第一课《最好的开始》') && first.ok)
+  assert.ok(!first.text.includes('最好') && first.unknownTokens >= 1)
+  const ordinary = finishAdvice(good, new Map([[12, '甲体系 · 第一级 · 第一课《开始》'], [15, '乙']]), { range: [150, 220] })
+  assert.ok(ordinary.text.includes('第一课《开始》') && ordinary.ok)
 }
 
 // ── 令牌 ──
@@ -75,6 +77,22 @@ const good = '这类试卷里常见的易错点是动词过去式。孩子在家
   assert.ok(Array.isArray(r.findings))
   const none = finishAdvice(text, labels, { range: null })
   assert.deepEqual(none.findings, [], '没给证据就不做核对')
+}
+
+// ── 第二轮补充：更多禁用词、课名命中也要拦、半截文字过滤 ──
+{
+  for (const s of ['只要 ¥99。', '￥199 起。', 'RMB 100', '一节课 50块。', '我们确保提分。', '承诺效果。', '稳拿高分。', '必过。', '保证满分。', '冲满分。', '现在免费领资料。', '免费试听。', '限免三天。']) assert.ok(FORBIDDEN_RE.test(s), `应命中：${s}`)
+  // 日常英语考试内容不能误伤
+  for (const s of ['这张卷子满分是 100 分。', '免费的在线词典也可以查。', '一共有 3 块内容。', '读的时候确实要慢一点。', '每天练 10 分钟。', '孩子能说出 5 个动物单词。']) assert.ok(!FORBIDDEN_RE.test(s), `不该命中：${s}`)
+  // 课名里带营销词：这一课不用（当作输入里没有这一课）
+  const lab = new Map([[1, '示例体系 · 限免体验课'], [2, '示例体系 · 基础级 · 第 2 课']])
+  assert.deepEqual([...safeLabels(lab).keys()], [2])
+  const r = finishAdvice('孩子在家可以每天说三句昨天做过的事，家长听一听动词有没有变形就行，刚开始说错很正常，让孩子多说几遍就慢慢顺了。想系统复习可以看看 [课#1]，也可以看看 [课#2]。每次十分钟就够，不用着急，坚持几天再回头看看有没有进步，家长不用急着纠正。', lab, { range: null })
+  assert.equal(r.unknownTokens, 1, '课名命中禁用词的那一课按未知令牌删掉')
+  assert.ok(!/限免/.test(r.text) && r.text.includes('第 2 课'))
+  // 半截文字
+  const part = sanitizePartial('先练一练。现在报名有优惠。可以看看 [课#2] 和 [课#9]', new Map([[2, '基础级 · 第 2 课']]))
+  assert.ok(!/报名|优惠|\[课#/.test(part) && part.includes('「基础级 · 第 2 课」'))
 }
 
 console.log('advice-post.test ✓')

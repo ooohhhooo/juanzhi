@@ -23,6 +23,9 @@ export interface TableRead {
 export class CourseFileError extends Error {}
 
 export const LIMITS = { sheets: 20, rows: 5000, cols: 60, cellChars: 2000 } as const
+/** xlsx 本质是 zip：先看目录里声明的大小，解压时再按实际大小计数，防「压缩炸弹」 */
+export const ZIP_LIMITS = { entries: 1000, entryBytes: 50 * 1024 * 1024, totalBytes: 200 * 1024 * 1024, sharedStrings: 300_000, sharedChars: 30_000_000 } as const
+const BOMB_MSG = '这个文件解压后太大，不像正常的课程表（可能已损坏或不安全），已拒绝读取'
 
 // ───────────────────────── 文字清理 ─────────────────────────
 
@@ -58,13 +61,47 @@ const attr = (tag: string, name: string): string | undefined => {
   return m ? decodeXml(m[2] ?? m[3] ?? '') : undefined
 }
 
+/**
+ * 线性扫描：依次给出 <name …> 元素的属性串和内容。找不到结束标签就停下（不回头重扫——
+ * 恶意文件里成千上万个没闭合的 <c r=…> 不会造成二次方的耗时）。<cellXfs> 这类前缀相同的标签靠「下一个字符」区分。
+ */
+function* scanElements(xml: string, name: string): Generator<{ attrs: string; body: string }> {
+  const open = `<${name}`
+  const close = `</${name}>`
+  let pos = 0
+  for (;;) {
+    const i = xml.indexOf(open, pos)
+    if (i < 0) return
+    const c = xml.charCodeAt(i + open.length)
+    if (!(c === 32 || c === 62 || c === 47 || c === 9 || c === 10 || c === 13)) { pos = i + open.length; continue }
+    const gt = xml.indexOf('>', i)
+    if (gt < 0) return
+    if (xml.charCodeAt(gt - 1) === 47) { yield { attrs: xml.slice(i + open.length, gt - 1), body: '' }; pos = gt + 1; continue }
+    const end = xml.indexOf(close, gt + 1)
+    if (end < 0) return
+    yield { attrs: xml.slice(i + open.length, gt), body: xml.slice(gt + 1, end) }
+    pos = end + close.length
+  }
+}
+
+/** 去掉 <rPh>…</rPh>（注音）。线性，找不到结束就保留剩下的 */
+function stripElement(xml: string, name: string): string {
+  let out = '', pos = 0
+  for (;;) {
+    const i = xml.indexOf(`<${name}`, pos)
+    if (i < 0) break
+    const end = xml.indexOf(`</${name}>`, i)
+    if (end < 0) break
+    out += xml.slice(pos, i)
+    pos = end + name.length + 3
+  }
+  return out + xml.slice(pos)
+}
+
 /** <si> 里的文字：所有 <t> 拼起来，注音（rPh）不要 */
 function siText(si: string): string {
-  const noPh = si.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '')
   const parts: string[] = []
-  const re = /<t\b[^>]*?(?:\/>|>([\s\S]*?)<\/t>)/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(noPh))) parts.push(decodeXml(m[1] ?? ''))
+  for (const t of scanElements(stripElement(si, 'rPh'), 't')) parts.push(decodeXml(t.body))
   return parts.join('')
 }
 
@@ -77,15 +114,15 @@ function dateStyles(stylesXml: string | null): Set<number> {
   const out = new Set<number>()
   if (!stylesXml) return out
   const custom = new Map<number, string>()
-  for (const m of stylesXml.matchAll(/<numFmt\b[^>]*>/g)) {
-    const id = parseInt(attr(m[0], 'numFmtId') ?? '', 10)
-    const code = attr(m[0], 'formatCode')
+  for (const m of scanElements(stylesXml, 'numFmt')) {
+    const id = parseInt(attr(m.attrs, 'numFmtId') ?? '', 10)
+    const code = attr(m.attrs, 'formatCode')
     if (Number.isFinite(id) && code) custom.set(id, code)
   }
-  const cellXfs = /<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/.exec(stylesXml)?.[1] ?? ''
+  const cellXfs = scanElements(stylesXml, 'cellXfs').next().value?.body ?? ''
   let i = 0
-  for (const m of cellXfs.matchAll(/<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g)) {
-    const id = parseInt(attr(m[0], 'numFmtId') ?? '0', 10)
+  for (const m of scanElements(cellXfs, 'xf')) {
+    const id = parseInt(attr(m.attrs, 'numFmtId') ?? '0', 10)
     if (BUILTIN_DATE_IDS.has(id) || (custom.has(id) && isDateFormat(custom.get(id)!))) out.add(i)
     i++
   }
@@ -106,29 +143,65 @@ function numberText(raw: string): string {
   return String(parseFloat(n.toPrecision(15)))
 }
 
-async function readText(zip: JSZip, p: string): Promise<string | null> {
+interface Budget { used: number }
+
+/** 解压一个条目并按「实际解压出的字节数」计数，超过上限立刻停（目录里声明的大小可以是假的） */
+function readText(zip: JSZip, p: string, budget: Budget): Promise<string | null> {
   const f = zip.file(p) ?? zip.file(p.replace(/^\//, ''))
-  return f ? f.async('string') : null
+  if (!f) return Promise.resolve(null)
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = []
+    let n = 0, done = false
+    const h = (f as unknown as { internalStream(t: string): { on(e: string, cb: (x: never) => void): unknown; pause(): void; resume(): void } }).internalStream('uint8array')
+    const fail = (e: Error) => { if (done) return; done = true; try { h.pause() } catch { /* 已结束 */ } reject(e) }
+    h.on('data', ((d: Uint8Array) => {
+      n += d.length; budget.used += d.length
+      if (n > ZIP_LIMITS.entryBytes || budget.used > ZIP_LIMITS.totalBytes) fail(new CourseFileError(BOMB_MSG))
+      else chunks.push(d)
+    }) as (x: never) => void)
+    h.on('error', () => fail(new CourseFileError('这个文件打不开，可能已损坏')))
+    h.on('end', () => { if (done) return; done = true; resolve(new TextDecoder('utf-8').decode(Buffer.concat(chunks))) })
+    h.resume()
+  })
 }
 
 /** 解一个 xlsx（Buffer / Uint8Array） */
 export async function readXlsx(buf: Uint8Array): Promise<TableRead> {
   let zip: JSZip
   try { zip = await JSZip.loadAsync(buf) } catch { throw new CourseFileError('这个文件打不开，可能已损坏，或者不是 .xlsx 表格') }
-  const wb = await readText(zip, 'xl/workbook.xml')
+  // 先看目录（这时还没有解压任何东西）：条目数、每个条目声明的解压后大小
+  const entries = Object.values(zip.files)
+  if (entries.length > ZIP_LIMITS.entries) throw new CourseFileError(BOMB_MSG)
+  let declared = 0
+  for (const e of entries) {
+    const sz = Number((e as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0)
+    if (sz > ZIP_LIMITS.entryBytes) throw new CourseFileError(BOMB_MSG)
+    declared += sz
+  }
+  if (declared > ZIP_LIMITS.totalBytes) throw new CourseFileError(BOMB_MSG)
+  const budget: Budget = { used: 0 }
+  const wb = await readText(zip, 'xl/workbook.xml', budget)
   if (!wb) throw new CourseFileError('这个文件里没有找到工作表，请用 Excel 或 WPS 重新另存为 .xlsx')
-  const relsXml = (await readText(zip, 'xl/_rels/workbook.xml.rels')) ?? ''
+  const relsXml = (await readText(zip, 'xl/_rels/workbook.xml.rels', budget)) ?? ''
   const rels = new Map<string, string>()
-  for (const m of relsXml.matchAll(/<Relationship\b[^>]*>/g)) {
-    const id = attr(m[0], 'Id'), target = attr(m[0], 'Target')
+  for (const m of scanElements(relsXml, 'Relationship')) {
+    const id = attr(m.attrs, 'Id'), target = attr(m.attrs, 'Target')
     if (id && target) rels.set(id, target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//, '')}`)
   }
-  const sharedXml = await readText(zip, 'xl/sharedStrings.xml')
+  const sharedXml = await readText(zip, 'xl/sharedStrings.xml', budget)
   const shared: string[] = []
-  if (sharedXml) for (const m of sharedXml.matchAll(/<si\b[^>]*?(?:\/>|>([\s\S]*?)<\/si>)/g)) shared.push(siText(m[1] ?? ''))
-  const dateXf = dateStyles(await readText(zip, 'xl/styles.xml'))
+  let sharedChars = 0
+  if (sharedXml) {
+    for (const m of scanElements(sharedXml, 'si')) {
+      const t = siText(m.body)
+      sharedChars += t.length
+      if (shared.length >= ZIP_LIMITS.sharedStrings || sharedChars > ZIP_LIMITS.sharedChars) throw new CourseFileError(BOMB_MSG)
+      shared.push(t)
+    }
+  }
+  const dateXf = dateStyles(await readText(zip, 'xl/styles.xml', budget))
 
-  const sheetTags = [...wb.matchAll(/<sheet\b[^>]*>/g)].map(m => m[0])
+  const sheetTags = [...scanElements(wb, 'sheet')].map(m => m.attrs)
   const warnings: string[] = []
   const sheets: Sheet[] = []
   let idx = 0
@@ -139,7 +212,7 @@ export async function readXlsx(buf: Uint8Array): Promise<TableRead> {
     const state = attr(tag, 'state')
     const rid = attr(tag, 'r:id') ?? attr(tag, 'id')
     const path = (rid && rels.get(rid)) || `xl/worksheets/sheet${idx}.xml`
-    const xml = await readText(zip, path)
+    const xml = await readText(zip, path, budget)
     if (xml == null) continue
     const parsed = parseSheetXml(xml, shared, dateXf)
     if (parsed.truncated) warnings.push(`「${name}」超过 ${LIMITS.rows} 行或 ${LIMITS.cols} 列，多出的部分已忽略`)
@@ -152,20 +225,17 @@ export async function readXlsx(buf: Uint8Array): Promise<TableRead> {
 function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>): { rows: string[][]; merged: boolean; truncated: boolean } {
   const grid: string[][] = []
   let maxC = 0, truncated = false
-  const re = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(xml))) {
-    const pos = parseRef(attr(m[1], 'r') ?? '')
+  for (const m of scanElements(xml, 'c')) {
+    const pos = parseRef(attr(m.attrs, 'r') ?? '')
     if (!pos) continue
     if (pos.r >= LIMITS.rows || pos.c >= LIMITS.cols) { truncated = true; continue }
-    const body = m[2] ?? ''
-    const t = attr(m[1], 't')
-    const s = parseInt(attr(m[1], 's') ?? '-1', 10)
+    const body = m.body
+    const t = attr(m.attrs, 't')
+    const s = parseInt(attr(m.attrs, 's') ?? '-1', 10)
     let text = ''
-    if (t === 'inlineStr') text = siText(/<is\b[^>]*>([\s\S]*?)<\/is>/.exec(body)?.[1] ?? '')
+    if (t === 'inlineStr') text = siText(scanElements(body, 'is').next().value?.body ?? '')
     else {
-      const vm = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(body)
-      const v = vm ? decodeXml(vm[1]) : ''
+      const v = decodeXml(scanElements(body, 'v').next().value?.body ?? '')
       if (t === 's') text = shared[parseInt(v, 10)] ?? ''
       else if (t === 'str') text = v
       else if (t === 'b') text = v === '1' ? 'TRUE' : v === '0' ? 'FALSE' : ''
@@ -180,8 +250,8 @@ function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>): { ro
   }
   // 合并单元格：左上角的内容铺满整个区域
   let merged = false
-  for (const mm of xml.matchAll(/<mergeCell\b[^>]*>/g)) {
-    const ref = attr(mm[0], 'ref')
+  for (const mm of scanElements(xml, 'mergeCell')) {
+    const ref = attr(mm.attrs, 'ref')
     const [a, b] = (ref ?? '').split(':')
     const p1 = a ? parseRef(a) : null, p2 = b ? parseRef(b) : null
     if (!p1 || !p2) continue
@@ -202,14 +272,23 @@ function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>): { ro
 
 // ───────────────────────── csv / 粘贴文本 ─────────────────────────
 
-/** 字节 → 文字：先试 UTF-8（带 BOM 也行），失败按 GBK（中文 Windows 的 Excel 另存 csv 常见） */
-export function decodeText(buf: Uint8Array): string {
+/** 字节 → 文字：先试 UTF-8（带 BOM 也行），失败按 GBK（中文 Windows 的 Excel 另存 csv 常见）。encoding 和 suspicious 给上层提示「可能乱码」 */
+export function decodeTextInfo(buf: Uint8Array): { text: string; encoding: 'utf-8' | 'gbk' | 'utf-16le'; suspicious: boolean } {
   let b = buf
   if (b.length >= 3 && b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) b = b.subarray(3)
-  if (b.length >= 2 && b[0] === 0xff && b[1] === 0xfe) return new TextDecoder('utf-16le').decode(b.subarray(2))
-  try { return new TextDecoder('utf-8', { fatal: true }).decode(b) } catch { /* 下面试 GBK */ }
-  try { return new TextDecoder('gbk').decode(b) } catch { return new TextDecoder('utf-8').decode(b) }
+  if (b.length >= 2 && b[0] === 0xff && b[1] === 0xfe) return { text: new TextDecoder('utf-16le').decode(b.subarray(2)), encoding: 'utf-16le', suspicious: false }
+  let text: string, encoding: 'utf-8' | 'gbk' = 'utf-8'
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(b) } catch {
+    encoding = 'gbk'
+    try { text = new TextDecoder('gbk').decode(b) } catch { text = new TextDecoder('utf-8').decode(b); encoding = 'utf-8' }
+  }
+  // 看起来不对：有替换字符、常见的「锟斤拷」、UTF-8 被当 Latin-1 读出来的 Ã/Â/ï»¿，或者 GBK 读出来后几乎没有常用汉字
+  const sample = text.slice(0, 20000)
+  const bad = (sample.match(/[\ufffd]|锟斤拷|Ã.|Â.|ï»¿/g) ?? []).length
+  const suspicious = bad >= 3 || (sample.length > 20 && bad / sample.length > 0.01)
+  return { text, encoding, suspicious }
 }
+export const decodeText = (buf: Uint8Array): string => decodeTextInfo(buf).text
 
 function detectDelimiter(text: string): string {
   const head = text.split('\n').slice(0, 10).join('\n')
@@ -266,7 +345,11 @@ export async function readTable(buf: Uint8Array, fileName: string): Promise<Tabl
   if (ext === 'xlsx' || ext === 'xlsm' || (zipMagic && !ext)) return readXlsx(buf)
   if (ext === 'csv' || ext === 'txt' || ext === 'tsv' || ext === '') {
     const name = fileName.replace(/\.[^.]+$/, '').slice(0, 40) || '课程表'
-    return readCsvText(decodeText(buf), name)
+    const d = decodeTextInfo(buf)
+    const r = readCsvText(d.text, name)
+    if (d.encoding === 'gbk') r.warnings.push('这个文件不是 UTF-8，已按 GBK 读取；如果下面的文字有乱码，请用 Excel 另存为 UTF-8 的 CSV 或 .xlsx 再上传')
+    if (d.suspicious) r.warnings.push('读出来的文字里有疑似乱码，请核对；乱码的话请用 Excel 另存为 .xlsx 再上传')
+    return r
   }
   throw new CourseFileError('不认识这种文件，请上传 .xlsx 或 .csv 表格')
 }

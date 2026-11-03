@@ -142,4 +142,57 @@ A.db.prepare("INSERT INTO course_advice (scope_key, cache_key, markdown, confirm
   assert.equal(rep.papersAdded, 1)
 }
 
+// ── 畸形的数据包：枚举、类型、长度都被规整，不会把坏值带进库 ──
+{
+  const { out } = await exportOf(A, 'malformed')
+  const ex = await extractPack(out, path.join(A.dir, 'stage-malformed'))
+  const pk = openDb(ex.dbPath)
+  pk.exec(`UPDATE course_outlines SET scene = 'evil', status = 'weird', active = 7, rev = -3, name = '${'名'.repeat(500)}', mapping_json = '[1,2]', warnings_json = '{"x":1}'`)
+  pk.exec(`UPDATE course_lessons SET points_json = '{"a":1}', raw_json = '[1]', title = '${'题'.repeat(5000)}', seq = -5`)
+  pk.exec(`UPDATE course_kp_map SET confidence = 'ultra', state = 'x', source = 'robot', locked = 9, quote = '${'q'.repeat(999)}'`)
+  pk.exec(`UPDATE course_kp_check SET result = 'bogus', outline_rev = 'abc'`)
+  pk.close()
+  const info = prep(ex.dbPath)
+  assert.ok(info.papers >= 1)
+  const E = makeEnv('courseMal')
+  applyMerge(E.deps, { dbPath: ex.dbPath, filesDir: ex.filesDir })
+  const o = E.db.prepare('SELECT * FROM course_outlines').get()
+  assert.deepEqual([o.scene, o.status, o.active, o.rev, o.name.length, o.mapping_json, o.warnings_json], ['other', 'draft', 1, 1, 60, '{}', '[]'])
+  const l = E.db.prepare('SELECT * FROM course_lessons ORDER BY id').all()
+  assert.ok(l.every(x => x.points_json === '[]' || Array.isArray(JSON.parse(x.points_json))) && l.every(x => x.raw_json === '{}') && l.every(x => x.title.length <= 300 && x.seq === 0))
+  const m = E.db.prepare('SELECT * FROM course_kp_map').all()
+  assert.ok(m.length && m.every(x => x.confidence === 'low' && x.state === 'suggested' && x.source === 'ai' && x.locked === 1 && x.quote.length <= 200))
+  assert.ok(E.db.prepare('SELECT * FROM course_kp_check').all().every(x => x.result === 'none' && x.outline_rev === 0))
+}
+
+// ── 合并：本机已有同 id、包里的 rev 更新 → 默认跳过，勾选“更新”才用包里的 ──
+{
+  const B = makeEnv('courseNewer')
+  const { out } = await exportOf(A, 'newer-base')
+  applyMerge(B.deps, (await stageOf(out, B)).staged)
+  A.db.prepare('UPDATE course_outlines SET rev = 5, name = ? WHERE id = ?').run('示例体系 A（新版）', oid)
+  const { out: out2 } = await exportOf(A, 'newer')
+  const st = await stageOf(out2, B)
+  assert.equal(summarizePack({ ...B.deps }, st.staged).coursesNewer, 1)
+  const r0 = applyMerge(B.deps, st.staged)
+  assert.deepEqual([r0.coursesAdded, r0.coursesUpdated], [0, 0])
+  assert.equal(listOutlines(B.db)[0].name, '示例体系 A')
+  const r1 = applyMerge(B.deps, (await stageOf(out2, B)).staged, { updateCourses: true })
+  assert.equal(r1.coursesUpdated, 1)
+  assert.deepEqual([listOutlines(B.db)[0].name, listOutlines(B.db)[0].rev, B.db.prepare('SELECT COUNT(*) c FROM course_lessons').get().c], ['示例体系 A（新版）', 5, 3])
+}
+
+// ── 覆盖导入（包里没有课程）：本机课程保留，但指向已不存在的知识点的对应 / 检查结果被清掉，保持一致 ──
+{
+  const D = makeEnv('courseOverKp')
+  const did = createOutline(D.db, { name: 'D', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: 'x', lessons: [lesson(1, 'a')] }] })
+  const lidD = D.db.prepare('SELECT id FROM course_lessons').get().id
+  D.db.prepare("INSERT INTO course_kp_map (outline_id, kp_code, lesson_id) VALUES (?, 'NO.SUCH.KP', ?), (?, 'GR.NOUN.PLURAL.REG', ?)").run(did, lidD, did, lidD)
+  D.db.prepare("INSERT INTO course_kp_check (outline_id, kp_code, result, outline_rev) VALUES (?, 'NO.SUCH.KP', 'matched', 1)").run(did)
+  const { out } = await exportOf(A, 'ov-nocourse', { withCourse: false })
+  applyOverwrite({ ...D.deps }, (await stageOf(out, D)).staged)
+  assert.deepEqual(D.db.prepare('SELECT kp_code FROM course_kp_map').all().map(r => r.kp_code), ['GR.NOUN.PLURAL.REG'])
+  assert.equal(D.db.prepare('SELECT COUNT(*) c FROM course_kp_check').get().c, 0)
+}
+
 console.log('course-pack.test ✓')

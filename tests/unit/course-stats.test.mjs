@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { newDb, useTree, addPaper } from './helpers/db.mjs'
 import { courseDashboard, gapsToCsv, GAP_MIN_PAPERS } from '../../src/main/course/stats.ts'
-import { createOutline, applyMatchBatch, editMap, replaceOutline, diffOutline, listOutlines, targetKps, setOutlineActive, confirmDraft, getOutline, searchLessons } from '../../src/main/course/store.ts'
+import { createOutline, removeOutline, applyMatchBatch, editMap, replaceOutline, diffOutline, listOutlines, targetKps, setOutlineActive, confirmDraft, getOutline, searchLessons } from '../../src/main/course/store.ts'
 import { planReplace, lessonHash, countsOf } from '../../src/main/course/replace-diff.ts'
 
 const lesson = (seq, title, word) => ({ seq, noLabel: String(seq), title, theme: '', textbookRef: '', points: [{ kind: 'word', label: '词汇', text: word }], raw: {} })
@@ -149,6 +149,53 @@ applyMatchBatch(db, oid, [
   assert.deepEqual(searchLessons(db, [oid], 'taller').map(l => l.title), ['Compare'])
   assert.equal(searchLessons(db, [oid], '').length, 4)
   assert.equal(getOutline(db, oid).levels.length, 2)
+}
+
+// 替换时锁定 / 确认的对应：被删的要明确确认才能替换；内容变了的退回“待核对”；none 不悄悄翻掉确认过的；删除体系带走话术缓存
+{
+  const { db } = newDb()
+  useTree(db, [['GR', null, '语法', 1], ['GR.A', 'GR', '甲', 2], ['GR.B', 'GR', '乙', 2]])
+  addPaper(db, { questions: [{ kp: 'GR.A' }, { kp: 'GR.B' }] })
+  const o = createOutline(db, { name: 'T', scene: 'family', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active',
+    levels: [{ name: '甲级', lessons: [lesson(1, 'One', 'apple, banana'), lesson(2, 'Two', 'cat, dog')] }, { name: '乙级', lessons: [lesson(1, 'Three', 'red')] }] })
+  const id = Object.fromEntries(db.prepare('SELECT id, title FROM course_lessons').all().map(r => [r.title, r.id]))
+  const sig = new Map(targetKps(db).map(k => [k.code, k.sig]))
+  const meta = { rev: 1, model: 'm', promptVersion: 'v', sigs: sig }
+  applyMatchBatch(db, o, [{ code: 'GR.A', none: false, maps: [{ lessonId: id.One, confidence: 'high', quote: 'apple, banana', reason: 'r', quoteOk: true }, { lessonId: id.Three, confidence: 'high', quote: 'red', reason: 'r', quoteOk: true }] }, { code: 'GR.B', none: false, maps: [{ lessonId: id.Two, confidence: 'high', quote: 'cat, dog', reason: 'r', quoteOk: true }] }], meta)
+  editMap(db, { op: 'confirm', kp: 'GR.A', lessonId: id.One }); editMap(db, { op: 'confirm', kp: 'GR.A', lessonId: id.Three }); editMap(db, { op: 'confirm', kp: 'GR.B', lessonId: id.Two })
+  // 新表：乙级整个删掉；甲级第 1 课内容变了；第 2 课没变
+  const next = [{ name: '甲级', lessons: [lesson(1, 'One', 'pear, grape'), lesson(2, 'Two', 'cat, dog')] }]
+  const d = diffOutline(db, o, next)
+  assert.deepEqual([d.lockedLost, d.lockedRecheck], [1, 1], '乙级被删：丢 1 条确认；第 1 课变了：1 条要重新核对')
+  assert.throws(() => replaceOutline(db, o, { sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', levels: next }), /需要确认/)
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM course_levels').get().c, 2, '没确认就什么都没改')
+  replaceOutline(db, o, { sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', levels: next, confirmLockedLoss: true })
+  const m = Object.fromEntries(db.prepare('SELECT m.kp_code k, l.title t, m.state s, m.locked lk, m.confidence c, m.reason r FROM course_kp_map m JOIN course_lessons l ON l.id = m.lesson_id').all().map(x => [`${x.k}:${x.t}`, x]))
+  assert.deepEqual(Object.keys(m).sort(), ['GR.A:One', 'GR.B:Two'])
+  assert.deepEqual([m['GR.A:One'].s, m['GR.A:One'].lk, m['GR.A:One'].c], ['suggested', 0, 'low'], '原文依据没了：退回待确认')
+  assert.match(m['GR.A:One'].r, /需要重新核对/)
+  assert.deepEqual([m['GR.B:Two'].s, m['GR.B:Two'].lk], ['confirmed', 1], '没变的课：确认保留')
+  // none：有确认过的对应时要先问
+  assert.throws(() => editMap(db, { op: 'none', outlineId: o, kp: 'GR.B' }), /需要确认/)
+  assert.equal(db.prepare("SELECT state FROM course_kp_map WHERE kp_code = 'GR.B'").get().state, 'confirmed', '没确认就不翻')
+  assert.equal(editMap(db, { op: 'none', outlineId: o, kp: 'GR.B', force: true }), true)
+  assert.equal(db.prepare("SELECT state FROM course_kp_map WHERE kp_code = 'GR.B'").get().state, 'rejected')
+  // 删除体系带走话术缓存；形状不对的 JSON 用 fallback
+  db.prepare("INSERT INTO course_advice (scope_key, cache_key, outline_ids_json, markdown) VALUES ('a', 'b', ?, 'x'), ('c', 'd', '[\"别的\"]', 'y')").run(JSON.stringify([o]))
+  removeOutline(db, o)
+  assert.deepEqual(db.prepare('SELECT scope_key FROM course_advice').all().map(r => r.scope_key), ['c'])
+  const o2 = createOutline(db, { name: 'U', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: 'x', lessons: [lesson(1, 'a', 'b')] }] })
+  db.prepare("UPDATE course_lessons SET points_json = '{\"a\":1}', raw_json = '[1]' WHERE outline_id = ?").run(o2)
+  db.prepare("UPDATE course_outlines SET warnings_json = '\"x\"' WHERE id = ?").run(o2)
+  const got = getOutline(db, o2)
+  assert.deepEqual([got.levels[0].lessons[0].points, got.levels[0].lessons[0].raw, got.card.warnings], [[], {}, []])
+}
+
+// CSV 公式注入：以 = + - @ 开头的格子加单引号
+{
+  const csv = gapsToCsv([{ code: 'x', name: '=HYPERLINK("http://x")', papers: 3, paperTotal: 4, errorCount: 0, questions: 3 }, { code: 'y', name: '@SUM(A1)', papers: 3, paperTotal: 4, errorCount: 0, questions: 3 }, { code: 'z', name: '-5+2', papers: 1, paperTotal: 4, errorCount: 0, questions: 1 }], { filterDesc: '+cmd', outlineNames: ['=A'], scene: 'org' })
+  assert.ok(csv.includes('"\'=HYPERLINK(""http://x"")"') && csv.includes("'@SUM(A1)") && csv.includes("'-5+2") && csv.includes("'+cmd") && csv.includes("'=A"), csv)
+  assert.ok(!/^=/m.test(csv))
 }
 
 console.log('course-stats.test ✓')

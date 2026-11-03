@@ -22,7 +22,7 @@ for (const line of md) {
     if (/^````text\s*$/.test(line) && cur && part) { inFence = true; buf = []; continue }
   } else if (/^````\s*$/.test(line)) { inFence = false; blocks[`${cur}.${part}`] = buf.join('\n'); part = null } else buf.push(line)
 }
-assert.equal(Object.keys(blocks).length, 16)
+assert.equal(Object.keys(blocks).length, Object.keys(IDS).length * 2)   // 个数由上面的 id 表决定，不写死
 for (const [k, text] of Object.entries(blocks)) {
   const file = fs.readFileSync(path.join(root, 'src/main/ai/prompts', `${k}.txt`), 'utf8').replace(/\r\n/g, '\n').replace(/\s+$/, '')
   assert.equal(file, text.replace(/\s+$/, ''), `资源文件 ${k}.txt 与 docs 不一致——改了 docs/prompts 后要重跑 node scripts/extract-prompts.cjs`)
@@ -43,7 +43,7 @@ for (const [k, text] of Object.entries(blocks)) {
       if (/^````text\s*$/.test(line) && c3 && p3) { fence = true; buf3 = []; continue }
     } else if (/^````\s*$/.test(line)) { fence = false; b3[`${c3}.${p3}`] = buf3.join('\n'); p3 = null } else buf3.push(line)
   }
-  assert.equal(Object.keys(b3).length, 8)
+  assert.equal(Object.keys(b3).length, Object.keys(IDS3).length * 2)
   for (const [k, text] of Object.entries(b3)) {
     const file = fs.readFileSync(path.join(root, 'src/main/ai/prompts', `${k}.txt`), 'utf8').replace(/\r\n/g, '\n').replace(/\s+$/, '')
     assert.equal(file, text.replace(/\s+$/, ''), `资源文件 ${k}.txt 与 docs/prompts/v3-课程对照.md 不一致——改了文档后要重跑 node scripts/extract-prompts.cjs`)
@@ -69,4 +69,4 @@ assert.ok(usedKp.length >= 3 && usedQt.length >= 3, '应能从示例里取到代
 for (const c of usedKp) assert.ok(kps.has(c), `示例里的知识点代码 ${c} 不在内置树里`)
 for (const c of usedQt) assert.ok(qtypes.has(c), `示例里的题型代码 ${c} 不在题型表里`)
 
-console.log(`prompts-sync.test ✓（16 + 8 个提示词与资源文件一致；示例用到知识点 ${new Set(usedKp).size} 个、题型 ${new Set(usedQt).size} 个，均存在）`)
+console.log(`prompts-sync.test ✓（v2 + v3-课程对照 的提示词与资源文件一致；示例用到知识点 ${new Set(usedKp).size} 个、题型 ${new Set(usedQt).size} 个，均存在）`)
