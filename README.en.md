@@ -158,12 +158,12 @@ Without an API Key you can still install the app and look at the "sample data". 
 
 | Your computer | Click this file |
 |---|---|
-| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.3.0-beta.2-mac-arm64.dmg` |
-| Mac with Intel processor | `Juanzhi-1.3.0-beta.2-mac-x64.dmg` |
-| Windows (recommended) | `Juanzhi-1.3.0-beta.2-win-x64-setup.exe` (installer version) |
-| Windows, without permission to install | `Juanzhi-1.3.0-beta.2-win-x64-portable.exe` (no-install version, double-click to use) |
+| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.3.0-beta.3-mac-arm64.dmg` |
+| Mac with Intel processor | `Juanzhi-1.3.0-beta.3-mac-x64.dmg` |
+| Windows (recommended) | `Juanzhi-1.3.0-beta.3-win-x64-setup.exe` (installer version) |
+| Windows, without permission to install | `Juanzhi-1.3.0-beta.3-win-x64-portable.exe` (no-install version, double-click to use) |
 
-- The `1.3.0-beta.2` in the file name is the version number. Use the latest version shown on the page.
+- The `1.3.0-beta.3` in the file name is the version number. Use the latest version shown on the page.
 - **Do not click** `Source code (zip)` or `Source code (tar.gz)`. That is source code for programmers, not an installer.
 - If you are not sure which chip your Mac has, download the Intel version (`mac-x64`). A Mac with an Apple chip can usually open it too (the system may ask you to install Rosetta. Just follow the prompt). The reverse does not work: the Apple-chip installer cannot be opened on an Intel Mac.
 - **If your browser says the file "isn't commonly downloaded" or "may be harmful"** (「此文件不常被下载」「可能有害」): in Edge, click the "…" next to the file, then "Keep", then "Keep anyway" (「保留」→「仍然保留」). In Chrome, click "Keep". The reason is the same: there is no signing certificate.
