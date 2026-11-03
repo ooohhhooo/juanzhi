@@ -97,7 +97,7 @@ export default function CourseTab() {
         <UsageNote kind="caution" title="还没匹配完" data-testid="course-unmatched">
           {unmatched.map(c => (
             <div key={c.id} style={{ marginBottom: 8 }}>
-              <b>{c.name}</b>：{c.match.state === 'stale' ? '课程内容更新过，需要重新匹配' : c.match.state === 'partial' ? `有 ${c.match.total - c.match.checked} 个新的知识点还没匹配` : '还没有把知识点对应到课'}。匹配前，下面的数字都先不显示。
+              <b>{c.name}</b>：{c.match.state === 'stale' ? '课程内容更新过，需要重新匹配' : c.match.state === 'partial' ? `有 ${c.match.total - c.match.checked} 个新的知识点还没匹配` : '还没有把知识点对应到课'}。{c.match.state === 'partial' ? '没匹配的知识点不算“课程没覆盖”，下面的结果可能不全。' : '匹配前，下面的数字都先不显示。'}
               <MatchBox card={c} />
             </div>
           ))}

@@ -43,13 +43,23 @@ const subscribe = (cb: () => void) => { listeners.add(cb); return () => { listen
 const get = (id: string) => jobs.find(j => j.requestId === id)
 const patch = (id: string, p: Partial<ReportEntry>) => { jobs = jobs.map(j => (j.requestId === id ? { ...j, ...p } : j)); emit() }
 /** 任务收尾为 error / cancelled：更新状态并立刻释放 runner 槽位 */
-const settle = (id: string, p: Partial<ReportEntry>) => { patch(id, p); runner.release(id) }
+const settle = (id: string, p: Partial<ReportEntry>) => {
+  const was = get(id)?.status
+  patch(id, p); runner.release(id)
+  if (p.status === 'error' && was !== 'error') { const j = get(id); if (j) emitNotice({ kind: 'error', requestId: id, reader: j.reader, message: p.message || '生成失败' }) }
+}
 const remove = (id: string) => { jobs = jobs.filter(j => j.requestId !== id); emit() }
 
 /** 所有排队 / 生成中 / 失败 / 已取消的任务（成功的会变成历史报告，不在这里），按开始顺序 */
 export const useReportJobs = (): ReportEntry[] => useSyncExternalStore(subscribe, () => jobs)
 /** 某份报告生成成功时通知（页面据此决定自动打开还是只提示） */
 export function onReportDone(cb: (d: ReportDone) => void): () => void { doneListeners.add(cb); return () => { doneListeners.delete(cb) } }
+
+export type ReportNotice = { kind: 'done'; requestId: string; reader: ReportReader } | { kind: 'error'; requestId: string; reader: ReportReader; message: string }
+const noticeListeners = new Set<(n: ReportNotice, pageMounted: boolean) => void>()
+/** 全局提示：每份报告完成 / 失败各通知一次；pageMounted 表示报告页正挂着（它自己会处理，全局不必再弹应用内提示） */
+export function onReportNotice(cb: (n: ReportNotice, pageMounted: boolean) => void): () => void { noticeListeners.add(cb); return () => { noticeListeners.delete(cb) } }
+const emitNotice = (n: ReportNotice) => { for (const l of noticeListeners) { try { l(n, doneListeners.size > 0) } catch { /* 提示失败不影响生成 */ } } }
 
 let pendingDone: ReportDone | null = null
 /** 报告页回来时取走「页面不在时完成的最近一份」 */
@@ -67,6 +77,7 @@ function finishOk(id: string, reportId: string | undefined): void {
     remove(id)
     const d: ReportDone = { requestId: id, reportId, reader: cur.reader, filterDesc: cur.filterDesc }
     if (doneListeners.size === 0 && reportId) pendingDone = d   // 页面没挂载：留着，回到报告页时自动打开
+    emitNotice({ kind: 'done', requestId: id, reader: cur.reader })
     for (const l of doneListeners) l({ requestId: id, reportId, reader: cur.reader, filterDesc: cur.filterDesc })
   })
 }

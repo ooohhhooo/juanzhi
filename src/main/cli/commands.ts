@@ -236,7 +236,7 @@ function courseIdsFromFlags(flags: Record<string, string | true>): string[] {
     const c = cards.find(x => x.id === id)
     if (!c) throw new CliError('not_found', `找不到这个课程体系：${id}`)
     if (c.status !== 'active') throw new CliError('invalid_state', `课程体系「${c.name}」还是草稿，请先在卷知窗口里确认（侧栏「课程大纲」）`)
-    if (c.match.state !== 'done') throw new CliError('course_not_matched', `课程体系「${c.name}」还没有匹配完（状态：${c.match.state}）。请先运行 course match ${id}`)
+    if (c.match.state !== 'done' && c.match.state !== 'partial') throw new CliError('course_not_matched', `课程体系「${c.name}」还没有匹配完（状态：${c.match.state}）。请先运行 course match ${id}`)
   }
   return ids
 }

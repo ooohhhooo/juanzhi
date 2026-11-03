@@ -1,10 +1,13 @@
 import React from 'react'
-import { Upload } from 'lucide-react'
+import { Download, RotateCw, Upload } from 'lucide-react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import FilterBar from '../stats/StatsFilter'
 import { useImportFlow } from '../hooks/useImportFlow'
 import { Btn, Contents, NAV_FOOTER, NAV_ITEMS } from '../design'
+import { Tooltip } from 'antd'
+import { updateNavView } from '../design/updateNav'
+import { useUpdateState } from '../hooks/useUpdate'
 
 /**
  * 应用外框（设计系统第二版）：浅灰底 + 窄图标侧栏（84px，图标 + 两字标签）+ 浮起的白色大画布。
@@ -19,6 +22,33 @@ export default function AppLayout() {
   const { data: papers = [] } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
   const active = papers.filter(p => ['imported', 'extracting', 'parsing'].includes(p.status)).length
   const reviewing = papers.filter(p => p.status === 'reviewing').length
+
+  const { data: courseJobs = [] } = useQuery({
+    queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),
+    refetchInterval: q => ((q.state.data ?? []).some(j => j.status === 'queued' || j.status === 'running') ? 1500 : false)
+  })
+  const courseReview = courseJobs.filter(j => j.status === 'ready').length
+
+  const upd = updateNavView(useUpdateState())
+  const goUpdate = () => {
+    if (upd?.download) void window.api.update.download()
+    navigate('/settings?focus=about')
+  }
+  const updateEntry = upd && (
+    <li key="sider-update">
+      <Tooltip title={upd.label} placement="right" mouseEnterDelay={0.4}>
+        <button type="button" className="ewb-contents__link" data-testid="sider-update" data-phase={upd.phase} aria-label={upd.label} onClick={goUpdate}>
+          <span className="ewb-contents__icon">
+            {upd.phase === 'downloading'
+              ? <span className="ewb-contents__ring" style={{ ['--p' as string]: upd.percent }} data-testid="sider-update-percent"><span>{upd.percent}</span></span>
+              : upd.phase === 'ready' ? <RotateCw size={22} strokeWidth={1.75} /> : <Download size={22} strokeWidth={1.75} />}
+            {upd.phase === 'available' && <span className="ewb-contents__dot" data-testid="sider-update-dot" />}
+          </span>
+          <span className="ewb-contents__tag">{upd.tag}</span>
+        </button>
+      </Tooltip>
+    </li>
+  )
 
   const selectedKey = location.pathname.startsWith('/paper/')
     ? '/'
@@ -35,7 +65,7 @@ export default function AppLayout() {
   return (
     <div className="ewb-shell" data-testid="app-shell">
       <aside className="ewb-sider">
-        <Contents items={NAV_ITEMS(active, reviewing)} footerItems={NAV_FOOTER} activeKey={selectedKey} onNavigate={navigate} />
+        <Contents items={NAV_ITEMS(active, reviewing, courseReview)} footerItems={NAV_FOOTER} footerExtra={updateEntry} activeKey={selectedKey} onNavigate={navigate} />
       </aside>
       <main className="ewb-main" data-testid="app-main">
         {showFilter && (

@@ -1,0 +1,86 @@
+[
+  {
+    "feature": "余额",
+    "name": "设置 → AI 服务显示「额度 $40.00」，并注明单位以平台为准",
+    "pass": true,
+    "detail": "账户余额 额度 $40.00 中转平台的额度单位以平台为准 刷新 服务商：中转平台（OpenAI 兼容） 价格（元 / 百万 token） 输入 输出 保存价格 按服务商控制台上的价格填写，填了才能把 token 换算成金额；留空则只显示 token。 自定义余额查询（管理员）"
+  },
+  {
+    "feature": "余额",
+    "name": "服务商显示「中转平台（OpenAI 兼容）」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "余额",
+    "name": "查询带的是当前密钥",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "余额",
+    "name": "点「刷新」后更新为 $30.00",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "余额",
+    "name": "无限额度显示「不限额度」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "余额",
+    "name": "查不到时显示「不支持在软件里查余额」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "用量",
+    "name": "本月用量里有「课程匹配」1 次，没填价格时提示可填价格换算",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "价格",
+    "name": "保存价格后，本月用量多出「约合」一列（2.4 万×2 + 1 万×8 = ¥0.13）",
+    "pass": true,
+    "detail": "本月用量 任务 调用次数 token（输入 + 输出） 约合 课程匹配 1 2.4 万 + 1.0 万 ¥0.13"
+  },
+  {
+    "feature": "价格",
+    "name": "价格存下来了",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "估算",
+    "name": "有历史时按历史平均估算：2 次 = 4.8 万输入 + 2 万输出",
+    "pass": true,
+    "detail": "{\"calls\":2,\"fromHistory\":true,\"tokensIn\":48000,\"tokensOut\":20000,\"tokens\":68000,\"low\":0.2048,\"high\":0.33280000000000004,\"label\":\"课程匹配\",\"last\":null}"
+  },
+  {
+    "feature": "自定义",
+    "name": "填了自定义查询后显示「77.00 点」",
+    "pass": true,
+    "detail": "账户余额 77.00 点 刷新 服务商：中转平台（OpenAI 兼容） 价格（元 / 百万 token） 输入 输出 保存价格 按服务商控制台上的价格填写，填了才能把 token 换算成金额；留空则只显示 token。 自定义余额查询（管理员）"
+  },
+  {
+    "feature": "出错原因",
+    "name": "测试连接失败时，除了原有说明，还给出主因和「可能的原因」列表",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "出错原因",
+    "name": "可展开服务商原话，且不含密钥",
+    "pass": true,
+    "detail": "HTTP 429 · 服务商原话：{\"error\":{\"message\":\"rate limit\"}}"
+  },
+  {
+    "feature": "控制台",
+    "name": "渲染端控制台没有报错、没有出现密钥",
+    "pass": true,
+    "detail": ""
+  }
+]

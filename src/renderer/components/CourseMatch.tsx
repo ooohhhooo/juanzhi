@@ -16,7 +16,7 @@ const wan = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)} 万` : `${Ma
  * 知识点 → 课次 的 AI 匹配控件（设置的体系卡片和看板的“还没匹配”提示共用）：
  * 先显示规模和预计用量，用户点“开始匹配”才调用 AI；逐批显示进度，可取消，已完成的批次保留。
  */
-export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCard, 'id' | 'name' | 'match' | 'status'>; onDone?: () => void }) {
+export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCard, 'id' | 'name' | 'match' | 'status'> & { lessons?: number }; onDone?: () => void }) {
   const { message } = App.useApp()
   const qc = useQueryClient()
   const [prog, setProg] = useState<CourseMatchProgress | null>(null)
@@ -66,6 +66,11 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
           )}
           {est && card.match.state !== 'done' && est.kps > 0 && <CostHint task="course-match" calls={est.batches} fallbackTokens={est.tokens} />}
         </div>
+      )}
+      {!busy && card.match.state === 'partial' && (
+        <p className="ewb-rep-note" data-testid="match-partial-note" style={{ marginTop: 6 }}>
+          {card.lessons ? `${card.lessons} 课里` : ''}已匹配 {card.match.checked} 个知识点，还有 {card.match.total - card.match.checked} 个新知识点没匹配
+        </p>
       )}
       {last && <p className="ewb-rep-note" data-testid="match-result" style={{ marginTop: 6 }}>{last}</p>}
       {last && failed > 0 && !/^匹配完成/.test(last) && <AiErrorExplain message={last} task="course-match" nonce={failed} />}

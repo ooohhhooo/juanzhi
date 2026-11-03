@@ -10,6 +10,7 @@ export function explainTestError(e: unknown, model: string): { message: string; 
     if (e.code === 'forbidden') return { message: `这个密钥没有权限使用这个模型（${model}）`, steps: FORBIDDEN_STEPS, detail: e.detail ? redact(e.detail) : undefined }
     if (e.code === 'not_found') return { message: `找不到这个模型（${model}）：名字写错了，或者还没有开通`, detail: e.detail ? redact(e.detail) : undefined }
     if (e.code === 'auth') return { message: 'API Key 无效（密钥不对）：请重新复制，注意前后不要有空格，并确认它和所选服务商是一家的', detail: e.detail ? redact(e.detail) : undefined }
+    if (e.code === 'balance') return { message: '账户余额不足或欠费了，请到服务商控制台充值后再试', detail: e.detail ? redact(e.detail) : undefined }
     if (e.code === 'rate_limit') {
       // 从响应原话里判断：额度不足 vs 请求太快；判断不了就两种都说
       const quota = /quota|balance|insufficient|余额|额度|欠费|arrear/i.test(e.detail)

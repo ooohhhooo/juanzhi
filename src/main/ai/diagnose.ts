@@ -128,6 +128,12 @@ export function diagnose(e: ErrorLike, ctx: DiagnoseCtx = {}): Diagnosis {
         { text: '模型临时出错或返回了空回答', fix: '点「重试」' },
         { text: '输出额度被思考用完，没剩下正文', fix: '调大输出上限，或换不带深度思考的模型' }
       ])
+    case 'bad_output':
+      return out('AI 的回答格式不对，程序读不懂', [
+        { text: '模型这次没按要求的格式回答（常见于输出被截短或夹杂说明文字）', fix: '点「重试」，一般第二次就好' },
+        { text: '当前模型不太擅长按格式输出', fix: '换一个更强的模型' },
+        { text: '输出长度上限不够，回答写到一半', fix: '在「设置 → AI 服务」把输出上限改成「自动」' }
+      ])
     case 'aborted':
       return out('已取消', [])
     case 'bad_request': {

@@ -15,17 +15,20 @@ export interface JobInput {
   termNote: string
   replaceId?: string
 }
+export interface JobProgress { done: number; total: number; unit: string }
 export interface Job<R> extends JobInput {
   id: string
   status: JobStatus
   error?: string
   result?: R
+  /** 整理进度（整理中才有；例如 3/7 张表） */
+  progress?: JobProgress
   createdAt: number
 }
 
 export interface JobQueueOptions<R> {
   /** 真正干活；signal 被取消时应尽快停下（已被移除的任务结果会被忽略） */
-  run: (job: Job<R>, signal: AbortSignal) => Promise<R>
+  run: (job: Job<R>, signal: AbortSignal, report: (done: number, total: number, unit: string) => void) => Promise<R>
   concurrency?: number
   onChange?: () => void
   /** 任务被移除（取消 / 用户移除 / 保存完）时调用，用来释放读取会话 */
@@ -46,12 +49,16 @@ export function createJobQueue<R>(o: JobQueueOptions<R>) {
 
   const start = async (j: Job<R>, ctl: AbortController): Promise<void> => {
     try {
-      const r = await o.run(j, ctl.signal)
+      const report = (done: number, total: number, unit: string) => {
+        if (jobs.get(j.id) !== j || ctls.get(j.id) !== ctl || j.status !== 'running') return
+        j.progress = { done, total, unit }; changed()
+      }
+      const r = await o.run(j, ctl.signal, report)
       if (jobs.get(j.id) !== j || ctls.get(j.id) !== ctl) return   // 已被取消 / 移除 / 重试覆盖
-      j.status = 'ready'; j.result = r; j.error = undefined
+      j.status = 'ready'; j.result = r; j.error = undefined; j.progress = undefined
     } catch (e) {
       if (jobs.get(j.id) !== j || ctls.get(j.id) !== ctl) return
-      j.status = 'failed'; j.error = (o.describeError ?? (x => (x instanceof Error ? x.message : String(x))))(e)
+      j.status = 'failed'; j.progress = undefined; j.error = (o.describeError ?? (x => (x instanceof Error ? x.message : String(x))))(e)
     }
     ctls.delete(j.id)
     changed()
@@ -90,7 +97,7 @@ export function createJobQueue<R>(o: JobQueueOptions<R>) {
     retry(id: string): boolean {
       const j = jobs.get(id)
       if (!j || j.status !== 'failed') return false
-      j.status = 'queued'; j.error = undefined; j.createdAt = Date.now()
+      j.status = 'queued'; j.error = undefined; j.progress = undefined; j.createdAt = Date.now()
       pump(); changed()
       return true
     },
