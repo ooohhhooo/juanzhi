@@ -39,11 +39,11 @@ export const askUser: ToolDef = {
 export const loadPlaybook: ToolDef = {
   name: 'load_playbook', label: '读取分析步骤', planSafe: true,
   level: 'read',
-  description: '读取一份剧本（分析步骤说明）的全文。剧本的名字和用途见 system 里的「可用剧本」。',
-  schema: z.object({ name: z.string().min(1).max(60).describe('剧本名，和「可用剧本」里的完全一致') }),
+  description: '读取一份 Skill（分析方法说明）的全文。Skill 的名字和用途见 system 里的「可用 Skill」。',
+  schema: z.object({ name: z.string().min(1).max(60).describe('Skill 名，和「可用 Skill」里的完全一致') }),
   run: (args, ctx) => {
     const p = ctx.playbook(args.name)
-    if (!p) return { text: `没有叫「${args.name}」的剧本。现有的剧本：${ctx.playbookNames().join('、') || '（无）'}`, count: 0 }
+    if (!p) return { text: `没有叫「${args.name}」的 Skill。现有的 Skill：${ctx.playbookNames().join('、') || '（无）'}`, count: 0 }
     return { text: `# ${p.name}\n${p.body}`, count: 1 }
   }
 }

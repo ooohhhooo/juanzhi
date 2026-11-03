@@ -1,13 +1,17 @@
-import { dialog, ipcMain } from 'electron'
+import { dialog, ipcMain, shell } from 'electron'
 import fs from 'node:fs'
+import path from 'node:path'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { lessonName } from '../course/map'
 import { getMainWindow } from '../window'
 import {
   agentSettingsView, agentStatus, allPlaybooks, answerApproval, answerAsk, checkEffortSupport, checkToolSupport, customRoles, exportRole, getScene, importRoleText,
-  modelInfo, queryRecord, sessionView, initAgent, modelsView, removeRole, resetStaleRunning, rolesView, saveAgentSettings, saveRole, setScene, startRun, stopRun, toolList, userPlaybookDir
+  modelInfo, queryRecord, sessionView, initAgent, modelsView, removeRole, resetStaleRunning, rolesView, saveAgentSettings, saveRole, setScene, startRun, stopRun, toolList, userPlaybookDir, allToolNames
 } from '../agent/service'
+import { deleteSkill, importSkillFile, importSkillFolder, listUserSkillFiles, saveSkill, skillText } from '../agent/playbooks/manage'
+import { BUILTIN_PLAYBOOK_FILES } from '../agent/playbooks/index'
+import { parsePlaybook } from '../agent/playbooks/parse'
 import { deleteSession, listSessions } from '../agent/store'
 import { AGENT_MODES, APPROVAL_MODES } from '../agent/types'
 
@@ -32,7 +36,27 @@ export function registerAgentIpc(): void {
   ipcMain.handle('agent:tools', async () => toolList())
   ipcMain.handle('agent:customRoles', async () => customRoles())
   ipcMain.handle('agent:settings', async () => agentSettingsView())
-  ipcMain.handle('agent:playbooks', async () => ({ dir: userPlaybookDir(), items: allPlaybooks().map(p => ({ name: p.name, description: p.description, source: p.source })) }))
+  ipcMain.handle('agent:playbooks', async () => {
+    const origins = new Map(listUserSkillFiles(userPlaybookDir()).map(f => [f.playbook.name, f.origin]))
+    return { dir: userPlaybookDir(), items: allPlaybooks().map(p => ({ name: p.name, description: p.description, roles: p.roles, when: p.when, source: p.source, origin: p.source === 'user' ? origins.get(p.name) : undefined })) }
+  })
+  ipcMain.handle('agent:playbookGet', async (_e, name: unknown) => {
+    const n = z.string().min(1).max(60).parse(name)
+    const p = allPlaybooks().find(x => x.name === n)
+    return p ? { name: p.name, description: p.description, roles: p.roles, when: p.when, body: p.body, source: p.source } : null
+  })
+  // 导出 Skill：只写用户在「另存为」里选的文件
+  ipcMain.handle('agent:playbookExport', async (_e, name: unknown) => {
+    const p = allPlaybooks().find(x => x.name === z.string().min(1).max(60).parse(name))
+    if (!p) throw new Error('找不到这个 Skill')
+    const win = getMainWindow()
+    const opts = { title: '导出 Skill', defaultPath: `${p.name}.md`, filters: [{ name: 'Markdown', extensions: ['md'] }] }
+    const pick = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (pick.canceled || !pick.filePath) return { saved: false }
+    fs.writeFileSync(pick.filePath, skillText(p), 'utf8')
+    return { saved: true, path: pick.filePath }
+  })
+  ipcMain.handle('agent:playbookOpenDir', async () => { const d = userPlaybookDir(); fs.mkdirSync(d, { recursive: true }); await shell.openPath(d); return d })
   ipcMain.handle('agent:sessions', async () => listSessions(db()))
   ipcMain.handle('agent:session', async (_e, id: unknown) => {
     return sessionView(IdSchema.parse(id))
@@ -75,7 +99,7 @@ export function registerAgentIpc(): void {
     const p = z.object({
       sessionId: IdSchema.optional(), role: z.string().min(1).max(40), text: z.string().trim().min(1).max(2000),
       mode: z.enum(AGENT_MODES as [string, ...string[]]).optional(), approval: z.enum(APPROVAL_MODES as [string, ...string[]]).optional(), model: z.string().max(120).optional(), effort: z.string().max(10).optional(),
-      branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional(), datasets: z.array(z.string().max(80)).max(20).optional()
+      branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional(), datasets: z.array(z.string().max(80)).max(20).optional(), playbooks: z.array(z.string().max(60)).max(5).optional()
     }).parse(raw)
     return startRun(p as Parameters<typeof startRun>[0])
   })
@@ -90,6 +114,28 @@ export function registerAgentIpc(): void {
     const f = pick.filePaths[0]
     if (fs.statSync(f).size > 64 * 1024) return { picked: true, ok: false, error: '这个文件太大，不像是角色文件。' }
     return { picked: true, ...importRoleText(fs.readFileSync(f, 'utf8')) }
+  })
+  ipcMain.handle('agent:playbookSave', async (_e, raw: unknown) => {
+    const p = z.object({
+      name: z.string().trim().min(1).max(40), description: z.string().max(300), roles: z.array(z.enum(['ops', 'tutor', 'research', 'teacher'])).max(4).default([]),
+      when: z.string().max(300).default(''), body: z.string().max(70000), originalName: z.string().max(60).optional()
+    }).parse(raw)
+    return saveSkill(userPlaybookDir(), p, { originalName: p.originalName, knownTools: allToolNames() })
+  })
+  ipcMain.handle('agent:playbookDelete', async (_e, name: unknown) => deleteSkill(userPlaybookDir(), z.string().min(1).max(60).parse(name)))
+  // 导入：file = 选一个 .md；folder = 选一个含 SKILL.md 的文件夹（只读 SKILL.md，其他文件不导入也不执行）
+  ipcMain.handle('agent:playbookImport', async (_e, kind: unknown) => {
+    const k = z.enum(['file', 'folder']).parse(kind)
+    const win = getMainWindow()
+    const opts = k === 'file'
+      ? { title: '导入 Skill', properties: ['openFile' as const], filters: [{ name: 'Markdown', extensions: ['md'] }] }
+      : { title: '导入 Skill 文件夹（里面要有 SKILL.md）', properties: ['openDirectory' as const] }
+    const pick = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (pick.canceled || !pick.filePaths[0]) return { picked: false }
+    try {
+      const r = k === 'file' ? importSkillFile(userPlaybookDir(), pick.filePaths[0], allToolNames()) : importSkillFolder(userPlaybookDir(), pick.filePaths[0], allToolNames())
+      return { picked: true, ok: true, ...r }
+    } catch (e) { return { picked: true, ok: false, error: (e as Error).message } }
   })
   ipcMain.handle('agent:saveSettings', async (_e, raw: unknown) => {
     const p = z.object({ orgContext: z.string().max(20000).optional(), contextLimit: z.number().int().min(8000).max(1000000).nullable().optional() }).parse(raw)

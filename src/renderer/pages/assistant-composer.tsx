@@ -12,12 +12,12 @@ const APPROVAL_HINT: Record<AgentApproval, string> = { 'ask-all': '导出文件�
 export const EFFORT_LABEL: Record<AgentEffort, string> = { auto: '自动', off: '关', low: '低', medium: '中', high: '高' }
 const OUTPUTS = ['汇报 Word', 'Excel 表', '看板']
 
-/** 输入框上方的小标签：选中的剧本 / 产出形式 / 数据集 / 连接器 */
+/** 输入框上方的小标签：选中的 Skill / 产出形式 / 数据集 / 连接器 */
 export interface Chip { key: string; kind: 'playbook' | 'output' | 'dataset' | 'connector'; label: string }
-const KIND_LABEL: Record<Chip['kind'], string> = { playbook: '剧本', output: '产出', dataset: '数据', connector: '连接器' }
+const KIND_LABEL: Record<Chip['kind'], string> = { playbook: 'Skill', output: '产出', dataset: '数据', connector: '连接器' }
 /** 把标签翻成一句话，附在问题后面一起发给助手 */
 export function chipsToHint(chips: Chip[]): string {
-  const parts = chips.filter(c => c.kind !== 'dataset').map(c => (c.kind === 'playbook' ? `使用剧本《${c.label}》` : c.kind === 'output' ? `产出形式：${c.label}` : c.kind === 'dataset' ? `数据集：${c.label}` : `连接器：${c.label}`))
+  const parts = chips.filter(c => c.kind !== 'dataset').map(c => (c.kind === 'playbook' ? `使用 Skill《${c.label}》` : c.kind === 'output' ? `产出形式：${c.label}` : c.kind === 'dataset' ? `数据集：${c.label}` : `连接器：${c.label}`))
   return parts.length ? `\n（${parts.join('；')}）` : ''
 }
 
@@ -30,7 +30,7 @@ export interface ComposerProps {
   models: AgentModelInfo[]; model: string; mainModel: string; onModel: (m: string) => void
   effort: AgentEffort; onEffort: (e: AgentEffort) => void; effortChoices: AgentEffort[]; curInfo?: AgentModelInfo
   onResetModel: () => void
-  /** 标签区里额外的内容（已选数据集标签），排在选中的剧本 / 产出标签前面 */
+  /** 标签区里额外的内容（已选数据集标签），排在选中的 Skill / 产出标签前面 */
   extra?: React.ReactNode
 }
 
@@ -49,7 +49,7 @@ export default function Composer(p: ComposerProps) {
     const key = q[1].toLowerCase()
     const all: Array<Chip & { group: string }> = [
       ...mentions.filter(m => m.group === 'dataset').map(m => ({ key: `dataset:${m.id}`, kind: 'dataset' as const, label: m.label, group: '数据集' })),
-      ...p.playbooks.map(n => ({ key: `playbook:${n}`, kind: 'playbook' as const, label: n, group: '剧本' })),
+      ...p.playbooks.map(n => ({ key: `playbook:${n}`, kind: 'playbook' as const, label: n, group: 'Skill' })),
       ...mentions.filter(m => m.group === 'connector').map(m => ({ key: `connector:${m.id}`, kind: 'connector' as const, label: m.label, group: '连接器' }))
     ]
     return all.filter(i => i.label.toLowerCase().includes(key))
@@ -59,7 +59,7 @@ export default function Composer(p: ComposerProps) {
     { key: 'add', disabled: !slots.dataActions?.addFiles, label: <span data-testid="assistant-plus-add">添加数据文件…{!slots.dataActions?.addFiles && <small className="ewb-lib-sub">（数据功能接入后可用）</small>}</span>, onClick: () => slots.dataActions?.addFiles?.() },
     { key: 'pick', disabled: !slots.dataActions?.pickDataset, label: <span data-testid="assistant-plus-dataset">选择已有数据集</span>, onClick: () => slots.dataActions?.pickDataset?.() },
     { key: 'send', disabled: !slots.dataActions?.pickSendFile, label: <span data-testid="assistant-plus-sendfile">选择要发送的文件…</span>, onClick: () => { void slots.dataActions?.pickSendFile?.().then(f => { if (f) p.onChange((p.value ? p.value + '\n' : '') + `请把这个文件发到企业微信群：${f}`) }) } },
-    { key: 'pb', label: <span data-testid="assistant-plus-playbook">使用剧本…</span>, children: p.playbooks.map(n => ({ key: `pb:${n}`, label: <span data-testid="assistant-plus-playbook-item">{n}</span>, onClick: () => addChip({ key: `playbook:${n}`, kind: 'playbook', label: n }) })) },
+    { key: 'pb', label: <span data-testid="assistant-plus-playbook">使用 Skill…</span>, children: p.playbooks.map(n => ({ key: `pb:${n}`, label: <span data-testid="assistant-plus-playbook-item">{n}</span>, onClick: () => addChip({ key: `playbook:${n}`, kind: 'playbook', label: n }) })) },
     { key: 'out', label: <span data-testid="assistant-plus-output">产出为…</span>, children: OUTPUTS.map(o => ({ key: `out:${o}`, label: <span data-testid="assistant-plus-output-item">{o}</span>, onClick: () => addChip({ key: `output:${o}`, kind: 'output', label: o }) })) }
   ]
   const approvalItems: MenuProps['items'] = (['ask-external', 'ask-all'] as AgentApproval[]).map(a => ({ key: a, label: <span data-testid={`assistant-approval-${a}`} title={APPROVAL_HINT[a]}>{APPROVAL_LABEL[a]}<small className="ewb-lib-sub">　{APPROVAL_HINT[a]}</small></span>, onClick: () => p.onApproval(a) }))
@@ -113,13 +113,13 @@ export default function Composer(p: ComposerProps) {
       <div style={{ position: 'relative' }}>
         <Input.TextArea
           variant="borderless" value={p.value} autoSize={{ minRows: 2, maxRows: 8 }} data-testid="assistant-input" disabled={p.disabled}
-          placeholder="描述你要分析什么，或拖入数据文件。输入 @ 可以点名数据、剧本、群"
+          placeholder="描述你要分析什么，或拖入数据文件。输入 @ 可以点名数据、Skill、群"
           onChange={e => { p.onChange(e.target.value); if (/@[^\s@]*$/.test(e.target.value)) void loadMentions() }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); if (mentionItems.length && q) { const i = mentionItems[0]; addChip(i); p.onChange(p.value.replace(/@[^\s@]*$/, '')) } else p.onSend() } }}
         />
         {q && mentionItems.length > 0 && (
           <div className="ewb-as-mention" data-testid="assistant-mention-list">
-            {['数据集', '剧本', '连接器'].map(g => {
+            {['数据集', 'Skill', '连接器'].map(g => {
               const items = mentionItems.filter(i => i.group === g)
               return items.length ? (
                 <div key={g}><div className="ewb-as-mention__g">{g}</div>

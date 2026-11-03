@@ -110,6 +110,8 @@ export function rolesView() {
 }
 
 /** 可以勾选的工具（不含每个角色都有的基础工具） */
+export const allToolNames = (): string[] => buildRegistry().registry.names()
+
 export function toolList(): Array<{ name: string; label: string; level: 'read' | 'write' }> {
   const reg = buildRegistry().registry
   return reg.names().filter(n => !BASE_TOOLS.includes(n)).map(n => { const t = reg.get(n)!; return { name: n, label: t.label ?? n, level: t.level } })
@@ -243,6 +245,8 @@ export interface RunArgs {
   branchId?: string
   /** 用户选的数据集编号：记在这个会话上，导出 / 显示时用它们还原真名 */
   datasets?: string[]
+  /** 用户在输入框里指定的 Skill 名：system 里提示先 load_playbook */
+  playbooks?: string[]
 }
 
 /** 开始一次提问；很快返回 sessionId，过程通过 agent:event 推给界面，结束时发 done */
@@ -281,14 +285,14 @@ export function startRun(a: RunArgs): { sessionId: string; branchId: string } {
 
   const run: Run = { ctl: new AbortController(), asks: new Map(), approvals: new Map() }
   runs.set(sid, run)
-  void execute({ sid, text: a.text, role, scene, run, mode, approval, model, effort, branchId, branchFrom: a.branchFrom }).catch(e => {
+  void execute({ sid, text: a.text, role, scene, run, mode, approval, model, effort, branchId, branchFrom: a.branchFrom, playbooks: a.playbooks }).catch(e => {
     console.warn('[agent] 运行出错:', (e as Error).message)
     send({ sessionId: sid, type: 'done', status: 'error' })
   }).finally(() => { runs.delete(sid); notifyDataChanged('agent') })
   return { sessionId: sid, branchId }
 }
 
-interface ExecArgs { sid: string; text: string; role: RoleDef; scene: Scene; run: Run; mode: AgentMode; approval: ApprovalMode; model: string; effort: Effort; branchId: string; branchFrom?: number }
+interface ExecArgs { sid: string; text: string; role: RoleDef; scene: Scene; run: Run; mode: AgentMode; approval: ApprovalMode; model: string; effort: Effort; branchId: string; branchFrom?: number; playbooks?: string[] }
 
 async function execute(x: ExecArgs): Promise<void> {
   const { sid, text, role, scene, run, mode, branchId } = x
@@ -345,7 +349,7 @@ async function execute(x: ExecArgs): Promise<void> {
   const playbooks = playbooksForRole(allPlaybooks(), role.id)
   const org = clipOrgContext(readOrgContext())
   const chosen = selectedDatasets(sid)
-  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen })
+  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
   const { registry, dynamic } = buildRegistry()
   const toolNames = CONNECTOR_ROLES.includes(role.id) ? [...role.tools, ...dynamic] : role.tools
   const prices = getPriceMap()

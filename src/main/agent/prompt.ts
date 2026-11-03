@@ -17,7 +17,7 @@ export const COMMON_RULES = [
   '引用具体的题目时，在句子里写 [[q:题目ID]]；引用课次写 [[lesson:课次ID]]；引用学员写 [[stu:学员编号]]。ID 必须是工具返回的原样内容，不确定就不要写。',
   '引用某次查询得到的数字时，在句末写 [[query:查询编号]]（编号是工具结果开头「查询 #n」里的 n）；没有出处的数字不要写。',
   '导入的数据里，人名、手机号等个人信息已经被换成代号（比如「学员A001」）。回答、文档、名单里原样使用代号，不要猜真名；软件会在显示和导出时自动换回真名。',
-  '需要某种分析套路时，先看下面的「可用剧本」，用 load_playbook 读全文再照着做。',
+  '需要某种分析套路时，先看下面的「可用 Skill」，用 load_playbook 读全文再照着做。',
   '会改动数据的操作需要用户点「同意」才会执行；被拒绝就换个办法，不要反复要求。',
   '回答要有结论在前：先一句话说结果，再列依据；用 Markdown 的短列表，不要写长篇大论。'
 ]
@@ -28,7 +28,7 @@ const MODE_TEXT: Record<AgentMode, string> = {
   auto: '「自动完成」模式：自己决定怎么做，一口气做完；只有遇到只有用户能决定的事才提问。'
 }
 
-export function buildSystemPrompt(o: { role: RoleDef; scene: Scene; playbooks: Playbook[]; today: string; mode?: AgentMode; orgContext?: string; datasets?: Array<{ id: string; name: string }> }): string {
+export function buildSystemPrompt(o: { role: RoleDef; scene: Scene; playbooks: Playbook[]; today: string; mode?: AgentMode; orgContext?: string; datasets?: Array<{ id: string; name: string }>; pickedPlaybooks?: string[] }): string {
   const parts: string[] = []
   parts.push('# 规矩', COMMON_RULES.map((r, i) => `${i + 1}. ${r}`).join('\n'))
   parts.push(`# 你现在的角色\n对方的身份是「${roleName(o.role, o.scene)}」。${o.role.persona}`)
@@ -37,8 +37,9 @@ export function buildSystemPrompt(o: { role: RoleDef; scene: Scene; playbooks: P
   if (o.mode) parts.push('# 工作方式\n' + MODE_TEXT[o.mode])
   if (o.role.defaultPlaybook && o.playbooks.some(p => p.name === o.role.defaultPlaybook)) parts.push(`这个角色的默认做法：遇到相关任务先用 load_playbook 读《${o.role.defaultPlaybook}》再照着做。`)
   const cat = playbookCatalog(o.playbooks)
-  parts.push('# 可用剧本\n' + (cat || '（暂时没有）'))
+  parts.push('# 可用 Skill（分析方法说明）\n' + (cat || '（暂时没有）'))
   if (o.datasets?.length) parts.push('# 用户这次选好的数据集（调用数据工具时用括号里的编号）\n' + o.datasets.map(d => `- ${d.name}（${d.id}）`).join('\n'))
+  if (o.pickedPlaybooks?.length) parts.push(`# 用户指定的 Skill\n用户指定了 Skill ${o.pickedPlaybooks.map(n => `《${n}》`).join('、')}，请先用 load_playbook 读全文，再按它的步骤做。`)
   parts.push(`今天是 ${o.today}。`)
   return parts.join('\n\n')
 }

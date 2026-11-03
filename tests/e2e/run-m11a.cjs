@@ -39,7 +39,7 @@ async function main() {
   await shot('assistant-composer')
   // 「＋」菜单
   await T('assistant-plus').click()
-  check('＋菜单', '＋菜单：添加数据文件…、选择已有数据集（数据功能已接入，不再置灰）、使用剧本…、产出为…', (await count('assistant-plus-add')) === 1 && (await count('assistant-plus-dataset')) === 1 && (await count('assistant-plus-playbook')) === 1 && (await count('assistant-plus-output')) === 1 && (await ctx.page.locator('.ant-dropdown-menu-item-disabled').count()) === 0)
+  check('＋菜单', '＋菜单：添加数据文件…、选择已有数据集（数据功能已接入，不再置灰）、使用 Skill…、产出为…', (await count('assistant-plus-add')) === 1 && (await count('assistant-plus-dataset')) === 1 && (await count('assistant-plus-playbook')) === 1 && (await count('assistant-plus-output')) === 1 && (await ctx.page.locator('.ant-dropdown-menu-item-disabled').count()) === 0)
   await ctx.page.locator('.ant-dropdown [data-testid=assistant-plus-output]').hover()
   await ctx.page.locator('[data-testid=assistant-plus-output-item]', { hasText: 'Excel 表' }).click()
   check('＋菜单', '选「产出为 Excel 表」：以小标签出现在输入框上方，可删除', (await T('assistant-chip').count()) === 1 && /产出 · Excel 表/.test(await txt('assistant-chip')))
@@ -47,9 +47,9 @@ async function main() {
   check('＋菜单', '点标签上的 × 删除', (await count('assistant-chip')) === 0)
   // @ 提及
   await T('assistant-input').fill('请按 @学情')
-  check('@提及', '输入框里打 @ 弹出可搜索列表（分组：剧本……），列出「学情周报」', await waitFor(async () => (await count('assistant-mention-list')) === 1, 5000) && /学情周报/.test(await txt('assistant-mention-list')))
+  check('@提及', '输入框里打 @ 弹出可搜索列表（分组：Skill……），列出「学情周报」', await waitFor(async () => (await count('assistant-mention-list')) === 1, 5000) && /学情周报/.test(await txt('assistant-mention-list')))
   await T('assistant-mention-item').first().click()
-  check('@提及', '选中后变成标签，输入框里的 @ 文字被去掉', (await T('assistant-chip').count()) === 1 && /剧本 · 学情周报/.test(await txt('assistant-chip')) && !(await T('assistant-input').inputValue()).includes('@'))
+  check('@提及', '选中后变成标签，输入框里的 @ 文字被去掉', (await T('assistant-chip').count()) === 1 && /Skill · 学情周报/.test(await txt('assistant-chip')) && !(await T('assistant-input').inputValue()).includes('@'))
   await T('assistant-chip-remove').click(); await T('assistant-input').fill('')
   // 审批标签
   await T('assistant-approval-tag').click()

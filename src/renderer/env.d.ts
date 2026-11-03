@@ -417,7 +417,13 @@ interface ElectronAPI {
     importRole(): Promise<{ picked: false } | { picked: true; ok: true; role: AgentCustomRole; droppedTools: number } | { picked: true; ok: false; error: string }>
     exportRole(id: string): Promise<{ saved: boolean; path?: string }>
     checkEffort(model: string): Promise<AgentModelInfo>
-    playbooks(): Promise<{ dir: string; items: Array<{ name: string; description: string; source: 'builtin' | 'user' }> }>
+    playbooks(): Promise<{ dir: string; items: Array<{ name: string; description: string; roles: string[]; when: string; source: 'builtin' | 'user'; origin?: 'imported' }> }>
+    playbookGet(name: string): Promise<{ name: string; description: string; roles: string[]; when: string; body: string; source: 'builtin' | 'user' } | null>
+    playbookSave(p: { name: string; description: string; roles: string[]; when: string; body: string; originalName?: string }): Promise<{ name: string; warnings: string[] }>
+    playbookDelete(name: string): Promise<boolean>
+    playbookImport(kind: 'file' | 'folder'): Promise<{ picked: false } | { picked: true; ok: true; name: string; warnings: string[]; note?: string } | { picked: true; ok: false; error: string }>
+    playbookExport(name: string): Promise<{ saved: boolean; path?: string }>
+    playbookOpenDir(): Promise<string>
     sessions(): Promise<AgentSessionView[]>
     session(id: string): Promise<{ session: AgentSessionView; steps: AgentStepRow[]; running: boolean } | null>
     cites(refs: Array<{ kind: string; id: string }>): Promise<AgentCite[]>
@@ -425,7 +431,7 @@ interface ElectronAPI {
     setScene(scene: 'org' | 'school'): Promise<'org' | 'school'>
     /** 发一次很小的请求，检测当前模型支不支持工具调用（结果缓存） */
     checkTools(model?: string): Promise<AgentStatus>
-    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string; datasets?: string[] }): Promise<{ sessionId: string; branchId: string }>
+    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string; datasets?: string[]; playbooks?: string[] }): Promise<{ sessionId: string; branchId: string }>
     deleteSession(id: string): Promise<boolean>
     stop(sessionId: string): Promise<boolean>
     answer(sessionId: string, askId: string, answer: string): Promise<boolean>

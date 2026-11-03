@@ -166,7 +166,7 @@ const evs = (events, type) => events.filter(e => e.type === type)
   const msgs = s.model.seen[2].messages.filter(m => m.role === 'tool')
   assert.match(msgs[1].content, /用户的回答：四年级/)
   const pb = s.model.seen[3].messages.filter(m => m.role === 'tool')
-  assert.match(pb[2].content, /步骤1/); assert.match(pb[3].content, /没有叫「不存在」的剧本/)
+  assert.match(pb[2].content, /步骤1/); assert.match(pb[3].content, /没有叫「不存在」的 Skill/)
   // ask_user 选项数量不合规 → 校验失败
   const s2 = setup([reply('', [call('ask_user', { question: 'q', options: ['只有一个'] }, 'k2')]), reply('好')])
   await s2.run(); assert.equal(evs(s2.events, 'tool_result')[0].ok, false)

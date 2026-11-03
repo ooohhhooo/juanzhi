@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { App, Checkbox, Input, InputNumber, Modal, Select } from 'antd'
+import { App, Checkbox, Input, InputNumber, Modal, Select, Tabs } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Download, Pencil } from 'lucide-react'
 import { Btn } from '../design'
+import { SkillsPanel } from './assistant-skills'
 
 const NONE: never[] = []
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
-/** 新建 / 编辑自定义角色：名称、说明、可用工具、推荐问题、默认剧本、额外说明；编辑时可导出、删除 */
+/** 新建 / 编辑自定义角色：名称、说明、可用工具、推荐问题、默认 Skill、额外说明；编辑时可导出、删除 */
 export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; roleId: string | null; onClose: () => void; onSaved: (id: string | null) => void }) {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
@@ -59,7 +60,7 @@ export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; r
           <span className="ewb-lib-sub">写计划、向你提问、读取分析步骤、取回进度是每个角色都有的。</span>
         </div>
         <label>推荐问题（一行一个，最多 4 个）<Input.TextArea value={sugg} rows={3} data-testid="role-suggest" onChange={e => setSugg(e.target.value)} /></label>
-        <label>默认分析步骤（可选）<Select allowClear style={{ width: '100%' }} value={playbook} placeholder="不选" data-testid="role-playbook" onChange={v => setPlaybook(v)} options={(pbs?.items ?? []).map(p => ({ value: p.name, label: p.name }))} /></label>
+        <label>默认 Skill（可选）<Select allowClear style={{ width: '100%' }} value={playbook} placeholder="不选" data-testid="role-playbook" onChange={v => setPlaybook(v)} options={(pbs?.items ?? []).map(p => ({ value: p.name, label: p.name }))} /></label>
         <label>只给这个角色的额外说明（可选）<Input.TextArea value={notes} rows={2} maxLength={1500} data-testid="role-notes" onChange={e => setNotes(e.target.value)} /></label>
       </div>
     </Modal>
@@ -78,6 +79,7 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
   const { data } = useQuery({ queryKey: ['agent', 'settings'], queryFn: () => window.api.agent.settings(), enabled: open, staleTime: 0 })
   const [ctx, setCtx] = useState('')
   const [limit, setLimit] = useState<number | null>(null)
+  const [tab, setTab] = useState('general')
   useEffect(() => { if (open && data) { setCtx(data.orgContext); setLimit(data.contextLimit) } }, [open, data])
   const max = data?.orgContextMax ?? 4000
   const save = async () => {
@@ -87,9 +89,13 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
     } catch (e) { message.error(clean(e)) }
   }
   return (
-    <Modal open={open} title="助手设置" onCancel={onClose} width={560} destroyOnClose
-      footer={<><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}>
-      <div data-testid="assistant-settings" style={{ display: 'grid', gap: 16 }}>
+    <Modal open={open} title="助手设置" onCancel={onClose} width={640} destroyOnClose afterClose={() => setTab('general')}
+      footer={tab === 'skills' ? <Btn tone="secondary" onClick={onClose}>关闭</Btn> : <><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}>
+      <Tabs activeKey={tab} onChange={setTab} items={[
+        { key: 'general', label: <span data-testid="assistant-settings-tab-general">通用</span> },
+        { key: 'skills', label: <span data-testid="assistant-settings-tab-skills">Skill</span> }
+      ]} />
+      {tab === 'skills' ? <SkillsPanel /> : <div data-testid="assistant-settings" style={{ display: 'grid', gap: 16 }}>
         {extra && (
           <div>
             <b>你的场景</b>
@@ -122,7 +128,7 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
           <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>对话用到上限的约 70% 时，助手会自动把前面的内容整理成摘要再继续。不填就按模型的默认值（现在是 {data?.contextLimitEffective?.toLocaleString() ?? '…'} token）。</p>
           <InputNumber value={limit} min={8000} max={1000000} step={8000} placeholder={String(data?.contextLimitDefault ?? 64000)} data-testid="assistant-context-limit" onChange={v => setLimit(v === null ? null : Number(v))} style={{ width: 180 }} /> token
         </div>
-      </div>
+      </div>}
     </Modal>
   )
 }

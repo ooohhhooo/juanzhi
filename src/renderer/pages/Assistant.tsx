@@ -336,7 +336,7 @@ export default function Assistant() {
     startingRef.current = true
     setRunning(true); setLive(''); setProgress(null); setApproval(null)
     try {
-      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
+      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), playbooks: chips.filter(c => c.kind === 'playbook').map(c => c.label), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
       activeRef.current = r.sessionId; setActive(r.sessionId); setBranchId(r.branchId); setForkFrom(null); setText(''); setChips([])
       const used = chips.filter(c => c.kind === 'dataset'); if (used.length) addPickedDatasets(used.map(c => ({ id: c.key.slice('dataset:'.length), name: c.label })))
     } catch (e) {
