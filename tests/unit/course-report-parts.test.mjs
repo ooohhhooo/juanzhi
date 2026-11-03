@@ -61,12 +61,12 @@ const opts = (ids = ['o1'], extra = {}) => ({ course: { outlineIds: ids }, ...ex
   assert.ok(t.indexOf('课程对照与选课建议') < t.indexOf('学习进步建议'))
   const f = assembleReport(MAIN, [{ id: COURSE_FULL_ID, status: 'ok', markdown: '## 课程对照\n\n表' }], meta)
   assert.ok(f.indexOf('学习进步建议') < f.indexOf('## 课程对照'))
-  // 家长版一句话被丢弃（内容为空）：不留“没有生成”的占位；失败的段仍然留占位
+  // 家长版一句话被丢弃（内容为空）：不留“没有生成”的占位；失败 / 中止的也不留（界面段列表里看得到）
   const hintMeta = COURSE_PART_METAS.find(m => m.id === COURSE_HINT_ID)
   assert.equal(hintMeta.omitWhenEmpty, true)
   const dropped = assembleReport('# 家长\n\n正文', [{ id: COURSE_HINT_ID, status: 'ok', markdown: '' }], meta)
   assert.ok(!dropped.includes('没有生成'))
-  assert.ok(assembleReport('# 家长\n\n正文', [{ id: COURSE_HINT_ID, status: 'failed', markdown: '' }], meta).includes('没有生成'))
+  assert.ok(!assembleReport('# 家长\n\n正文', [{ id: COURSE_HINT_ID, status: 'failed', markdown: '' }], meta).includes('没有生成'))
 }
 
 // ── 家长版 300 字：够放就追加；超了丢弃并记告警；一句话太长也丢

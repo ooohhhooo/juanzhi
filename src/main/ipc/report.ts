@@ -104,6 +104,7 @@ export function registerReportIpc(): void {
   ipcMain.handle('report:copyCourseAdvice', async (_e, rawId: unknown) => {
     const report = getReport(IdSchema.parse(rawId))
     if (!report) throw new Error('这份报告已经不存在了')
+    assertExportable(report)   // 和导出同一道门槛（正在生成 / 家长版没核对等）
     if (!report.courseAdvice) throw new Error('这份报告里没有课程建议')
     if (!report.confirmedAt) throw new Error('请先点「我已核对」，确认这段话没问题再复制给家长')
     if (report.status === 'stale') throw new Error('这份报告已经过期（数据或课程有变化），请重新生成并核对后再复制')

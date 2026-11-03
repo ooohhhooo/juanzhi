@@ -108,3 +108,12 @@ const odd = buildVariantsSection([row({ seq: 1, teacher_ok: true, stem: 'Say {he
 assert.equal(parseBlocks(odd).find(b => b.type === 'card').items[0].answer.options.length, 4)
 
 console.log('assemble.test ✓')
+
+// omitWhenEmpty 的段：失败 / 中止 / 跳过时正文里不留任何占位
+{
+  const metas = [...CORE_PART_METAS, { id: 'omit_x', label: '课程建议', order: 999, placement: 'tail', omitWhenEmpty: true }]
+  for (const status of ['failed', 'aborted', 'skipped']) {
+    const out = assembleReport(MAIN, [{ id: 'omit_x', status, markdown: '' }], metas)
+    assert.ok(!out.includes('这一部分没有生成') && !out.includes('课程建议') && !out.includes('重试'), `omitWhenEmpty ${status} 不留占位`)
+  }
+}

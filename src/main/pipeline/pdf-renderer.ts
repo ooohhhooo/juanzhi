@@ -94,7 +94,12 @@ function translatePdfError(raw: string): string {
 /**
  * 逐页渲染：每渲染完一页立即把 PNG 落盘并释放，避免整本文档的 base64 一次性回传。
  */
-export function renderPdfPages(pdfPath: string, outputDir: string): Promise<RenderedPage[]> {
+export class PdfPageLimitError extends Error {
+  constructor(public pages: number, public max: number) { super(`PDF 有 ${pages} 页，超过 ${max} 页的上限`) }
+}
+
+/** @param maxPages 可选：页数一知道就超限的话立刻抛 PdfPageLimitError，不渲染（考卷导入不传 = 行为不变） */
+export function renderPdfPages(pdfPath: string, outputDir: string, maxPages?: number): Promise<RenderedPage[]> {
   return serialized(async () => {
     const w = await ensureWindow()
     const b64 = fs.readFileSync(pdfPath).toString('base64')
@@ -127,6 +132,7 @@ export function renderPdfPages(pdfPath: string, outputDir: string): Promise<Rend
 
     const results: RenderedPage[] = []
     try {
+      if (maxPages != null && numPages > maxPages) throw new PdfPageLimitError(numPages, maxPages)
       for (let i = 1; i <= numPages; i++) {
         const page = await withTimeout(
           w.webContents.executeJavaScript(`(${renderPageScript})(${i}, ${MAX_CANVAS_DIM})`),

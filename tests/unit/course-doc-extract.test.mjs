@@ -29,10 +29,17 @@ assert.equal(richKindOf('DOCX'), 'docx'); assert.equal(richKindOf('.pdf'), 'pdf'
 // ── Word 表格 ──
 const tbl = `<w:tbl><w:tblPr/><w:tr>${tc('课次')}${tc('课程标题')}${tc('词汇')}</w:tr>` +
   `<w:tr>${tc('1')}${tc('一般现在时')}${tc('apple')}</w:tr>` +
-  `<w:tr>${tc('2')}${tc('一般过去时')}${tc('pear')}</w:tr></w:tbl>`
+  `<w:tr>${tc('2')}${tc('一般过去时')}${tc('pear')}</w:tr>` +
+  `<w:tr>${tc('3')}${tc('一般将来时')}${tc('plum')}</w:tr></w:tbl>`
 const t1 = await readDocxTables(await docx(p('课程表') + tbl))
 assert.equal(t1.sheets.length, 1)
-assert.deepEqual(t1.sheets[0].rows, [['课次', '课程标题', '词汇'], ['1', '一般现在时', 'apple'], ['2', '一般过去时', 'pear']])
+assert.deepEqual(t1.sheets[0].rows, [['课次', '课程标题', '词汇'], ['1', '一般现在时', 'apple'], ['2', '一般过去时', 'pear'], ['3', '一般将来时', 'plum']])
+// 一张小的 2x2 信息表 + 课在段落里 → 不当课程表，走文字整理
+const info = `<w:tbl><w:tr>${tc('姓名')}${tc('小明')}</w:tr><w:tr>${tc('班级')}${tc('A1')}</w:tr></w:tbl>`
+assert.equal(await readDocxTables(await docx(info + p('第1课 一般现在时') + p('第2课 一般过去时') + p('第3课 一般将来时'))), null)
+// 信息表 + 大表：只取大表
+const t3 = await readDocxTables(await docx(info + tbl))
+assert.equal(t3.sheets.length, 1); assert.equal(t3.sheets[0].rows.length, 4)
 // 没有表格 / 只有单格版式表 → null（改走文字整理）
 assert.equal(await readDocxTables(await docx(p('第1课 一般现在时') + p('第2课 一般过去时'))), null)
 assert.equal(await readDocxTables(await docx(`<w:tbl><w:tr>${tc('只有一格')}</w:tr></w:tbl>`)), null)
@@ -55,6 +62,14 @@ assert.equal(titleInSource('第1课 一般现在时', '第1课：一般现在时
 assert.equal(titleInSource('Hello, World!', 'say hello world today'), true)
 assert.equal(titleInSource('凭空多出来的一课', '第1课 一般现在时'), false)
 assert.equal(titleInSource('', 'abc'), false)
+assert.equal(titleInSource('a', 'a b c'), false, '太短的标题不算')
+assert.equal(titleInSource('课', '第1课'), false)
+assert.equal(titleInSource('一般', '第1课 一般现在时'), true)
+assert.equal(titleInSource('现在时第2课', '第1课 一般现在时\n第2课 过去'), false, '不能跨行拼出来')
+{
+  const dup = parseExtractResponse(JSON.stringify({ lessons: [{ level: '基础级', seq: '1', title: '一般现在时' }, { level: '基础级', seq: '1', title: '一般现在时' }] }), ['第1课 一般现在时'])
+  assert.equal(dup.lessons.length, 1, '完全相同的课去重')
+}
 
 const src = numberLines(['第1课 一般现在时', '词汇：apple；pear', '', '第2课 一般过去时', '页码 1'])
 assert.equal(src.text, 'L1: 第1课 一般现在时\nL2: 词汇：apple；pear\nL3: 第2课 一般过去时\nL4: 页码 1')
