@@ -41,7 +41,21 @@ assert.ok(ex.path.endsWith('.xlsx'))
 const zip = await JSZip.loadAsync(fs.readFileSync(ex.path))
 assert.ok((await zip.file('xl/sharedStrings.xml').async('string')).includes('人员A002'))
 // 重名工具报错
-assert.throws(() => composeTools([...fakeConnectors, fakeConnectors[1]]), /重复/)
+{ const w0 = console.warn; console.warn = () => {}; try { assert.equal(composeTools([...fakeConnectors, fakeConnectors[1]]).length, tools.length, '重名的跳过，不整体失败') } finally { console.warn = w0 } }
 assert.throws(() => composeTools([{ ...fakeConnectors[1], name: 'x_send', preview: undefined }]), /preview/)
+// 连接器工具重名（比如两个 MCP 服务器 slug 后撞名）：跳过重名的，不整体失败
+{
+  const dup = (name) => ({ name, description: 'x', params: z.object({}), level: 'external', preview: async () => ({ target: '', content: '' }), run: async () => ({ ok: true, message: '' }) })
+  const warns = []
+  const w0 = console.warn
+  console.warn = (...a) => warns.push(a.join(' '))
+  try {
+    const out = composeTools([...fakeConnectors, dup('mcp_a_x'), dup('mcp_a_x'), dup('run_query')])
+    assert.equal(out.filter(t => t.name === 'mcp_a_x').length, 1)
+    assert.equal(out.filter(t => t.name === 'run_query').length, 1, '不能顶掉内置工具')
+    assert.ok(warns.some(x => x.includes('mcp_a_x')) && warns.some(x => x.includes('run_query')))
+  } finally { console.warn = w0 }
+}
+
 clearBoards()
 console.log(`agent-all-tools.test ✓（${tools.length} 个工具）`)

@@ -120,6 +120,37 @@ export function testVals(a: number[], b: number[], m: MetricSpec): TestResult {
   return { ...t, diff: t.diff * scaleOf(m) }
 }
 
+/** 一组数值的汇总（n、和、平方和）。平方和按 shift 平移后算，减法求「其余各组」时不会因大数相消而失真 */
+export interface Agg { n: number; sum: number; sq: number }
+export function aggOf(vals: number[], shift: number): Agg {
+  let sum = 0, sq = 0
+  for (const v of vals) { const d = v - shift; sum += d; sq += d * d }
+  return { n: vals.length, sum, sq }
+}
+export const aggMinus = (t: Agg, a: Agg): Agg => ({ n: t.n - a.n, sum: t.sum - a.sum, sq: t.sq - a.sq })
+
+/** testVals 的汇总版：不用把「其余各组」的数值拼成大数组，用总和减去本组即可。结果与 testVals 一致（浮点误差以内） */
+export function testAgg(a: Agg, b: Agg, shift: number, m: MetricSpec): TestResult {
+  let t: TestResult
+  if (m.kind === 'rate') t = twoPropZ(a.sum + a.n * shift, a.n, b.sum + b.n * shift, b.n)
+  else {
+    const ma = a.n ? a.sum / a.n : 0, mb = b.n ? b.sum / b.n : 0
+    const diff = ma - mb
+    if (a.n < 2 || b.n < 2) t = { diff, stat: null, p: null, method: 'welch' }
+    else {
+      const va = Math.max(0, (a.sq - (a.sum * a.sum) / a.n) / (a.n - 1)) / a.n, vb = Math.max(0, (b.sq - (b.sum * b.sum) / b.n) / (b.n - 1)) / b.n
+      const se2 = va + vb
+      if (se2 < 1e-18) t = { diff, stat: Math.abs(diff) < 1e-12 ? 0 : null, p: Math.abs(diff) < 1e-12 ? 1 : null, method: 'welch' }
+      else {
+        const tt = diff / Math.sqrt(se2)
+        const df = (se2 * se2) / ((va * va) / (a.n - 1) + (vb * vb) / (b.n - 1))
+        t = { diff, stat: tt, p: tTwoSidedP(tt, df), method: 'welch', df }
+      }
+    }
+  }
+  return { ...t, diff: t.diff * scaleOf(m) }
+}
+
 /** 把“A 比 B 高 / 低多少、显著不显著”写成一句话 */
 export function diffSentence(nameA: string, nameB: string, diff: number, p: number | null, unit: string, small = false): string {
   const u = unit ? ` ${unit}` : ''
@@ -202,15 +233,17 @@ export function compareGroups(rows: Row[], groupKey: string, metric: MetricSpec,
   const ignored = rows.length - allVals.length
   if (ignored > 0) notes.push(`有 ${ignored} 行的「${metric.column}」为空或不是有效值，没有计入`)
   const groups: GroupStat[] = []
-  for (const [name, rs] of groupRows(rows, groupKey)) {
-    const vals = metricValues(rs, metric)
+  // 先一次性分好组、算好每组的汇总和总汇总；「其余各组」用总汇总减去本组得到（不再对每组重扫全表、拼大数组）
+  const shift = allVals.length && metric.kind !== 'rate' ? mean(allVals) : 0
+  const pre = [...groupRows(rows, groupKey)].map(([name, rs]) => { const vals = metricValues(rs, metric); return { name, vals, agg: aggOf(vals, shift) } })
+  const total = aggOf(allVals, shift)
+  for (const { name, vals, agg } of pre) {
     if (!vals.length) continue
-    const rest: number[] = []
-    for (const [n2, rs2] of groupRows(rows, groupKey)) if (n2 !== name) rest.push(...metricValues(rs2, metric))
+    const rest = aggMinus(total, agg)
     const value = valueOf(vals, metric)!
     const diff = overallValue === null ? null : value - overallValue
     const small = vals.length < minN
-    const t = rest.length ? testVals(vals, rest, metric) : null
+    const t = rest.n ? testAgg(agg, rest, shift, metric) : null
     const p = t?.p ?? null
     const significant = !small && p !== null && p < alpha
     const u = unitOf(metric)
@@ -272,8 +305,12 @@ export function findLowGroups(rows: Row[], metric: MetricSpec, opts: LowGroupOpt
     const parentValue = valueOf(parentVals, metric)
     if (parentValue === null) return
     const gs = groupRows(sub, key)
+    const shift = metric.kind === 'rate' ? 0 : mean(parentVals)
+    const pre = new Map<string, { vals: number[]; agg: Agg }>()
+    for (const [n2, rs2] of gs) { const v2 = metricValues(rs2, metric); pre.set(n2, { vals: v2, agg: aggOf(v2, shift) }) }
+    const total = aggOf(parentVals, shift)
     for (const [name, rs] of gs) {
-      const vals = metricValues(rs, metric)
+      const { vals, agg } = pre.get(name)!
       if (!vals.length) continue
       const myPath = [...path, { key, value: name }]
       const label = myPath.map(x => `${x.key}=${x.value}`).join(' > ')
@@ -281,13 +318,12 @@ export function findLowGroups(rows: Row[], metric: MetricSpec, opts: LowGroupOpt
       const diff = value - parentValue
       let hit = false
       if (gs.size > 1) {
-        const rest: number[] = []
-        for (const [n2, rs2] of gs) if (n2 !== name) rest.push(...metricValues(rs2, metric))
+        const rest = aggMinus(total, agg)
         if (vals.length < minN) {
           if (((dir !== 'high' && diff < 0) || (dir !== 'low' && diff > 0)) && Math.abs(diff) >= Math.max(minDiff, 1e-9) && small.length < 50) small.push({ label, n: vals.length, value: r1n(value), diff: r1n(diff) })
-        } else if (rest.length) {
+        } else if (rest.n) {
           checked++
-          const t = testVals(vals, rest, metric)
+          const t = testAgg(agg, rest, shift, metric)
           const z = t.stat ?? 0
           const wantLow = dir !== 'high' && diff < 0 && z <= -zT
           const wantHigh = dir !== 'low' && diff > 0 && z >= zT

@@ -81,8 +81,22 @@ export class Codebook {
   constructor(file: string | null) {
     this.file = file
     if (file) {
-      try { const raw = JSON.parse(fs.readFileSync(file, 'utf8')); if (raw && typeof raw === 'object' && raw.kinds) this.book = raw } catch { /* 新的 */ }
+      try { this.book = Codebook.rebuild(JSON.parse(fs.readFileSync(file, 'utf8'))) } catch { /* 新的 */ }
     }
+  }
+  /** 从 JSON 读回来的映射用无原型对象重建，防 __proto__ / constructor 之类的键污染或冲突；格式不对的条目丢掉 */
+  static rebuild(raw: unknown): Book {
+    const book: Book = { kinds: {} }
+    const kinds = raw && typeof raw === 'object' ? (raw as { kinds?: unknown }).kinds : null
+    if (!kinds || typeof kinds !== 'object') return book
+    for (const kind of KINDS) {
+      const k = (kinds as Record<string, unknown>)[kind] as { n?: unknown; fwd?: unknown } | undefined
+      if (!k || typeof k !== 'object' || !k.fwd || typeof k.fwd !== 'object') continue
+      const fwd: Record<string, string> = Object.create(null)
+      for (const [orig, code] of Object.entries(k.fwd as Record<string, unknown>)) if (typeof code === 'string') fwd[orig] = code
+      book.kinds[kind] = { n: typeof k.n === 'number' && Number.isFinite(k.n) ? k.n : Object.keys(fwd).length, fwd }
+    }
+    return book
   }
   /** 取（没有就分配）一个原值的代号 */
   code(kind: SensitiveKind, value: string): string {

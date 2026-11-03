@@ -2,7 +2,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import type { ActionResult, Connector } from './types'
+import type { ActionCtx, ActionResult, Connector } from './types'
+import { checkSendAllowed } from './send-guard.ts'
 import { WECOM_MAX_FILE, explainWecomError, isTestLocalAllowed, markdownSegments, parseWebhook, redactKey, textSegments } from './wecom-core'
 
 export const WecomConfigSchema = z.object({
@@ -41,11 +42,13 @@ async function sendSegments(cfg: Cfg, segs: string[], make: (s: string) => unkno
 const BLOCKED_FILE = /(^|[\\/])(db\.sqlite[^\\/]*|\.ssh|\.env[^\\/]*|id_rsa[^\\/]*|ewb-config\.json)([\\/]|$)/i
 
 /** 发文件前的检查，返回错误文字或 null；size 一并返回 */
-export function checkSendableFile(p: string): { error: string | null; size: number; name: string } {
+export function checkSendableFile(p: string, scope: ActionCtx = {}, opts: { consume?: boolean; strict?: boolean } = {}): { error: string | null; size: number; name: string } {
   const name = path.basename(p)
   try {
     if (!path.isAbsolute(p)) return { error: '请提供完整的文件路径', size: 0, name }
     if (BLOCKED_FILE.test(p)) return { error: '这个文件不能发送', size: 0, name }
+    const denied = checkSendAllowed(p, scope, opts)
+    if (denied) return { error: denied, size: 0, name }
     const st = fs.statSync(p)
     if (!st.isFile()) return { error: '不是文件', size: 0, name }
     if (st.size > WECOM_MAX_FILE) return { error: `文件 ${(st.size / 1048576).toFixed(1)}MB，超过企业微信 20MB 的上限`, size: st.size, name }
@@ -54,8 +57,8 @@ export function checkSendableFile(p: string): { error: string | null; size: numb
   } catch { return { error: '找不到这个文件', size: 0, name } }
 }
 
-async function sendFile(cfg: Cfg, filePath: string): Promise<ActionResult> {
-  const chk = checkSendableFile(filePath)
+async function sendFile(cfg: Cfg, filePath: string, ctx: ActionCtx): Promise<ActionResult> {
+  const chk = checkSendableFile(filePath, ctx, { consume: true })
   if (chk.error) return { ok: false, message: chk.error }
   const w = parseWebhook(cfg.webhook, isTestLocalAllowed())!
   try {
@@ -95,7 +98,7 @@ export const wecom: Connector = {
     {
       name: 'send_file', description: '发送文件（不超过 20MB）',
       params: z.object({ path: z.string().min(1) }),
-      run: (a: { path: string }, cfg: Cfg) => sendFile(cfg, a.path)
+      run: (a: { path: string }, cfg: Cfg, ctx: ActionCtx) => sendFile(cfg, a.path, ctx ?? {})
     }
   ]
 }

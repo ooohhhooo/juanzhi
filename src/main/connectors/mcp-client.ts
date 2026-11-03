@@ -146,3 +146,12 @@ export function toolSlug(s: string, fallback: string): string {
   return v || fallback
 }
 export const mcpToolName = (server: string, tool: string, fallback: string): string => `mcp_${toolSlug(server, fallback)}_${toolSlug(tool, 'tool')}`
+
+/** slug 之后可能重名（「a-b」和「a_b」都变成 a_b）：先加连接 id 前几位，还重就加序号。登记进 used */
+export function uniqueToolName(base: string, id: string, used: Set<string>): string {
+  let n = base
+  if (used.has(n)) n = `${base}_${id.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toLowerCase()}`
+  for (let i = 2; used.has(n); i++) n = `${base}_${i}`
+  used.add(n)
+  return n
+}

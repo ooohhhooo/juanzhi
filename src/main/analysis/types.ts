@@ -113,6 +113,8 @@ export interface QueryResult {
   message?: string
   /** SQLite 原始错误（失败时） */
   rawError?: string
+  /** 给模型看的原始错误关键片段（已代号化、去个人信息）；rawError 本身不会外传 */
+  detail?: string
   elapsedMs: number
 }
 

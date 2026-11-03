@@ -140,11 +140,23 @@ export function setStatus(s: Scope, id: string, status: OutputStatus): void {
 
 const MAX_COLS = 100
 const MAX_ROWS = 100_000
-/** 以 = + - @ 开头的文字，Excel 会当公式执行：前面补一个单引号（纯数字不动） */
+/**
+ * CSV 防公式：Excel 打开 csv 时会把 = 开头、或 + - @ 开头的文字当公式执行，所以前面补一个单引号。
+ * 数值样式的值不加（-12.5%、+86 13812345678 这类，补了会显示错）：以 + - 开头且整串只有数字 / 小数点 / 逗号 / 百分号 / 空格 / 连字符，视为数值。
+ * 原值本来就以 ' 开头且后面是触发字符时，多补一个 '，这样读回来能分清哪个 ' 是我们加的。
+ */
+const FORMULA_START = /^[=+\-@\t\r]/
+const QUOTED_FORMULA = /^'+[=+\-@\t\r]/
+const NUMBERISH = /^[+\-]\s?\.?\d[\d.,%\s\-]*$/
 function csvCell(v: unknown): string {
   let t = v == null ? '' : String(v)
-  if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = "'" + t
+  if (FORMULA_START.test(t)) { if (!(t[0] !== '=' && NUMBERISH.test(t))) t = "'" + t }
+  else if (QUOTED_FORMULA.test(t)) t = "'" + t
   return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+}
+/** 读回时去掉 csvCell 加的防公式前缀（xlsx 用共享字符串，本来就不会被当公式，不需要它） */
+export function unguardCell(t: string): string {
+  return QUOTED_FORMULA.test(t) ? t.slice(1) : t
 }
 export function toCsv(columns: string[], rows: unknown[][]): string {
   return [columns, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'
@@ -193,7 +205,7 @@ export function readTableRows(s: Scope, id: string): { columns: string[]; rows: 
   const e = getEntry(s, id)
   if (!e || e.type !== 'table' || !e.file) throw new Error(`找不到表格 ${id}`)
   const all = parseCsv(fs.readFileSync(path.join(sessionDir(s), e.file), 'utf8'))
-  return { columns: all[0] ?? [], rows: all.slice(1) }
+  return { columns: (all[0] ?? []).map(unguardCell), rows: all.slice(1).map(r => r.map(unguardCell)) }
 }
 
 /** 面板预览：表格只给前 200 行 */

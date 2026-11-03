@@ -10,7 +10,7 @@ import { findByName, listEntries, fullConfig } from './store'
 import { checkSendableFile } from './wecom'
 import { markdownSegments, textSegments } from './wecom-core'
 import { privacyWarning } from './privacy'
-import { mcpToolName, withMcp } from './mcp-client'
+import { mcpToolName, uniqueToolName, withMcp } from './mcp-client'
 
 export const connectorsList: AgentTool = {
   name: 'connectors_list',
@@ -43,7 +43,7 @@ function targetOf(a: WecomSendArgs): { config: any } {
 
 export const wecomSend: AgentTool = {
   name: 'wecom_send',
-  description: '发消息到用户配置的企业微信群。kind=text / markdown 时用 content；kind=file 时用 fileRef（文件完整路径，不超过 20MB）。需要用户确认后才会发出。',
+  description: '发消息到用户配置的企业微信群。kind=text / markdown 时用 content；kind=file 时用 fileRef（文件完整路径，不超过 20MB；只能是本次对话导出的文件，或用户刚在文件选择框里选的文件，数据集文件一律不能发）。需要用户确认后才会发出。',
   params: WecomSendParams,
   level: 'external',
   async preview(raw): Promise<ToolPreview> {
@@ -52,7 +52,7 @@ export const wecomSend: AgentTool = {
     const target = `企业微信群：${a.targetName}`
     if (a.kind === 'file') {
       if (!a.fileRef) throw new Error('缺少文件路径')
-      const chk = checkSendableFile(a.fileRef)
+      const chk = checkSendableFile(a.fileRef, {}, { strict: false })
       if (chk.error) throw new Error(chk.error)
       let warn: string | undefined
       if (/\.(md|txt|csv|json)$/i.test(a.fileRef) && chk.size < 1_000_000) warn = privacyWarning(fs.readFileSync(a.fileRef, 'utf8'))
@@ -63,29 +63,30 @@ export const wecomSend: AgentTool = {
     const segs = a.kind === 'markdown' ? markdownSegments(a.content) : textSegments(a.content)
     return { target, content: segs.join('\n\n———— 下一条 ————\n\n'), privacyWarning: privacyWarning(a.content) }
   },
-  async run(raw) {
+  async run(raw, ctx) {
     const a = WecomSendParams.parse(raw)
     const t = targetOf(a)
     const act = (n: string) => CONNECTORS.find(c => c.id === 'wecom')!.actions.find(x => x.name === n)!
     if (a.kind === 'file') {
       if (!a.fileRef) return { ok: false, message: '缺少文件路径' }
-      return act('send_file').run({ path: a.fileRef }, t.config, {})
+      return act('send_file').run({ path: a.fileRef }, t.config, ctx ?? {})
     }
     if (!a.content?.trim()) return { ok: false, message: '缺少内容' }
-    return act(a.kind === 'markdown' ? 'send_markdown' : 'send_text').run({ content: a.content }, t.config, {})
+    return act(a.kind === 'markdown' ? 'send_markdown' : 'send_text').run({ content: a.content }, t.config, ctx ?? {})
   }
 }
 
 /** 已启用（勾选过）的 MCP 工具，动态转成 Agent 工具 */
 export function mcpTools(): AgentTool[] {
   const out: AgentTool[] = []
+  const used = new Set<string>()
   for (const e of listEntries()) {
     if (e.type !== 'mcp') continue
     for (const name of e.allowed ?? []) {
       const def = (e.tools ?? []).find(t => t.name === name)
       if (!def) continue
       out.push({
-        name: mcpToolName(e.name, name, 's' + e.id.slice(0, 4)),
+        name: uniqueToolName(mcpToolName(e.name, name, 's' + e.id.slice(0, 4)), e.id, used),
         description: `[MCP · ${e.name}] ${def.description}`.slice(0, 1000),
         params: z.record(z.unknown()),
         inputSchema: def.inputSchema,

@@ -100,7 +100,7 @@ const badStat = await call('stat_nps', { datasets: [id], sql: 'SELECT 1 FROM now
 assert.equal(badStat.ok, false); assert.ok(badStat.error)
 
 // ── 超过 500 行的明细：统计用的 runQuery 不被 500 行截断 ──
-const big = await ctx.runQuery(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i < 1500) SELECT i FROM n`, [id])
+const big = await ctx.runQuery(`SELECT a._row AS i FROM d1.${Q(table.name)} a, d1.${Q(table.name)} b LIMIT 1500`, [id])
 assert.equal(big.rows.length, 1500); assert.equal(big.truncated, false); assert.equal(typeof big.rows[0].i, 'number')
 
 // ── 文字归类（假 AI）→ 写回派生列 → 能查到 ──

@@ -136,4 +136,86 @@ assert.ok(r.rows.every(x => /^敏感值\d{4}$/.test(x[0])), '新标记生效：'
 const prof2 = store.profileText(d.id, t.name)
 assert.ok(!/四年级/.test(prof2.split('\n').find(l => l.includes('c03_年级'))), '新标的敏感列概况里不出现原值')
 
+
+// ───────────────────────── 复审补丁：数字敏感列、海量人名、概况 / 目录原文、rawError ─────────────────────────
+{
+  const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-ds-sens2-'))
+  const st = new DatasetStore(tmp2)
+  const sur = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄'
+  const nm = []
+  for (let k = 0; k < 70; k++) for (const a of sur) nm.push(a + String.fromCharCode(0x4e30 + k * 7))   // 两个字的姓名，一共 7000 个左右
+  assert.ok(new Set(nm).size > 5100, '不同的姓名要超过 5000：' + new Set(nm).size)
+  const people = [...new Set(nm)]
+  const N = people.length
+  const lines = ['姓名,学号,手机号,评语,分数']
+  people.forEach((n, i) => lines.push(`${n},${20230001 + i},${13900000000 + i},老师说${n}这次进步很大,${60 + (i % 40)}`))
+  const ds = await st.importBuffer(Buffer.from(lines.join('\n')), people[10] + '的名单.csv')
+  const tb = ds.tables[0]
+  const col = l => tb.columns.find(c => c.label === l)
+  assert.ok(col('姓名').sensitive && col('学号').sensitive && col('手机号').sensitive, '姓名 / 学号 / 手机号都自动标敏感：' + JSON.stringify(tb.columns.map(c => [c.label, c.sensitive, c.type])))
+  const TT = `d1."${tb.name}"`
+  const hasRaw = obj => { const j = JSON.stringify(obj); return people.find(n => j.includes(n)) || (/2023\d{4}/.test(j) ? '学号' : /139\d{8}/.test(j) ? '手机' : null) }
+
+  // 数字敏感列：不论别名、行数都按值代号化（单行也是）；计数 / 统计量不受影响
+  let q = await st.runQuery(`select max("${col('学号').name}") as x from ${TT}`, [ds.id])
+  assert.ok(q.ok && /^编号\d{4}$/.test(q.rows[0][0]), '单行聚合出的学号：' + JSON.stringify(q.rows))
+  q = await st.runQuery(`select "${col('手机号').name}" as foo from ${TT} limit 2`, [ds.id])
+  assert.ok(q.rows.every(r => /^手机\d{4}$/.test(r[0])), '整数手机号起别名也代号化：' + JSON.stringify(q.rows))
+  q = await st.runQuery(`select "${col('学号').name}" + 0 as k from ${TT} where _row = 5`, [ds.id])
+  assert.ok(/^编号\d{4}$/.test(q.rows[0][0]), '表达式算出的学号也按值认')
+  q = await st.runQuery(`select count(*) as 人数, sum("${col('分数').name}") as 总分, avg("${col('分数').name}") as 平均 from ${TT}`, [ds.id])
+  assert.equal(q.rows[0][0], N); assert.ok(typeof q.rows[0][1] === 'number' && typeof q.rows[0][2] === 'number')
+
+  // 超过 5000 个姓名：短名也在自由文本里被代号化
+  q = await st.runQuery(`select "${col('评语').name}" from ${TT} where _row in (1, 3000, 5000, ${N})`, [ds.id])
+  assert.ok(q.ok && q.rows.length === 4); assert.equal(hasRaw(q), null, '评语里的姓名已代号化：' + JSON.stringify(q.rows))
+  assert.ok(q.rows.every(r => /老师说人员[A-Z]\d{3}这次进步很大/.test(r[0])), JSON.stringify(q.rows))
+  q = await st.runQuery(`select group_concat("${col('姓名').name}" || ':' || "${col('学号').name}", '；') from ${TT} where _row <= 3`, [ds.id])
+  assert.equal(hasRaw(q), null, '拼接文本里的姓名和学号都替换：' + JSON.stringify(q.rows))
+
+  // 性能：10 万行 × 多列在几秒内
+  const big = []
+  for (let i = 0; i < 100000; i++) big.push([people[i % N], 20230001 + (i % N), `老师说${people[(i * 7) % N]}很好，第${i}次`, i % 5, '甲班'])
+  const t0 = Date.now()
+  const out = st.toModel([ds.id], ['x1', 'x2', 'x3', 'x4', 'x5'], big)
+  const ms = Date.now() - t0
+  assert.ok(ms < 8000, 'toModel 10 万行耗时 ' + ms + ' ms')
+  assert.equal(hasRaw(out.slice(0, 200)), null); assert.equal(hasRaw(out.slice(-200)), null)
+  assert.equal(out[5][3], 0); assert.equal(out[5][4], '甲班')
+
+  // 概况 / 目录 / 列值：不含敏感原文（文件名里的人名、非敏感列里夹的手机号）
+  const lst = await DATASET_TOOLS.find(x => x.name === 'list_datasets').run({}, { store: st })
+  assert.equal(hasRaw(lst), null, '目录里没有文件名里的人名：' + JSON.stringify(lst))
+  assert.match(lst.datasets[0].sourceFile, /人员[A-Z]\d{3}的名单\.csv/)
+  const prof = st.profileText(ds.id)
+  assert.equal(hasRaw(prof), null, '概况没有姓名 / 学号 / 手机号')
+  const cv = st.columnValues(ds.id, tb.name, '评语', 5)
+  assert.equal(hasRaw(cv), null, '列值里的自由文本也过一遍')
+  assert.equal(hasRaw(st.schemaText([ds.id])), null)
+  // 非敏感列里夹着手机号：概况的示例 / 常见取值里不出现
+  const st2 = new DatasetStore(fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-ds-sens3-')))
+  const rows2 = ['备注,分数']; for (let i = 0; i < 40; i++) rows2.push(`${['请联系13912345678', '微信 wxid_abcdef' + i, '无'][i % 3]},${i}`)
+  const d3 = await st2.importBuffer(Buffer.from(rows2.join('\n')), 'x.csv')
+  const prof3 = st2.profileText(d3.id)
+  assert.ok(!/13912345678/.test(prof3), '示例里的手机号被去掉：' + prof3)
+
+  // rawError 不外泄；SQL 里的代号被还原后报错，错误里也不能带真名
+  const c1 = (await st.runQuery(`select "${col('姓名').name}" from ${TT} where _row = 1`, [ds.id])).rows[0][0]
+  q = await st.runQuery(`select * from d1."${c1}"`, [ds.id])
+  assert.ok(!q.ok && !('rawError' in q)); assert.equal(hasRaw(q), null, '错误信息里没有真名：' + JSON.stringify(q.message) + q.detail)
+  const rqt = await DATASET_TOOLS.find(x => x.name === 'run_query').run({ sql: 'select nope from ' + TT, datasets: [ds.id] }, { store: st })
+  assert.ok(rqt.ok === false && !JSON.stringify(rqt).includes('rawError'))
+}
+// 代号本从 JSON 读回：__proto__ / constructor 键不会污染也不会冲突
+{
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-cb2-')), 'y.codes.json')
+  fs.writeFileSync(f, '{"kinds":{"person":{"n":2,"fwd":{"__proto__":"人员A001","constructor":"人员A002","张三":"人员A003"}}}}')
+  const cb = new Codebook(f)
+  assert.equal(cb.lookup('person', 'toString'), undefined, '没有从原型链上借来的键')
+  assert.equal(cb.lookup('person', '__proto__'), '人员A001'); assert.equal(cb.lookup('person', 'constructor'), '人员A002')
+  assert.ok(cb.code('person', 'hasOwnProperty').startsWith('人员'))
+  assert.equal({}.polluted, undefined)
+  assert.equal(cb.decode('人员A001'), '__proto__')
+}
+
 console.log('datasets-sensitive.test ✓')

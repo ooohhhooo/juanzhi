@@ -119,4 +119,22 @@ await assert.rejects(readTable(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0]), 'noe
   assert.ok((await readTable(moji, 'm.csv')).warnings.some(w => /乱码/.test(w)))
 }
 
+// 合并单元格填充和总格数的上限（默认参数下的课程大纲行为不变，见上面的用例）
+{
+  // 巨大合并区：只填到上限，不会卡死 / 吃光内存
+  const t0 = Date.now()
+  const r = await readXlsx(await makeXlsx([{ name: '合并', rows: [['标题', '', ''], ['a', 'b', 'c']], merges: ['A1:C1', 'A1:Z100000'] }]), { rows: 500000, cols: 200, mergeCells: 1000 })
+  assert.ok(Date.now() - t0 < 5000)
+  const filled = r.sheets[0].rows.flat().filter(x => x === '标题').length
+  assert.ok(filled <= 1000 + 3, '填充格数有上限：' + filled)
+  // 默认参数：普通合并照旧
+  const r2 = await readXlsx(await makeXlsx([{ name: '课', rows: [['年级', '', '科目'], ['一', '二', '三']], merges: ['A1:B1'] }]))
+  assert.deepEqual(r2.sheets[0].rows[0], ['年级', '年级', '科目']); assert.equal(r2.sheets[0].mergedFilled, true)
+  // 总格数上限：超出给白话提示
+  const rows = Array.from({ length: 50 }, (_, i) => Array.from({ length: 20 }, (_, j) => `r${i}c${j}`))
+  await assert.rejects(readXlsx(await makeXlsx([{ name: '大', rows }]), { totalCells: 500 }), e => e instanceof CourseFileError && /太大/.test(e.message) && /格子/.test(e.message))
+  const okr = await readXlsx(await makeXlsx([{ name: '大', rows }]), { totalCells: 5000 })
+  assert.equal(okr.sheets[0].rows.length, 50)
+}
+
 console.log('course-xlsx.test ✓')

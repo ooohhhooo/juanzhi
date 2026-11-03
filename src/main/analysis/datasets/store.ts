@@ -17,6 +17,7 @@ import { convertCell, detectHeader, inferType, internalColumnName, internalTable
 import { buildProfile, profileLine, tableProfileText } from './profile.ts'
 import { Codebook, detectSensitive } from './sensitive.ts'
 import { QUERY_LIMITS, checkSql, runReadOnly } from './query.ts'
+import { scrubPII } from '../scrub.ts'
 
 export const IMPORT_LIMITS = { rows: 500_000, bytes: 200 * 1024 * 1024, cols: 200, sheets: 30 }   // 单测会临时调小
 const BATCH = 2000
@@ -28,7 +29,9 @@ const q = (id: string) => '"' + id.replace(/"/g, '""') + '"'
 const tick = () => new Promise<void>(r => setImmediate(r))
 const norm = (s: string) => s.trim().toLowerCase()
 
-interface Index { map: Map<string, { ds: string; kind: SensitiveKind }>; personRe: RegExp | null }
+interface Hit { ds: string; kind: SensitiveKind }
+/** map：全部敏感原值 → 归属；names：其中的人名（长度 2–12）；nameLens / nameFirst 用来在自由文本里滑窗查找 */
+interface Index { map: Map<string, Hit>; names: Set<string>; nameLens: number[]; nameFirst: Set<string> }
 
 export class DatasetStore {
   readonly dir: string
@@ -288,9 +291,11 @@ export class DatasetStore {
     const d = this.get(id)
     const tables = table ? [this.tableOf(d, table)] : d.tables
     const book = this.book(id)
-    const text = tables.map(t => tableProfileText(t, (c, v) => (c.sensitive ? book.code(c.sensitiveKind ?? 'other', v) : v))).join('\n\n')
-    book.flush()
-    return `数据集「${d.name}」（来源 ${d.sourceFile}，${d.tables.length} 张表）\n${d.note ? '用户备注：' + d.note + '\n' : ''}${text}`
+    const m = this.model([id])
+    const safe = (x: string) => scrubPII(m.text(x))
+    const text = tables.map(t => tableProfileText(t, (c, v) => (c.sensitive ? book.code(c.sensitiveKind ?? 'other', v) : safe(v)), safe)).join('\n\n')
+    book.flush(); m.flush()
+    return `数据集「${safe(d.name)}」（来源 ${safe(d.sourceFile)}，${d.tables.length} 张表）\n${d.note ? '用户备注：' + safe(d.note) + '\n' : ''}${text}`
   }
 
   /** 单列的取值分布（已代号化）。多选列按选项统计 */
@@ -310,7 +315,9 @@ export class DatasetStore {
         rows = db.prepare(`SELECT ${q(c.name)} AS v, count(*) AS n FROM ${q(view)} WHERE ${q(c.name)} IS NOT NULL GROUP BY ${q(c.name)} ORDER BY n DESC, v LIMIT ?`).all(lim) as never
       }
       const book = this.book(id)
-      const values = rows.map(r => ({ value: c.sensitive ? book.code(c.sensitiveKind ?? 'other', String(r.v)) : String(r.v), count: Number(r.n) }))
+      const m = this.model([id])
+      const values = rows.map(r => ({ value: c.sensitive ? book.code(c.sensitiveKind ?? 'other', String(r.v)) : scrubPII(m.text(String(r.v))), count: Number(r.n) }))
+      m.flush()
       book.flush()
       return { column: c.name, label: c.label, type: c.type, totalNonNull: c.profile.nonNull, values }
     } finally { db.close() }
@@ -340,61 +347,119 @@ export class DatasetStore {
         }
       } finally { db.close() }
     }
-    const names = [...map.entries()].filter(([s, v]) => v.kind === 'person' && s.length >= 2 && s.length <= 12).map(([s]) => s).sort((a, b) => b.length - a.length).slice(0, 5000)
-    const personRe = names.length ? new RegExp(names.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null
-    const idx = { map, personRe }
+    const names = new Set<string>(), lens = new Set<number>(), first = new Set<string>()
+    for (const [v, h] of map) if (h.kind === 'person' && v.length >= 2 && v.length <= 12) { names.add(v); lens.add(v.length); first.add(v[0]) }
+    const idx: Index = { map, names, nameLens: [...lens].sort((x, y) => y - x), nameFirst: first }
     this.indexes.set(key, idx)
     return idx
   }
 
   /**
-   * 发给模型之前必须过这一道：把查询结果里的敏感值换成稳定代号。
-   * 判断依据（任一）：结果列名就是敏感列的内部名 / 显示名；整格等于某个敏感值；整列几乎都是敏感值（别名后的编号列）；
-   * 文字里夹着人名 / 手机号 / 邮箱 / 身份证号（自由文本、group_concat 的结果）。
+   * 准备一次「发给模型前的代号化」：索引、列名表、查表函数只建一次，之后可对很多格子 / 很多句子反复用。
+   * 规则（任一）：结果列名就是敏感列的内部名 / 显示名；整格等于某个敏感值（数字也按值查表）；整列几乎都是敏感值（别名后的编号列，
+   * 数字列要求有长值，避免 sum / avg 的结果碰巧等于某个短编号）；自由文本里夹着人名（按字滑窗查人名集合）、编号 / 手机号 / 邮箱 / 身份证号（分词后查表）。
+   * 只有「计数类」列名（count、人数、数量……）里的数字免于按值查表。
    */
-  toModel(datasetIds: string[], columns: string[], rows: unknown[][]): unknown[][] {
+  private model(datasetIds: string[]) {
     const metas = datasetIds.map(i => this.get(i))
     const idx = metas.map(m => ({ m, ix: this.sensIndex(m) }))
-    const named = new Map<string, { ds: string; kind: SensitiveKind }>()
+    const named = new Map<string, Hit>()
     for (const m of metas) for (const t of m.tables) for (const c of t.columns) if (c.sensitive) {
-      const v = { ds: m.id, kind: c.sensitiveKind ?? 'other' as SensitiveKind }
+      const v: Hit = { ds: m.id, kind: c.sensitiveKind ?? 'other' as SensitiveKind }
       named.set(norm(c.name), v); named.set(norm(c.label), v)
     }
-    const AGG = /count|sum|avg|total|min|max|数|率|均|合计|总|占比|人数|比/i
-    const lookup = (s: string) => { for (const { ix } of idx) { const h = ix.map.get(s); if (h) return h } return undefined }
+    const lookup = (s: string): Hit | undefined => { for (const { ix } of idx) { const h = ix.map.get(s); if (h) return h } return undefined }
+    const memo = new Map<string, string>()
+    const TOKEN = /[0-9A-Za-z_.@+\-]{4,}/g
+    const isLatin = (ch: string | undefined) => !!ch && /[A-Za-z]/.test(ch)
+    const scanText = (s: string): string => {
+      const hit = memo.get(s)
+      if (hit !== undefined) return hit
+      let t = s
+      for (const { m, ix } of idx) {
+        const b = this.book(m.id)
+        if (ix.map.size && /[0-9A-Za-z]{4}/.test(t)) {
+          t = t.replace(TOKEN, tok => {
+            let h = ix.map.get(tok)
+            if (h) return b.code(h.kind, tok)
+            const core = tok.replace(/[.\-_]+$/, '')
+            h = core !== tok ? ix.map.get(core) : undefined
+            return h ? b.code(h.kind, core) + tok.slice(core.length) : tok
+          })
+        }
+        if (ix.names.size) {
+          const n = t.length
+          let out = '', last = 0, i = 0
+          while (i < n) {
+            if (!ix.nameFirst.has(t[i])) { i++; continue }
+            let got = 0
+            for (const len of ix.nameLens) {
+              if (i + len > n) continue
+              if (!ix.names.has(t.substr(i, len))) continue
+              if ((isLatin(t[i]) && isLatin(t[i - 1])) || (isLatin(t[i + len - 1]) && isLatin(t[i + len]))) continue   // 英文名别从单词中间切
+              got = len; break
+            }
+            if (got) { out += t.slice(last, i) + b.code('person', t.substr(i, got)); i += got; last = i } else i++
+          }
+          if (last) t = out + t.slice(last)
+        }
+      }
+      if (memo.size < 100_000) memo.set(s, t)
+      return t
+    }
+    /** 一段文字（名称、文件名、列标签、错误信息……）：整串查表 + 滑窗 + 分词 */
+    const text = (v: string): string => {
+      if (!v) return v
+      const h = lookup(v)
+      return h ? this.book(h.ds).code(h.kind, v) : scanText(v)
+    }
+    const flush = () => { for (const m of metas) this.book(m.id).flush() }
+    return { metas, named, lookup, text, flush }
+  }
+
+  /** 发给模型之前必须过这一道：把查询结果里的敏感值换成稳定代号 */
+  toModel(datasetIds: string[], columns: string[], rows: unknown[][]): unknown[][] {
+    const { named, lookup, text, flush } = this.model(datasetIds)
+    const COUNT_NAME = /^(count|cnt|n|num|nums|_{0,2}row(id)?|__rowid)$|count\s*\(|^count|人数|条数|个数|数量|行数|次数|计数|频次|记录数/i
+    const isCount = columns.map(c => COUNT_NAME.test(c))
     const colMode = columns.map((name, j) => {
       const byName = named.get(norm(name))
       if (byName) return byName
-      if (AGG.test(name)) return undefined
-      let nn = 0, hit = 0, firstHit: { ds: string; kind: SensitiveKind } | undefined, longHit = false
+      if (isCount[j]) return undefined
+      let nn = 0, hit = 0, firstHit: Hit | undefined, longHit = false, allStr = true
       for (const r of rows) {
         const v = r[j]
         if (v === null || v === undefined || v === '') continue
         nn++
-        const h = lookup(String(v))
-        if (h) { hit++; firstHit ??= h; if (String(v).length >= 6) longHit = true }
+        const sv = String(v)
+        const h = lookup(sv)
+        if (h) { hit++; firstHit ??= h; if (sv.length >= 6) longHit = true; if (typeof v !== 'string') allStr = false }
       }
-      return nn > 0 && hit / nn >= 0.9 && (nn >= 3 || longHit) ? firstHit : undefined
+      return nn > 0 && hit / nn >= 0.9 && (longHit || (nn >= 3 && allStr)) ? firstHit : undefined
     })
     const out = rows.map(r => r.map((v, j) => {
       if (v === null || v === undefined || v === '') return v
-      const s = String(v)
       const mode = colMode[j]
-      if (mode) return this.book(mode.ds).code(mode.kind, s)
-      if (typeof v !== 'string') return v
-      const h = lookup(s)
-      if (h) return this.book(h.ds).code(h.kind, s)
-      if (s.length > 2000) return v
-      let t = s
-      for (const { m, ix } of idx) {
-        const b = this.book(m.id)
-        if (ix.personRe) t = t.replace(ix.personRe, x => b.code('person', x))
-        if (/\d{11}|@/.test(t)) t = t.replace(/1[3-9]\d{9}|\d{17}[\dXx]|[^\s@，,;；]+@[^\s@，,;；]+\.[A-Za-z]+/g, x => { const hh = ix.map.get(x); return hh ? b.code(hh.kind, x) : x })
+      if (mode) return this.book(mode.ds).code(mode.kind, String(v))
+      if (typeof v !== 'string') {
+        if (isCount[j] || (typeof v !== 'number' && typeof v !== 'bigint')) return v
+        const sv = String(v)
+        if (sv.length < 6) return v   // 短数字（评分、小编号）不按值认，免得误伤统计结果；整列是短编号时靠列名 / 整列投票
+        const h = lookup(sv)
+        return h ? this.book(h.ds).code(h.kind, sv) : v
       }
-      return t
+      return text(v)
     }))
-    for (const m of metas) this.book(m.id).flush()
+    flush()
     return out
+  }
+
+  /** 给模型看的任意文字（数据集名、来源文件、表名、sheet 名、列标签、错误信息）：敏感值代号化 + 去掉手机号 / 身份证号 / 邮箱等 */
+  safeText(datasetIds: string[], s: string): string {
+    const m = this.model(datasetIds)
+    const r = scrubPII(m.text(String(s ?? '')))
+    m.flush()
+    return r
   }
 
   /** 模型回答里的代号换回真名（界面显示用） */
@@ -412,21 +477,24 @@ export class DatasetStore {
 
   /** 「可用的表和列」说明，给模型写 SQL 用。表名前带别名 d1、d2…… */
   schemaText(datasetIds: string[]): string {
+    const m = this.model(datasetIds)
+    const sf = (x: string) => scrubPII(m.text(x))
     const lines: string[] = ['可用的表和列（SQLite；表名、列名一律用双引号括起来，表名前带数据集别名；每张表都有行号列 _row）：']
     datasetIds.forEach((id, i) => {
       const d = this.get(id)
       const al = `d${i + 1}`
-      lines.push(`\n数据集 ${al}「${d.name}」${d.note ? '（备注：' + d.note + '）' : ''}`)
+      lines.push(`\n数据集 ${al}「${sf(d.name)}」${d.note ? '（备注：' + sf(d.note) + '）' : ''}`)
       for (const t of d.tables) {
-        lines.push(`表 ${al}.${q(t.name)}（${t.rows} 行，来自「${t.sheet}」）`)
+        lines.push(`表 ${al}.${q(sf(t.name))}（${t.rows} 行，来自「${sf(t.sheet)}」）`)
         for (const c of t.columns) {
           const typ = { integer: '整数', real: '小数', date: '日期(文本YYYY-MM-DD)', datetime: '日期时间(文本)', boolean: '是否(0/1)', text: '文本', select: '选项文本', multi: '多选文本' }[c.type]
-          lines.push(`  ${q(c.name)}  ${c.label}  ${typ}${c.sensitive ? '  敏感，取值为代号' : ''}${c.derived ? '  派生列' : ''}`)
+          lines.push(`  ${q(sf(c.name))}  ${sf(c.label)}  ${typ}${c.sensitive ? '  敏感，取值为代号' : ''}${c.derived ? '  派生列' : ''}`)
         }
-        for (const v of t.views) lines.push(`  视图 ${al}.${q(v.view)}：多选列 ${v.column} 拆成一个选项一行 (_row, "选项")，用 _row 关联回原表`)
-        if (t.derivedView) lines.push(`  视图 ${al}.${q(t.derivedView)}：原表 + 派生列（文字归类等结果）`)
+        for (const v of t.views) lines.push(`  视图 ${al}.${q(sf(v.view))}：多选列 ${sf(v.column)} 拆成一个选项一行 (_row, "选项")，用 _row 关联回原表`)
+        if (t.derivedView) lines.push(`  视图 ${al}.${q(sf(t.derivedView))}：原表 + 派生列（文字归类等结果）`)
       }
     })
+    m.flush()
     return lines.join('\n')
   }
 
@@ -438,7 +506,16 @@ export class DatasetStore {
     const chk = checkSql(decoded)
     if (!chk.ok) return { ok: false, columns: [], rows: [], returned: 0, totalRows: 0, truncated: false, message: chk.message, elapsedMs: 0 }
     const r = await runReadOnly({ files: metas.map(m => this.dbFile(m.id)), sql: chk.sql, signal: opts.signal, timeoutMs: opts.timeoutMs, maxRows: opts.maxRows })
-    if (!r.ok) return { ...r, schema: /没有叫|语法有误/.test(r.message ?? '') ? this.schemaText(datasetIds) : undefined }
+    if (!r.ok) {
+      // 给模型的只有白话错误（先代号化 + 去个人信息）和一小段处理过的原始错误；原始 rawError 不外传
+      const { rawError, ...rest } = r
+      const m = this.model(datasetIds)
+      const safe = (x: string) => scrubPII(m.text(x))
+      const detail = rawError && rawError !== 'timeout' && rawError !== 'aborted' ? safe(rawError).slice(0, 160) : undefined
+      const message = safe(r.message ?? '')
+      m.flush()
+      return { ...rest, message, detail, schema: /没有叫|语法有误/.test(r.message ?? '') ? this.schemaText(datasetIds) : undefined }
+    }
     return { ...r, total: r.totalRows, rows: this.toModel(datasetIds, r.columns, r.rows) }
   }
 
