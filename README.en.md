@@ -10,7 +10,7 @@ Turn a stack of primary-school English exam papers into a "dictionary of exam po
 
 > **Note:** The app's interface, its AI prompts and the reports it generates are in Chinese only. It is built for Chinese primary-school English teaching (PEP-style textbooks, Chinese school years and semesters). This English README only explains how to install and use it.
 
-![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-overview.png)
+![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v13-overview.png)
 
 > **This is the 1.3.0 public beta (公测版).** New: course mapping, an upgraded teacher report, and diagnostics and feedback. All features are usable; please report any problems you find (see [section 10](#10-faq-known-limitations-and-feedback)).
 
@@ -78,7 +78,7 @@ Below is a real generated parent version. It was generated with DeepSeek from th
 
 | Question-by-question review | Analysis dashboard | AI report |
 |---|---|---|
-| ![Review page](docs/screenshots/readme-review.png) | ![Analysis dashboard](docs/screenshots/readme-dashboard.png) | ![Report page](docs/screenshots/readme-report.png) |
+| ![Review page](docs/screenshots/readme-v13-review.png) | ![Analysis dashboard](docs/screenshots/readme-v13-dashboard.png) | ![Report page](docs/screenshots/readme-v13-report.png) |
 
 | Uploading a course outline and checking the result | Course mapping: which lesson covers each error-prone point |
 |---|---|

@@ -8,7 +8,7 @@
 - 不用注册、不用登录。试卷和结果保存在你自己的电脑上；只有你让 AI 拆题、写报告时，试卷文字才会发给你自己选的 AI 服务商（见[第九部分](#九数据和隐私)）
 - 看不懂语法术语也能用：每个考点都配了一句白话解释和一个例句
 
-![卷知总览：每个考点是一个词条，有白话解释、例句和原卷截图](docs/screenshots/readme-overview.png)
+![卷知总览：每个考点是一个词条，有白话解释、例句和原卷截图](docs/screenshots/readme-v13-overview.png)
 
 > **当前是 1.3.0 公测版**：新增课程对照、老师版报告升级、诊断与反馈。功能已经完整可用，欢迎试用后反馈问题（见[第十部分](#十常见问题已知不足和反馈)）。
 
@@ -64,7 +64,7 @@
 
 | 逐题审核 | 分析看板 | AI 报告 |
 |---|---|---|
-| ![审核页](docs/screenshots/readme-review.png) | ![分析看板](docs/screenshots/readme-dashboard.png) | ![报告页](docs/screenshots/readme-report.png) |
+| ![审核页](docs/screenshots/readme-v13-review.png) | ![分析看板](docs/screenshots/readme-v13-dashboard.png) | ![报告页](docs/screenshots/readme-v13-report.png) |
 
 | 上传课程大纲、核对整理结果 | 课程对照：易错考点在哪一课讲 |
 |---|---|
