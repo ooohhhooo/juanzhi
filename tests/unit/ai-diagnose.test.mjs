@@ -30,7 +30,7 @@ g = diagnose(E('server', 502, 'bad gateway')); assert.match(g.cause, /故障/); 
 g = diagnose(E('network', null, 'fetch failed')); assert.match(g.cause, /网络/); assert.ok(has(g, /代理/)); assert.match(g.raw, /错误类型 network/)
 g = diagnose(E('timeout', null), { reasoning: true, model: 'deepseek-v4-pro' }); assert.match(g.cause, /思考/); assert.ok(has(g, /换一个速度快/))
 g = diagnose(E('timeout', null), { reasoning: false }); assert.match(g.cause, /没有回应/)
-g = diagnose(E('truncated', null)); assert.ok(has(g, /输出.*上限/))
+g = diagnose(E('truncated', null)); assert.ok(has(g, /一次最多写多长/))
 // 审核 / 格式 / 400
 g = diagnose(E('bad_request', 400, 'content_filter triggered')); assert.match(g.cause, /审核/)
 g = diagnose(E('empty', null, 'sensitive content')); assert.ok(has(g, /审核/))

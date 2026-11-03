@@ -118,7 +118,7 @@ export function diagnose(e: ErrorLike, ctx: DiagnoseCtx = {}): Diagnosis {
       ])
     case 'truncated':
       return out('AI 写到一半被截断了', [
-        { text: '输出长度上限不够', fix: '在「设置 → AI 服务」里打开输出上限「自动」，或调大上限' },
+        { text: '允许 AI 写的长度不够', fix: '在「设置 → AI 服务」把「AI 一次最多写多长」改成「自动」，或调大' },
         { text: '模型思考太多，占掉了输出额度', fix: '换一个不带深度思考的模型' },
         { text: '一次让 AI 处理的内容太多', fix: '把范围缩小一些再试' }
       ])
@@ -126,21 +126,21 @@ export function diagnose(e: ErrorLike, ctx: DiagnoseCtx = {}): Diagnosis {
       return out('AI 没有返回内容', [
         ...(FILTER_RE.test(d) ? [{ text: '内容被服务商的安全审核拦截', fix: '换一个范围再试' }] : []),
         { text: '模型临时出错或返回了空回答', fix: '点「重试」' },
-        { text: '输出额度被思考用完，没剩下正文', fix: '调大输出上限，或换不带深度思考的模型' }
+        { text: '思考占满了允许写的长度，没剩下正文', fix: '调大「AI 一次最多写多长」，或换不带深度思考的模型' }
       ])
     case 'bad_output':
       return out('AI 的回答格式不对，程序读不懂', [
         { text: '模型这次没按要求的格式回答（常见于输出被截短或夹杂说明文字）', fix: '点「重试」，一般第二次就好' },
         { text: '当前模型不太擅长按格式输出', fix: '换一个更强的模型' },
-        { text: '输出长度上限不够，回答写到一半', fix: '在「设置 → AI 服务」把输出上限改成「自动」' }
+        { text: '允许 AI 写的长度不够，回答写到一半', fix: '在「设置 → AI 服务」把「AI 一次最多写多长」改成「自动」' }
       ])
     case 'aborted':
       return out('已取消', [])
     case 'bad_request': {
       if (FILTER_RE.test(d)) return out('内容被服务商的安全审核拦截', [{ text: '提交的内容触发了审核规则', fix: '换一个范围再试；仍然不行请联系服务商' }, { text: '模型自身的内容策略较严', fix: '换一个模型' }])
-      if (/context|maximum|too long|token|长度|超出/i.test(d)) return out('一次发给模型的内容太长', [{ text: '超过了模型的上下文长度', fix: '缩小范围，或换上下文更长的模型' }, { text: '输出上限设得比模型允许的还大', fix: '在「设置 → AI 服务」把输出上限改成「自动」' }])
+      if (/context|maximum|too long|token|长度|超出/i.test(d)) return out('一次发给模型的内容太长', [{ text: '超过了模型的上下文长度', fix: '缩小范围，或换上下文更长的模型' }, { text: '「AI 一次最多写多长」设得比模型允许的还大', fix: '在「设置 → AI 服务」把「AI 一次最多写多长」改成「自动」' }])
       return out(`服务商拒绝了这次请求${e.status ? `（HTTP ${e.status}）` : ''}`, [
-        { text: '请求参数服务商不支持（例如输出上限、JSON 模式）', fix: '把输出上限改成「自动」，或换一个模型' },
+        { text: '请求参数服务商不支持（例如写作长度、固定格式）', fix: '把「AI 一次最多写多长」改成「自动」，或换一个模型' },
         { text: '模型名与服务商不匹配', fix: '核对模型名，用「测试全部」确认' },
         { text: '详情见下方“服务商原话”', fix: '把原话发给管理员排查' }
       ])
