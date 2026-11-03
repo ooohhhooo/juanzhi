@@ -251,6 +251,7 @@ interface ElectronAPI {
   agentOutputs: {
     list(sessionId: string): Promise<import('../shared/agent-outputs').OutputEntry[]>
     read(sessionId: string, id: string): Promise<import('../shared/agent-outputs').OutputContent>
+    board(sessionId: string): Promise<any | null>
     export(sessionId: string, id: string, format: import('../shared/agent-outputs').OutputExportFormat): Promise<{ saved: boolean; path?: string; format?: string; bytes?: number; fellBackTo?: 'csv' }>
     reveal(sessionId: string, id: string): Promise<boolean>
   }
@@ -380,7 +381,8 @@ interface AgentSessionView { id: string; role: string; title: string; scene: str
 type AgentStepKind = 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'plan' | 'ask' | 'answer' | 'error'
 interface AgentStepRow { sessionId: string; seq: number; parentId: number | null; branchId: string; kind: AgentStepKind; payload: any; tokens: number; ms: number; createdAt: string }
 interface AgentStatus { configured: boolean; model: string; toolSupport: 'yes' | 'no' | 'unknown'; reason: string }
-interface AgentCite { kind: 'q' | 'lesson' | 'stu'; id: string; ok: boolean; label: string; paperId?: string | null; outlineId?: string }
+interface AgentCite { kind: 'query' | 'q' | 'lesson' | 'stu'; id: string; ok: boolean; label: string; paperId?: string | null; outlineId?: string }
+interface AgentQueryRecord { n: number; name: string; ok: boolean; sql: string | null; args: Record<string, unknown>; summary: string; text: string; truncated: boolean }
 /** agent:event 通道推来的事件（sessionId 标明属于哪个对话） */
 type AgentMode = 'direct' | 'plan' | 'auto'
 type AgentApproval = 'ask-all' | 'ask-external'
@@ -394,7 +396,8 @@ type AgentEventMsg =
   | { sessionId: string; type: 'reset' }
   | { sessionId: string; type: 'status'; text: string }
   | { sessionId: string; type: 'progress'; rounds: number; tokensIn: number; tokensOut: number; money: number | null; limitTokens: number; model?: string; effort?: string }
-  | { sessionId: string; type: 'approval'; id: string; name: string; args: unknown; summary: string }
+  | { sessionId: string; type: 'approval'; id: string; name: string; args: unknown; summary: string; preview?: { target: string; content: string; privacyWarning?: string } }
+  | { sessionId: string; type: 'tool-progress'; id: string; done: number; total: number }
   | { sessionId: string; type: 'done'; status: string; rounds?: number; error?: { code: string; message: string } | null }
 
 interface ElectronAPI {
@@ -416,10 +419,11 @@ interface ElectronAPI {
     sessions(): Promise<AgentSessionView[]>
     session(id: string): Promise<{ session: AgentSessionView; steps: AgentStepRow[]; running: boolean } | null>
     cites(refs: Array<{ kind: string; id: string }>): Promise<AgentCite[]>
+    queryRecord(sessionId: string, n: number): Promise<AgentQueryRecord | null>
     setScene(scene: 'org' | 'school'): Promise<'org' | 'school'>
     /** 发一次很小的请求，检测当前模型支不支持工具调用（结果缓存） */
     checkTools(model?: string): Promise<AgentStatus>
-    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string }): Promise<{ sessionId: string; branchId: string }>
+    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string; datasets?: string[] }): Promise<{ sessionId: string; branchId: string }>
     deleteSession(id: string): Promise<boolean>
     stop(sessionId: string): Promise<boolean>
     answer(sessionId: string, askId: string, answer: string): Promise<boolean>

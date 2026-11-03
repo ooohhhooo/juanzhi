@@ -20,6 +20,11 @@ export type TableExporter = (o: { name: string; columns: string[]; rows: string[
 let tableExporter: TableExporter | null = null
 export function setTableExporter(fn: TableExporter | null): void { tableExporter = fn }
 
+/** 导出到本机的文件把代号还原成真名（由主进程注册：names.ts 的 restoreNames）。没注册 = 原样 */
+let restorer: ((sessionId: string, text: string) => string) | null = null
+export function setOutputRestorer(fn: ((sessionId: string, text: string) => string) | null): void { restorer = fn }
+const rs = (s: Scope, t: string): string => (restorer ? restorer(s.sessionId, t) : t)
+
 export const exportsDir = (s: Scope): string => path.join(sessionDir(s), 'exports')
 
 export function allowedFormats(type: 'md' | 'note' | 'table' | 'board'): OutputExportFormat[] {
@@ -55,17 +60,18 @@ export async function exportOutput(s: Scope, id: string, format: OutputExportFor
   fs.mkdirSync(path.dirname(out), { recursive: true })
   let fell: 'csv' | undefined
   if (e.type === 'table') {
-    const t = readTableRows(s, id)
+    const t0 = readTableRows(s, id)
+    const t = { columns: t0.columns.map(c => rs(s, c)), rows: t0.rows.map(r => r.map(c => rs(s, String(c ?? '')))) }
     if (format === 'xlsx' && tableExporter) await tableExporter({ name: e.name, columns: t.columns, rows: t.rows, outPath: out })
     else {
       if (format === 'xlsx') { fell = 'csv'; out = out.replace(/\.xlsx$/i, '.csv') }
       fs.writeFileSync(out, '﻿' + toCsv(t.columns, t.rows))
     }
   } else {
-    const md = stripRefTags(cleanMarks(readDoc(s, id).markdown))
+    const md = rs(s, stripRefTags(cleanMarks(readDoc(s, id).markdown)))
     if (format === 'md') fs.writeFileSync(out, md, 'utf8')
-    else if (format === 'docx') fs.writeFileSync(out, await buildDocx({ title: e.name, markdown: md.replace(/^# .*\n+/, ''), footer: '由卷知助手生成' }))
-    else await pdfOf(e.name, md, out)
+    else if (format === 'docx') fs.writeFileSync(out, await buildDocx({ title: rs(s, e.name), markdown: md.replace(/^# .*\n+/, ''), footer: '由卷知助手生成' }))
+    else await pdfOf(rs(s, e.name), md, out)
   }
   return { path: out, format: fell ?? format, bytes: fs.statSync(out).size, ...(fell ? { fellBackTo: fell } : {}) }
 }

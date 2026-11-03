@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { getDataDir } from '../db'
 import { getMainWindow } from '../window'
 import { allowedFormats, exportOutput } from '../agent/outputs/export'
+import { restoreDeep } from '../agent/names'
+import { getBoard } from '../analysis/report/tools'
 import { entryPath, getEntry, listOutputs, onOutputsChanged, readContent, safeFileStem, sessionDir } from '../agent/outputs/store'
 
 const SessionSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)
@@ -15,7 +17,9 @@ export function registerAgentOutputsIpc(): void {
   onOutputsChanged(sessionId => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('agent-outputs:changed', sessionId) })
 
   ipcMain.handle('agent-outputs:list', async (_e, rawSid: unknown) => listOutputs(scope(SessionSchema.parse(rawSid))))
-  ipcMain.handle('agent-outputs:read', async (_e, rawSid: unknown, rawId: unknown) => readContent(scope(SessionSchema.parse(rawSid)), IdSchema.parse(rawId)))
+  ipcMain.handle('agent-outputs:read', async (_e, rawSid: unknown, rawId: unknown) => { const sid = SessionSchema.parse(rawSid); return restoreDeep(sid, readContent(scope(sid), IdSchema.parse(rawId))) })   // 显示给用户的内容还原成真名
+  /** 本会话的看板规格（显示用，已还原真名）；还没有看板返回 null */
+  ipcMain.handle('agent-outputs:board', async (_e, rawSid: unknown) => { const sid = SessionSchema.parse(rawSid); const b = getBoard({ sessionId: sid, dataDir: getDataDir() }); return b ? restoreDeep(sid, b) : null })
   /** 导出：弹「另存为」让用户选位置（只写用户选的文件） */
   ipcMain.handle('agent-outputs:export', async (_e, rawSid: unknown, rawId: unknown, rawFmt: unknown) => {
     const s = scope(SessionSchema.parse(rawSid)), id = IdSchema.parse(rawId), fmt = FormatSchema.parse(rawFmt)

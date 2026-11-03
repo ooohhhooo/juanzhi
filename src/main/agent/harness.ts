@@ -13,20 +13,20 @@ import { COMPACT_RATIO, applyCompaction, compressOldToolResults, estimateMessage
 import type { ToolMeta } from './context.ts'
 import type { ToolRegistry } from './registry.ts'
 import { DEFAULT_BUDGET, DIRECT_MAX_ROUNDS, PLAN_APPROVE } from './types.ts'
-import type { AgentEvent, AgentMode, ApprovalMode, Budget, ModelReply, ModelRequest, PlanItem, QueryRec, RunResult, SessionState, StopReason, ToolCtx, ToolOutput } from './types.ts'
+import type { AgentEvent, AgentMode, ApprovalMode, Budget, ModelReply, ModelRequest, PlanItem, QueryRec, RunResult, SessionState, StopReason, ToolCtx, ToolOutput, ToolPreviewInfo } from './types.ts'
 
 export interface RunDeps {
   callModel: (req: ModelRequest) => Promise<ModelReply>
   registry: ToolRegistry
   /** 这个角色能用的工具名单 */
   toolNames: string[]
-  ctx: Pick<ToolCtx, 'db' | 'scene' | 'roleId' | 'sessionId' | 'playbook' | 'playbookNames'>
+  ctx: Pick<ToolCtx, 'db' | 'scene' | 'roleId' | 'sessionId' | 'playbook' | 'playbookNames'> & { dataDir?: string }
   /** 以前几轮留在会话记录里的状态（计划、查询记录、选择）：接着追问时查询编号接着往下排 */
   initialState?: SessionState
   /** 自动整理：对话估算超过 limitTokens × ratio（默认 70%）时，把较早的内容换成摘要；summarize 失败 / 没给就用程序生成的摘要 */
   compact?: { limitTokens: number; ratio?: number; summarize?: (text: string) => Promise<string> }
   /** 写操作：弹窗让用户同意；返回 true = 同意 */
-  approve: (req: { id: string; name: string; args: unknown; summary: string }) => Promise<boolean>
+  approve: (req: { id: string; name: string; args: unknown; summary: string; preview?: ToolPreviewInfo }) => Promise<boolean>
   /** ask_user：把问题交给界面，返回用户的选择 */
   askUser: (req: { id: string; question: string; options: string[]; allowOther: boolean }) => Promise<string>
   emit: (e: AgentEvent) => void
@@ -113,8 +113,11 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
   let rounds = 0, tokensIn = 0, tokensOut = 0
   let lastSig = '', repeat = 0
 
+  let currentCall = ''
   const ctx: ToolCtx = {
     ...deps.ctx,
+    dataDir: deps.ctx.dataDir ?? '',
+    progress: (done, total) => { if (currentCall) emit({ type: 'tool_progress', id: currentCall, done, total }) },
     signal,
     state: () => ({ plan, queries: state.queries, choices: state.choices }),
     setPlan: items => { plan = items.map(i => ({ ...i })); emit({ type: 'plan', items: plan }) },
@@ -144,6 +147,7 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
     try { argsJson = rawArgs.trim() ? JSON.parse(rawArgs) : {} } catch { argsJson = { _raw: rawArgs.slice(0, 200) } }
     const recorded = !NOT_RECORDED.has(name)
     const n = recorded ? nextN++ : 0
+    currentCall = call.id
     emit({ type: 'tool_call', id: call.id, n, name, args: argsJson, level: tool?.level ?? 'read' })
     const done = (ok: boolean, out: ToolOutput | string): string => {
       const text0 = typeof out === 'string' ? out : out.text
@@ -164,8 +168,15 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
       const skipAsk = deps.approvalMode === 'ask-external' && tool.effect === 'export'
       if (skipAsk) { try { return done(true, await tool.run(parsed.args, ctx)) } catch (e) { if (isAbort(e, signal)) throw e; return done(false, `工具运行出错：${(e as Error).message}`) } }
       const summary = tool.describe?.(parsed.args) ?? `执行「${name}」`
-      emit({ type: 'approval', id: call.id, name, args: argsJson, summary })
-      const ok = await raceAbort(deps.approve({ id: call.id, name, args: argsJson, summary }), signal)
+      let preview: ToolPreviewInfo | undefined
+      if (tool.preview) {
+        try {
+          const pv = await tool.preview(parsed.args, ctx)
+          preview = typeof pv === 'string' ? { target: summary, content: pv } : pv
+        } catch (e) { if (isAbort(e, signal)) throw e; return done(false, `无法生成发送预览：${(e as Error).message}`) }
+      }
+      emit({ type: 'approval', id: call.id, name, args: argsJson, summary, ...(preview ? { preview } : {}) })
+      const ok = await raceAbort(deps.approve({ id: call.id, name, args: argsJson, summary, ...(preview ? { preview } : {}) }), signal)
       emit({ type: 'approved', id: call.id, ok })
       if (!ok) return done(false, '用户没有同意这个操作，没有执行。请换一种方式，或直接问用户想怎么做。')
     }
@@ -212,7 +223,7 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
       tokensOut += reply.usage.completionTokens
       emit({ type: 'progress', rounds, tokensIn, tokensOut })
       if (reply.toolCalls.length === 0) {
-        const v = validateCitations(reply.content, deps.cite)
+        const v = validateCitations(reply.content, { ...deps.cite, query: id => state.queries.some(q => String(q.n) === id) })
         messages.push({ role: 'assistant', content: reply.content })
         return finish('answered', v.text, v.removed)
       }

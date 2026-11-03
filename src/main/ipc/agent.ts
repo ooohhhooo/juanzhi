@@ -6,9 +6,9 @@ import { lessonName } from '../course/map'
 import { getMainWindow } from '../window'
 import {
   agentSettingsView, agentStatus, allPlaybooks, answerApproval, answerAsk, checkEffortSupport, checkToolSupport, customRoles, exportRole, getScene, importRoleText,
-  isRunning, modelInfo, modelsView, removeRole, resetStaleRunning, rolesView, saveAgentSettings, saveRole, setScene, startRun, stopRun, toolList, userPlaybookDir
+  modelInfo, queryRecord, sessionView, initAgent, modelsView, removeRole, resetStaleRunning, rolesView, saveAgentSettings, saveRole, setScene, startRun, stopRun, toolList, userPlaybookDir
 } from '../agent/service'
-import { deleteSession, getSession, listSessions } from '../agent/store'
+import { deleteSession, listSessions } from '../agent/store'
 import { AGENT_MODES, APPROVAL_MODES } from '../agent/types'
 
 const IdSchema = z.string().min(1).max(80)
@@ -22,6 +22,7 @@ const RoleInput = z.object({
 
 export function registerAgentIpc(): void {
   const db = () => getDb()
+  initAgent()
   try { resetStaleRunning() } catch { /* 表还没建好就算了 */ }
   // ── 只读：角色、场景、状态、模型、工具、历史、引用解析、设置 ──
   ipcMain.handle('agent:roles', async () => rolesView())
@@ -34,10 +35,9 @@ export function registerAgentIpc(): void {
   ipcMain.handle('agent:playbooks', async () => ({ dir: userPlaybookDir(), items: allPlaybooks().map(p => ({ name: p.name, description: p.description, source: p.source })) }))
   ipcMain.handle('agent:sessions', async () => listSessions(db()))
   ipcMain.handle('agent:session', async (_e, id: unknown) => {
-    const sid = IdSchema.parse(id)
-    const r = getSession(db(), sid)
-    return r ? { ...r, running: isRunning(sid) } : null
+    return sessionView(IdSchema.parse(id))
   })
+  ipcMain.handle('agent:queryRecord', async (_e, sid: unknown, n: unknown) => queryRecord(IdSchema.parse(sid), z.number().int().min(1).max(100000).parse(n)))
   // 导出角色：只写用户在「另存为」里选的文件
   ipcMain.handle('agent:exportRole', async (_e, id: unknown) => {
     const r = exportRole(IdSchema.parse(id))
@@ -52,7 +52,7 @@ export function registerAgentIpc(): void {
 
   // 引用标签：把回答里的 [[q:ID]] / [[lesson:ID]] 解析成可点击跳转的信息
   ipcMain.handle('agent:cites', async (_e, raw: unknown) => {
-    const refs = z.array(z.object({ kind: z.enum(['q', 'lesson', 'stu']), id: z.string().min(1).max(64) })).max(60).parse(raw)
+    const refs = z.array(z.object({ kind: z.enum(['query', 'q', 'lesson', 'stu']), id: z.string().min(1).max(64) })).max(60).parse(raw)
     return refs.map(r => {
       if (r.kind === 'q') {
         const x = db().prepare('SELECT q.paper_id, q.no_label, q.no, p.title FROM questions q JOIN papers p ON p.id = q.paper_id WHERE q.id = ?').get(r.id) as any
@@ -62,6 +62,7 @@ export function registerAgentIpc(): void {
         const x = db().prepare('SELECT l.seq, l.no_label, l.title, l.outline_id FROM course_lessons l WHERE l.id = ?').get(Number(r.id)) as any
         return x ? { ...r, ok: true, label: lessonName({ seq: x.seq, noLabel: x.no_label, title: x.title }), outlineId: x.outline_id as string } : { ...r, ok: false, label: '' }
       }
+      if (r.kind === 'query') return { ...r, ok: /^\d{1,6}$/.test(r.id), label: `#${r.id}` }
       return { ...r, ok: false, label: '' }
     })
   })
@@ -74,7 +75,7 @@ export function registerAgentIpc(): void {
     const p = z.object({
       sessionId: IdSchema.optional(), role: z.string().min(1).max(40), text: z.string().trim().min(1).max(2000),
       mode: z.enum(AGENT_MODES as [string, ...string[]]).optional(), approval: z.enum(APPROVAL_MODES as [string, ...string[]]).optional(), model: z.string().max(120).optional(), effort: z.string().max(10).optional(),
-      branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional()
+      branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional(), datasets: z.array(z.string().max(80)).max(20).optional()
     }).parse(raw)
     return startRun(p as Parameters<typeof startRun>[0])
   })

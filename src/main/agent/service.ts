@@ -17,14 +17,14 @@ import { getPriceMap } from '../ipc/cost'
 import { notifyDataChanged } from '../events'
 import { getMainWindow } from '../window'
 import { runAgent } from './harness'
-import { mergePlaybooks, playbooksForRole, readPlaybookDir } from './playbooks'
+import { playbooksForRole } from './playbooks'
 import type { Playbook } from './playbooks'
-import { BUILTIN_PLAYBOOKS } from './playbooks-builtin'
+import { allPlaybooks as loadAllPlaybooks } from './playbooks/index'
 import { buildSystemPrompt } from './prompt'
 import { probeKey, probeToolSupport } from './probe'
 import { availableEfforts, canTurnOff, effortBody, effortProbeKey, isEffort, probeEffort } from './reasoning'
 import type { Effort } from './reasoning'
-import { BASE_TOOLS, enabledRoles, getRole, roleName } from './roles'
+import { BASE_TOOLS, CONNECTOR_ROLES, DATA_TOOLS as DATA_TOOL_NAMES, enabledRoles, getRole, roleName } from './roles'
 import type { RoleDef } from './roles'
 import { CustomRoleSchema, deleteCustomRole, exportRoleText, newRoleId, parseRoleFile, readCustomRoles, saveCustomRole, toRoleDef } from './custom-roles'
 import type { CustomRole } from './custom-roles'
@@ -32,6 +32,13 @@ import { clipOrgContext, contextLimitFor, DEFAULT_CONTEXT_LIMIT, ORG_CONTEXT_MAX
 import { appendStep, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
 import type { StepKind } from './store'
 import { createRegistry } from './tools'
+import { adaptAgentTools } from './tools/bridge'
+import { allTools } from './all-tools'
+import { createRuntimeToolContext } from '../analysis/tools-runtime'
+import { initNames, noteArgs, noteDatasets, restoreDeep, restoreNames, sessionDatasetIds } from './names'
+import { setOutputRestorer } from './outputs/export'
+import { getStore } from '../analysis/datasets/index'
+import type { ToolRegistry } from './registry'
 import { AGENT_MODES, APPROVAL_MODES, DEFAULT_BUDGET } from './types'
 import type { AgentEvent, AgentMode, ApprovalMode, ModelReply, Scene } from './types'
 
@@ -59,7 +66,26 @@ export function setScene(s: Scene): Scene { writeSetting(SCENE_KEY, s); return s
 export const userPlaybookDir = (): string => path.join(getDataDir(), 'playbooks')
 export const customRolesDir = (): string => path.join(getDataDir(), 'agent-roles')
 export const orgContextFile = (): string => path.join(getDataDir(), 'agent-context.md')
-export function allPlaybooks(): Playbook[] { return mergePlaybooks(BUILTIN_PLAYBOOKS, readPlaybookDir(userPlaybookDir(), 'user')) }
+/** 内置 + 用户剧本（同名用户优先，._ 文件忽略）：一套加载器，load_playbook、设置页、系统提示都用它 */
+export function allPlaybooks(): Playbook[] { return loadAllPlaybooks(getDataDir()) }
+
+/** 启动时接线：代号还原（界面显示、导出到本机、发往外部）要用到数据目录 */
+export function initAgent(): void {
+  initNames(() => getDataDir())
+  setOutputRestorer(restoreNames)
+}
+
+/** 本轮可用的工具注册表：内核内置 + 试卷数据工具 + 分析 / 产出 / 连接器工具（连接器每轮按当前配置重新取）。同时返回连接器动态工具名 */
+export function buildRegistry(): { registry: ToolRegistry; dynamic: string[] } {
+  const list = allTools()
+  const adapted = adaptAgentTools(list, {
+    makeCtx: ctx => createRuntimeToolContext({ sessionId: ctx.sessionId, dataDir: ctx.dataDir || getDataDir(), signal: ctx.signal, onProgress: ctx.progress }),
+    restore: (sid, v) => restoreDeep(sid, v),
+    noteArgs
+  })
+  const fixed = new Set(DATA_TOOL_NAMES)
+  return { registry: createRegistry(adapted), dynamic: adapted.map(t => t.name).filter(n => !fixed.has(n)) }
+}
 
 // ───────── 偏好 ─────────
 interface Prefs { mode: AgentMode; approval: ApprovalMode; byRole: Record<string, { model: string; effort: Effort }> }
@@ -85,7 +111,7 @@ export function rolesView() {
 
 /** 可以勾选的工具（不含每个角色都有的基础工具） */
 export function toolList(): Array<{ name: string; label: string; level: 'read' | 'write' }> {
-  const reg = createRegistry()
+  const reg = buildRegistry().registry
   return reg.names().filter(n => !BASE_TOOLS.includes(n)).map(n => { const t = reg.get(n)!; return { name: n, label: t.label ?? n, level: t.level } })
 }
 
@@ -183,6 +209,12 @@ export async function checkEffortSupport(model: string) {
   return modelInfo(model)
 }
 
+// ───────── 本会话选好的数据集 ─────────
+/** 用户在输入框选的数据集（编号 + 名字），给系统提示用；已删除的跳过 */
+function selectedDatasets(sid: string): Array<{ id: string; name: string }> {
+  try { const st = getStore(); return sessionDatasetIds(sid).map(id => st.find(id)).filter((d): d is NonNullable<typeof d> => !!d).slice(0, 10).map(d => ({ id: d.id, name: d.name })) } catch { return [] }
+}
+
 // ───────── 一次提问 ─────────
 interface Run {
   ctl: AbortController
@@ -195,6 +227,9 @@ export const isRunning = (sessionId: string): boolean => runs.has(sessionId)
 /** 启动时：上次没跑完就退出的对话（状态还是「进行中」）改回空闲 */
 export function resetStaleRunning(): void { getDb().prepare("UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'").run() }
 
+/** 给界面看的步骤内容：代号还原成真名（数据库里和发给 AI 的始终是代号） */
+export function showPayload(sid: string, kind: string, payload: unknown): unknown { return kind === 'user' ? payload : restoreDeep(sid, payload) }
+
 function send(payload: Record<string, unknown>): void {
   getMainWindow()?.webContents.send('agent:event', payload)
 }
@@ -206,6 +241,8 @@ export interface RunArgs {
   branchFrom?: number
   /** 接着某个分支追问（不写 = 主线） */
   branchId?: string
+  /** 用户选的数据集编号：记在这个会话上，导出 / 显示时用它们还原真名 */
+  datasets?: string[]
 }
 
 /** 开始一次提问；很快返回 sessionId，过程通过 agent:event 推给界面，结束时发 done */
@@ -230,6 +267,9 @@ export function startRun(a: RunArgs): { sessionId: string; branchId: string } {
     createSession(db, { id: sessionId, role: role.id, scene, title: a.text.replace(/\s+/g, ' ').trim() })
   }
   const sid = sessionId
+  if (a.datasets?.length) noteDatasets(sid, a.datasets.slice(0, 20))
+  // 第一次选运营 / 辅导老师来用助手：下次打开卷知默认进入助手（没手动选过启动页才生效；本次不跳转）
+  if (CONNECTOR_ROLES.includes(role.id) && readSetting('start_page') == null) writeSetting('start_page', 'assistant')
   const mode: AgentMode = a.mode && AGENT_MODES.includes(a.mode) ? a.mode : getPrefs().mode
   const cfg0 = loadConfig()
   const model = (a.model ?? '').trim().slice(0, 120) || cfg0.model
@@ -266,7 +306,7 @@ async function execute(x: ExecArgs): Promise<void> {
     firstParent = undefined
     const seq = appendStep(db, sid, { ...s, branchId, ...(parentId !== undefined ? { parentId } : {}) })
     const row = getSession(db, sid)?.steps.find(r => r.seq === seq)
-    send({ sessionId: sid, type: 'step', seq, parentId: row?.parentId ?? null, branchId, kind: s.kind, payload: s.payload, tokens: s.tokens ?? 0, ms: s.ms ?? 0 })
+    send({ sessionId: sid, type: 'step', seq, parentId: row?.parentId ?? null, branchId, kind: s.kind, payload: showPayload(sid, s.kind, s.payload), tokens: s.tokens ?? 0, ms: s.ms ?? 0 })
     return seq
   }
   const finishNoRun = (code: string, message: string) => {
@@ -304,8 +344,10 @@ async function execute(x: ExecArgs): Promise<void> {
 
   const playbooks = playbooksForRole(allPlaybooks(), role.id)
   const org = clipOrgContext(readOrgContext())
-  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text })
-  const registry = createRegistry()
+  const chosen = selectedDatasets(sid)
+  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen })
+  const { registry, dynamic } = buildRegistry()
+  const toolNames = CONNECTOR_ROLES.includes(role.id) ? [...role.tools, ...dynamic] : role.tools
   const prices = getPriceMap()
   const lim = effectiveMaxTokens(cfg, model)
   const st = readSetting(SETTINGS_KEY) ?? {}
@@ -362,7 +404,8 @@ async function execute(x: ExecArgs): Promise<void> {
         send({ sessionId: sid, type: 'progress', rounds: e.rounds, tokensIn: sumIn, tokensOut: sumOut, money, limitTokens: DEFAULT_BUDGET.maxTokens, model, effort })
         return
       }
-      case 'approval': send({ sessionId: sid, type: 'approval', id: e.id, name: e.name, args: e.args, summary: e.summary }); return
+      case 'approval': send({ sessionId: sid, type: 'approval', id: e.id, name: e.name, args: e.args, summary: e.summary, ...(e.preview ? { preview: e.preview } : {}) }); return
+      case 'tool_progress': send({ sessionId: sid, type: 'tool-progress', id: e.id, done: e.done, total: e.total }); return
       case 'asked': {
         const seq = askSeq.get(e.id)
         if (seq) { updateStepPayload(db, sid, seq, { answer: e.answer }); send({ sessionId: sid, type: 'step-update', seq, payload: { answer: e.answer } }) }
@@ -381,10 +424,10 @@ async function execute(x: ExecArgs): Promise<void> {
 
   try {
     const result = await runAgent({
-      callModel, registry, toolNames: role.tools, mode, approvalMode: x.approval, initialState,
+      callModel, registry, toolNames, mode, approvalMode: x.approval, initialState,
       compact: { limitTokens: ctxLimit, summarize },
       ctx: {
-        db, scene, roleId: role.id, sessionId: sid,
+        db, scene, roleId: role.id, sessionId: sid, dataDir: getDataDir(),
         playbook: name => { const p = playbooks.find(y => y.name === name); return p ? { name: p.name, description: p.description, body: p.body } : null },
         playbookNames: () => playbooks.map(p => p.name)
       },
@@ -410,4 +453,23 @@ export function answerApproval(sessionId: string, id: string, ok: boolean): bool
   const r = runs.get(sessionId); const f = r?.approvals.get(id)
   if (!r || !f) return false
   r.approvals.delete(id); f(ok); return true
+}
+
+// ───────── 给界面的会话内容（代号还原成真名）与查询记录 ─────────
+export function sessionView(id: string) {
+  const r = getSession(getDb(), id)
+  if (!r) return null
+  return { ...r, steps: r.steps.map(x => ({ ...x, payload: showPayload(id, x.kind, x.payload) })), running: isRunning(id) }
+}
+
+/** [[query:N]] 点开后看的内容：这次查询的工具、参数（SQL）和结果摘要；代号已还原 */
+export function queryRecord(sessionId: string, n: number) {
+  const r = getSession(getDb(), sessionId)
+  if (!r) return null
+  const call = r.steps.find(x => x.kind === 'tool_result' && x.payload?.n === n)
+  const callStep = call ? r.steps.find(x => x.kind === 'tool_call' && x.payload?.id === call.payload.id) : undefined
+  if (!call) return null
+  const args = (callStep?.payload?.args ?? {}) as Record<string, unknown>
+  const show = <T,>(v: T): T => restoreDeep(sessionId, v)
+  return show({ n, name: String(call.payload.name), ok: call.payload.ok !== false, sql: typeof args.sql === 'string' ? args.sql : null, args, summary: String(call.payload.summary ?? ''), text: String(call.payload.text ?? ''), truncated: !!call.payload.truncated })
 }

@@ -1,5 +1,6 @@
 // 助手（Agent）的模拟模型：请求里带 tools 时走这里。按「最后一条用户消息」里的关键字选一套预设的工具调用序列：
 //   · 含「周报」  → 列计划 → ask_user → 一次并行两个工具（看整体 + 更新计划）→ 查某知识点的题 → 最终回答（带真实题目引用 + 一个假引用）
+//   · 含「满意度」→ 数据分析全流程（计划 → 数据集 → 查询 → 统计 → 看板 → 汇报 → 名单 → 发企业微信 → 回答），见下面 analysis()
 //   · 含「慢慢」  → 一条很慢的流式文字回答（给「停止」按钮用）
 //   · 含「卡住」  → 一直重复同一个工具调用（测卡住检测）
 //   · 其余       → 一句普通回答
@@ -8,6 +9,41 @@ const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 const textOf = c => (typeof c === 'string' ? c : (c ?? []).filter(p => p.type === 'text').map(p => p.text).join('\n'))
 const call = (name, args, n) => ({ id: `mock_call_${name}_${n}`, type: 'function', function: { name, arguments: JSON.stringify(args) } })
+
+const SQL = '\n'
+/** 数据分析剧本：数据集编号、老师代号、手机代号都从前面的工具结果里读（模型始终只看到代号） */
+function analysis(round, toolTexts) {
+  const all = toolTexts.join('\n')
+  const dsId = /"id":"([0-9a-f-]{36})"/.exec(all)?.[1] ?? 'missing-dataset'
+  const teacher = /人员A\d+/.exec(toolTexts.find(t => /偏低|分组|组/.test(t) && /人员A\d+/.test(t)) ?? all)?.[0] ?? '人员A001'
+  const phone = /手机\d{4}/.exec(all)?.[0] ?? '手机0001'
+  const sql = 'SELECT "c06_班级" AS "班级", "c07_授课老师" AS "授课老师", "c02_家长手机" AS "家长手机", "c09_推荐分" AS "推荐分", "c10_满意度" AS "满意度" FROM d1."问卷"'
+  const base = { datasets: [dsId], sql }
+  const plan = (a, b, c) => ({ items: [{ content: '看数据概况', status: a }, { content: '查满意度并做统计', status: b }, { content: '搭看板、写汇报', status: c }] })
+  const tableId = /"tableId":"(t\d+)"/.exec(all)?.[1] ?? 't1'
+  const docId = /"docId":"(d\d+)"/.exec(all)?.[1] ?? 'd1'
+  const steps = [
+    () => ({ content: '好的，先列个计划。', toolCalls: [call('update_plan', plan('doing', 'todo', 'todo'), 0)] }),
+    () => ({ content: '', toolCalls: [call('list_datasets', {}, 1)] }),
+    () => ({ content: '', toolCalls: [call('dataset_profile', { datasetId: dsId, table: '问卷' }, 2)] }),
+    () => ({ content: '', toolCalls: [call('run_query', { sql, datasets: [dsId] }, 3)] }),
+    () => ({ content: '', toolCalls: [call('stat_nps', { ...base, scoreColumn: '推荐分', groupKey: '班级' }, 4)] }),
+    () => ({ content: '', toolCalls: [call('stat_compare_groups', { ...base, groupKey: '授课老师', metric: 'mean', column: '满意度' }, 5)] }),
+    () => ({ content: '', toolCalls: [call('stat_find_low_groups', { ...base, dimensions: ['班级', '授课老师'], metric: 'mean', column: '满意度' }, 6)] }),
+    () => ({ content: '', toolCalls: [call('board_start', { title: '秋季满意度看板', subtitle: '虚构问卷', dataNote: '300 份问卷' }, 7)] }),
+    () => ({ content: '', toolCalls: [call('board_add_finding', { title: `${teacher} 的满意度偏低`, body: `${teacher} 班级的满意度均值低于总体。` }, 8), call('board_add_section', { id: 'teacher', title: '按老师看满意度', intro: `${teacher} 偏低。` }, 8)] }),
+    () => ({ content: '', toolCalls: [call('board_add_block', { sectionId: 'teacher', block: { type: 'chart', chart: { kind: 'bar', title: '各老师满意度均值', categories: [teacher, '人员A002'], series: [{ name: '满意度', values: [2.5, 3.1] }], valueFormat: 'number' }, source: { queryId: '5' } } }, 9), call('board_set_caliber', { items: ['满意度 1–5 分，取均值'] }, 9)] }),
+    () => ({ content: '', toolCalls: [call('doc_create', { name: '满意度汇报', sections: ['一、结论', '二、依据'] }, 10)] }),
+    () => ({ content: '', toolCalls: [call('doc_write_section', { docId, sectionId: 's1', title: '一、结论', markdown: `${teacher} 的满意度偏低，需要重点跟进 [[query:6]]。` }, 11), call('doc_write_section', { docId, sectionId: 's2', title: '二、依据', markdown: `按老师分组对比见 [[query:5]]，家长 ${phone} 反馈上课时间不合适。`, last: true }, 11)] }),
+    () => ({ content: '', toolCalls: [call('table_save', { name: '本周跟进名单', columns: ['老师', '班级', '家长手机'], rows: [[teacher, '启航A班', phone]] }, 12)] }),
+    () => ({ content: '', toolCalls: [call('output_export', { id: tableId, format: 'xlsx' }, 13)] }),
+    () => ({ content: '', toolCalls: [call('wecom_send', { targetName: '三年级辅导群', kind: 'markdown', content: `满意度偏低提醒：${teacher} 的班级需要跟进，家长联系方式 ${phone}。` }, 14)] }),
+    () => ({
+      content: ['## 结论', '', `${teacher} 的满意度偏低 [[query:6]]。`, '', '## 依据', '', `按老师分组对比：${teacher} 明显低于其他老师 [[query:5]]。`, '', '## 下一步', '', `建议先和 ${teacher} 沟通 [[query:99]]。`].join('\n'), toolCalls: []
+    })
+  ]
+  return (steps[Math.min(round, steps.length - 1)] ?? steps[steps.length - 1])()
+}
 
 /** 返回 { content, toolCalls, opts } */
 function next(body) {
@@ -26,6 +62,7 @@ function next(body) {
   const toolTexts = after.filter(m => m.role === 'tool').map(m => textOf(m.content))
 
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
+  if (/满意度/.test(q)) return analysis(round, toolTexts)
   if (/慢慢/.test(q)) return { content: '好的，我慢慢来。'.repeat(40), toolCalls: [], opts: { pieceChars: 6, chunkDelayMs: 350 } }
   if (/周报/.test(q) && lastMsg.role === 'user' && /^用户想修改计划/.test(textOf(lastMsg.content))) {
     return { content: '好的，按你的意见改一下。', toolCalls: [call('update_plan', { items: [{ content: '确认范围（已审核）', status: 'doing' }, { content: '查最常考和最易错的知识点', status: 'todo' }, { content: '写周报', status: 'todo' }] }, 'r' + revisions.length)] }

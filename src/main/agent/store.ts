@@ -150,6 +150,7 @@ export function makeCiteChecker(db: Db, extra: Partial<CiteChecker> = {}): CiteC
   return {
     q: extra.q ?? (id => !!qStmt.get(id)),
     lesson: extra.lesson ?? (id => /^\d{1,12}$/.test(id) && !!lStmt.get(Number(id))),
-    stu: extra.stu ?? (() => false)
+    stu: extra.stu ?? (() => false),
+    query: extra.query ?? (() => false)
   }
 }

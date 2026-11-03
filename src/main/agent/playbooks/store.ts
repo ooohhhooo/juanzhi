@@ -11,21 +11,25 @@ export interface LoadedPlaybook extends Playbook { source: 'builtin' | 'user' }
 
 export function userPlaybookDir(dataDir: string): string { return path.join(dataDir, 'playbooks') }
 
-function readUser(dataDir: string | undefined): { items: LoadedPlaybook[]; problems: string[] } {
+/** 读一个目录里的 *.md（坏文件跳过并记在 problems；._ 开头的和超过 64KB 的忽略） */
+export function readPlaybookFiles(dir: string, source: 'builtin' | 'user'): { items: LoadedPlaybook[]; problems: string[] } {
   const items: LoadedPlaybook[] = []
   const problems: string[] = []
-  if (!dataDir) return { items, problems }
-  const dir = userPlaybookDir(dataDir)
   let files: string[] = []
   try { files = fs.readdirSync(dir).filter(f => f.endsWith('.md') && !f.startsWith('.')).sort() } catch { return { items, problems } }
   for (const f of files) {
     try {
+      if (fs.statSync(path.join(dir, f)).size > 64 * 1024) { problems.push(`${f}：文件太大`); continue }
       const r = parsePlaybook(fs.readFileSync(path.join(dir, f), 'utf8'))
-      if (r.ok) items.push({ ...r.playbook, source: 'user' })
+      if (r.ok) items.push({ ...r.playbook, source })
       else problems.push(`${f}：${r.error}`)
     } catch { problems.push(`${f}：读取失败`) }
   }
   return { items, problems }
+}
+
+function readUser(dataDir: string | undefined): { items: LoadedPlaybook[]; problems: string[] } {
+  return dataDir ? readPlaybookFiles(userPlaybookDir(dataDir), 'user') : { items: [], problems: [] }
 }
 
 /** builtin：{ 文件路径或名字 → 原文 }，路径里 ._ 开头的会被过滤 */
@@ -46,6 +50,8 @@ export function createPlaybooks(builtin: Record<string, string>) {
     return { items: [...map.values()].sort((a, b) => a.name.localeCompare(b.name)), problems: u.problems }
   }
   return {
+    /** 全文列表（内置 + 用户，同名用户优先） */
+    allPlaybooks(dataDir?: string): LoadedPlaybook[] { return all(dataDir).items },
     listPlaybooks(dataDir?: string): PlaybookInfo[] {
       return all(dataDir).items.map(p => ({ name: p.name, description: p.description, roles: p.roles, when: p.when, source: p.source }))
     },

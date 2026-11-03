@@ -1,10 +1,10 @@
 /**
- * 剧本（Playbook，类似 Skill）：一份 Markdown 文件，开头是 frontmatter（name、description、roles、when），正文写清分析步骤。
- * 内置剧本在 src/main/agent/playbooks/*.md（随应用打包，见 playbooks-builtin.ts）；用户自己的放在数据目录下的 playbooks/。
- * 同名时用户的覆盖内置的。Harness 只把 name + description 列给模型，模型需要时用 load_playbook(name) 读全文。
+ * 剧本的辅助函数（解析 / 读目录 / 合并 / 按角色筛选 / 给模型的目录）。
+ * 剧本只有一套：内置的在 playbooks/*.md（playbooks/index.ts 用 ?raw 编进主进程），用户的在 <数据目录>/playbooks/；解析与加载都在 playbooks/parse.ts 和 playbooks/store.ts。
+ * 这里是内核（service / prompt）用的薄封装。
  */
-import fs from 'node:fs'
-import path from 'node:path'
+import { parsePlaybook as parseOne } from './playbooks/parse.ts'
+import { readPlaybookFiles } from './playbooks/store.ts'
 
 export interface Playbook {
   name: string
@@ -16,37 +16,14 @@ export interface Playbook {
   source: 'builtin' | 'user'
 }
 
-/** 解析 frontmatter（只支持 key: value 和 roles: [a, b]）；格式不对返回 null */
+/** 解析一份剧本；格式不对返回 null */
 export function parsePlaybook(text: string, source: Playbook['source']): Playbook | null {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text.replace(/^﻿/, ''))
-  if (!m) return null
-  const fm: Record<string, string> = {}
-  for (const line of m[1].split(/\r?\n/)) {
-    const kv = /^([A-Za-z_]+)\s*[:：]\s*(.*)$/.exec(line.trim())
-    if (kv) fm[kv[1].toLowerCase()] = kv[2].trim().replace(/^["']|["']$/g, '')
-  }
-  const name = (fm.name ?? '').trim()
-  const description = (fm.description ?? '').trim()
-  if (!name || !description) return null
-  const roles = (fm.roles ?? '').replace(/^\[|\]$/g, '').split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean)
-  return { name: name.slice(0, 40), description: description.slice(0, 200), roles, when: (fm.when ?? '').slice(0, 200), body: m[2].trim(), source }
+  const r = parseOne(text.replace(/^﻿/, ''))
+  return r.ok ? { ...r.playbook, source } : null
 }
 
-/** 读用户剧本目录里的 *.md；目录不存在 / 读不了就当没有 */
-export function readPlaybookDir(dir: string, source: Playbook['source']): Playbook[] {
-  let files: string[] = []
-  try { files = fs.readdirSync(dir).filter(f => !f.startsWith('.') && f.toLowerCase().endsWith('.md')).sort() } catch { return [] }
-  const out: Playbook[] = []
-  for (const f of files) {
-    try {
-      const st = fs.statSync(path.join(dir, f))
-      if (!st.isFile() || st.size > 64 * 1024) continue
-      const p = parsePlaybook(fs.readFileSync(path.join(dir, f), 'utf8'), source)
-      if (p) out.push(p)
-    } catch { /* 读不了的文件跳过 */ }
-  }
-  return out
-}
+/** 读目录里的 *.md；目录不存在 / 读不了就当没有 */
+export function readPlaybookDir(dir: string, source: Playbook['source']): Playbook[] { return readPlaybookFiles(dir, source).items }
 
 /** 合并内置和用户剧本（同名用户覆盖内置） */
 export function mergePlaybooks(builtin: Playbook[], user: Playbook[]): Playbook[] {

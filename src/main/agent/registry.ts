@@ -22,7 +22,7 @@ export class ToolRegistry {
   /** 给模型看的工具清单；names 不给 = 全部，给了就只要名单里存在的 */
   specs(names?: string[]): ToolSpec[] {
     const list = names ? names.map(n => this.tools.get(n)).filter((t): t is ToolDef => !!t) : [...this.tools.values()]
-    return list.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: toJsonSchema(t.schema) } }))
+    return list.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema ?? toJsonSchema(t.schema) } }))
   }
 
   /** 解析模型给的参数字符串并用 zod 校验；失败返回给模型看的白话错误，让它改 */

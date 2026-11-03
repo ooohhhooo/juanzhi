@@ -43,7 +43,14 @@ export interface ToolCtx {
   playbookNames: () => string[]
   /** 当前会话状态（计划、查询记录、选择） */
   state: () => SessionState
+  /** 数据目录（看板草稿、产出、用户剧本放在这下面）；单测可以不给 */
+  dataDir: string
+  /** 长任务的进度（比如文字归类 done/total）；界面显示在这一步的工具条目里 */
+  progress: (done: number, total: number) => void
 }
+
+/** 需要用户同意的对外发送：发到哪里 + 完整内容；含个人信息时 privacyWarning 非空，界面要醒目显示 */
+export interface ToolPreviewInfo { target: string; content: string; privacyWarning?: string }
 
 export interface ToolDef<A = any> {
   name: string
@@ -62,6 +69,10 @@ export interface ToolDef<A = any> {
   effect?: 'export' | 'external'
   /** 「先出计划」模式下，用户确认计划前也能用的工具（只读的概况类 + 计划 / 提问 / 剧本）。没写 = 确认前被程序禁用 */
   planSafe?: boolean
+  /** write 工具弹窗里显示的完整预览（对外发送必须有）；抛错 = 这次调用失败，不弹窗 */
+  preview?: (args: A, ctx: ToolCtx) => Promise<ToolPreviewInfo | string> | ToolPreviewInfo | string
+  /** 直接给模型看的参数 JSON Schema（外部 MCP 工具用）；没写就由 schema 生成 */
+  inputSchema?: Record<string, unknown>
 }
 
 export interface Budget {
@@ -94,7 +105,8 @@ export type AgentEvent =
   | { type: 'plan'; items: PlanItem[] }
   | { type: 'ask'; id: string; question: string; options: string[]; allowOther: boolean; planReview?: boolean }
   | { type: 'asked'; id: string; answer: string }
-  | { type: 'approval'; id: string; name: string; args: unknown; summary: string }
+  | { type: 'approval'; id: string; name: string; args: unknown; summary: string; preview?: ToolPreviewInfo }
+  | { type: 'tool_progress'; id: string; done: number; total: number }
   | { type: 'approved'; id: string; ok: boolean }
   | { type: 'compacted'; by: 'ai' | 'program'; summary: string }
   | { type: 'progress'; rounds: number; tokensIn: number; tokensOut: number }

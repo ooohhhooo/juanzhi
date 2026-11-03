@@ -18,7 +18,7 @@ export interface Chip { key: string; kind: 'playbook' | 'output' | 'dataset' | '
 const KIND_LABEL: Record<Chip['kind'], string> = { playbook: '剧本', output: '产出', dataset: '数据', connector: '连接器' }
 /** 把标签翻成一句话，附在问题后面一起发给助手 */
 export function chipsToHint(chips: Chip[]): string {
-  const parts = chips.map(c => (c.kind === 'playbook' ? `使用剧本《${c.label}》` : c.kind === 'output' ? `产出形式：${c.label}` : c.kind === 'dataset' ? `数据集：${c.label}` : `连接器：${c.label}`))
+  const parts = chips.filter(c => c.kind !== 'dataset').map(c => (c.kind === 'playbook' ? `使用剧本《${c.label}》` : c.kind === 'output' ? `产出形式：${c.label}` : c.kind === 'dataset' ? `数据集：${c.label}` : `连接器：${c.label}`))
   return parts.length ? `\n（${parts.join('；')}）` : ''
 }
 

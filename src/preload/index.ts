@@ -159,6 +159,7 @@ const api = {
     sessions: (): Promise<any[]> => ipcRenderer.invoke('agent:sessions'),
     session: (id: string): Promise<any> => ipcRenderer.invoke('agent:session', id),
     cites: (refs: Array<{ kind: string; id: string }>): Promise<any[]> => ipcRenderer.invoke('agent:cites', refs),
+    queryRecord: (sessionId: string, n: number): Promise<any> => ipcRenderer.invoke('agent:queryRecord', sessionId, n),
     setScene: (scene: 'org' | 'school'): Promise<'org' | 'school'> => ipcRenderer.invoke('agent:setScene', scene),
     checkTools: (model?: string): Promise<any> => ipcRenderer.invoke('agent:checkTools', model),
     run: (a: Record<string, unknown>): Promise<{ sessionId: string; branchId: string }> => ipcRenderer.invoke('agent:run', a),
@@ -301,6 +302,7 @@ const api = {
   agentOutputs: {
     list: (sessionId: string): Promise<any[]> => ipcRenderer.invoke('agent-outputs:list', sessionId),
     read: (sessionId: string, id: string): Promise<any> => ipcRenderer.invoke('agent-outputs:read', sessionId, id),
+    board: (sessionId: string): Promise<any> => ipcRenderer.invoke('agent-outputs:board', sessionId),
     export: (sessionId: string, id: string, format: 'docx' | 'pdf' | 'xlsx' | 'csv' | 'md'): Promise<any> => ipcRenderer.invoke('agent-outputs:export', sessionId, id, format),
     reveal: (sessionId: string, id: string): Promise<boolean> => ipcRenderer.invoke('agent-outputs:reveal', sessionId, id),
   },

@@ -2,13 +2,24 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input } from 'antd'
-import { Circle, CircleCheck, CircleDot, CornerDownRight, Plus, Square, SquarePen, Trash2, Wrench } from 'lucide-react'
+import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, Plus, Square, SquarePen, Trash2, Wrench } from 'lucide-react'
 import { Btn, UsageNote } from '../design'
+import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
 import { AssistantSettingsModal, RoleModal } from './assistant-dialogs'
 import Composer, { chipsToHint } from './assistant-composer'
 import type { Chip } from './assistant-composer'
 import AiErrorExplain from '../components/AiErrorExplain'
+import { ApprovalBox, BoardPane, QueryRecordModal } from './assistant-extras'
+import type { ApprovalInfo } from './assistant-extras'
+import { addPickedDatasets, clearPickedDatasets, getPickedDatasets } from './assistant-data'
+import AssistantCanvas from '../assistant/canvas/AssistantCanvas'
+import AssistantSidePanel from '../assistant/side/AssistantSidePanel'
+import type { SideMode } from '../assistant/side/AssistantSidePanel'
+import { useAgentOutputs } from '../assistant/side/useAgentOutputs'
+import { sessionToNodes } from '../assistant/toNodes'
+import type { CanvasAction } from '../assistant/types'
+import { TOOL_LABELS } from '../../main/agent/tools/bridge'
 import { parseBlocks } from '../../shared/markdown'
 import type { Inline } from '../../shared/markdown'
 import { CITE_PATTERN } from '../../shared/agent-cite'
@@ -17,7 +28,7 @@ import '../design/page-library.css'
 import '../design/page-assistant.css'
 
 const TOOL_LABEL: Record<string, string> = {
-  stats_overview: '看整体情况', kp_questions: '查考这个知识点的题', course_for_kp: '查对应的课', fact_check: '核对讲解', load_playbook: '读取分析步骤'
+  stats_overview: '看整体情况', kp_questions: '查考这个知识点的题', course_for_kp: '查对应的课', fact_check: '核对讲解', load_playbook: '读取分析步骤', ...TOOL_LABELS
 }
 /** 计划和提问有自己的显示方式，不重复列在工具步骤里 */
 const HIDDEN_TOOLS = new Set(['update_plan', 'ask_user', 'session_state'])
@@ -42,7 +53,7 @@ const citeKey = (kind: string, id: string) => `${kind}:${id}`
 function CiteChip({ kind, id, cites, onGo }: { kind: string; id: string; cites: Cites; onGo: (c: AgentCite) => void }) {
   const c = cites.get(citeKey(kind, id))
   if (!c || !c.ok) return null
-  const prefix = kind === 'q' ? '题 · ' : kind === 'lesson' ? '课 · ' : '学员 · '
+  const prefix = kind === 'query' ? '查询 ' : kind === 'q' ? '题 · ' : kind === 'lesson' ? '课 · ' : '学员 · '
   return (
     <button type="button" className="ewb-as-chip" data-testid="assistant-cite" data-kind={kind} data-id={id} title="点一下查看" onClick={() => onGo(c)}>{prefix}{c.label}</button>
   )
@@ -112,16 +123,16 @@ function PlanBox({ items }: { items: AgentPlanItem[] }) {
   )
 }
 
-function ToolItem({ call, result }: { call: AgentStepRow; result?: AgentStepRow }) {
+function ToolItem({ call, result, prog }: { call: AgentStepRow; result?: AgentStepRow; prog?: { done: number; total: number } }) {
   const name = String(call.payload.name)
   const ok = result ? result.payload.ok !== false : true
-  const sum = result ? String(result.payload.summary ?? '') : '查询中……'
+  const sum = result ? String(result.payload.summary ?? '') : prog && prog.total > 0 ? `归类中 ${prog.done}/${prog.total}` : '查询中……'
   return (
     <details className="ewb-as-tool" data-testid="assistant-tool" data-name={name} data-ok={String(ok)} data-done={String(!!result)}>
       <summary>
         <Wrench size={14} />
         <span className="ewb-as-tool__name">{TOOL_LABEL[name] ?? name}</span>
-        <span className="ewb-as-tool__sum" data-testid="assistant-tool-summary">{ok ? sum : `没成功：${sum}`}{result && result.ms ? `　${(result.ms / 1000).toFixed(1)} 秒` : ''}</span>
+        <span className="ewb-as-tool__sum" data-testid="assistant-tool-summary" data-progress={prog ? `${prog.done}/${prog.total}` : undefined}>{ok ? sum : `没成功：${sum}`}{result && result.ms ? `　${(result.ms / 1000).toFixed(1)} 秒` : ''}</span>
       </summary>
       <div className="ewb-as-tool__body">
         <div><span className="ewb-as-tool__k">查询条件</span><pre className="ewb-as-pre" data-testid="assistant-tool-args">{JSON.stringify(call.payload.args ?? {}, null, 2)}</pre></div>
@@ -211,7 +222,13 @@ export default function Assistant() {
   const [statusText, setStatusText] = useState('')
   const [progress, setProgress] = useState<{ rounds: number; tokensIn: number; tokensOut: number; money: number | null; limitTokens: number } | null>(null)
   const [sessTok, setSessTok] = useState<number>(0)
-  const [approval, setApproval] = useState<{ id: string; name: string; summary: string } | null>(null)
+  const [approval, setApproval] = useState<ApprovalInfo | null>(null)
+  const [toolProg, setToolProg] = useState<Record<string, { done: number; total: number }>>({})
+  const [view, setView] = useState<'chat' | 'canvas'>('chat')
+  const [sideMode, setSideMode] = useState<SideMode>('outputs')
+  const [selNode, setSelNode] = useState<string | null>(null)
+  const [focusSignal, setFocusSignal] = useState(0)
+  const [queryN, setQueryN] = useState<number | null>(null)
   const [text, setText] = useState('')
   const [checking, setChecking] = useState(false)
   const activeRef = useRef<string | null>(null)
@@ -256,13 +273,14 @@ export default function Assistant() {
     if (!r) return
     qc.invalidateQueries({ queryKey: ['agent', 'sessions'] })
     activeRef.current = id
-    setActive(id); setSteps(r.steps); setStale(r.session.stale); setRole(r.session.role); setLive(''); setProgress(null); setApproval(null); setStatusText(''); setBranchId('main'); setForkFrom(null)
+    clearPickedDatasets(); setSelNode(null); setSideMode('outputs'); setToolProg({}); setActive(id); setSteps(r.steps); setStale(r.session.stale); setRole(r.session.role); setLive(''); setProgress(null); setApproval(null); setStatusText(''); setBranchId('main'); setForkFrom(null)
     setSessTok(r.session.tokensIn + r.session.tokensOut); setRunning(r.running)
   }, [qc])
 
   const newChat = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['agent', 'sessions'] })
     activeRef.current = null
+    clearPickedDatasets(); setSelNode(null); setSideMode('outputs'); setToolProg({}); setView('chat')
     setActive(null); setSteps([]); setBranchId('main'); setForkFrom(null); setStale(false); setLive(''); setProgress(null); setRunning(false); setApproval(null); setStatusText(''); setSessTok(0)
   }, [qc])
 
@@ -290,20 +308,22 @@ export default function Assistant() {
       case 'reset': setLive(''); break
       case 'status': setStatusText(e.text); break
       case 'progress': setProgress({ rounds: e.rounds, tokensIn: e.tokensIn, tokensOut: e.tokensOut, money: e.money, limitTokens: e.limitTokens }); break
-      case 'approval': setApproval({ id: e.id, name: e.name, summary: e.summary }); break
+      case 'approval': setApproval({ id: e.id, name: e.name, summary: e.summary, preview: e.preview }); break
+      case 'tool-progress': setToolProg(p => ({ ...p, [e.id]: { done: e.done, total: e.total } })); break
     }
   }), [qc, loadSession])
 
   useEffect(() => { flowEnd.current?.scrollIntoView?.({ block: 'end' }) }, [steps.length, live])
 
-  const send = async (q: string) => {
+  const send = async (q: string, fromSeq?: number) => {
     const t = q.trim()
     if (!t || running) return
     startingRef.current = true
     setRunning(true); setLive(''); setProgress(null); setApproval(null)
     try {
-      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
+      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
       activeRef.current = r.sessionId; setActive(r.sessionId); setBranchId(r.branchId); setForkFrom(null); setText(''); setChips([])
+      const used = chips.filter(c => c.kind === 'dataset'); if (used.length) addPickedDatasets(used.map(c => ({ id: c.key.slice('dataset:'.length), name: c.label })))
     } catch (e) {
       setRunning(false)
       message.error((e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
@@ -330,7 +350,8 @@ export default function Assistant() {
   const { data: citeList = [] } = useQuery({ queryKey: ['agent', 'cites', JSON.stringify(refs)], queryFn: () => window.api.agent.cites(refs), enabled: refs.length > 0, staleTime: Infinity })
   const cites: Cites = useMemo(() => new Map(citeList.map(c => [citeKey(c.kind, c.id), c])), [citeList])
   const goCite = (c: AgentCite) => {
-    if (c.kind === 'q' && c.paperId) nav(`/review/${c.paperId}?q=${encodeURIComponent(c.id)}`)
+    if (c.kind === 'query') setQueryN(Number(c.id))
+    else if (c.kind === 'q' && c.paperId) nav(`/review/${c.paperId}?q=${encodeURIComponent(c.id)}`)
     else if (c.kind === 'lesson') nav('/courses')
   }
 
@@ -364,7 +385,21 @@ export default function Assistant() {
       newChat(); setRole(r.role.id)
     } catch (e) { message.error((e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')) }
   }
-  const [boardOpen, setBoardOpen] = useState(true)
+  const outs = useAgentOutputs(active)
+  const errMsg = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  const openQuery = (id: string) => { if (/^\d+$/.test(id)) setQueryN(Number(id)) }
+  // 画布：会话树 → 节点
+  const { data: boardSpec } = useQuery({ queryKey: ['agent', 'board', active, outs.outputs.length, running], queryFn: () => (active ? window.api.agentOutputs.board(active) : null), enabled: !!active && outs.outputs.some(o => o.type === 'board') && view === 'canvas', staleTime: 0 })
+  const converted = useMemo(() => sessionToNodes(allSteps, { outputs: outs.outputs, boardFindings: (boardSpec?.findings ?? []).map((f: any) => String(f.title ?? '')), running, toolLabel: n => TOOL_LABEL[n] ?? n }), [allSteps, outs.outputs, boardSpec, running])
+  const canvasNodes = converted.nodes
+  const onCanvasAction = (id: string, action: CanvasAction) => {
+    const n = canvasNodes.find(x => x.id === id); if (!n) return
+    const quote = `「${n.title}${n.body ? '：' + n.body.replace(/\s+/g, ' ').slice(0, 120) : ''}」`
+    if (action === 'copy') { try { void navigator.clipboard.writeText(`${n.title}${n.body ? '\n' + n.body : ''}`); message.success('已复制') } catch { message.error('复制失败') } return }
+    if (running) { message.info('助手正在回答，等它结束再继续'); return }
+    const text = action === 'add-to-board' ? `把这条发现加到看板里：${quote}` : action === 'add-to-report' ? `把这条结论加到汇报里：${quote}` : `根据这条结论，生成需要跟进的名单：${quote}`
+    void send(text, converted.seqOf[id])
+  }
   const roleName = (id: string) => roles.find(r => r.id === id)?.name ?? id
   const meterTokens = tokens >= 10000 ? `${(tokens / 10000).toFixed(1)} 万` : tokens.toLocaleString()
   const limitMoney = progress && progress.money != null && tokens > 0 ? (progress.money / tokens) * progress.limitTokens : null
@@ -407,6 +442,10 @@ export default function Assistant() {
           )}
           {slots.dataChips && <div className="ewb-as-dataslot" data-testid="assistant-dataslot"><slots.dataChips sessionId={active} /></div>}
           <span className="ewb-as-grow" />
+          <div className="ewb-as-seg ewb-as-seg--small" role="group" aria-label="显示方式">
+            <button type="button" data-testid="assistant-view-chat" aria-pressed={view === 'chat'} onClick={() => setView('chat')}><MessageSquare size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> 对话</button>
+            <button type="button" data-testid="assistant-view-canvas" aria-pressed={view === 'canvas'} onClick={() => setView('canvas')}><Network size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> 画布</button>
+          </div>
           <div className="ewb-as-meter" data-testid="assistant-meter">
             {progress && <span data-testid="assistant-rounds">第 {progress.rounds} 轮</span>}
             {(running || tokens > 0) && <span data-testid="assistant-tokens">{meterTokens} token{progress?.money != null ? ` · 约 ${fmtMoney(progress.money)}` : ''}{running && limitMoney != null ? ` / 上限约 ${fmtMoney(limitMoney)}` : ''}</span>}
@@ -414,7 +453,17 @@ export default function Assistant() {
           </div>
         </div>
 
-        <div className="ewb-as-scroll" data-testid="assistant-flow">
+        {view === 'canvas' && (
+          <div className="ewb-as-canvaswrap" data-testid="assistant-canvas" style={{ flex: 1, minHeight: 0, display: 'flex', position: 'relative' }}>
+            {canvasNodes.length === 0
+              ? <div className="ewb-as-empty" data-testid="assistant-canvas-empty"><p className="ewb-as-empty__p">还没有对话。先在「对话」里提个问题，这里会把思路画成一棵树。</p></div>
+              : <AssistantCanvas nodes={canvasNodes} selectedId={selNode} focusSignal={focusSignal}
+                  onSelect={id => { setSelNode(id); setSideMode(id ? 'card' : 'outputs') }}
+                  onFollowUp={(id, t) => { if (running) { message.info('助手正在回答，等它结束再继续'); return } void send(t, converted.seqOf[id]) }}
+                  onAction={onCanvasAction} showAskBar={!running} />}
+          </div>
+        )}
+        <div className="ewb-as-scroll" data-testid="assistant-flow" style={view === 'canvas' ? { display: 'none' } : undefined}>
           {(notReady || noTools || showStale) && (
             <div className="ewb-as-notes">
               {notReady && (
@@ -448,7 +497,7 @@ export default function Assistant() {
               case 'user': return <div key={s.seq} className="ewb-as-user" data-testid="assistant-user">{s.payload.text}</div>
               case 'assistant': return s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{s.payload.text}</div>
               case 'plan': return keepPlan.has(s.seq) ? <PlanBox key={s.seq} items={s.payload.items} /> : null
-              case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} />
+              case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} prog={toolProg[String(s.payload.id)]} />
               case 'ask': return <AskBox key={s.seq} step={s} pending={running && lastAsk?.seq === s.seq} onPick={pick} />
               case 'answer': return (
                 <div key={s.seq} className="ewb-as-answer" data-testid="assistant-answer" data-stop={s.payload.stop} data-seq={s.seq}>
@@ -467,40 +516,36 @@ export default function Assistant() {
           })}
           {running && live && <div className="ewb-as-answer"><div className="ewb-as-live" data-testid="assistant-live">{live}</div></div>}
           {running && !live && <div className="ewb-lib-sub" data-testid="assistant-working">{statusText || '助手正在查数据、想答案……'}</div>}
-          {approval && (
-            <div className="ewb-as-ask" data-testid="assistant-approval">
-              <p className="ewb-as-ask__h">需要你同意</p>
-              <p className="ewb-as-ask__q">助手想做这件事：{approval.summary}</p>
-              <div className="ewb-as-ask__opts"><Btn tone="primary" data-testid="assistant-approve" onClick={() => decide(true)}>同意</Btn><Btn tone="secondary" data-testid="assistant-reject" onClick={() => decide(false)}>不同意</Btn></div>
-            </div>
-          )}
+          {approval && <ApprovalBox approval={approval} onDecide={decide} />}
           <div ref={flowEnd} />
         </div>
 
-        {forkFrom !== null && (
+        {view === 'chat' && forkFrom !== null && (
           <div className="ewb-as-forkbar" data-testid="assistant-forkbar">从第 {steps.filter(x => x.kind === 'answer').length} 条回答分出一个新分支追问（不影响主线）<button type="button" className="ewb-as-chiplink" data-testid="assistant-fork-cancel" onClick={() => setForkFrom(null)}>取消</button></div>
         )}
-        <Composer
+        {view === 'chat' && <Composer
           value={text} onChange={setText} onSend={() => send(text)} disabled={!!notReady} busy={running}
           chips={chips} onChips={setChips} playbooks={(pbs?.items ?? []).map(x => x.name)}
           mode={mode} onMode={setMode} approval={approval2} onApproval={setApproval2}
           models={models} model={model && model !== '__other__' ? model : ''} mainModel={mainModel} onModel={m => setModel(m === mainModel ? '' : m)}
           effort={effort} onEffort={setEffort} effortChoices={effortChoices} curInfo={curInfo}
           onResetModel={() => { setModel(''); setEffort('auto') }}
-        />
+        />}
       </section>
 
       <RoleModal open={roleModal.open} roleId={roleModal.id} onClose={() => setRoleModal({ open: false, id: null })} onSaved={id => { if (id) { newChat(); setRole(id) } else { newChat(); setRole(roles[0]?.id ?? 'ops') } }} />
       <AssistantSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      {slots.board && (
-        <aside className={`ewb-as-board${boardOpen ? '' : ' ewb-as-board--closed'}`} data-testid="assistant-board">
-          <div className="ewb-as-board__head">
-            {boardOpen && <span>{slots.boardTitle ?? '看板'}</span>}
-            <button type="button" className="ewb-as-stop" style={{ borderColor: 'var(--ewb-line-strong)', color: 'var(--ewb-ink-2)' }} data-testid="assistant-board-toggle" onClick={() => setBoardOpen(o => !o)}>{boardOpen ? '收起' : '展开'}</button>
-          </div>
-          {boardOpen && <div className="ewb-as-board__body"><slots.board sessionId={active} /></div>}
-        </aside>
-      )}
+      <AssistantSidePanel
+        mode={sideMode} onModeChange={setSideMode}
+        outputs={outs.outputs} activeOutputId={outs.activeId} onActiveOutputChange={outs.setActiveId} content={outs.content}
+        renderBoard={() => <BoardPane sessionId={active} onSource={openQuery} />}
+        onExport={(id, f) => { void outs.exportOutput(id, f).then(r => { if (r.saved) message.success('已导出') }, e => message.error(errMsg(e))) }}
+        onReveal={id => { void outs.reveal(id) }}
+        onOpenRef={r => { if (r.type === 'query') openQuery(r.id); else goCite({ kind: r.type, id: r.id, ok: true, label: '', ...(cites.get(citeKey(r.type, r.id)) ?? {}) } as AgentCite) }}
+        node={canvasNodes.find(n => n.id === selNode) ?? null} nodes={canvasNodes}
+        onAskFrom={id => { setSelNode(id); setView('canvas'); setFocusSignal(n => n + 1) }}
+        onAction={onCanvasAction} />
+      <QueryRecordModal sessionId={active} n={queryN} onClose={() => setQueryN(null)} />
     </div>
   )
 }

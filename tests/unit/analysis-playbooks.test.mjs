@@ -14,7 +14,9 @@ import os from 'node:os'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const dir = path.join(root, 'src/main/agent/playbooks')
 const files = fs.readdirSync(dir).filter(f => f.endsWith('.md') && !f.startsWith('.')).sort()
-const EXPECTED = ['attendance-lateness', 'learning-weekly', 'refund-reasons', 'renewal', 'satisfaction-nps', 'student-followup-list']
+const EXPECTED = ['attendance-lateness', 'learning-weekly', 'refund-reasons', 'renewal', 'satisfaction-nps', 'student-followup-list', 'weekly-report']
+// weekly-report 是基于试卷数据的学情周报（用 stats_overview 等试卷工具），名字叫「学情周报」，不套用数据分析剧本的方法要点检查
+const EXAM_BASED = new Set(['weekly-report.md'])
 assert.deepEqual(files.map(f => f.replace(/\.md$/, '')), EXPECTED)
 
 const toolNames = new Set([...statTools.map(t => t.name), ...DATASET_TOOLS.map(t => t.name), ...boardToolList.map(t => t.name), 'text_classify'])
@@ -22,6 +24,7 @@ for (const f of files) {
   const md = fs.readFileSync(path.join(dir, f), 'utf8')
   const r = parsePlaybook(md)
   assert.ok(r.ok, `${f}: ${r.error}`)
+  if (EXAM_BASED.has(f)) { assert.equal(r.playbook.name, '学情周报'); continue }
   assert.equal(r.playbook.name, f.replace(/\.md$/, ''), `${f}: name 要和文件名一致`)
   assert.ok(r.playbook.description.length >= 10 && r.playbook.when.length >= 10, `${f}: description / when 太短`)
   // 方法要点
@@ -42,7 +45,8 @@ assert.equal([...idx.matchAll(/\.md\?raw/g)].length, files.length, 'index.ts 导
 // 仓库：内置 + 用户剧本（同名用户优先，._ 文件和坏文件被跳过）
 const builtin = Object.fromEntries([...files.map(f => ['./' + f, fs.readFileSync(path.join(dir, f), 'utf8')]), ['./._renewal.md', 'garbage']])
 const pb = createPlaybooks(builtin)
-assert.deepEqual(pb.listPlaybooks().map(p => p.name), EXPECTED)
+const NAMES = EXPECTED.map(e => (e === 'weekly-report' ? '学情周报' : e)).sort((a, b) => a.localeCompare(b))
+assert.deepEqual(pb.listPlaybooks().map(p => p.name), NAMES)
 assert.equal(pb.loadPlaybook('renewal').source, 'builtin'); assert.equal(pb.loadPlaybook('nope'), null)
 const dd = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-pb-'))
 fs.mkdirSync(path.join(dd, 'playbooks'))

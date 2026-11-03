@@ -1,5 +1,5 @@
 /**
- * 出处校验（纯函数）：模型在回答里用 [[q:题目ID]]、[[lesson:课次ID]]、[[stu:学员编号]] 引用数据；
+ * 出处校验（纯函数）：模型在回答里用 [[q:题目ID]]、[[lesson:课次ID]]、[[stu:学员编号]]、[[query:查询编号]] 引用数据；
  * 渲染前程序核对这些 ID 是否真的存在，对不上的去掉，并在末尾注明。
  */
 import { CITE_PATTERN } from '../../shared/agent-cite.ts'
@@ -11,6 +11,8 @@ export interface CiteChecker {
   q: (id: string) => boolean
   lesson: (id: string) => boolean
   stu: (id: string) => boolean
+  /** [[query:编号]]：本次会话的查询记录里有这个编号 */
+  query: (id: string) => boolean
 }
 
 export interface CiteRef { kind: CiteKind; id: string }

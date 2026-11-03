@@ -8,6 +8,8 @@ import { chat, parseToolCalls } from '../../src/main/ai/client.ts'
 import { toJsonSchema } from '../../src/main/agent/schema.ts'
 import { ToolRegistry } from '../../src/main/agent/registry.ts'
 import { createRegistry } from '../../src/main/agent/tools/index.ts'
+import { adaptAgentTools } from '../../src/main/agent/tools/bridge.ts'
+import { composeTools } from '../../src/main/agent/all-tools-core.ts'
 import { probeToolSupport, probeKey } from '../../src/main/agent/probe.ts'
 import { ROLES, enabledRoles, getRole, roleName } from '../../src/main/agent/roles.ts'
 import { parsePlaybook, readPlaybookDir, mergePlaybooks, playbooksForRole, playbookCatalog } from '../../src/main/agent/playbooks.ts'
@@ -45,7 +47,8 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
   assert.equal(bad.ok, false); assert.match(bad.error, /kp/)
   for (const t of ['update_plan', 'ask_user', 'load_playbook', 'session_state', 'stats_overview', 'kp_questions', 'course_for_kp', 'fact_check']) assert.equal(r.get(t).level, 'read')
   // 所有角色用到的工具都已注册
-  for (const role of ROLES) for (const t of role.tools) assert.ok(r.get(t), `${role.id} 用了未注册的工具 ${t}`)
+  const full = createRegistry(adaptAgentTools(composeTools(['connectors_list', 'wecom_send'].map(name => ({ name, description: 'x', params: z.object({}), level: 'external', preview: async () => ({ target: 't', content: 'c' }), run: async () => ({ ok: true, message: '' }) }))), { makeCtx: () => ({}) }))
+  for (const role of ROLES) for (const t of role.tools) assert.ok(full.get(t), `${role.id} 用了未注册的工具 ${t}`)
 }
 
 // ───── 客户端：工具调用（请求体 / 非流式 / 流式拼接 / 空内容但有工具调用不算 empty） ─────
@@ -128,13 +131,15 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
   const builtin = readPlaybookDir(bdir, 'builtin')
   const files = fs.readdirSync(bdir).filter(f => !f.startsWith('.') && f.endsWith('.md'))
   assert.equal(builtin.length, files.length, '内置剧本的 frontmatter 都合法')
-  const reg = fs.readFileSync(path.resolve('src/main/agent/playbooks-builtin.ts'), 'utf8')
-  for (const f of files) assert.ok(reg.includes(`./playbooks/${f}?raw`), `${f} 没有在 playbooks-builtin.ts 登记`)
+  const reg = fs.readFileSync(path.resolve('src/main/agent/playbooks/index.ts'), 'utf8')
+  for (const f of files) assert.ok(reg.includes(`./${f}?raw`), `${f} 没有在 playbooks/index.ts 登记`)
   const weekly = builtin.find(x => x.name === '学情周报')
   assert.ok(weekly && weekly.roles.includes('ops') && /stats_overview/.test(weekly.body) && /update_plan/.test(weekly.body))
   const merged = mergePlaybooks(builtin, user)
   assert.equal(merged.find(x => x.name === '学情周报').source, 'user', '同名用户覆盖内置')
-  assert.deepEqual(playbooksForRole(merged, 'ops').map(x => x.name).sort(), ['测试剧本'], '按角色过滤（用户版学情周报只给辅导老师）')
+  const opsNames = playbooksForRole(merged, 'ops').map(x => x.name)
+  assert.ok(opsNames.includes('测试剧本') && opsNames.includes('renewal') && !opsNames.includes('学情周报'), '按角色过滤（用户版学情周报只给辅导老师）')
+  assert.equal(builtin.length, 7, '内置剧本一共 7 个：6 个数据分析 + 学情周报')
   assert.match(playbookCatalog([weekly]), /^- 学情周报：/)
   // 系统提示：规矩 + 角色 + 剧本目录；不含机构名
   const sp = buildSystemPrompt({ role: getRole('ops'), scene: 'school', playbooks: [weekly], today: '2026-11-03' })
