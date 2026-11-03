@@ -80,6 +80,10 @@ Below is a real generated parent version. It was generated with DeepSeek from th
 |---|---|---|
 | ![Review page](docs/screenshots/readme-review.png) | ![Analysis dashboard](docs/screenshots/readme-dashboard.png) | ![Report page](docs/screenshots/readme-report.png) |
 
+| Uploading a course outline and checking the result | Course mapping: which lesson covers each error-prone point |
+|---|---|
+| ![Upload a course outline](docs/screenshots/readme-course-upload.png) | ![Course mapping](docs/screenshots/readme-course-mapping.png) |
+
 ---
 
 ## 2. Before you start: three things to check

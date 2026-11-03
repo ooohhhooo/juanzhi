@@ -66,6 +66,10 @@
 |---|---|---|
 | ![审核页](docs/screenshots/readme-review.png) | ![分析看板](docs/screenshots/readme-dashboard.png) | ![报告页](docs/screenshots/readme-report.png) |
 
+| 上传课程大纲、核对整理结果 | 课程对照：易错考点在哪一课讲 |
+|---|---|
+| ![上传课程大纲](docs/screenshots/readme-course-upload.png) | ![课程对照](docs/screenshots/readme-course-mapping.png) |
+
 ---
 
 ## 二、开始之前：先确认三件事
