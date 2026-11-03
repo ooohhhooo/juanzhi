@@ -12,6 +12,8 @@ Turn a stack of primary-school English exam papers into a "dictionary of exam po
 
 ![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-overview.png)
 
+> **This is the 1.3.0 public beta (公测版).** New: course mapping, an upgraded teacher report, and diagnostics and feedback. All features are usable; please report any problems you find (see [section 10](#10-faq-known-limitations-and-feedback)).
+
 > **Download: [click here to open the download page](https://github.com/ooohhhooo/juanzhi/releases/latest)**　|　Full installation guide: [docs/安装指南.md](docs/安装指南.md) (the guide is in Chinese)
 
 ---
@@ -34,16 +36,17 @@ Turn a stack of primary-school English exam papers into a "dictionary of exam po
 
 ## 1. What Juanzhi is
 
-Juanzhi is a program you install on your computer. It is made for **primary-school English tutoring teachers, teaching-research staff and operations staff**. You drag in your school's English midterm and final papers (PDF, Word, or photos taken with a phone). Then it does three things:
+Juanzhi is a program you install on your computer. It is made for **primary-school English tutoring teachers, teaching-research staff and operations staff**. You drag in your school's English midterm and final papers (PDF, Word, or photos taken with a phone). Then it does four things:
 
 1. **Splits and labels the questions.** The AI separates every question and labels which knowledge point it tests, how hard it is, and how easy it is to get wrong. Teachers can check and edit each question on the Review page (「审核」).
 2. **Counts the exam points.** The Overview page turns the exam points into a "dictionary". Each exam point is one entry with a plain-language explanation, English example sentences, how many papers tested it, and screenshots from the original papers. The Analysis dashboard (「分析看板」) shows the distribution, compares with earlier years, and finds key and difficult points.
 3. **Writes reports for each reader.** The same data is written up in different versions for different people.
+4. **Maps exam points to your courses.** Upload your own course table (.xlsx or .csv) on the 「课程大纲」(Course outlines) page in the sidebar, and the AI maps exam points to lessons. The 「课程对照」(Course mapping) tab on the dashboard shows which lesson covers each error-prone point and which frequently tested points no lesson covers. Tick 「加入课程对照」(Include course mapping) when generating a report to add it to the report too.
 
 | Report version | Who reads it | What it says |
 |---|---|---|
 | Boss version (老板版) | Boss, person in charge | A three-sentence conclusion: which areas the teaching-research team should invest in next semester, what can be said publicly now, and what the risks are |
-| Teacher version (老师版) | Tutoring teachers | Error-prone points, example questions from the original papers, practice ideas and teaching points. Can be used for lesson prep |
+| Teacher version (老师版) | Tutoring teachers | A set of error-prone questions with screenshots from the original papers, solving tips, similar variant questions with an answer sheet. Can be copied as images |
 | Parent version (家长版) | Parents (sent to a WeChat group) | Under 300 Chinese characters, in plain language. Three items, each with "where the child often goes wrong + how to ask at home + what counts as a correct answer" |
 | Full data version (完整数据版) | Operations, teaching-research staff | Distribution, question types, difficulty, key and difficult points, year-on-year changes, so the numbers can be checked |
 
@@ -151,12 +154,12 @@ Without an API Key you can still install the app and look at the "sample data". 
 
 | Your computer | Click this file |
 |---|---|
-| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.2.1-mac-arm64.dmg` |
-| Mac with Intel processor | `Juanzhi-1.2.1-mac-x64.dmg` |
-| Windows (recommended) | `Juanzhi-1.2.1-win-x64-setup.exe` (installer version) |
-| Windows, without permission to install | `Juanzhi-1.2.1-win-x64-portable.exe` (no-install version, double-click to use) |
+| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.3.0-beta.2-mac-arm64.dmg` |
+| Mac with Intel processor | `Juanzhi-1.3.0-beta.2-mac-x64.dmg` |
+| Windows (recommended) | `Juanzhi-1.3.0-beta.2-win-x64-setup.exe` (installer version) |
+| Windows, without permission to install | `Juanzhi-1.3.0-beta.2-win-x64-portable.exe` (no-install version, double-click to use) |
 
-- The `1.2.1` in the file name is the version number. Use the latest version shown on the page.
+- The `1.3.0-beta.2` in the file name is the version number. Use the latest version shown on the page.
 - **Do not click** `Source code (zip)` or `Source code (tar.gz)`. That is source code for programmers, not an installer.
 - If you are not sure which chip your Mac has, download the Intel version (`mac-x64`). A Mac with an Apple chip can usually open it too (the system may ask you to install Rosetta. Just follow the prompt). The reverse does not work: the Apple-chip installer cannot be opened on an Intel Mac.
 - **If your browser says the file "isn't commonly downloaded" or "may be harmful"** (「此文件不常被下载」「可能有害」): in Edge, click the "…" next to the file, then "Keep", then "Keep anyway" (「保留」→「仍然保留」). In Chrome, click "Keep". The reason is the same: there is no signing certificate.
@@ -205,6 +208,7 @@ For more detail (changing computers, uninstalling, where the data is stored, and
    - Go to the [DeepSeek Open Platform](https://platform.deepseek.com), register, and top up a small amount. Under "API Keys", create a key and copy it (it is shown only once).
    - In Juanzhi, open 「设置」(Settings), click 「展开管理员设置」(Show admin settings; this is a settings group inside the app, not an administrator account on the computer), then 「AI 服务」(AI service). Choose DeepSeek as the provider, paste the key, click 「保存」(Save), then 「测试连接」(Test connection). When you see 「连接成功」(Connection successful), you are done.
 3. **Import papers → review → make a report.** Drag the paper files into the window. In 「审核」(Review), go through the labels on each question. Then open 「AI 报告」(AI report), choose who the report is for (boss / teacher / parent / full data), and click generate.
+4. **(Optional) Upload a course outline.** In the sidebar, open 「课程大纲」→「添加课程大纲」(Add course outline), upload your course table, check what the AI organised, save, then open the 「课程对照」 tab on the dashboard.
 
 If you want to see how it works first without touching real data, go to 「设置」→「示例数据」→「加载示例数据」 (Settings → Sample data → Load sample data). This adds 12 mock papers, and you can clear them with one click at any time.
 
@@ -440,6 +444,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 
 - **Your data is stored on your own computer.** There is no cloud and no account. Location: on a Mac, "your Home folder / Library / Application Support / english-exam-workbench". On Windows, `%APPDATA%\english-exam-workbench`.
 - **Only when you ask the AI to analyse papers or generate reports** is paper text sent to the AI provider you chose. If you have also set up an "AI model that can read images" (a vision model), images of scanned pages that could not be read well are sent too. The author of Juanzhi receives none of your data.
+- Course outlines are stored only on this computer. When organising and matching courses, the course table is sent to the model you set in 「AI 服务」.
 - The API Key is stored encrypted on your computer (on a Mac, in the system keychain). It is not shown in the interface or in the logs, and it is not included in exported data packages.
 - To change computers or make a backup, export / import under 「设置 → 管理员设置 → 数据包」 (Settings → Admin settings → Data package). For details see [section 6 of the installation guide](docs/安装指南.md#六换电脑--备份数据) (in Chinese).
 
@@ -448,7 +453,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 ## 10. FAQ, known limitations and feedback
 
 - For common problems such as the app not opening, a white screen, or garbled recognition, see [section 9 of the installation guide](docs/安装指南.md#九常见问题) (in Chinese).
-- If you hit a problem or have a suggestion, go to the [Issues page](https://github.com/ooohhhooo/juanzhi/issues) and click "New issue". Write down **your computer's system version, the Juanzhi version (Settings → About, 「设置 → 关于」), what you did and what you saw**, and attach a screenshot. **Please do not post private information such as student names or API Keys.**
+- If you hit a problem or have a suggestion, open 「设置 → 关于」(Settings → About) in Juanzhi. Click 「导出诊断信息」(Export diagnostics) to save a zip file (it contains no student data or keys), then click 「反馈问题」(Report a problem). This opens a new issue on the [Issues page](https://github.com/ooohhhooo/juanzhi/issues) with your version and system filled in. Write **what you did and what you saw**, and drag in the zip file and screenshots. **Please do not post private information such as student names or API Keys.**
 
 **Known limitations (stated honestly)**
 
