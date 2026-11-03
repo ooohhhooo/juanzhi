@@ -1,6 +1,6 @@
 // M9 beta.1 B 部分端到端：运行日志与「导出诊断信息」、批量提速（429 自适应放慢、文件夹导入、防睡眠）、
 // 筛选栏「试卷」多选下拉、公测版标识与反馈入口。全程 mock AI（本地端口），不调用真实服务。
-//   · 公测版：侧栏和「关于」里有「公测版」标签；首次打开有一张欢迎卡片，关掉后不再出现
+//   · 公测版：「关于」里有「公测版」标签（侧栏不写）；首次打开有一张欢迎卡片，关掉后不再出现
 //   · 反馈：「反馈问题」打开官方仓库的新建 Issue 页，预填版本和系统，提醒附诊断包、不写学生姓名和密钥
 //   · 429：连续限速 → 队列页出现「AI 服务太忙，暂时放慢」、有效并发下降，试卷最终全部解析成功，之后提示自动消失
 //   · 防睡眠：处理期间 power 为真，队列空了变假
@@ -43,8 +43,7 @@ async function main() {
     check('公测版', '点「知道了」后记下已看过（beta_welcome_seen = true）', await waitFor(async () => (await page.evaluate(() => window.api.settings.get('beta_welcome_seen'))) === true, 5000))
     await page.reload(); await T('dropzone').waitFor({ timeout: 30000 }); await sleep(1500)
     check('公测版', '重新打开后不再出现欢迎说明', (await T('beta-welcome').count()) === 0)
-    const badge = await T('beta-badge').innerText()
-    check('公测版', '侧栏品牌下面有「公测版」文字标签', badge.trim() === '公测版', badge)
+    check('公测版', '侧栏品牌下面不写「公测版」（只在「关于」和首次欢迎里说明）', (await T('beta-badge').count()) === 0)
     await goto('#/settings'); await T('about-card').waitFor()
     check('公测版', '设置 → 关于：版本号后面有「公测版」标签', (await txt('about-beta')) === '公测版')
 
