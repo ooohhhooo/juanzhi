@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'datasets:progress', 'menu:navigate']
+const ALLOWED_CHANNELS = ['data:changed', 'job:progress', 'ai:chunk', 'data:progress', 'similar:progress', 'update:state', 'course:progress', 'datasets:progress', 'menu:navigate', 'agent-outputs:changed']
 
 const api = {
   // 对真实 File 对象取路径，并向主进程登记：导入只接受登记过的路径（页面脚本伪造不了 File 的真实路径）
@@ -269,6 +269,13 @@ const api = {
     preview: (): Promise<{ entries: Array<{ name: string; desc: string; bytes: number }>; totalBytes: number; neverIncluded: string[] }> => ipcRenderer.invoke('diagnostics:preview'),
     export: (): Promise<{ saved: boolean; path?: string; dir?: string; bytes?: number; files?: number }> => ipcRenderer.invoke('diagnostics:export'),
     short: (copy?: boolean): Promise<string> => ipcRenderer.invoke('diagnostics:short', copy === true),
+  },
+  /** 助手会话的产出（汇报文档、名单表格、看板登记）；变化事件见 window.api.on('agent-outputs:changed')，参数是 sessionId */
+  agentOutputs: {
+    list: (sessionId: string): Promise<any[]> => ipcRenderer.invoke('agent-outputs:list', sessionId),
+    read: (sessionId: string, id: string): Promise<any> => ipcRenderer.invoke('agent-outputs:read', sessionId, id),
+    export: (sessionId: string, id: string, format: 'docx' | 'pdf' | 'xlsx' | 'csv' | 'md'): Promise<any> => ipcRenderer.invoke('agent-outputs:export', sessionId, id, format),
+    reveal: (sessionId: string, id: string): Promise<boolean> => ipcRenderer.invoke('agent-outputs:reveal', sessionId, id),
   },
   /** 反馈问题：打开 GitHub 新建 Issue 页（预填版本、系统；地址由主进程生成） */
   feedback: {
