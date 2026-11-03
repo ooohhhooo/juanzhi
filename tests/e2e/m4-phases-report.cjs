@@ -72,10 +72,11 @@ async function phaseReport() {
   await shot('02-report-streaming')
   await sleep(900)
   const len2 = Number(await T('report-text').getAttribute('data-len'))
-  check('报告 流式', '生成中：显示「正在生成…」和取消按钮，「生成」按钮换掉，文字随流式增量越来越长（不是最后一次性出现）', running && (await T('report-cancel').count()) === 1 && (await T('report-generate').count()) === 0 && len1 > 0 && len2 > len1, `${len1} → ${len2}`)
-  // 并发：同时再发一个请求会被拒绝（不烧两份钱）
-  const dup = await api(f => window.api.report.generate(f, crypto.randomUUID()), { grade: '4' })
-  check('报告 并发', '已经有一份在生成时再发起生成被拒绝（busy），不会多发请求', dup.ok === false && dup.code === 'busy' && reqs().length === 1, JSON.stringify([dup.code, reqs().length]))
+  check('报告 流式', '生成中：显示「正在生成…」和取消按钮，「正在生成」列表有 1 项，「生成」按钮仍可点，文字随流式增量越来越长（不是最后一次性出现）', running && (await T('report-cancel').count()) === 1 && (await T('report-generate').count()) === 1 && (await page.locator('li[data-testid^="report-job-"]').count()) === 1 && len1 > 0 && len2 > len1, `${len1} → ${len2}`)
+  // 同样的请求（筛选 + 读者 + 选项）正在生成时再点生成：不重复启动，提示已在生成（多份并发见 phaseReportMulti）
+  await T('report-generate').click()
+  const dupMsg = await waitFor(async () => /已在生成/.test(await page.locator('.ant-message').allInnerTexts().then(a => a.join('|')).catch(() => '')), 5000)
+  check('报告 并发', '同一份正在生成时再点生成：提示「已在生成」，列表仍 1 项，不多发请求', dupMsg && (await page.locator('li[data-testid^="report-job-"]').count()) === 1 && reqs().length === 1, String(reqs().length))
   const done = await waitFor(async () => (await T('report-cancel').count()) === 0 && (await T('report-fresh').count()) > 0, 60000)
   mock.p3DelayMs = 0
   check('报告 流式', '生成完成：取消按钮消失，报告进入历史列表并被自动选中，状态「最新」', done && (await page.locator('[data-testid^=report-item-]').count()) === 1, '')
@@ -283,4 +284,60 @@ async function phaseExport() {
   check('导出', '在「另存为」里点取消：没有写任何文件，界面不报错', !fs.existsSync(none) && (await T('report-error').count()) === 0)
 }
 
-module.exports = { phaseSetup, phaseReport, phaseExport, parseUser }
+// ───────── 阶段 1b：多份报告同时生成 ─────────
+async function phaseReportMulti() {
+  const { page, mock } = ctx
+  await setFilter({ grade: '4' }, '#/report')
+  const jobs = () => page.locator('li[data-testid^="report-job-"]')
+  const items = () => page.locator('[data-testid^=report-item-]')
+  const pick = async r => T(`reader-${r}`).locator('xpath=ancestor::label').click()
+  const base = rows().length
+  const baseIds = new Set(rows().map(r => r.id))
+  const jobReaders = async () => (await jobs().evaluateAll(els => els.map(e => e.dataset.reader))).sort().join(',')
+  const msgs = async () => (await page.locator('.ant-message').allInnerTexts().catch(() => [])).join('|')
+
+  // ── 连续点三种读者，都能开始 ──
+  mock.p3DelayMs = 150
+  for (const r of ['full', 'parent', 'boss']) { await pick(r); await T('report-generate').click() }
+  const three = await waitFor(async () => (await jobs().count()) === 3, 8000)
+  check('报告 多份', '生成中可以切换读者再点生成：完整数据版、家长版、老板版连续点，「正在生成」列表有 3 项（各自读者类型）', three && (await jobReaders()) === 'boss,full,parent', await jobReaders())
+  check('报告 多份', '生成中读者单选和「生成」按钮都没有被禁用', (await T('reader-full').isDisabled()) === false && (await T('report-generate').isDisabled()) === false)
+  // 同款不重复
+  await T('report-generate').click()
+  const dupMsg = await waitFor(async () => /已在生成/.test(await msgs()), 5000)
+  check('报告 多份', '同样的筛选 + 读者正在生成时再点生成：提示「已在生成」，列表仍是 3 项', dupMsg && (await jobs().count()) === 3)
+
+  // ── 生成中切到别的页面再回来，生成继续 ──
+  await sleep(500)
+  await goto('#/overview')
+  await sleep(800)
+  await goto('#/report')
+  await T('report-page').waitFor()
+  const stillOrDone = await waitFor(async () => (await jobs().count()) > 0 || (await items().count()) >= base + 1, 8000)
+  check('报告 多份', '生成中切到别的页面再回来：任务还在（或已完成入库），没有中断也没有丢进度', stillOrDone)
+  const allDone = await waitFor(async () => (await jobs().count()) === 0 && rows().length === base + 3, 90000)
+  const added = rows().filter(r => !baseIds.has(r.id))
+  check('报告 多份', '三份都生成完成：库里多 3 份（完整数据版、家长版、老板版各一），列表里「正在生成」消失，历史报告列表多 3 项', allDone && added.map(r => r.reader).sort().join(',') === 'boss,full,parent' && (await items().count()) === base + 3, added.map(r => r.reader).join(','))
+
+  // ── 取消一份不影响其他 ──
+  mock.p3DelayMs = 300
+  await pick('full'); await T('report-generate').click()
+  await pick('parent'); await T('report-generate').click()
+  await waitFor(async () => (await jobs().count()) === 2 && (await page.locator('li[data-testid^="report-job-"][data-status=running]').count()) === 2, 8000)
+  await sleep(600)
+  await page.locator('li[data-testid^="report-job-"][data-reader=full] [data-testid^=report-job-cancel-]').click()
+  const cancelledRow = await waitFor(async () => (await page.locator('li[data-testid^="report-job-"][data-reader=full][data-status=cancelled]').count()) === 1, 10000)
+  mock.p3DelayMs = 0
+  const parentDone = await waitFor(async () => (await page.locator('li[data-testid^="report-job-"][data-reader=parent]').count()) === 0 && rows().length === base + 4, 60000)
+  check('报告 多份', '取消其中一份：它显示「已取消」并可重试；另一份照常生成完成入库（库里只多 1 份，是家长版）', cancelledRow && parentDone && rows().length === base + 4 && rows().filter(r => !baseIds.has(r.id)).length === 4 && (await page.locator('li[data-testid^="report-job-"][data-reader=full] [data-testid^=report-job-retry-]').count()) === 1)
+  await page.locator('li[data-testid^="report-job-"][data-reader=full] [data-testid^=report-job-dismiss-]').click()
+  check('报告 多份', '关闭已取消的任务后「正在生成」列表清空', await waitFor(async () => (await jobs().count()) === 0, 5000))
+  await shot('04b-report-multi')
+
+  // 清理：删掉这几份，不影响后面的阶段
+  for (const r of rows().filter(x => !baseIds.has(x.id))) await api(id => window.api.report.delete(id), r.id)
+  await page.evaluate(() => location.reload())
+  await T('report-page').waitFor()
+}
+
+module.exports = { phaseSetup, phaseReport, phaseReportMulti, phaseExport, parseUser }

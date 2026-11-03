@@ -9,7 +9,7 @@ const Tx = require('./m4-phases-tax.cjs')
 const { L, ctx, path } = M
 
 // 顺序有依赖：报告（A）→ 导出 → 数据包（A 导出，B 导入）→ 数据目录（B）→ 示例数据（B）→ 知识点树 / 收尾（B）→ 首次启动（全新 S）
-const ALL = [R.phaseReport, R.phaseExport, D.phasePack, X.phaseDataDir, X.phaseSample, Tx.phaseTaxonomy, Tx.phaseMisc, X.phaseOnboarding]
+const ALL = [R.phaseReport, R.phaseExport, R.phaseReportMulti, D.phasePack, X.phaseDataDir, X.phaseSample, Tx.phaseTaxonomy, Tx.phaseMisc, X.phaseOnboarding]
 
 async function main() {
   const only = process.env.EWB_E2E_ONLY?.split(',')

@@ -409,7 +409,7 @@ export async function retryReportPart(id: string, part: string, requestId: strin
   if (!def || part === 'main' || !def.readers.includes(reader) || !loadParts(id).some(r => r.part === part)) return { ok: false, message: '这份报告里没有这一部分' }
   if (row.confirmed_at) return { ok: false, message: '这份报告已经核对过了，不能再改；需要重试请重新生成一份' }
   if (!aiConfigured() && def.ai) return { ok: false, message: '尚未配置 AI 服务（请联系管理员：设置 → 管理员设置 → AI 服务）' }
-  if (inflight.size > 0 || isGenerating(id)) return { ok: false, message: '已经有一份报告正在生成，请等它结束或先取消' }
+  if (isGenerating(id)) return { ok: false, message: '这份报告正在生成，请等它结束或先取消' }
   const options = parseJson<ReportOptions>(row.options_json, {})
   const memo = new Map<string, PreparedReport>()
   const item = itemOf(row, memo)
@@ -533,7 +533,6 @@ export async function generateReport(filter: StatsFilter, reader: ReportReader, 
   if (p.promptError) return { ok: false, code: 'bad_prompt', message: `报告提示词有问题：${p.promptError}（请联系管理员：设置 → 管理员设置 → 提示词，修正或恢复默认）` }
   if (!aiConfigured()) return { ok: false, code: 'no_ai', message: '尚未配置 AI 服务（请联系管理员：设置 → 管理员设置 → AI 服务），统计结果不受影响' }
   if (inflight.has(requestId)) return { ok: false, code: 'busy', message: '这个请求已经在生成' }
-  if (inflight.size > 0) return { ok: false, code: 'busy', message: '已经有一份报告正在生成，请等它结束或先取消' }
 
   const cfg = loadConfig()
   const ctl = new AbortController()
