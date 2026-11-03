@@ -3,6 +3,7 @@ import { App, Input, Modal, Radio } from 'antd'
 import { Download, FileSpreadsheet } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, UsageNote } from '../../design'
+import { sessionJobIds } from '../../components/GlobalNotices'
 import { clean } from '../../components/CourseMatch'
 import { SCENE_LABEL, wordsOf } from './format'
 import type { Scene } from './format'
@@ -145,6 +146,8 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
         sessionId: s0.sessionId, name: multi ? s0.name.slice(0, 60) : (replace?.name ?? name.trim()), scene, termNote,
         mode: s0.fromDoc?.aiOrganised ? 'ai' as const : mode, ...(replace ? { replaceId: replace.id } : {})
       })))
+      for (const j of jobs) sessionJobIds.add(j.id)
+      qc.invalidateQueries({ queryKey: ['course', 'jobs'] })
       qc.invalidateQueries({ queryKey: ['course'] })
       message.success(jobs.length > 1 ? `${jobs.length} 个文件已开始整理，进度见课程大纲页` : '已开始整理，进度见课程大纲页')
       onClose()

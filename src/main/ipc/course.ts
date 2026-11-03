@@ -151,7 +151,7 @@ export function registerCourseIpc(): void {
       signal.addEventListener('abort', onAbort)
       try {
         const sess = sessionOf(j.sessionId)
-        return await withSpend('course-organize', () => suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode, report))
+        return await withSpend('course-organize', () => suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode, report), { noBalance: !sess.extract && j.mode !== 'ai' })
       } finally { signal.removeEventListener('abort', onAbort) }
     },
     describeError: e => (e instanceof Error ? e.message : String(e)).slice(0, 160)

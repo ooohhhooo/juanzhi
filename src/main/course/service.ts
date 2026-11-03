@@ -184,6 +184,14 @@ export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 
 }
 
 /** 文字 → 表：调用一次 p5_course_extract；回答里标题在原文里找不到的课整条去掉，并记成警告 */
+/** 子 AbortController：外部 signal 中止时跟着中止；首个非取消错误时 abort 其余在途调用（mapLimit 抛出时统一触发） */
+function childAbort(parent: AbortSignal): { signal: AbortSignal; abort: () => void; dispose: () => void } {
+  const c = new AbortController()
+  const on = () => c.abort()
+  if (parent.aborted) c.abort(); else parent.addEventListener('abort', on)
+  return { signal: c.signal, abort: () => c.abort(), dispose: () => parent.removeEventListener('abort', on) }
+}
+
 async function organiseText(sessionId: string, s: Session, signal: AbortSignal, onProgress?: SuggestProgress): Promise<SuggestResult> {
   const e = s.extract!
   const cfg = loadConfig()
@@ -204,11 +212,12 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal, 
     let finished = 0
     onProgress?.(0, chunks.length, '段')
     // 各段并发（上限 3），合并时仍按原文顺序，去重 / 原文比对逻辑不变；取消时所有在途调用一起中止
+    const sub = childAbort(signal)
     const parts = await mapLimit(chunks, 3, async chunk => {
-      if (signal.aborted) throw new AiError('aborted', '已取消')
+      if (sub.signal.aborted) throw new AiError('aborted', '已取消')
       const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: chunk })
       let r
-      try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal }) } catch (err) {
+      try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal: sub.signal }) } catch (err) {
         if (err instanceof AiError && err.code === 'aborted') throw err
         throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
       }
@@ -216,7 +225,7 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal, 
       if (!part.ok) throw new CourseFileError('AI 的回答格式不对，没能整理出课程表，可以重试一次，或改传 Excel')
       onProgress?.(++finished, chunks.length, '段')
       return part
-    })
+    }).catch(err => { sub.abort(); throw err }).finally(() => sub.dispose())
     for (const part of parts) {
       for (const l of part.lessons) {
         const k = [l.level, l.seq, l.title].join('|')
@@ -246,6 +255,7 @@ async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' 
   const aiOn = mode === 'ai' && aiReady()
   if (aiOn) onProgress?.(0, todo.length, '张表')
   // 各工作表并发认列（上限 4）；结果按表顺序写入，单张失败回退“按表头猜”，取消时所有在途调用一起中止
+  const sub = childAbort(signal)
   const results = await mapLimit(todo, 4, async (sheet): Promise<SuggestItem> => {
     if (mode === 'manual') return { mapping: emptyMapping(), problems: [], source: 'manual' }
     if (mode === 'guess') {
@@ -254,9 +264,9 @@ async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' 
     }
     if (!aiReady()) return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: '还没有配置 AI 服务，已按表头文字猜了一遍，请核对' }
     try {
-      if (signal.aborted) throw new AiError('aborted', '已取消')
+      if (sub.signal.aborted) throw new AiError('aborted', '已取消')
       const user = fillTemplate(promptText('p5_course_cols', 'user'), { SHEET_NAME: sheet.name, SHEET_PREVIEW: sheetPreview(sheet) })
-      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system'), user, signal, maxTokens: 8000 })
+      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system'), user, signal: sub.signal, maxTokens: 8000 })
       const p = parseColsResponse(r.content, sheet)
       if (p.ok && p.mapping) return { mapping: p.mapping, problems: p.problems, source: 'ai' }
       return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: p.problems, source: 'guess', error: 'AI 没能认出这张表的列，已按表头文字猜了一遍，请核对' }
@@ -267,7 +277,7 @@ async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' 
     } finally {
       if (aiOn) onProgress?.(++finished, todo.length, '张表')
     }
-  })
+  }).catch(err => { sub.abort(); throw err }).finally(() => sub.dispose())
   todo.forEach((sh, i) => { items[sh.name] = results[i] })
   return { items, model }
 }

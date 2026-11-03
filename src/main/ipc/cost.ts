@@ -1,13 +1,16 @@
+import { createHash } from 'node:crypto'
 import { ipcMain, net, shell } from 'electron'
 import { z } from 'zod'
 import { getDb } from '../db'
 import { loadConfig, visionBaseUrl, visionCreds } from '../ai/config'
-import { getApiKey, hasVisionStoredKey } from '../ai/secret'
+import { getApiKey, getVisionKey, hasVisionStoredKey } from '../ai/secret'
 import { sameServer } from '../ai/guard'
 import { detectProvider, fetchBalance, fetchCustomBalance } from '../ai/balance'
 import type { BalanceResult, CustomBalance } from '../ai/balance'
 import { diagnose } from '../ai/diagnose'
 import { lastAiFailure } from '../ai/client'
+import { friendlyAiError } from '../ai/friendly'
+import { explainTestError } from '../ai/test-rules'
 import { modelProfile } from '../ai/providers'
 import { originOf } from '../ai/guard'
 import { NO_PRICES, createSpendTracker, estimateCost, kindLabel, parsePrices, spendFrom, tokensToMoney } from '../ai/cost'
@@ -43,11 +46,14 @@ let cache: { at: number; sig: string; v: BalanceView } | null = null
 
 const fetchImpl = net.fetch as unknown as typeof fetch
 
+/** 密钥指纹（哈希前 12 位），只用于缓存签名，不存明文 */
+const fp = (k: string | null | undefined) => (k ? createHash('sha256').update(k).digest('hex').slice(0, 12) : '-')
+
 async function queryBalance(force: boolean, timeoutMs?: number): Promise<BalanceView> {
   const cfg = loadConfig()
   const custom = getCustom()
   const useCustom = !!(custom.url && custom.balancePath)
-  const sig = `${JSON.stringify(custom)}|${cfg.base_url}|${cfg.vision_base_url}|${cfg.vision_model}|${!!getApiKey()}|${hasVisionStoredKey()}`
+  const sig = `${JSON.stringify(custom)}|${cfg.base_url}|${cfg.vision_base_url}|${cfg.vision_model}|${fp(getApiKey())}|${fp(getVisionKey())}|${hasVisionStoredKey()}`
   if (!force && cache && cache.sig === sig && Date.now() - cache.at < CACHE_MS) return cache.v
   const text = useCustom
     ? await fetchCustomBalance(custom, getApiKey(), cfg.base_url, fetchImpl, timeoutMs)
@@ -69,7 +75,7 @@ const SPEND_LABEL: Record<SpendTask, string> = { 'course-match': '课程匹配',
 const tracker = createSpendTracker()
 
 /** 包住一个会花较多用量的任务。查不到余额 / 币种不同 / 与别的任务同时进行时不记录，也绝不影响任务本身 */
-export async function withSpend<T>(task: SpendTask, run: () => Promise<T>): Promise<T> {
+export async function withSpend<T>(task: SpendTask, run: () => Promise<T>, opts?: { noBalance?: boolean }): Promise<T> {
   const t = tracker.begin()
   const snap = async () => {
     try {
@@ -77,13 +83,16 @@ export async function withSpend<T>(task: SpendTask, run: () => Promise<T>): Prom
       return r.status === 'ok' && r.amount !== null ? { amount: r.amount, currency: r.currency } : null
     } catch { return null }
   }
-  const before = await snap()
+  // 前置余额快照并行异步做，任务不等它（否则 3 秒内点取消无效）
+  const beforeP: Promise<Awaited<ReturnType<typeof snap>>> = opts?.noBalance ? Promise.resolve(null) : snap()
   try {
     return await run()
   } finally {
     const clean = tracker.end(t)
-    if (before && clean) {
-      void snap().then(after => {
+    if (clean && !opts?.noBalance) {
+      void beforeP.then(async before => {
+        if (!before) return
+        const after = await snap()
         const s = spendFrom(before, after)
         if (!s) return
         const all = (readSetting(SPEND_KEY) ?? {}) as Record<string, unknown>
@@ -135,7 +144,12 @@ export function registerCostIpc(): void {
   /** 出错原因诊断：优先用最近（2 分钟内）失败的那次调用；和余额有关就自动查一次余额写进诊断 */
   ipcMain.handle('ai:diagnose', async (_e, raw: unknown) => {
     const a = z.object({ message: z.string().max(2000).default(''), task: z.string().max(60).optional() }).parse(raw ?? {})
-    const recent = lastAiFailure.err && Date.now() - lastAiFailure.at < 120_000 ? lastAiFailure : null
+    const fresh = lastAiFailure.err && Date.now() - lastAiFailure.at < 120_000 ? lastAiFailure : null
+    const given = a.message.trim()
+    const fm = fresh?.err ? `${fresh.err.message}|${fresh.err.detail ?? ''}|${fresh.err.code}` : ''
+    const same = (t: string) => given === t || (t !== '' && given.includes(t))
+    // 只有最近失败的那次调用与传入的错误对得上才用它的详细信息，否则只按传入文本诊断
+    const recent = fresh && (!given || (fm && (fm.includes(given) || same(fresh.err!.message) || same(friendlyAiError(fresh.err).message) || same(explainTestError(fresh.err, fresh.model).message) || (fresh.err!.code && given.includes(String(fresh.err!.code)))))) ? fresh : null
     const err = recent ? { code: recent.err!.code, status: recent.err!.status, detail: recent.err!.detail, message: recent.err!.message } : { message: a.message, detail: a.message }
     const model = recent?.model ?? ''
     const base = diagnose(err, { model, task: a.task, reasoning: model ? modelProfile(model).reasoning : false })

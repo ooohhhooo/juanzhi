@@ -68,7 +68,7 @@ export interface CourseDashboard {
   rows: CourseRow[]
   cross: CrossCell[]
   gaps: { rows: GapRow[]; smallSample: boolean; minPapers: number; computed: boolean }
-  summary: { lostPoints: number; withCourse: number; without: number }
+  summary: { lostPoints: number; withCourse: number; without: number; unchecked: number }
 }
 
 /** 默认每类取多少个 */
@@ -135,7 +135,7 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
   const outlines = cards.map(c => ({ id: c.id, name: c.name, scene: c.scene, match: c.match, levels: levelsOf.get(c.id) ?? [] }))
   const ready = cards.length > 0 && cards.every(c => c.match.state === 'done' || c.match.state === 'partial')
   const unmatched = cards.reduce((n, c) => n + (c.match.state === 'partial' ? Math.max(0, c.match.total - c.match.checked) : 0), 0)
-  const empty: CourseDashboard = { papers: counts.papers, outlines, ready, unmatched, rows: [], cross: [], gaps: { rows: [], smallSample: counts.papers < GAP_MIN_PAPERS, minPapers: 2, computed: false }, summary: { lostPoints: 0, withCourse: 0, without: 0 } }
+  const empty: CourseDashboard = { papers: counts.papers, outlines, ready, unmatched, rows: [], cross: [], gaps: { rows: [], smallSample: counts.papers < GAP_MIN_PAPERS, minPapers: 2, computed: false }, summary: { lostPoints: 0, withCourse: 0, without: 0, unchecked: 0 } }
   if (!cards.length || counts.papers === 0) return empty
 
   // 块 1 的行：易错题数 > 0 的二级考点（按易错题数）+ 重难点排名靠前的二级考点
@@ -188,16 +188,18 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
       if (n.papers < minPapers) continue
       const codes = sub.get(n.code) ?? [n.code]
       // 还有没匹配的知识点时：这个考点下一个都没匹配过的，不算“课程没覆盖”（只是还没匹配）
-      if (unmatched > 0 && !codes.some(c => checked.has(c))) continue
+      if (unmatched > 0 && !codes.every(c => checked.has(c))) continue
       const has = codes.some(c => (byKp.get(c) ?? []).some(isMainMap))
       if (!has) gapRows.push({ code: n.code, name: n.name, papers: n.papers, paperTotal: counts.papers, errorCount: n.errorCount, questions: n.questions })
     }
     gapRows = gapRows.sort((a, b) => b.papers - a.papers || b.errorCount - a.errorCount || (a.code < b.code ? -1 : 1))
   }
   const withCourse = rows.filter(r => r.main.length > 0).length
+  const without = rows.filter(r => r.checked && r.main.length === 0).length
+  const unchecked = rows.filter(r => !r.checked && r.main.length === 0).length
   return {
     papers: counts.papers, outlines, ready, unmatched, rows, cross, gaps: { rows: gapRows, smallSample, minPapers, computed: !smallSample && ready },
-    summary: { lostPoints: rows.length, withCourse, without: rows.length - withCourse }
+    summary: { lostPoints: rows.length, withCourse, without, unchecked }
   }
 }
 

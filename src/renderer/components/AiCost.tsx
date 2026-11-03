@@ -107,7 +107,7 @@ export function AiUsageByKind() {
         ...(priced ? [{ title: '约合', width: 90, render: (_: unknown, r: KindRow) => (r.money === null ? '-' : yuan(r.money)) }] : [])
       ]} />
       {!priced && rows.length > 0 && <p className="ewb-rep-note" style={{ margin: '4px 0 0' }}>填写上面的价格，就能换算成金额。</p>}
-      {last.length > 0 && <p className="ewb-rep-note" style={{ margin: '4px 0 0' }} data-testid="ai-last-spend">{last.map(l => `上次${l.label}实际花费 ${yuan(l.amount, l.currency)}`).join('；')}（按前后余额之差，仅供参考）</p>}
+      {last.length > 0 && <p className="ewb-rep-note" style={{ margin: '4px 0 0' }} data-testid="ai-last-spend">{last.map(l => `上次${l.label}实际花费约 ${yuan(l.amount, l.currency)}`).join('；')}（按前后余额之差，仅供参考；期间其他 AI 调用也会计入）</p>}
     </div>
   )
 }
@@ -128,7 +128,8 @@ export function CostHint({ task, calls, fallbackTokens }: { task: 'course-match'
       <span className="ewb-rep-note" data-testid="cost-hint-main">
         {priced ? `预计花费约 ${yuan(est.low!)}–${yuan(est.high!)}（约 ${wan(est.tokens)} token${est.fromHistory ? '，按你以前的实际用量估算' : '，还没有历史用量，仅供参考'}）` : `预计约 ${wan(est.tokens)} token${est.fromHistory ? '（按以前的实际用量）' : ''}；在设置 → AI 服务里填写价格，可换算成金额`}
         {ok && `　当前余额 ${ok.unlimited ? '不限额度' : ok.text}`}
-        {est.last && `　上次${est.label}实际花费 ${yuan(est.last.amount, est.last.currency)}`}
+        {est.last && `　上次${est.label}实际花费约 ${yuan(est.last.amount, est.last.currency)}`}
+        {est.last && <span style={{ fontSize: 12, opacity: 0.8 }}>（期间其他 AI 调用也会计入）</span>}
       </span>
       {short && <UsageNote kind="caution" data-testid="cost-hint-short">余额可能不够：预计最多花费 {yuan(est.high!)}，当前余额 {ok!.text}。</UsageNote>}
       {ok && !ok.available && <UsageNote kind="caution" data-testid="cost-hint-unavailable">当前账户余额不可用，请先充值。</UsageNote>}

@@ -24,10 +24,11 @@ export async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (it
 export function createGate(n: number): <T>(fn: () => Promise<T>) => Promise<T> {
   let active = 0
   const waiting: Array<() => void> = []
-  const release = () => { active--; waiting.shift()?.() }
+  // 释放时若有人在等，名额直接转交（active 不减），避免在途数短暂超限
+  const release = () => { const w = waiting.shift(); if (w) w(); else active-- }
   return async fn => {
     if (active >= Math.max(1, n)) await new Promise<void>(res => waiting.push(res))
-    active++
+    else active++
     try { return await fn() } finally { release() }
   }
 }

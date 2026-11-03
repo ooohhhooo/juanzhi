@@ -1,6 +1,6 @@
 // mapLimit：并发上限、结果顺序、失败行为；job-queue 的 progress 更新
 import assert from 'node:assert/strict'
-import { mapLimit } from '../../src/main/course/map-limit.ts'
+import { mapLimit, createGate } from '../../src/main/course/map-limit.ts'
 import { createJobQueue } from '../../src/main/course/job-queue.ts'
 
 const tick = (ms = 5) => new Promise(r => setTimeout(r, ms))
@@ -54,3 +54,17 @@ const tick = (ms = 5) => new Promise(r => setTimeout(r, ms))
   assert.equal(q.get(b.id), undefined)
 }
 console.log('course-map-limit OK')
+
+{ // createGate：在途数始终不超上限（release 直接把名额交给等待者）
+  const gate = createGate(2)
+  let cur = 0, peak = 0
+  await Promise.all(Array.from({ length: 8 }, (_, i) => gate(async () => {
+    cur++; peak = Math.max(peak, cur)
+    await tick(3 + (i % 3) * 4); cur--
+  })))
+  assert.equal(peak, 2)
+  assert.equal(cur, 0)
+  const g2 = createGate(1)
+  await assert.rejects(g2(async () => { throw new Error('x') }))
+  assert.equal(await g2(async () => 7), 7)
+}

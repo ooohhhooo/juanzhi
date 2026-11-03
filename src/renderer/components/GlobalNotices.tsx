@@ -6,6 +6,9 @@ import { Btn } from '../design'
 import { onReportNotice } from '../stats/reportStore'
 import { READER_LABEL } from '../../shared/report-post'
 
+/** 本会话新建的后台整理任务 id（极快完成的任务两次轮询间就 queued→ready，要靠它补提示） */
+export const sessionJobIds = new Set<string>()
+
 /** 窗口不在前台时，额外发一条系统通知；点它把窗口带回来并跳转 */
 function osNotify(title: string, body: string, onClick: () => void): void {
   try {
@@ -24,6 +27,7 @@ export default function GlobalNotices(): null {
   const nav = useNavigate()
   const navRef = useRef(nav); navRef.current = nav
   const seen = useRef<Map<string, string> | null>(null)
+  const seenDone = useRef<Set<string>>(new Set())
 
   const { data: jobs } = useQuery({
     queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),
@@ -36,8 +40,10 @@ export default function GlobalNotices(): null {
     if (!prev) return   // 第一次读到：只记状态，不弹
     for (const j of jobs) {
       const was = prev.get(j.id)
-      if (was !== 'queued' && was !== 'running') continue
+      if (was !== 'queued' && was !== 'running' && !(was === undefined && sessionJobIds.has(j.id))) continue
+      if (seenDone.current.has(j.id)) continue
       if (j.status !== 'ready' && j.status !== 'failed') continue
+      seenDone.current.add(j.id)
       const key = `course-job-${j.id}`
       const go = () => navRef.current('/courses')
       if (j.status === 'ready') {

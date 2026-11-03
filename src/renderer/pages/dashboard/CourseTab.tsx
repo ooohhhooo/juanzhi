@@ -73,14 +73,20 @@ export default function CourseTab() {
   }
   const sceneAll = d?.outlines.every(o => o.scene === 'school')
   const where = ids.length === 1 ? `「${outlineName(ids[0])}」` : '所选课程'
-  const headline = d && d.ready
-    ? (d.summary.lostPoints === 0
+  const sm = d?.summary
+  const headline = d && d.ready && sm
+    ? (sm.lostPoints === 0
       ? '这批试卷里还没有 AI 估计容易出错的考点，可以先看下面“常考但课程没覆盖”的部分。'
-      : d.summary.without === 0
-        ? <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，在{where}里都能找到对应的课。</>
-        : d.summary.withCourse === 0
-          ? <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，在{where}里都还没有找到对应的课。</>
-          : <>这批试卷里最容易出错的 <b>{d.summary.lostPoints}</b> 个考点，<b>{d.summary.withCourse}</b> 个在{where}里能找到对应的课，<b>{d.summary.without}</b> 个还没有课讲到。</>)
+      : sm.unchecked > 0
+        // 部分知识点还没匹配：只对已匹配过的下结论，另说还有几个没匹配
+        ? (sm.withCourse === 0 && sm.without === 0
+          ? <>这批试卷里最容易出错的 <b>{sm.lostPoints}</b> 个考点，在{where}里都还没匹配过，先点上面的“开始匹配”。</>
+          : <>这批试卷里最容易出错的 <b>{sm.lostPoints}</b> 个考点，<b>{sm.withCourse}</b> 个在{where}里能找到对应的课，<b>{sm.without}</b> 个还没有课讲到；另有 <b>{sm.unchecked}</b> 个还没匹配。</>)
+        : sm.without === 0
+          ? <>这批试卷里最容易出错的 <b>{sm.lostPoints}</b> 个考点，在{where}里都能找到对应的课。</>
+          : sm.withCourse === 0
+            ? <>这批试卷里最容易出错的 <b>{sm.lostPoints}</b> 个考点，在{where}里都还没有找到对应的课。</>
+            : <>这批试卷里最容易出错的 <b>{sm.lostPoints}</b> 个考点，<b>{sm.withCourse}</b> 个在{where}里能找到对应的课，<b>{sm.without}</b> 个还没有课讲到。</>)
     : null
 
   return (
