@@ -4,12 +4,37 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Download, Pencil } from 'lucide-react'
 import { Btn } from '../design'
 import { SkillsPanel } from './assistant-skills'
+import { TOOL_CATEGORIES, toolCategory } from '../../main/agent/role-templates'
 
 const NONE: never[] = []
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
-/** 新建 / 编辑自定义角色：名称、说明、可用工具、推荐问题、默认 Skill、额外说明；编辑时可导出、删除 */
-export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; roleId: string | null; onClose: () => void; onSaved: (id: string | null) => void }) {
+export interface RolePrefill { name: string; description: string; tools: string[]; suggestions: string[]; defaultPlaybook?: string; notes: string }
+
+/** 工具勾选：按类别分组（数据、统计、看板与产出、试卷、连接器），每类可全选 */
+function ToolPicker({ tools, picked, onChange }: { tools: Array<{ name: string; label: string; level: string }>; picked: string[]; onChange: (v: string[]) => void }) {
+  return (
+    <div data-testid="role-tools" style={{ display: 'grid', gap: 8 }}>
+      {TOOL_CATEGORIES.map(c => {
+        const list = tools.filter(t => toolCategory(t.name) === c.id)
+        if (!list.length) return null
+        const names = list.map(t => t.name)
+        const on = names.filter(n => picked.includes(n))
+        return (
+          <div key={c.id} data-testid={`role-tools-${c.id}`}>
+            <Checkbox checked={on.length === names.length} indeterminate={on.length > 0 && on.length < names.length} data-testid={`role-tools-all-${c.id}`}
+              onChange={e => onChange(e.target.checked ? [...new Set([...picked, ...names])] : picked.filter(n => !names.includes(n)))}><b>{c.label}</b>（{on.length}/{names.length}）</Checkbox>
+            <Checkbox.Group value={on} onChange={v => onChange([...picked.filter(n => !names.includes(n)), ...(v as string[])])} style={{ display: 'grid', gap: 4, margin: '4px 0 0 24px' }}
+              options={list.map(t => ({ value: t.name, label: `${t.label}${t.level === 'write' ? '（会改数据，需你同意）' : ''}` }))} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** 新建 / 编辑自定义角色：名称、说明、可用工具、推荐问题、默认 Skill、额外说明；编辑时可导出、删除。新建时可带预填内容（模板 / AI 草稿），onBack 有值时显示「上一步」 */
+export function RoleModal({ open, roleId, onClose, onSaved, prefill, onBack }: { open: boolean; roleId: string | null; onClose: () => void; onSaved: (id: string | null) => void; prefill?: RolePrefill | null; onBack?: () => void }) {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
   const { data: tools = NONE } = useQuery({ queryKey: ['agent', 'tools'], queryFn: () => window.api.agent.tools(), enabled: open })
@@ -23,9 +48,9 @@ export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; r
   const [notes, setNotes] = useState('')
   useEffect(() => {
     if (!open) return
-    const r = roleId ? roles.find(x => x.id === roleId) : null
+    const r = roleId ? roles.find(x => x.id === roleId) : prefill
     setName(r?.name ?? ''); setDesc(r?.description ?? ''); setPicked(r?.tools ?? []); setSugg((r?.suggestions ?? []).join('\n')); setPlaybook(r?.defaultPlaybook); setNotes(r?.notes ?? '')
-  }, [open, roleId, roles])
+  }, [open, roleId, roles, prefill])
   const save = async () => {
     try {
       const r = await window.api.agent.saveRole({
@@ -42,26 +67,28 @@ export function RoleModal({ open, roleId, onClose, onSaved }: { open: boolean; r
   const exp = async () => {
     try { const r = await window.api.agent.exportRole(roleId!); if (r.saved) message.success('已导出，可以把这个文件发给别人导入') } catch (e) { message.error(clean(e)) }
   }
+  const hint = (t: string) => <span className="ewb-lib-sub" style={{ display: 'block', margin: '1px 0 3px' }}>{t}</span>
   return (
-    <Modal open={open} title={roleId ? '编辑角色' : '新建角色'} onCancel={onClose} width={560} destroyOnClose
+    <Modal open={open} title={roleId ? '编辑角色' : onBack ? '新建角色 · 第 3 步：看一看，改一改' : '新建角色'} onCancel={onClose} width={600} destroyOnClose
       footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
         {roleId && <><Btn tone="danger" data-testid="role-delete" onClick={del}>删除</Btn><Btn tone="secondary" data-testid="role-export" onClick={exp}>导出成文件</Btn></>}
+        {!roleId && onBack && <Btn tone="secondary" data-testid="role-back" onClick={onBack}>上一步</Btn>}
         <span style={{ flex: 1 }} />
         <Btn tone="secondary" onClick={onClose}>取消</Btn>
         <Btn tone="primary" data-testid="role-save" disabled={!name.trim()} onClick={save}>保存</Btn>
       </div>}>
-      <div data-testid="role-modal" style={{ display: 'grid', gap: 10 }}>
-        <label>名称<Input value={name} maxLength={20} placeholder="比如：续费跟进" data-testid="role-name" onChange={e => setName(e.target.value)} /></label>
-        <label>说明（怎么说话、关注什么）<Input.TextArea value={desc} rows={3} maxLength={400} data-testid="role-desc" onChange={e => setDesc(e.target.value)} /></label>
+      <div data-testid="role-modal" style={{ display: 'grid', gap: 12 }}>
+        <label>名称{hint('在角色切换里显示的名字，比如“班主任”“续费跟进”。')}<Input value={name} maxLength={20} placeholder="比如：续费跟进" data-testid="role-name" onChange={e => setName(e.target.value)} /></label>
+        <label>说明（怎么说话、关注什么）{hint('写给助手看：你是谁、想让它怎么回答、更关心什么。一两句话就够。')}<Input.TextArea value={desc} rows={3} maxLength={400} data-testid="role-desc" onChange={e => setDesc(e.target.value)} /></label>
         <div>
           <div>可以用哪些查询</div>
-          <Checkbox.Group value={picked} onChange={v => setPicked(v as string[])} data-testid="role-tools" style={{ display: 'grid', gap: 4 }}
-            options={tools.map(t => ({ value: t.name, label: `${t.label}${t.level === 'write' ? '（会改数据，需你同意）' : ''}` }))} />
+          {hint('勾上助手可以用的功能，没勾的它不会用。拿不准就保持默认。')}
+          <ToolPicker tools={tools} picked={picked} onChange={setPicked} />
           <span className="ewb-lib-sub">写计划、向你提问、读取分析步骤、取回进度是每个角色都有的。</span>
         </div>
-        <label>推荐问题（一行一个，最多 4 个）<Input.TextArea value={sugg} rows={3} data-testid="role-suggest" onChange={e => setSugg(e.target.value)} /></label>
-        <label>默认 Skill（可选）<Select allowClear style={{ width: '100%' }} value={playbook} placeholder="不选" data-testid="role-playbook" onChange={v => setPlaybook(v)} options={(pbs?.items ?? []).map(p => ({ value: p.name, label: p.name }))} /></label>
-        <label>只给这个角色的额外说明（可选）<Input.TextArea value={notes} rows={2} maxLength={1500} data-testid="role-notes" onChange={e => setNotes(e.target.value)} /></label>
+        <label>推荐问题（一行一个，最多 4 个）{hint('进入这个角色时，页面上会出现这几个问题，点一下就能问。')}<Input.TextArea value={sugg} rows={3} data-testid="role-suggest" onChange={e => setSugg(e.target.value)} /></label>
+        <label>默认 Skill（可选）{hint('Skill 是一套现成的做事步骤。选一个，助手会优先照着做。')}<Select allowClear style={{ width: '100%' }} value={playbook} placeholder="不选" data-testid="role-playbook" onChange={v => setPlaybook(v)} options={(pbs?.items ?? []).map(p => ({ value: p.name, label: p.name }))} /></label>
+        <label>只给这个角色的额外说明（可选）{hint('这个角色要特别遵守的规矩，比如口径、提醒。没有就空着。')}<Input.TextArea value={notes} rows={2} maxLength={1500} data-testid="role-notes" onChange={e => setNotes(e.target.value)} /></label>
       </div>
     </Modal>
   )

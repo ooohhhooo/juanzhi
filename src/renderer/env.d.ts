@@ -413,6 +413,8 @@ interface ElectronAPI {
     settings(): Promise<{ orgContext: string; orgContextMax: number; clipped: boolean; contextLimit: number | null; contextLimitEffective: number; contextLimitDefault: number }>
     saveSettings(p: { orgContext?: string; contextLimit?: number | null }): Promise<unknown>
     saveRole(r: Partial<AgentCustomRole> & { name: string }): Promise<AgentCustomRole>
+    roleDraft(reqId: string, answers: { job: string; tasks: string[]; reportTo: string; style: string; extra: string }): Promise<{ name: string; description: string; tools: string[]; suggestions: string[]; defaultPlaybook?: string; notes: string }>
+    roleDraftCancel(reqId: string): Promise<boolean>
     deleteRole(id: string): Promise<boolean>
     importRole(): Promise<{ picked: false } | { picked: true; ok: true; role: AgentCustomRole; droppedTools: number } | { picked: true; ok: false; error: string }>
     exportRole(id: string): Promise<{ saved: boolean; path?: string }>

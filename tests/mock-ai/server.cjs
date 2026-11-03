@@ -12,6 +12,7 @@ const p3 = require('./p3.cjs')
 const p4 = require('./p4.cjs')
 const course = require('./course.cjs')
 const agent = require('./agent.cjs')
+const roleDraft = require('./role-draft.cjs')
 const sleepMs = ms => new Promise(r => setTimeout(r, ms))
 
 /** 从 data URL 里读出图片尺寸（PNG 看 IHDR，JPEG 找 SOF 段），E2E 用它核对「发给模型的图已缩小」 */
@@ -204,6 +205,14 @@ async function startMock(opts = {}) {
         }
 
         const usageOf = (c) => usageFor(sys, user, c, body.stream)
+        // 角色草稿：固定回复（roleDraftFail = true 返回 500；roleDraftDelayMs 让它慢一点，测加载和取消）
+        if (roleDraft.isRoleDraft(sys)) {
+          (state.roleDraftRequests = state.roleDraftRequests || []).push({ system: sys, user })
+          if (state.roleDraftDelayMs) await new Promise(r => setTimeout(r, state.roleDraftDelayMs))
+          if (state.roleDraftFail) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'server error' } })); return }
+          const c = roleDraft.build()
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
+        }
         if (d && d.type === 'empty') return reply(res, { model: body.model, content: '', usage: usageOf('') }, body.stream)
         if (d && d.type === 'badjson') {
           const c = '{"meta": {"title": "2025-2026学年", "grade": 4, "questions": [ {"no": "1", "stem": "Look'
@@ -339,6 +348,9 @@ async function startMock(opts = {}) {
     /** 助手的请求（带 tools 的） */
     get agentRequests() { return state.requests.filter(r => r.isAgent) },
     set agentNoTools(v) { state.agentNoTools = v },
+    get roleDraftRequests() { return state.roleDraftRequests || [] },
+    set roleDraftFail(v) { state.roleDraftFail = v },
+    set roleDraftDelayMs(v) { state.roleDraftDelayMs = v },
     /** 课程对照的请求（认列 cols / 匹配 match / 话术 advice / 一句话 hint） */
     get courseRequests() { return state.requests.filter(r => r.courseKind) },
     /** 课程对照每次应答前的延迟（毫秒），测进度条和取消用 */
@@ -351,7 +363,7 @@ async function startMock(opts = {}) {
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },
-    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.courseDelayMs = 0; state.reasoning = null; state.agentNoTools = false; state.seenSystems.clear() },
+    reset() { state.requests.length = 0; state.queue.length = 0; state.maxInflight = 0; state.delayMs = 0; state.splitLast = false; state.quirks = {}; state.forbidModels = []; state.visionBlind = false; state.p2DelayMs = 0; state.p3DelayMs = 0; state.courseDelayMs = 0; state.reasoning = null; state.agentNoTools = false; state.roleDraftFail = false; state.roleDraftDelayMs = 0; state.seenSystems.clear() },
     resetStats() { state.requests.length = 0; state.maxInflight = 0 },
     async stop() {
       for (const s of sockets) s.destroy()

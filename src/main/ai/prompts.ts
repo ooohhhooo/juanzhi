@@ -44,6 +44,8 @@ import p6ProposeSystem from './prompts/p6_classify_propose.system.txt?raw'
 import p6ProposeUser from './prompts/p6_classify_propose.user.txt?raw'
 import p6AssignSystem from './prompts/p6_classify_assign.system.txt?raw'
 import p6AssignUser from './prompts/p6_classify_assign.user.txt?raw'
+import p7RoleSystem from './prompts/p7_role_draft.system.txt?raw'
+import p7RoleUser from './prompts/p7_role_draft.user.txt?raw'
 
 /** 内置提示词的版本号；改了资源文件就要同步提升，并在交付说明里记一笔 */
 export const PROMPT_DEFAULT_VERSION = 'v2.0'
@@ -75,7 +77,8 @@ const DEFAULTS: Record<string, string> = {
   'p5_course_hint.system': trimEnd(p5HintSystem), 'p5_course_hint.user': trimEnd(p5HintUser),
   'p5_course_extract.system': trimEnd(p5ExtractSystem), 'p5_course_extract.user': trimEnd(p5ExtractUser),
   'p6_classify_propose.system': trimEnd(p6ProposeSystem), 'p6_classify_propose.user': trimEnd(p6ProposeUser),
-  'p6_classify_assign.system': trimEnd(p6AssignSystem), 'p6_classify_assign.user': trimEnd(p6AssignUser)
+  'p6_classify_assign.system': trimEnd(p6AssignSystem), 'p6_classify_assign.user': trimEnd(p6AssignUser),
+  'p7_role_draft.system': trimEnd(p7RoleSystem), 'p7_role_draft.user': trimEnd(p7RoleUser)
 }
 
 const TITLES: Record<PromptId, string> = {
@@ -96,7 +99,8 @@ const TITLES: Record<PromptId, string> = {
   p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议',
   p5_course_extract: 'P5 课程对照：从 Word / PDF / 图片的文字里整理课程表',
   p6_classify_propose: 'P6 文字归类：从抽样文字里提出类别',
-  p6_classify_assign: 'P6 文字归类：把每条文字归入类别'
+  p6_classify_assign: 'P6 文字归类：把每条文字归入类别',
+  p7_role_draft: 'P7 助手角色：根据岗位和选择生成角色草稿'
 }
 
 const P1_COMMON = ['KNOWLEDGE_TREE', 'QUESTION_TYPES', 'FILE_NAME', 'KNOWN_META', 'BATCH_INFO', 'BATCH_PREFIX', 'PREV_CONTEXT']
@@ -116,7 +120,8 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p5_course_hint: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
   p5_course_extract: ['SOURCE_KIND', 'SOURCE_TEXT'],
   p6_classify_propose: ['FIELD_NAME', 'TOTAL_COUNT', 'SAMPLE_COUNT', 'TEXT_LINES', 'EXISTING_CATEGORIES'],
-  p6_classify_assign: ['FIELD_NAME', 'CATEGORIES', 'TEXT_LINES']
+  p6_classify_assign: ['FIELD_NAME', 'CATEGORIES', 'TEXT_LINES'],
+  p7_role_draft: ['SCENE', 'JOB', 'TASKS', 'REPORT_TO', 'STYLE', 'EXTRA', 'TOOL_LIST', 'SKILL_LIST']
 }
 function overrides(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(SETTINGS_KEY) as { value_json: string } | undefined

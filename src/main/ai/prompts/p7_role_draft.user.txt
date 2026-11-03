@@ -1,0 +1,15 @@
+场景：{{SCENE}}
+
+岗位：{{JOB}}
+平时最常做的事：{{TASKS}}
+汇报给谁：{{REPORT_TO}}
+希望助手怎么说话：{{STYLE}}
+补充：{{EXTRA}}
+
+【可选工具】（格式：工具名：说明）
+{{TOOL_LIST}}
+
+【可选 Skill】（格式：名字：说明）
+{{SKILL_LIST}}
+
+请按 system 的要求只输出 JSON。
