@@ -9,7 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { log } from '../log'
 import { convertImageToPngMac, isOcrAvailable, ocrImage, OcrError } from '../pipeline/ocr'
-import { normalizeImage, renderPdfPages } from '../pipeline/pdf-renderer'
+import { PdfPageLimitError, normalizeImage, renderPdfPages } from '../pipeline/pdf-renderer'
 import { judgeTextLayer } from '../pipeline/textquality'
 import { htmlToText } from '../pipeline/extract'
 import { CourseFileError } from './table-read'
@@ -44,7 +44,11 @@ async function pdfText(file: string, buf: Buffer): Promise<{ lines: string[]; pa
   if (roughPdfPages(buf) > MAX_PAGES * 3) throw new CourseFileError(`这份 PDF 页数太多（超过 ${MAX_PAGES} 页），课程表一般没有这么长。请截取课程表的部分再上传`)
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-course-'))
   try {
-    const pages = await renderPdfPages(file, dir)
+    let pages
+    try { pages = await renderPdfPages(file, dir, MAX_PAGES) } catch (e) {
+      if (e instanceof PdfPageLimitError) throw new CourseFileError(`这份 PDF 有 ${e.pages} 页，超过了 ${MAX_PAGES} 页的上限。请截取课程表的部分再上传`)
+      throw e
+    }
     if (pages.length > MAX_PAGES) throw new CourseFileError(`这份 PDF 有 ${pages.length} 页，超过了 ${MAX_PAGES} 页的上限。请截取课程表的部分再上传`)
     const lines: string[] = []
     for (const p of pages) {

@@ -90,6 +90,8 @@ export function assembleReport(main: string, parts: PartText[], metas: PartMeta[
     if (at === 'before_advice' && !hasAdvice) at = 'tail'
     // omitWhenEmpty 的段成功但没有内容（如家长版加上课程建议会超 300 字而被丢弃）= 这一段不出现，不留“没有生成”的占位
     if (m.omitWhenEmpty && p.status === 'ok' && !p.markdown.trim()) continue
+    // 同理：omitWhenEmpty 的段失败 / 中止时，正文里也不留占位（失败在界面的段列表里看得到）
+    if (m.omitWhenEmpty && p.status !== 'ok') continue
     const text = p.status === 'ok' && p.markdown.trim() ? p.markdown.trim() : placeholderFor(m.label, p.status)
     blocks[at].push(text)
   }

@@ -33,6 +33,7 @@ import { cacheKeys, describeFilter, fillTemplate, normalizeFilter } from '../sta
 import { p3SampleWarning } from '../stats/p3'
 import { CourseFileError, buildXlsx, readTable } from './table-read'
 import { EXTRACT_MAPPING, KIND_LABEL, MAX_FILE_BYTES, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
+import type { ExtractParse } from './doc-extract'
 import type { RichKind } from './doc-extract'
 import { readRichFile } from './doc-read'
 import type { TableRead } from './table-read'
@@ -182,14 +183,34 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal):
   if (!e.done) {
     if (!aiReady()) throw new CourseFileError(`${KIND_LABEL[e.kind]}要先交给 AI 整理成表格：请先在“AI 服务”里配置，或者改传 Excel`)
     const label = KIND_LABEL[e.kind]
-    const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: e.numbered })
-    let r
-    try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal }) } catch (err) {
-      if (err instanceof AiError && err.code === 'aborted') throw err
-      throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
+    // 按行切成约 8k 字的块，依次交给 AI（每块的标题仍对着整份原文逐字核对）；中途取消就整个停下
+    const chunks: string[] = []
+    let cur: string[] = [], curLen = 0
+    for (const ln of e.numbered.split('\n')) {
+      if (curLen + ln.length + 1 > 8000 && cur.length) { chunks.push(cur.join('\n')); cur = []; curLen = 0 }
+      cur.push(ln); curLen += ln.length + 1
     }
-    const p = parseExtractResponse(r.content, e.lines)
-    if (!p.ok) throw new CourseFileError('AI 的回答格式不对，没能整理出课程表，可以重试一次，或改传 Excel')
+    if (cur.length) chunks.push(cur.join('\n'))
+    const p: ExtractParse = { ok: true, lessons: [], dropped: [], problems: [] }
+    const seen = new Set<string>()
+    for (const chunk of chunks) {
+      if (signal.aborted) throw new AiError('aborted', '已取消')
+      const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: chunk })
+      let r
+      try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal }) } catch (err) {
+        if (err instanceof AiError && err.code === 'aborted') throw err
+        throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
+      }
+      const part = parseExtractResponse(r.content, e.lines)
+      if (!part.ok) throw new CourseFileError('AI 的回答格式不对，没能整理出课程表，可以重试一次，或改传 Excel')
+      for (const l of part.lessons) {
+        const k = [l.level, l.seq, l.title].join('|')
+        if (seen.has(k)) continue
+        seen.add(k); p.lessons.push(l)
+      }
+      p.dropped.push(...part.dropped)
+    }
+    if (p.dropped.length) p.problems.push(`有 ${p.dropped.length} 课在原文里找不到，已去掉：${p.dropped.slice(0, 3).map(d => `「${d}」`).join('')}${p.dropped.length > 3 ? '等' : ''}`)
     if (!p.lessons.length) throw new CourseFileError(`没有从${label}里整理出任何一课${p.dropped.length ? '（AI 给出的课在原文里都找不到）' : ''}。请确认文件里是课程表，或改传 Excel`)
     s.read = { sheets: [lessonsToSheet(s.name, p.lessons)], warnings: [] }
     e.extraWarnings = p.problems.map(text => ({ kind: 'unverified' as const, sheet: s.name, row: 0, text }))

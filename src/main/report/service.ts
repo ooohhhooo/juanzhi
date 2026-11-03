@@ -222,9 +222,12 @@ function checkRow(row: any, memo: Map<string, PreparedReport>): CheckRecord {
   const reader = readerOf(row)
   const sig = currentTemplateSig(reader)
   // 带课程对照的报告：课程体系 / 对应的改动不会让数据修订号变化，所以不走“修订号没变就沿用”的捷径，每次都现算
-  const withCourse = courseOutlineIds(parseJson<ReportOptions>(row.options_json, {})).length > 0
-  const hit = withCourse ? null : reusableCheck(row, rev, sig)
-  if (hit) return hit
+  // 先算便宜的课程指纹：修订号、模板签名、课程指纹都没变就沿用上次的结论，不用每次列表都跑完整的 prepareReport
+  const courseIds = courseOutlineIds(parseJson<ReportOptions>(row.options_json, {}))
+  const withCourse = courseIds.length > 0
+  const cSig = withCourse ? courseSig(getDb(), courseIds) : ''
+  const hit = reusableCheck(row, rev, sig)
+  if (hit && (!withCourse || (hit as CheckRecord & { courseSig?: string }).courseSig === cSig)) return hit
   const key = `${reader}|${row.filter_json ?? '{}'}|${row.options_json ?? ''}`
   let p = memo.get(key)
   if (!p) { p = prepareReport(parseFilter(row.filter_json), reader, parseJson<ReportOptions>(row.options_json, {})); memo.set(key, p) }
@@ -234,7 +237,7 @@ function checkRow(row: any, memo: Map<string, PreparedReport>): CheckRecord {
   const fresh = row.cache_key === p.cacheKey
   if (!fresh && reasons.length === 0) reasons.push('data')   // 只有课程体系 / 对应变了：也算“数据有变化”
   const chk: CheckRecord = { fresh, reasons, promptError: p.promptError, empty: p.input.empty }
-  getDb().prepare('UPDATE reports SET checked_rev = ?, checked_sig = ?, checked_json = ? WHERE id = ?').run(p.rev, p.templateSig, JSON.stringify(chk), row.id)
+  getDb().prepare('UPDATE reports SET checked_rev = ?, checked_sig = ?, checked_json = ? WHERE id = ?').run(p.rev, p.templateSig, JSON.stringify(withCourse ? { ...chk, courseSig: cSig } : chk), row.id)
   return chk
 }
 

@@ -175,7 +175,14 @@ export async function runParts(o: { reportId: string; defs: ReportPartDef[]; ctx
         continue
       }
       const ctx: PartContext = { ...o.ctx, reportId, signal }
-      const why = d.skip?.(ctx) ?? null
+      let why: string | null = null
+      try { why = d.skip?.(ctx) ?? null } catch (e) {
+        const x = explain(e)
+        log.warn('report-part', '附加段判断是否跳过时出错', { part: d.id })
+        restoreOrFail(d.id, x.message, x.detail)
+        failed.push(d.id)
+        continue
+      }
       if (why) {
         trySave(reportId, d.id, 'skipped', { message: why })
         ev('ok', why)

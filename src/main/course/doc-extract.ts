@@ -84,8 +84,12 @@ export async function readDocxTables(buf: Uint8Array): Promise<TableRead | null>
   if (entries.length > ZIP_LIMITS.entries) throw new CourseFileError('这个文件解压后太大，不像正常的课程表（可能已损坏或不安全），已拒绝读取')
   const xml = await readText(zip, 'word/document.xml', { used: 0 })
   if (xml == null) throw new CourseFileError('这个文件不像 Word 文档（.docx），请检查文件')
-  const sheets = tablesFromDocumentXml(xml)
-  if (!sheets.length) return null
+  const filledOf = (sh: Sheet) => sh.rows.filter(r => r.some(x => x)).length
+  const all = tablesFromDocumentXml(xml)
+  // 只取最大的那张表；至少 1 行表头 + 3 行有字的数据、2 列，否则（比如只有一张 2x2 的信息表）改走文字整理
+  const best = all.reduce<Sheet | null>((a, b) => (!a || filledOf(b) > filledOf(a) ? b : a), null)
+  if (!best || filledOf(best) < 4 || (best.rows[0]?.length ?? 0) < 2) return null
+  const sheets = [best]
   const warnings: string[] = []
   if (sheets.length > LIMITS.sheets) { sheets.length = LIMITS.sheets; warnings.push(`表格超过 ${LIMITS.sheets} 个，后面的已忽略`) }
   return { sheets, warnings }
@@ -107,7 +111,10 @@ export const normForFind = (s: string): string => s.normalize('NFKC').toLowerCas
 /** 标题是不是原文里真的有（空标题算没有） */
 export function titleInSource(title: string, sourceText: string): boolean {
   const t = normForFind(title)
-  return t.length > 0 && normForFind(sourceText).includes(t)
+  const minLen = /[\u4e00-\u9fff]/.test(t) ? 2 : 3
+  if (t.length < minLen) return false
+  // 必须落在同一行里，不能跨行拼出来
+  return sourceText.split('\n').some(line => normForFind(line).includes(t))
 }
 
 export interface ExtractedLesson { level: string; seq: string; title: string; theme: string; words: string; patterns: string }
@@ -127,11 +134,15 @@ export function parseExtractResponse(text: string, sourceLines: string[]): Extra
   const source = sourceLines.join('\n')
   const lessons: ExtractedLesson[] = []
   const dropped: string[] = []
+  const seen = new Set<string>()
   for (const x of j.lessons.slice(0, 5000)) {
     if (!x || typeof x !== 'object') continue
     const title = str(x.title, 300)
     if (!title) continue
     if (!titleInSource(title, source)) { dropped.push(title.slice(0, 40)); continue }
+    const dupKey = [x.level, x.seq, title].map(v => normForFind(String(v ?? ''))).join('|')
+    if (seen.has(dupKey)) continue
+    seen.add(dupKey)
     // 级别、主题、词汇、句型：写了但原文里找不到的，只清空这一项（课本身是真的）
     const keep = (v: unknown, max: number) => { const s = str(v, max); return s.split(/[；;]/).every(p => !p.trim() || titleInSource(p, source)) ? s : '' }
     lessons.push({ level: keep(x.level, 60), seq: str(x.seq, 60), title, theme: keep(x.theme, 300), words: keep(x.words, 2000), patterns: keep(x.patterns, 2000) })
