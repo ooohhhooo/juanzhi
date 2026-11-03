@@ -37,12 +37,15 @@ export interface AgentToolContext {
   onProgress?: (done: number, total: number) => void
 }
 
+/** 对外发送类工具（external）的预览：发到哪里 + 完整内容；含个人信息时带提示 */
+export interface ToolPreviewInfo { target: string; content: string; privacyWarning?: string }
+
 export interface AgentTool<A = any> {
   name: string
   description: string
   params: ZodType<A>
   level: AgentToolLevel
   run(args: A, ctx: AgentToolContext): Promise<unknown>
-  /** 需要用户同意的工具：用一句白话说明“这一步会做什么”，给同意对话框用 */
-  preview?(args: A): string
+  /** 需要用户同意的工具（write / external）：说明“这一步会做什么”，给同意对话框用。external 必须有；对外发送的给 ToolPreviewInfo */
+  preview?(args: A): string | ToolPreviewInfo | Promise<string | ToolPreviewInfo>
 }
