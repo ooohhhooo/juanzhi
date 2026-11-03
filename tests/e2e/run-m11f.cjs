@@ -58,8 +58,8 @@ async function main() {
   await shot('01-data-chip')
 
   // ── 2. 提问 → 先出计划 → 确认 ──
-  mock.agentRequests.length = 0
-  const firstReq = () => mock.agentRequests.find(r => !r.toolNames.includes('ping'))
+  let base = mock.agentRequests.length   // agentRequests 每次返回新数组，用起点下标截取
+  const firstReq = () => mock.agentRequests.slice(base).find(r => !r.toolNames.includes('ping'))
   await T('assistant-input').fill('分析满意度，出一份看板')
   await T('assistant-send').click()
   check('计划', '先出计划并暂停，计划阶段发给模型的工具里没有 run_query / stat_*，有概况类 list_datasets', await waitFor(async () => (await count('assistant-plan-go')) === 1, 30000)
@@ -147,7 +147,7 @@ async function main() {
   await shot('09-card-detail')
   // 追问
   const before = await ctx.page.locator('.ewb-cv-node').count()
-  mock.agentRequests.length = 0
+  base = mock.agentRequests.length
   await T('cv-ask-input').fill('为什么这个偏低？')
   await T('cv-ask-send').click()
   check('画布追问', '在发现节点上追问：形成新分支，新增追问节点和回答', await waitFor(async () => (await ctx.page.locator('.ewb-cv-node[data-kind=followup]').count()) === 1 && (await ctx.page.locator('.ewb-cv-node[data-kind=answer]').count()) === 2, 40000) && (await ctx.page.locator('.ewb-cv-node').count()) > before)
@@ -160,7 +160,7 @@ async function main() {
   await ctx.page.locator('.ewb-cv-node[data-kind=finding]').first().click()
   const actBtn = ctx.page.locator('[data-testid^="cv-act-add-to-board-"]').first()
   if (await actBtn.count()) {
-    mock.agentRequests.length = 0
+    base = mock.agentRequests.length
     await actBtn.click()
     check('画布动作', '「加到看板」转成一条追问发给助手', await waitFor(async () => !!firstReq() && /把这条发现加到看板里/.test(JSON.stringify(firstReq().messages)), 20000))
     await waitFor(async () => (await count('assistant-stop')) === 0, 20000)

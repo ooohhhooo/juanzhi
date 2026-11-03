@@ -14,7 +14,7 @@ export interface AssistantSlots {
   /** 打 @ 时调用，返回可提及的数据集和连接器（剧本由助手页自己列出） */
   mentionables?: () => Promise<Mentionable[]>
   /** 输入框「＋」菜单里的数据入口：添加数据文件（调用数据集导入）/ 选择已有数据集；没接入时这两项置灰 */
-  dataActions?: { addFiles?: () => void; pickDataset?: () => void }
+  dataActions?: { addFiles?: () => void; pickDataset?: () => void; /** 选一个要发到外部（企业微信群）的文件，返回路径；只有这样选的文件才被允许发送 */ pickSendFile?: () => Promise<string | null> }
   dataChips?: React.ComponentType<AssistantSlotProps>
   board?: React.ComponentType<AssistantSlotProps>
   boardTitle?: string

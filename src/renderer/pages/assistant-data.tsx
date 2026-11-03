@@ -103,5 +103,5 @@ async function mentionables(): Promise<Mentionable[]> {
 registerAssistantSlots({
   dataChips: DataChips,
   mentionables,
-  dataActions: { addFiles: () => { void addFiles() }, pickDataset: () => setPickerOpen(true) }
+  dataActions: { addFiles: () => { void addFiles() }, pickDataset: () => setPickerOpen(true), pickSendFile: () => window.api.connectors.pickSendFile().catch(() => null) }
 })

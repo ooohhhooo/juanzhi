@@ -124,7 +124,7 @@ async function main() {
   dbm.close()
   const L1 = legacyRows.find(r => r.id.startsWith('1111'))
   const L2 = legacyRows.find(r => r.id.startsWith('2222'))
-  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v11（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11）', uv === 11, `user_version=${uv}`)
+  check('迁移', '旧库(user_version=0)启动后升级到最新版本 v12（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11、助手新增 v12）', uv === 12, `user_version=${uv}`)
   check('迁移', '新增列与附件表齐全，旧数据保留',
     ['text', 'ocr_conf', 'ocr_error', 'text_layer_chars'].every(c => pageCols.includes(c)) &&
     ['extracted_at', 'warning', 'duplicate_of'].every(c => paperCols.includes(c)) && hasAssets && legacyPages.c === 1,

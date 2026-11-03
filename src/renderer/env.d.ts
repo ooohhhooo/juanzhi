@@ -224,6 +224,8 @@ interface ElectronAPI {
     test(id: string): Promise<{ ok: boolean; message: string; connectors: ConnectorView[] }>
     setAllowed(id: string, names: string[]): Promise<ConnectorView>
     openShimo(): Promise<boolean>
+    /** 选一个要发出去的文件（系统对话框）；选中的文件记一次性发送许可 */
+    pickSendFile(): Promise<string | null>
   }
   cli: {
     status(): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }>

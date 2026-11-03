@@ -39,7 +39,7 @@ async function main() {
   await shot('assistant-composer')
   // 「＋」菜单
   await T('assistant-plus').click()
-  check('＋菜单', '＋菜单：添加数据文件…、选择已有数据集（数据功能没接入时置灰）、使用剧本…、产出为…', (await count('assistant-plus-add')) === 1 && (await count('assistant-plus-dataset')) === 1 && (await count('assistant-plus-playbook')) === 1 && (await count('assistant-plus-output')) === 1 && await ctx.page.locator('.ant-dropdown-menu-item-disabled').count() >= 2)
+  check('＋菜单', '＋菜单：添加数据文件…、选择已有数据集（数据功能已接入，不再置灰）、使用剧本…、产出为…', (await count('assistant-plus-add')) === 1 && (await count('assistant-plus-dataset')) === 1 && (await count('assistant-plus-playbook')) === 1 && (await count('assistant-plus-output')) === 1 && (await ctx.page.locator('.ant-dropdown-menu-item-disabled').count()) === 0)
   await ctx.page.locator('.ant-dropdown [data-testid=assistant-plus-output]').hover()
   await ctx.page.locator('[data-testid=assistant-plus-output-item]', { hasText: 'Excel 表' }).click()
   check('＋菜单', '选「产出为 Excel 表」：以小标签出现在输入框上方，可删除', (await T('assistant-chip').count()) === 1 && /产出 · Excel 表/.test(await txt('assistant-chip')))
@@ -61,7 +61,8 @@ async function main() {
   await shot('assistant-empty')
 
   // 点推荐问题「帮我做一份学情周报」
-  await T('assistant-suggest-0').click()
+  // 推荐问题现在面向数据分析；这里走学情周报剧本（试卷数据），直接输入
+  await typeAndSend('帮我做一份学情周报')
   check('先出计划', '先出现计划清单，然后暂停：显示「按这个做 / 修改计划」，还没有跑查询工具', await waitFor(async () => (await count('assistant-plan-go')) === 1, 20000) && (await count('assistant-plan')) === 1 && (await T('assistant-plan-item').count()) === 3 && (await count('assistant-tool')) === 0)
   check('先出计划', '暂停期间只有「写计划」那一次请求；停止按钮可用，用量条显示第 1 轮和 token', (await count('assistant-stop')) === 1 && /第 1 轮/.test(await txt('assistant-meter')) && /token/.test(await txt('assistant-meter')))
   const reqsBefore = mock.agentRequests.length

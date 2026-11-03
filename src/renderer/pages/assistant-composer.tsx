@@ -57,6 +57,7 @@ export default function Composer(p: ComposerProps) {
   const plusItems: MenuProps['items'] = [
     { key: 'add', disabled: !slots.dataActions?.addFiles, label: <span data-testid="assistant-plus-add">添加数据文件…{!slots.dataActions?.addFiles && <small className="ewb-lib-sub">（数据功能接入后可用）</small>}</span>, onClick: () => slots.dataActions?.addFiles?.() },
     { key: 'pick', disabled: !slots.dataActions?.pickDataset, label: <span data-testid="assistant-plus-dataset">选择已有数据集</span>, onClick: () => slots.dataActions?.pickDataset?.() },
+    { key: 'send', disabled: !slots.dataActions?.pickSendFile, label: <span data-testid="assistant-plus-sendfile">选择要发送的文件…</span>, onClick: () => { void slots.dataActions?.pickSendFile?.().then(f => { if (f) p.onChange((p.value ? p.value + '\n' : '') + `请把这个文件发到企业微信群：${f}`) }) } },
     { key: 'pb', label: <span data-testid="assistant-plus-playbook">使用剧本…</span>, children: p.playbooks.map(n => ({ key: `pb:${n}`, label: <span data-testid="assistant-plus-playbook-item">{n}</span>, onClick: () => addChip({ key: `playbook:${n}`, kind: 'playbook', label: n }) })) },
     { key: 'out', label: <span data-testid="assistant-plus-output">产出为…</span>, children: OUTPUTS.map(o => ({ key: `out:${o}`, label: <span data-testid="assistant-plus-output-item">{o}</span>, onClick: () => addChip({ key: `output:${o}`, kind: 'output', label: o }) })) }
   ]
