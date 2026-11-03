@@ -109,7 +109,7 @@ export function registerCourseIpc(): void {
   /** 选文件：弹系统对话框（路径随之登记），读成「读取会话」。取消返回 null */
   ipcMain.handle('course:pickFile', async () => {
     const win = getMainWindow()
-    const opts: Electron.OpenDialogOptions = { title: '选择课程表', filters: [{ name: '表格（.xlsx / .csv）', extensions: ['xlsx', 'csv', 'txt', 'xls', 'tsv'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile'] }
+    const opts: Electron.OpenDialogOptions = { title: '选择课程表', filters: [{ name: '课程表（Excel、CSV、Word、PDF、图片）', extensions: ['xlsx', 'csv', 'txt', 'xls', 'tsv', 'docx', 'doc', 'pdf', 'png', 'jpg', 'jpeg', 'heic'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile'] }
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
     if (r.canceled || !r.filePaths[0]) return null
     allowPath(r.filePaths[0])

@@ -32,9 +32,12 @@ import { scopeCounts, selectedCount } from '../stats/core'
 import { cacheKeys, describeFilter, fillTemplate, normalizeFilter } from '../stats/p2'
 import { p3SampleWarning } from '../stats/p3'
 import { CourseFileError, buildXlsx, readTable } from './table-read'
+import { EXTRACT_MAPPING, KIND_LABEL, MAX_FILE_BYTES, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
+import type { RichKind } from './doc-extract'
+import { readRichFile } from './doc-read'
 import type { TableRead } from './table-read'
 import { applyMapping, buildOutline, guessMapping } from './map'
-import type { ParsedLevel, ParsedOutline, SheetMapping } from './map'
+import type { MapWarning, ParsedLevel, ParsedOutline, SheetMapping } from './map'
 import { MAX_LESSONS, MAX_LEVELS } from './store'
 import { parseColsResponse, sheetPreview } from './cols-ai'
 import { batchKps, chunkLines, kpBatchBlock, lessonQuoteText, mergeEntries, outlineLine, parseMatchResponse } from './match'
@@ -51,7 +54,9 @@ type Db = any
 
 // ───────────────────────── 读文件：会话 ─────────────────────────
 
-interface Session { name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null }
+/** Word / PDF / 图片没有现成表格时：读出的文字等 AI 整理成表（done 之后 read.sheets 里就有那张表）；extraWarnings = 整理时去掉了哪些找不到原文的课 */
+interface ExtractState { kind: RichKind; numbered: string; lines: string[]; pages: number; done: boolean; extraWarnings: MapWarning[] }
+interface Session { name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null; extract?: ExtractState; fromDoc?: RichKind }
 const sessions = new Map<string, Session>()
 const MAX_SESSIONS = 4
 
@@ -61,20 +66,29 @@ export interface SourceInfo {
   hash: string
   sheets: Array<{ name: string; hidden: boolean; rows: number; cols: number; mergedFilled: boolean; /** 前 14 行，给「列识别条」显示 */ head: string[][] }>
   warnings: string[]
+  /** 来自 Word / PDF / 图片（界面据此提示「请核对」）；aiOrganised = 表是 AI 从文字里整理出来的；pending = 还没整理（点“下一步”时才调用 AI） */
+  fromDoc?: { label: string; aiOrganised: boolean; pending: boolean; pages: number; chars: number }
 }
 
-function remember(name: string, hash: string, read: TableRead): SourceInfo {
+function sourceInfo(sessionId: string, s: Session): SourceInfo {
+  const read = s.read
+  const e = s.extract
+  return {
+    sessionId, name: s.name, hash: s.hash, warnings: read.warnings,
+    sheets: read.sheets.map(x => ({ name: x.name, hidden: x.hidden, rows: x.rows.length, cols: x.rows.reduce((m, r) => Math.max(m, r.length), 0), mergedFilled: x.mergedFilled, head: x.rows.slice(0, 14) })),
+    ...(s.fromDoc ? { fromDoc: { label: KIND_LABEL[s.fromDoc], aiOrganised: !!e, pending: !!e && !e.done, pages: e?.pages ?? 1, chars: e?.numbered.length ?? 0 } } : {})
+  }
+}
+
+function remember(name: string, hash: string, read: TableRead, rich?: { kind: RichKind; extract?: ExtractState }): SourceInfo {
   const sessionId = crypto.randomUUID()
-  sessions.set(sessionId, { name, hash, read, at: Date.now(), ctl: null, parsed: null })
+  sessions.set(sessionId, { name, hash, read, at: Date.now(), ctl: null, parsed: null, extract: rich?.extract, fromDoc: rich?.kind })
   while (sessions.size > MAX_SESSIONS) {
     const oldest = [...sessions.entries()].sort((a, b) => a[1].at - b[1].at)[0]
     oldest[1].ctl?.abort()
     sessions.delete(oldest[0])
   }
-  return {
-    sessionId, name, hash, warnings: read.warnings,
-    sheets: read.sheets.map(s => ({ name: s.name, hidden: s.hidden, rows: s.rows.length, cols: s.rows.reduce((m, r) => Math.max(m, r.length), 0), mergedFilled: s.mergedFilled, head: s.rows.slice(0, 14) }))
-  }
+  return sourceInfo(sessionId, sessions.get(sessionId)!)
 }
 
 /** 读文件（路径必须是对话框返回或拖入时登记过的）；文件名只用来判断格式和作为默认的体系名，不进日志 */
@@ -82,8 +96,17 @@ export async function readSourceFile(filePath: string): Promise<SourceInfo> {
   if (!isPathAllowed(filePath)) throw new CourseFileError('这个文件没有经过选择对话框或拖入，不能读取')
   let buf: Buffer
   try { buf = fs.readFileSync(filePath) } catch { throw new CourseFileError('读不了这个文件，可能被其他程序占用或没有权限') }
-  if (buf.length > 30 * 1024 * 1024) throw new CourseFileError('文件太大了（超过 30 MB），课程表一般没有这么大')
+  if (buf.length > MAX_FILE_BYTES) throw new CourseFileError('文件太大了（超过 30 MB），课程表一般没有这么大')
   const name = filePath.replace(/^.*[\\/]/, '')
+  const kind = richKindOf(/\.([A-Za-z0-9]+)$/.exec(name)?.[1] ?? '')
+  if (kind) {
+    const hash = crypto.createHash('sha1').update(buf).digest('hex')
+    const r = await readRichFile(filePath, buf, kind)
+    const base = name.replace(/\.[^.]+$/, '')
+    if (r.table) return remember(base, hash, r.table, { kind })
+    const t = r.text!
+    return remember(base, hash, { sheets: [], warnings: [] }, { kind, extract: { kind, numbered: t.numbered, lines: t.lines, pages: t.pages, done: false, extraWarnings: [] } })
+  }
   const read = await readTable(buf, name)
   log.info('course', '读取课程表', { sheets: read.sheets.length, rows: read.sheets.reduce((n, s) => n + s.rows.length, 0) })
   return remember(name.replace(/\.[^.]+$/, ''), crypto.createHash('sha1').update(buf).digest('hex'), read)
@@ -106,7 +129,7 @@ export function sessionOf(id: string): Session {
 // ───────────────────────── 认列 ─────────────────────────
 
 export interface SuggestItem { mapping: SheetMapping | null; problems: string[]; source: 'ai' | 'guess' | 'manual'; error?: string }
-export interface SuggestResult { items: Record<string, SuggestItem>; model: string }
+export interface SuggestResult { items: Record<string, SuggestItem>; model: string; /** 文字版文件整理成表之后的读取结果（界面据此换上表格预览） */ source?: SourceInfo }
 
 const emptyMapping = (): SheetMapping => ({ headerRows: 1, levelName: '', columns: [], skipMarkers: [], uncertain: [] })
 const aiReady = () => { const c = loadConfig(); return !!(c.base_url && parseModelOf(c) && getApiKey()) }
@@ -148,10 +171,37 @@ export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 
   const ctl = new AbortController()
   s.ctl = ctl
   const signal = ctl.signal
-  try { return await suggestInner(s, mode, signal) } finally { if (s.ctl === ctl) s.ctl = null }
+  try { return await suggestInner(sessionId, s, mode, signal) } finally { if (s.ctl === ctl) s.ctl = null }
 }
 
-async function suggestInner(s: Session, mode: 'ai' | 'guess' | 'manual', signal: AbortSignal): Promise<SuggestResult> {
+/** 文字 → 表：调用一次 p5_course_extract；回答里标题在原文里找不到的课整条去掉，并记成警告 */
+async function organiseText(sessionId: string, s: Session, signal: AbortSignal): Promise<SuggestResult> {
+  const e = s.extract!
+  const cfg = loadConfig()
+  const model = parseModelOf(cfg)
+  if (!e.done) {
+    if (!aiReady()) throw new CourseFileError(`${KIND_LABEL[e.kind]}要先交给 AI 整理成表格：请先在“AI 服务”里配置，或者改传 Excel`)
+    const label = KIND_LABEL[e.kind]
+    const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: e.numbered })
+    let r
+    try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal }) } catch (err) {
+      if (err instanceof AiError && err.code === 'aborted') throw err
+      throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
+    }
+    const p = parseExtractResponse(r.content, e.lines)
+    if (!p.ok) throw new CourseFileError('AI 的回答格式不对，没能整理出课程表，可以重试一次，或改传 Excel')
+    if (!p.lessons.length) throw new CourseFileError(`没有从${label}里整理出任何一课${p.dropped.length ? '（AI 给出的课在原文里都找不到）' : ''}。请确认文件里是课程表，或改传 Excel`)
+    s.read = { sheets: [lessonsToSheet(s.name, p.lessons)], warnings: [] }
+    e.extraWarnings = p.problems.map(text => ({ kind: 'unverified' as const, sheet: s.name, row: 0, text }))
+    e.done = true
+    log.info('course', '文字整理成表', { kept: p.lessons.length, dropped: p.dropped.length })
+  }
+  const sheet = s.read.sheets[0]
+  return { items: { [sheet.name]: { mapping: EXTRACT_MAPPING, problems: [], source: 'ai' } }, model, source: sourceInfo(sessionId, s) }
+}
+
+async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' | 'manual', signal: AbortSignal): Promise<SuggestResult> {
+  if (s.extract) return organiseText(sessionId, s, signal)
   const cfg = loadConfig()
   const model = parseModelOf(cfg)
   const items: Record<string, SuggestItem> = {}
@@ -190,6 +240,7 @@ export function previewOutline(sessionId: string, mappings: Record<string, Sheet
   const s = sessionOf(sessionId)
   const o = buildOutline(s.read.sheets, mappings)
   checkLimits(o.levels)
+  if (s.extract?.extraWarnings.length) o.warnings.unshift(...s.extract.extraWarnings)
   s.parsed = o
   return o
 }
@@ -200,7 +251,8 @@ export function resolveLevels(sessionId: string | undefined, mappings: Record<st
   if (!sessionId) throw new CourseFileError('缺少课程表的读取记录，请重新选择文件')
   const o = buildOutline(sessionOf(sessionId).read.sheets, mappings)
   checkLimits(o.levels)
-  return { levels: o.levels.filter(l => l.lessons.length), warnings: o.warnings }
+  const sess = sessionOf(sessionId)
+  return { levels: o.levels.filter(l => l.lessons.length), warnings: [...(sess.extract?.extraWarnings ?? []), ...o.warnings] }
 }
 
 /** 向导第 2 步的列识别条：每个 sheet 的某一行套用后能识别多少课（预览用的快速校验） */

@@ -65,7 +65,7 @@ const attr = (tag: string, name: string): string | undefined => {
  * 线性扫描：依次给出 <name …> 元素的属性串和内容。找不到结束标签就停下（不回头重扫——
  * 恶意文件里成千上万个没闭合的 <c r=…> 不会造成二次方的耗时）。<cellXfs> 这类前缀相同的标签靠「下一个字符」区分。
  */
-function* scanElements(xml: string, name: string): Generator<{ attrs: string; body: string }> {
+export function* scanElements(xml: string, name: string): Generator<{ attrs: string; body: string }> {
   const open = `<${name}`
   const close = `</${name}>`
   let pos = 0
@@ -143,10 +143,10 @@ function numberText(raw: string): string {
   return String(parseFloat(n.toPrecision(15)))
 }
 
-interface Budget { used: number }
+export interface Budget { used: number }
 
 /** 解压一个条目并按「实际解压出的字节数」计数，超过上限立刻停（目录里声明的大小可以是假的） */
-function readText(zip: JSZip, p: string, budget: Budget): Promise<string | null> {
+export function readText(zip: JSZip, p: string, budget: Budget): Promise<string | null> {
   const f = zip.file(p) ?? zip.file(p.replace(/^\//, ''))
   if (!f) return Promise.resolve(null)
   return new Promise((resolve, reject) => {
@@ -338,7 +338,8 @@ export async function readTable(buf: Uint8Array, fileName: string): Promise<Tabl
   if (ext === 'xls') throw new CourseFileError('这是旧版 Excel 格式（.xls），请用 Excel 或 WPS 打开后「另存为」.xlsx 再上传')
   if (ext === 'numbers') throw new CourseFileError('这是 Numbers 文件，请在 Numbers 里「导出为」Excel（.xlsx）或 CSV 后再上传')
   if (ext === 'wps' || ext === 'et') throw new CourseFileError('请用 WPS 把文件「另存为」.xlsx 再上传')
-  if (['doc', 'docx', 'pdf'].includes(ext)) throw new CourseFileError('暂时只支持表格（.xlsx / .csv）。Word 或 PDF 版的课程表，请先复制到 Excel 里再上传，或用「粘贴表格」')
+  if (ext === 'doc') throw new CourseFileError('这是旧版 Word 格式（.doc），请用 Word 或 WPS 打开后「另存为」.docx 再上传')
+  if (['docx', 'pdf', 'png', 'jpg', 'jpeg', 'heic'].includes(ext)) throw new CourseFileError('Word、PDF 和图片需要先转成文字，请从“选择文件”上传')
   const zipMagic = buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b
   const oleMagic = buf.length > 4 && buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11 && buf[3] === 0xe0
   if (oleMagic) throw new CourseFileError('这是旧版 Excel 格式（.xls），请用 Excel 或 WPS 打开后「另存为」.xlsx 再上传')
@@ -351,7 +352,7 @@ export async function readTable(buf: Uint8Array, fileName: string): Promise<Tabl
     if (d.suspicious) r.warnings.push('读出来的文字里有疑似乱码，请核对；乱码的话请用 Excel 另存为 .xlsx 再上传')
     return r
   }
-  throw new CourseFileError('不认识这种文件，请上传 .xlsx 或 .csv 表格')
+  throw new CourseFileError('不认识这种文件，请上传 Excel、CSV、Word、PDF 或图片')
 }
 
 // ───────────────────────── 写 xlsx（空白模板 / 虚构示例，运行时生成） ─────────────────────────

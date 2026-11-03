@@ -281,7 +281,7 @@ async function extractImage(
 
 const IMAGE_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/gif': 'gif' }
 
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   return html
     .replace(/<img[^>]*src="ewb-asset-(\d+)"[^>]*\/?>/g, (_m, n) => `\n[图${n}]\n`)
     .replace(/<img[^>]*\/?>/g, '\n[图（格式不支持，未提取）]\n')

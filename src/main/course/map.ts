@@ -45,7 +45,7 @@ export interface ParsedLesson {
 }
 export interface ParsedLevel { name: string; lessons: ParsedLesson[] }
 
-export type WarnKind = 'skip_no_seq' | 'auto_seq' | 'dup_seq' | 'empty_level' | 'merged_filled' | 'price_ignored' | 'marker_skip' | 'hidden_sheet' | 'no_lessons'
+export type WarnKind = 'skip_no_seq' | 'auto_seq' | 'dup_seq' | 'empty_level' | 'merged_filled' | 'price_ignored' | 'marker_skip' | 'hidden_sheet' | 'no_lessons' | 'unverified'
 export interface MapWarning { kind: WarnKind; sheet: string; /** 1 起算的表格行号，没有就是 0 */ row: number; text: string }
 
 export interface ParsedOutline { levels: ParsedLevel[]; warnings: MapWarning[] }
