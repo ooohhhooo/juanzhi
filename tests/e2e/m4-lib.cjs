@@ -60,8 +60,17 @@ async function pdfInfo(file) {
 
 const isPng = f => { const b = fs.readFileSync(f); return b.length > 100 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }
 
+/** 向导点“开始整理”之后：弹窗关闭 → 课程大纲页出现任务卡片 → 整理好（待核对）→ 点“核对并保存”回到第 2 步 */
+async function reviewJob(timeout = 90000) {
+  await T('course-wizard').waitFor({ state: 'detached', timeout: 15000 })
+  const card = ctx.page.locator('[data-testid^=course-job-][data-status=ready]').first()
+  await card.waitFor({ timeout })
+  await card.locator('[data-testid=course-job-review]').click()
+  await T('course-step2').waitFor({ timeout: 30000 })
+}
+
 module.exports = {
-  L, startMock, check, sleep, waitFor, withDb, docsPrompt, root, fs, path, os, work, shots, SECRET, pageImg, ctx, clean, T, txt, stat, goto, shot, waitStat, waitText, dataDirOf,
+  reviewJob, L, startMock, check, sleep, waitFor, withDb, docsPrompt, root, fs, path, os, work, shots, SECRET, pageImg, ctx, clean, T, txt, stat, goto, shot, waitStat, waitText, dataDirOf,
   cfgFor, saveCfg, setFilter, api, stubSave, stubOpen, open, closeApp, pdfInfo, isPng, execFileSync, pathToFileURL,
   readDb: (dir) => { const { DatabaseSync } = require('node:sqlite'); return new DatabaseSync(path.join(dir, 'db.sqlite'), { readOnly: true }) }
 }

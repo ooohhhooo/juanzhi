@@ -15,11 +15,14 @@ import { courseDashboard, gapsToCsv } from '../course/stats'
 import { SCENES, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
-  cancelSuggest, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings
+  cancelSuggest, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
 } from '../course/service'
+import type { SuggestResult } from '../course/service'
+import { createJobQueue } from '../course/job-queue'
 import type { AdviceScope } from '../course/service'
 
 const FilterArg = StatsFilterSchema.default({})
+const MAX_FILES = 20
 const IdSchema = z.string().uuid()
 const OutlineIds = z.array(IdSchema).max(20)
 
@@ -106,14 +109,19 @@ export function registerCourseIpc(): void {
   })
 
   // ───── 上传向导 ─────
-  /** 选文件：弹系统对话框（路径随之登记），读成「读取会话」。取消返回 null */
+  /** 选文件（可多选）：弹系统对话框（路径随之登记），每个文件读成一个「读取会话」；读不了的文件只记下原因。取消返回 null */
   ipcMain.handle('course:pickFile', async () => {
     const win = getMainWindow()
-    const opts: Electron.OpenDialogOptions = { title: '选择课程表', filters: [{ name: '课程表（Excel、CSV、Word、PDF、图片）', extensions: ['xlsx', 'csv', 'txt', 'xls', 'tsv', 'docx', 'doc', 'pdf', 'png', 'jpg', 'jpeg', 'heic'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile'] }
+    const opts: Electron.OpenDialogOptions = { title: '选择课程表', filters: [{ name: '课程表（Excel、CSV、Word、PDF、图片）', extensions: ['xlsx', 'csv', 'txt', 'xls', 'tsv', 'docx', 'doc', 'pdf', 'png', 'jpg', 'jpeg', 'heic'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile', 'multiSelections'] }
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
-    if (r.canceled || !r.filePaths[0]) return null
-    allowPath(r.filePaths[0])
-    return readSourceFile(r.filePaths[0]).catch(fileFailure)
+    if (r.canceled || !r.filePaths.length) return null
+    const sources = [] as Awaited<ReturnType<typeof readSourceFile>>[]
+    const errors: string[] = []
+    for (const p of r.filePaths.slice(0, MAX_FILES)) {
+      allowPath(p)
+      try { sources.push(await readSourceFile(p)) } catch (e) { errors.push(e instanceof Error ? e.message : String(e)) }
+    }
+    return { sources, errors }
   })
   /** 拖入文件：路径必须是 preload 对真实 File 取过路径、登记过的 */
   ipcMain.handle('course:readFile', async (_e, p: unknown) => readSourceFile(z.string().min(1).max(2000).parse(p)).catch(fileFailure))
@@ -131,6 +139,50 @@ export function registerCourseIpc(): void {
       return fileFailure(e)
     }
   })
+
+  // ───── 后台整理（任务只放内存，重启后丢失） ─────
+  const queue = createJobQueue<SuggestResult>({
+    concurrency: 2,
+    onChange: () => notifyDataChanged('course', 'usage'),
+    onRemoved: j => { dropSession(j.sessionId) },
+    run: async (j, signal) => {
+      const onAbort = () => { cancelSuggest(j.sessionId) }
+      signal.addEventListener('abort', onAbort)
+      try {
+        const sess = sessionOf(j.sessionId)
+        return await suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode)
+      } finally { signal.removeEventListener('abort', onAbort) }
+    },
+    describeError: e => (e instanceof Error ? e.message : String(e)).slice(0, 160)
+  })
+  const jobInfo = (j: ReturnType<typeof queue.list>[number]) => ({
+    id: j.id, sessionId: j.sessionId, fileName: j.fileName, status: j.status, error: j.error ?? '', name: j.name, scene: j.scene, termNote: j.termNote, replaceId: j.replaceId ?? null, mode: j.mode
+  })
+  ipcMain.handle('course:jobStart', async (_e, raw: unknown) => {
+    const items = z.array(z.object({
+      sessionId: IdSchema, name: z.string().trim().max(60), scene: z.enum(SCENES as [string, ...string[]]), termNote: z.string().max(100).default(''),
+      mode: z.enum(['ai', 'manual']), replaceId: IdSchema.optional()
+    })).min(1).max(MAX_FILES).parse(raw)
+    const out = items.map(it => {
+      let fileName = ''
+      try { fileName = sessionOf(it.sessionId).name } catch (e) { throw new Error(e instanceof Error ? e.message : String(e)) }
+      keepSession(it.sessionId, true)
+      return queue.add({ ...it, fileName, name: it.name || fileName.slice(0, 60) })
+    })
+    return out.map(jobInfo)
+  })
+  ipcMain.handle('course:jobs', async () => queue.list().map(jobInfo))
+  /** 待核对的任务交给向导：原表预览 + 认列结果（任务保留，保存成功后才移除） */
+  ipcMain.handle('course:jobTake', async (_e, id: unknown) => {
+    const j = queue.get(z.string().min(1).max(40).parse(id))
+    if (!j || j.status !== 'ready' || !j.result) throw new Error('这个任务已经不在了，请重新添加')
+    let source
+    try { source = sourceInfo(j.sessionId, sessionOf(j.sessionId)) } catch (e) { return fileFailure(e) }
+    return { job: jobInfo(j), source, items: j.result.items, model: j.result.model, organised: !!j.result.source }
+  })
+  ipcMain.handle('course:jobCancel', async (_e, id: unknown) => queue.remove(z.string().min(1).max(40).parse(id)))
+  ipcMain.handle('course:jobRemove', async (_e, id: unknown) => queue.remove(z.string().min(1).max(40).parse(id)))
+  ipcMain.handle('course:jobRetry', async (_e, id: unknown) => queue.retry(z.string().min(1).max(40).parse(id)))
   ipcMain.handle('course:suggestCancel', async (_e, sid: unknown) => cancelSuggest(IdSchema.parse(sid)))
   ipcMain.handle('course:preview', async (_e, raw: unknown) => {
     const p = z.object({ sessionId: IdSchema, mappings: MappingsSchema }).parse(raw)

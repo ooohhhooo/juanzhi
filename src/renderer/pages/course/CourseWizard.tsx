@@ -16,16 +16,17 @@ const FIELDS: Array<[CourseSheetMapping['columns'][number]['field'], string]> = 
 type Mappings = Record<string, CourseSheetMapping | null>
 
 /**
- * 上传向导（设置 → 课程大纲 → 添加 / 重新上传）：
- *  1. 选文件（或粘贴表格），填名称和场景；
+ * 上传向导（课程大纲页 → 添加 / 重新上传）：
+ *  1. 选文件（可多选，或粘贴表格），填名称和场景；点“开始整理”后弹窗关闭，AI 在后台整理（课程大纲页的任务卡片），整理好再点“核对并保存”回到第 2 步；
  *  2. 预览并修改——AI 只认列，课程内容由程序从单元格原文复制；保存之前什么都不落库。
  * replace 有值 = 重新上传替换这个体系（按“级别 + 课次”比对，已确认的对应只要课还在就保留）。
  */
-export default function CourseWizard({ open, onClose, replace }: { open: boolean; onClose: () => void; replace?: CourseOutlineCard }) {
+export default function CourseWizard({ open, onClose, replace, job }: { open: boolean; onClose: () => void; replace?: CourseOutlineCard; /** 后台已整理好的任务：直接进入第 2 步核对 */ job?: CourseJob }) {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
   const [step, setStep] = useState<1 | 2>(1)
   const [src, setSrc] = useState<CourseSource | null>(null)
+  const [srcs, setSrcs] = useState<CourseSource[]>([])   // 第 1 步选的文件（可多个）
   const [reading, setReading] = useState(false)
   const [over, setOver] = useState(false)
   const [pasteText, setPasteText] = useState('')
@@ -47,64 +48,106 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
   const { data: cards } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list(), enabled: open })
   const { data: ai } = useQuery({ queryKey: ['ai', 'config'], queryFn: () => window.api.ai.getConfig(), enabled: open })
   const seq = useRef(0)
-  const sidRef = useRef<string | null>(null)
-  sidRef.current = src?.sessionId ?? null
-  // 关闭向导（或离开页面）时取消还在进行的“让 AI 认列”，免得白白花用量
-  useEffect(() => { if (!open && sidRef.current) void window.api.course.suggestCancel(sidRef.current).catch(() => undefined) }, [open])
-  useEffect(() => () => { if (sidRef.current) void window.api.course.suggestCancel(sidRef.current).catch(() => undefined) }, [])
 
   useEffect(() => {
     if (!open) return
-    setStep(1); setSrc(null); setPasteText(''); setName(replace?.name ?? ''); setScene((replace?.scene as Scene) ?? 'org'); setTermNote(replace?.termNote ?? ''); setMode('ai')
+    setStep(1); setSrc(null); setSrcs([]); setPasteText(''); setName(replace?.name ?? ''); setScene((replace?.scene as Scene) ?? 'org'); setTermNote(replace?.termNote ?? ''); setMode('ai')
     setEdited(false); setMappings({}); setSugg({}); setParsed(null); setSheetName(''); setLevelIdx(0); setDiff(null); setCollide(null)
-  }, [open, replace?.id])
+  }, [open, replace?.id, job?.id])
 
-  const takeSource = (s: CourseSource | null) => {
-    if (!s) return
-    setSrc(s)
-    if (!replace) setName(n => n || s.name.slice(0, 60))
-    setSheetName(s.sheets.find(x => !x.hidden)?.name ?? '')
+  // 打开的是后台整理好的任务：取出结果，直接到第 2 步
+  useEffect(() => {
+    if (!open || !job) return
+    let dead = false
+    setBusy(true)
+    ;(async () => {
+      try {
+        const r = await window.api.course.jobTake(job.id)
+        if (dead) return
+        setSrc(r.source); setSheetName(r.source.sheets.find(x => !x.hidden)?.name ?? '')
+        setName(job.name); setScene(job.scene as Scene); setTermNote(job.termNote)
+        setSugg(r.items); setAiModel(job.mode === 'ai' || r.organised ? r.model : '')
+        const m: Mappings = Object.fromEntries(Object.entries(r.items).map(([k, v]) => [k, v.mapping]))
+        setMappings(m)
+        await reparse(m, r.source.sessionId)
+        if (!dead) setStep(2)
+      } catch (e) { if (!dead) { message.error(clean(e)); onClose() } } finally { if (!dead) setBusy(false) }
+    })()
+    return () => { dead = true }
+  }, [open, job?.id])
+
+  const takeSources = (list: CourseSource[]) => {
+    if (!list.length) return
+    setSrcs(list)
+    setSrc(list.length === 1 ? list[0] : null)
+    if (!replace) setName(list.length === 1 ? list[0].name.slice(0, 60) : '')
+    setSheetName(list.length === 1 ? list[0].sheets.find(x => !x.hidden)?.name ?? '' : '')
   }
-  const guard = async (fn: () => Promise<CourseSource | null>) => {
+  const guard = async (fn: () => Promise<CourseSource[]>) => {
     setReading(true)
-    try { takeSource(await fn()) } catch (e) { message.error(clean(e)) } finally { setReading(false) }
+    try { takeSources(await fn()) } catch (e) { message.error(clean(e)) } finally { setReading(false) }
   }
-  const pick = () => guard(() => window.api.course.pickFile())
+  const pick = () => guard(async () => {
+    const r = await window.api.course.pickFile()
+    if (!r) return []
+    for (const m of r.errors) message.error(m)
+    return replace ? r.sources.slice(0, 1) : r.sources
+  })
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setOver(false)
     ;(e.nativeEvent as unknown as { __ewbHandled?: boolean }).__ewbHandled = true   // 窗口级拖放（App.tsx 的 GlobalDrop）看到这个标记就不会把课程表当试卷导入
-    const f = e.dataTransfer.files?.[0]
-    if (!f) return
-    const p = window.api.getPathForFile(f)
-    if (!p) { message.error('没有取到文件路径，请用“选择文件”按钮'); return }
-    void guard(() => window.api.course.readFile(p))
+    const files = Array.from(e.dataTransfer.files ?? []).slice(0, replace ? 1 : 20)
+    if (!files.length) return
+    void guard(async () => {
+      const out: CourseSource[] = []
+      for (const f of files) {
+        const p = window.api.getPathForFile(f)
+        if (!p) { message.error('没有取到文件路径，请用“选择文件”按钮'); continue }
+        try { out.push(await window.api.course.readFile(p)) } catch (err) { message.error(clean(err)) }
+      }
+      return out
+    })
   }
   const downloadTemplate = async (kind: 'blank' | 'sample') => {
     try { const r = await window.api.course.template(kind); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) }
   }
 
-  const reparse = async (m: Mappings) => {
-    if (!src) return
+  const reparse = async (m: Mappings, sid = src?.sessionId) => {
+    if (!sid) return
     const my = ++seq.current
     try {
-      const p = await window.api.course.preview({ sessionId: src.sessionId, mappings: m })
+      const p = await window.api.course.preview({ sessionId: sid, mappings: m })
       if (my !== seq.current) return
       setParsed(p); setEdited(false)
       setLevelIdx(i => Math.min(i, Math.max(0, p.levels.length - 1)))
     } catch (e) { message.error(clean(e)) }
   }
+  const multi = srcs.length > 1
+  /** 单文件 + 手动指定列：不用 AI，直接进第 2 步；其余都交给后台整理 */
+  const direct = srcs.length === 1 && mode === 'manual' && !srcs[0].fromDoc?.aiOrganised
   const goStep2 = async () => {
-    if (!src) return
-    if (!name.trim()) { message.warning('请先给课程体系起个名字'); return }
+    if (!srcs.length) return
+    if (!multi && !name.trim()) { message.warning('请先给课程体系起个名字'); return }
     setBusy(true)
     try {
-      const r = await window.api.course.suggest({ sessionId: src.sessionId, mode: src.fromDoc?.aiOrganised ? 'ai' : mode })
-      if (r.source) { setSrc(r.source); setSheetName(r.source.sheets.find(x => !x.hidden)?.name ?? '') }   // Word / PDF / 图片：AI 整理出表之后换上表格预览
-      setSugg(r.items); setAiModel(mode === 'ai' || r.source ? r.model : '')
-      const m: Mappings = Object.fromEntries(Object.entries(r.items).map(([k, v]) => [k, v.mapping]))
-      setMappings(m)
-      await reparse(m)
-      setStep(2)
+      if (direct) {
+        const s0 = srcs[0]
+        const r = await window.api.course.suggest({ sessionId: s0.sessionId, mode: 'manual' })
+        setSrc(s0); setSheetName(s0.sheets.find(x => !x.hidden)?.name ?? '')
+        setSugg(r.items); setAiModel('')
+        const m: Mappings = Object.fromEntries(Object.entries(r.items).map(([k, v]) => [k, v.mapping]))
+        setMappings(m)
+        await reparse(m, s0.sessionId)
+        setStep(2)
+        return
+      }
+      const jobs = await window.api.course.jobStart(srcs.map(s0 => ({
+        sessionId: s0.sessionId, name: multi ? s0.name.slice(0, 60) : (replace?.name ?? name.trim()), scene, termNote,
+        mode: s0.fromDoc?.aiOrganised ? 'ai' as const : mode, ...(replace ? { replaceId: replace.id } : {})
+      })))
+      qc.invalidateQueries({ queryKey: ['course'] })
+      message.success(jobs.length > 1 ? `${jobs.length} 个文件已开始整理，进度见课程大纲页` : '已开始整理，进度见课程大纲页')
+      onClose()
     } catch (e) { message.error(clean(e)) } finally { setBusy(false) }
   }
 
@@ -135,6 +178,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
   const payloadMappings = () => Object.fromEntries(Object.entries(mappings).filter(([, v]) => v)) as Record<string, CourseSheetMapping>
   const doSave = async (replaceId?: string, asName?: string, confirmLockedLoss = false) => {
     if (!src || !parsed) return
+    if (!replaceId && !(asName ?? name).trim()) { message.warning('请先给课程体系起个名字'); return }
     const ls = parsed.levels.filter(l => l.lessons.length)
     if (!ls.length) { message.error('没有可保存的课：请回到上面检查表头行数和列类型'); return }
     setSaving(true)
@@ -142,6 +186,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
       const r = await window.api.course.save({
         sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, ...(edited ? { levels: ls } : {}), warnings: parsed.warnings.slice(0, 300), mappings: payloadMappings(), aiModel, confirmLockedLoss
       })
+      if (job) void window.api.course.jobRemove(job.id).catch(() => undefined)
       message.success(replaceId ? `已替换：新增 ${r.added} 课、修改 ${r.changed} 课、删除 ${r.removed} 课` : '已保存课程体系')
       qc.invalidateQueries({ queryKey: ['course'] })
       setCollide(null)
@@ -170,7 +215,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
   }
 
   const close = () => {
-    if (step === 2 && parsed) { modal.confirm({ title: '放弃这次整理？', content: '预览里的修改还没有保存。', okText: '放弃', cancelText: '继续整理', okButtonProps: { danger: true } as never, onOk: onClose }); return }
+    if (step === 2 && parsed && (edited || !job)) { modal.confirm({ title: job ? '关闭核对？' : '放弃这次整理？', content: job ? '预览里的修改不会保留；整理结果仍在课程大纲页，可以随时再点“核对并保存”。' : '预览里的修改还没有保存。', okText: job ? '关闭' : '放弃', cancelText: '继续核对', okButtonProps: { danger: true } as never, onOk: onClose }); return }
     onClose()
   }
 
@@ -200,20 +245,24 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
           <div className="ewb-crs-drop" data-over={over} data-testid="course-drop"
             onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
             <FileSpreadsheet size={28} aria-hidden />
-            {src
-              ? <><b data-testid="course-file-name">已读取：{src.name}</b>{src.fromDoc?.pending
-                ? <span className="ewb-rep-note" data-testid="course-doc-note">{src.fromDoc.label}，{src.fromDoc.pages > 1 ? `${src.fromDoc.pages} 页，` : ''}约 {src.fromDoc.chars} 字。点“下一步”后由 AI 整理成表格，需要你核对。</span>
-                : <span className="ewb-rep-note">{src.sheets.filter(s => !s.hidden).length} 张{src.fromDoc ? '表格' : '工作表'}{src.sheets.some(s => s.hidden) ? `（另有 ${src.sheets.filter(s => s.hidden).length} 张隐藏的，已跳过）` : ''}，共 {src.sheets.reduce((n, s) => n + s.rows, 0)} 行</span>}</>
-              : <><b>上传课程表（Excel、CSV、Word、PDF 或图片）</b><span className="ewb-rep-note">拖到这里，或点“选择文件”。旧版 .xls / .doc 请先另存为 .xlsx / .docx。</span></>}
-            <Btn tone={src ? 'secondary' : 'primary'} size="small" loading={reading} data-testid="course-pick" onClick={pick}>{src ? '换一个文件' : '选择文件'}</Btn>
+            {srcs.length === 1
+              ? <><b data-testid="course-file-name">已读取：{srcs[0].name}</b>{srcs[0].fromDoc?.pending
+                ? <span className="ewb-rep-note" data-testid="course-doc-note">{srcs[0].fromDoc.label}，{srcs[0].fromDoc.pages > 1 ? `${srcs[0].fromDoc.pages} 页，` : ''}约 {srcs[0].fromDoc.chars} 字。点“开始整理”后由 AI 整理成表格，需要你核对。</span>
+                : <span className="ewb-rep-note">{srcs[0].sheets.filter(s => !s.hidden).length} 张{srcs[0].fromDoc ? '表格' : '工作表'}{srcs[0].sheets.some(s => s.hidden) ? `（另有 ${srcs[0].sheets.filter(s => s.hidden).length} 张隐藏的，已跳过）` : ''}，共 {srcs[0].sheets.reduce((n, s) => n + s.rows, 0)} 行</span>}</>
+              : multi
+                ? <><b data-testid="course-file-name">已读取 {srcs.length} 个文件</b>
+                  <ul className="ewb-crs-warnings" data-testid="course-file-list" style={{ textAlign: 'left', margin: 0 }}>{srcs.map(s => <li key={s.sessionId} data-testid="course-file-item">{s.name}</li>)}</ul>
+                  <span className="ewb-rep-note">每个文件在后台各整理成一个课程体系，名称取文件名。</span></>
+                : <><b>上传课程表（Excel、CSV、Word、PDF 或图片）</b><span className="ewb-rep-note">{replace ? '拖到这里，或点“选择文件”。' : '可以一次选多个文件：拖到这里，或点“选择文件”。'}旧版 .xls / .doc 请先另存为 .xlsx / .docx。</span></>}
+            <Btn tone={srcs.length ? 'secondary' : 'primary'} size="small" loading={reading} data-testid="course-pick" onClick={pick}>{srcs.length ? '换文件' : '选择文件'}</Btn>
           </div>
-          {src?.warnings.length ? <UsageNote kind="caution">{src.warnings.join('；')}</UsageNote> : null}
+          {srcs.some(x => x.warnings.length) ? <UsageNote kind="caution">{srcs.flatMap(x => x.warnings.map(w => (multi ? `${x.name}：${w}` : w))).join('；')}</UsageNote> : null}
 
-          {!src && (
+          {!srcs.length && (
             <details style={{ marginTop: 12 }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>不想找文件？直接粘贴表格</summary>
               <Input.TextArea data-testid="course-paste-text" rows={5} value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="在 Excel 里选中整张表，复制，粘贴到这里（第一行是表头）" style={{ marginTop: 8 }} />
-              <Btn tone="secondary" size="small" style={{ marginTop: 6 }} disabled={!pasteText.trim()} data-testid="course-paste-go" onClick={() => guard(() => window.api.course.readText(pasteText))}>用粘贴的内容</Btn>
+              <Btn tone="secondary" size="small" style={{ marginTop: 6 }} disabled={!pasteText.trim()} data-testid="course-paste-go" onClick={() => guard(async () => [await window.api.course.readText(pasteText)])}>用粘贴的内容</Btn>
             </details>
           )}
 
@@ -224,7 +273,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
           </div>
 
           <div className="ewb-crs-form">
-            <div className="ewb-crs-field"><label htmlFor="course-name">名称</label><Input id="course-name" data-testid="course-name" value={name} maxLength={60} disabled={!!replace} onChange={e => setName(e.target.value)} placeholder="例如：示例体系 A" style={{ maxWidth: 360 }} /></div>
+            <div className="ewb-crs-field"><label htmlFor="course-name">名称</label><Input id="course-name" data-testid="course-name" value={multi ? '' : name} maxLength={60} disabled={!!replace || multi} onChange={e => setName(e.target.value)} placeholder={multi ? '多个文件：各取文件名' : '例如：示例体系 A'} style={{ maxWidth: 360 }} /></div>
             <div className="ewb-crs-field">
               <span className="ewb-crs-field__label">这是什么</span>
               <Radio.Group data-testid="course-scene" value={scene} disabled={!!replace} onChange={e => setScene(e.target.value)}>
@@ -233,7 +282,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
               <span className="ewb-rep-note">只改界面里的叫法，不影响功能。</span>
             </div>
             <div className="ewb-crs-field"><label htmlFor="course-term">学期或季度备注（可选）</label><Input id="course-term" data-testid="course-term" value={termNote} maxLength={100} onChange={e => setTermNote(e.target.value)} placeholder="例如：2026 秋季" style={{ maxWidth: 360 }} /></div>
-            {!src?.fromDoc?.aiOrganised && <div className="ewb-crs-field">
+            {!(srcs.length > 0 && srcs.every(x => x.fromDoc?.aiOrganised)) && <div className="ewb-crs-field">
               <span className="ewb-crs-field__label">怎么认出每一列是什么</span>
               <Radio.Group data-testid="course-mode" value={mode} onChange={e => setMode(e.target.value)}>
                 <Radio value="ai" data-testid="course-mode-ai">让 AI 帮忙认列{aiReady ? '' : '（还没配置 AI 服务，会按表头文字猜）'}</Radio>
@@ -241,12 +290,11 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
               </Radio.Group>
             </div>}
           </div>
-          <UsageNote kind="caution" title="隐私">{src?.fromDoc?.aiOrganised
+          <UsageNote kind="caution" title="隐私">{srcs.some(x => x.fromDoc?.aiOrganised)
             ? '文件里的文字会发送给你在“AI 服务”里设置的模型来整理成表格；不会发给卷知开发者。AI 只能照抄原文，找不到原文的课会被去掉。'
             : '课程内容会发送给你在“AI 服务”里设置的模型来帮忙整理；不会发给卷知开发者。AI 只判断哪一列是什么，不会改写表格里的内容。不想发送：选“手动指定每一列”。'}</UsageNote>
           <div className="ewb-rep-row" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
-            {busy && <Btn tone="secondary" data-testid="course-suggest-cancel" onClick={() => { if (src) void window.api.course.suggestCancel(src.sessionId) }}>取消</Btn>}
-            <Btn tone="primary" disabled={!src} loading={busy} data-testid="course-next" onClick={goStep2}>下一步：核对整理结果</Btn>
+            <Btn tone="primary" disabled={!srcs.length} loading={busy} data-testid="course-next" onClick={goStep2}>{direct ? '下一步：核对整理结果' : '开始整理'}</Btn>
           </div>
         </div>
       )}
@@ -254,6 +302,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
       {step === 2 && src && (
         <div data-testid="course-step2">
           <p className="ewb-crs-headline" style={{ fontSize: 'var(--ewb-fs-lg)' }} data-testid="course-summary">{summary}</p>
+          {!replace && <div className="ewb-crs-field"><label htmlFor="course-name-2">名称</label><Input id="course-name-2" data-testid="course-name-2" value={name} maxLength={60} onChange={e => setName(e.target.value)} style={{ maxWidth: 360 }} /></div>}
           {src.fromDoc && <UsageNote kind="caution" data-testid="course-doc-warning">{src.fromDoc.aiOrganised ? `这张表是 AI 从 ${src.fromDoc.label} 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。` : `这张表直接取自 ${src.fromDoc.label} 里的表格，请核对后再保存。`}</UsageNote>}
           {replace && diff && <UsageNote kind="tip" data-testid="course-diff">相对现有的「{replace.name}」：新增 {diff.added} 课、修改 {diff.changed} 课、删除 {diff.removed} 课；已有的知识点对应里 {diff.affectedMaps} 条涉及改动的课，需要重新匹配。老师确认过的对应只要课还在就保留{diff.lockedLost > 0 ? `；但有 ${diff.lockedLost} 条确认过的对应会因为课被删而丢失` : ''}。替换后需要整体重新匹配。</UsageNote>}
           {Object.values(sugg).some(s => s.error) && <UsageNote kind="caution">{Object.values(sugg).filter(s => s.error).map(s => s.error).filter((x, i, a) => a.indexOf(x) === i).join('；')}</UsageNote>}
@@ -331,7 +380,7 @@ export default function CourseWizard({ open, onClose, replace }: { open: boolean
             </div>
           )}
           <div className="ewb-rep-row" style={{ justifyContent: 'space-between', marginTop: 16 }}>
-            <Btn tone="secondary" onClick={() => setStep(1)}>上一步</Btn>
+            {job ? <span /> : <Btn tone="secondary" onClick={() => setStep(1)}>上一步</Btn>}
             <Btn tone="primary" loading={saving} disabled={totalLessons === 0} data-testid="course-save" onClick={save}>{replace ? '替换并保存' : '保存课程体系'}</Btn>
           </div>
         </div>

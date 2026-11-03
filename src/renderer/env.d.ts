@@ -114,12 +114,19 @@ interface ElectronAPI {
     confirmDraft(id: string): Promise<boolean>
     remove(id: string): Promise<boolean>
     /** 弹出选择对话框并读取；取消返回 null */
-    pickFile(): Promise<CourseSource | null>
+    pickFile(): Promise<{ sources: CourseSource[]; errors: string[] } | null>
     /** 拖入的文件（路径必须由 getPathForFile 登记过） */
     readFile(path: string): Promise<CourseSource>
     readText(text: string): Promise<CourseSource>
     /** mode：ai = 让 AI 认列（课程内容会发给用户配置的 AI 服务）；guess = 只按表头文字猜；manual = 全部留空 */
     suggest(req: { sessionId: string; mode: 'ai' | 'guess' | 'manual' }): Promise<{ items: Record<string, CourseSuggestItem>; model: string; source?: CourseSource }>
+    /** 后台整理：开始（每个文件一个任务）、列表、取出待核对的结果、取消 / 移除 / 重试 */
+    jobStart(items: Array<{ sessionId: string; name: string; scene: string; termNote: string; mode: 'ai' | 'manual'; replaceId?: string }>): Promise<CourseJob[]>
+    jobs(): Promise<CourseJob[]>
+    jobTake(id: string): Promise<{ job: CourseJob; source: CourseSource; items: Record<string, CourseSuggestItem>; model: string; organised: boolean }>
+    jobCancel(id: string): Promise<boolean>
+    jobRemove(id: string): Promise<boolean>
+    jobRetry(id: string): Promise<boolean>
     /** 取消正在进行的“让 AI 认列”（关闭向导时调用） */
     suggestCancel(sessionId: string): Promise<boolean>
     preview(req: { sessionId: string; mappings: Record<string, CourseSheetMapping | null> }): Promise<CourseParsed>
@@ -543,6 +550,7 @@ type CourseLevelDraft = import('../main/course/map').ParsedLevel
 type CourseDashboard = import('../main/course/stats').CourseDashboard
 type CourseRow = import('../main/course/stats').CourseRow
 type CourseLessonRef = import('../main/course/stats').LessonRef
+interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual' }
 type CourseSource = import('../main/course/service').SourceInfo
 type CourseSuggestItem = import('../main/course/service').SuggestItem
 type CourseMatchProgress = import('../main/course/service').MatchProgress

@@ -57,9 +57,9 @@ type Db = any
 
 /** Word / PDF / 图片没有现成表格时：读出的文字等 AI 整理成表（done 之后 read.sheets 里就有那张表）；extraWarnings = 整理时去掉了哪些找不到原文的课 */
 interface ExtractState { kind: RichKind; numbered: string; lines: string[]; pages: number; done: boolean; extraWarnings: MapWarning[] }
-interface Session { name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null; extract?: ExtractState; fromDoc?: RichKind }
+interface Session { name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null; /** 后台整理任务还在用它：不能被挤掉 */ keep?: boolean; extract?: ExtractState; fromDoc?: RichKind }
 const sessions = new Map<string, Session>()
-const MAX_SESSIONS = 4
+const MAX_SESSIONS = 40
 
 export interface SourceInfo {
   sessionId: string
@@ -71,7 +71,7 @@ export interface SourceInfo {
   fromDoc?: { label: string; aiOrganised: boolean; pending: boolean; pages: number; chars: number }
 }
 
-function sourceInfo(sessionId: string, s: Session): SourceInfo {
+export function sourceInfo(sessionId: string, s: Session): SourceInfo {
   const read = s.read
   const e = s.extract
   return {
@@ -85,7 +85,8 @@ function remember(name: string, hash: string, read: TableRead, rich?: { kind: Ri
   const sessionId = crypto.randomUUID()
   sessions.set(sessionId, { name, hash, read, at: Date.now(), ctl: null, parsed: null, extract: rich?.extract, fromDoc: rich?.kind })
   while (sessions.size > MAX_SESSIONS) {
-    const oldest = [...sessions.entries()].sort((a, b) => a[1].at - b[1].at)[0]
+    const oldest = [...sessions.entries()].filter(([, v]) => !v.keep).sort((a, b) => a[1].at - b[1].at)[0]
+    if (!oldest) break
     oldest[1].ctl?.abort()
     sessions.delete(oldest[0])
   }
@@ -119,6 +120,10 @@ export async function readSourceText(text: string): Promise<SourceInfo> {
   const read = await readTable(Buffer.from(text, 'utf8'), '粘贴的表格.csv')
   return remember('粘贴的课程表', crypto.createHash('sha1').update(text).digest('hex'), read)
 }
+
+/** 后台整理任务占用 / 释放读取会话 */
+export function keepSession(id: string, keep: boolean): void { const s = sessions.get(id); if (s) s.keep = keep }
+export function dropSession(id: string): void { const s = sessions.get(id); if (!s) return; s.ctl?.abort(); sessions.delete(id) }
 
 export function sessionOf(id: string): Session {
   const s = sessions.get(id)

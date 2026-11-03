@@ -15,7 +15,7 @@ const { SPEC, seed } = require('./fixtures-m3.cjs')
 const { DatabaseSync } = require('node:sqlite')
 const { spawn } = require('node:child_process')
 const JSZip = require('jszip')
-const { check, sleep, waitFor, withDb, fs, path, work, SECRET, pageImg, ctx, T, txt, goto, setFilter, cfgFor, saveCfg, startMock, open, closeApp, stubSave, stubOpen, shots, root, L } = M
+const { reviewJob, check, sleep, waitFor, withDb, fs, path, work, SECRET, pageImg, ctx, T, txt, goto, setFilter, cfgFor, saveCfg, startMock, open, closeApp, stubSave, stubOpen, shots, root, L } = M
 
 const writeDb = (ud, fn) => { const d = new DatabaseSync(path.join(ud, 'workbench-data', 'db.sqlite')); d.exec('PRAGMA busy_timeout=5000'); d.exec('PRAGMA foreign_keys=ON'); try { return fn(d) } finally { d.close() } }
 const q = (sql, ...p) => withDb(ctx.ud, d => d.prepare(sql).all(...p))
@@ -98,7 +98,10 @@ async function main() {
     await shot10('wizard-step1-light')
     mock.resetStats()
     await T('course-next').click()
-    await T('course-step2').waitFor({ timeout: 30000 })
+    // 点“开始整理”后弹窗立刻关闭，卡片在课程大纲页里整理；整理好再点“核对并保存”
+    await T('course-wizard').waitFor({ state: 'detached', timeout: 15000 })
+    check('后台整理', '点“开始整理”后弹窗关闭，列表里出现这个文件的任务卡片', (await page.locator('[data-testid^=course-job-][data-status]').count()) === 1 && (await T('course-job-name').first().innerText()) === '课程表示例（虚构）')
+    await reviewJob()
     const cols = mock.courseRequests.filter(r => r.courseKind === 'cols')
     check('向导', '让 AI 认列：每张工作表一次调用（共 2 次），提示词只有预览行，没有内部代码', cols.length === 2 && cols.every(r => !/\b[A-Z]{2}\.[A-Z]+/.test(r.user)) && cols[0].jsonMode === true, `cols=${cols.length}`)
     const sum = await txt('course-summary')
@@ -519,11 +522,12 @@ async function main() {
     // 第 2 步的深色截图：读入示例文件、让 AI 认列
     await stubOpen([sampleXlsx])
     await T('course-pick').click(); await T('course-file-name').waitFor({ timeout: 10000 })
-    await T('course-next').click(); await T('course-step2').waitFor({ timeout: 30000 })
+    await T('course-next').click(); await reviewJob()
     await page.evaluate(() => { const b = document.querySelector('.ant-modal-body'); if (b) b.scrollTo(0, 0) })
     await shot10('wizard-step2-dark')
     await page.keyboard.press('Escape')
-    await page.locator('.ant-modal-confirm-btns button.ant-btn-dangerous').click()
+    await T('course-wizard').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {})
+    await T('course-job-remove').first().click().catch(() => {})
     await setTheme('light')
     // 窄屏
     await ctx.app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.setMinimumSize(300, 300); w.setContentSize(760, 900) })

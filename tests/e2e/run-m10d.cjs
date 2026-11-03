@@ -5,7 +5,7 @@
 const M = require('./m4-lib.cjs')
 const { SPEC, seed } = require('./fixtures-m3.cjs')
 const D = require('./make-course-docs.cjs')
-const { check, sleep, waitFor, withDb, fs, path, work, SECRET, pageImg, ctx, T, txt, goto, cfgFor, saveCfg, startMock, open, closeApp, stubOpen, shots, L } = M
+const { reviewJob, check, sleep, waitFor, withDb, fs, path, work, SECRET, pageImg, ctx, T, txt, goto, cfgFor, saveCfg, startMock, open, closeApp, stubOpen, shots, L } = M
 
 const q = (sql, ...p) => withDb(ctx.ud, d => d.prepare(sql).all(...p))
 const shotD = async name => {
@@ -54,7 +54,7 @@ async function runFormat(tag, label, file, expectTitles, o = {}) {
   await T('course-name').fill(name)
   const before = M.ctx.mock.courseRequests.length
   await T('course-next').click()
-  await T('course-step2').waitFor({ timeout: 90000 })
+  await reviewJob()
   const reqs = M.ctx.mock.courseRequests.slice(before)
   if (o.extract) check(label, '文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用', reqs.length === 1 && reqs[0].courseKind === 'extract' && /\nL1: /.test('\n' + reqs[0].user), reqs.map(r => r.courseKind).join(','))
   else check(label, '表格直接读出来，走认列（p5_course_cols），不调用文字整理', reqs.length >= 1 && reqs.every(r => r.courseKind === 'cols'), reqs.map(r => r.courseKind).join(','))
@@ -157,11 +157,12 @@ async function main() {
     const before = mock.courseRequests.length
     await T('course-name').fill('不该保存')
     await T('course-next').click()
-    const msg = await waitFor(async () => { const m = await lastMsg(); return /整理出任何一课/.test(m) ? m : null }, 30000)
-    await ctx.page.screenshot({ path: path.join(shots, 'm10d-fail-no-course.png') })   // 趁提示条还在
-    check('失败路径', '没有课程内容的 PDF：AI 整理后提示“没有从PDF里整理出任何一课”，留在第 1 步', !!msg && (await T('course-step1').count()) === 1 && (await T('course-step2').count()) === 0 && mock.courseRequests.length === before + 1, String(msg))
-
-    await closeWizard()
+    await T('course-wizard').waitFor({ state: 'detached', timeout: 15000 })
+    const msg = await waitFor(async () => { const m = await T('course-job-error').first().innerText().catch(() => ''); return /整理出任何一课/.test(m) ? m : null }, 30000)
+    await ctx.page.screenshot({ path: path.join(shots, 'm10d-fail-no-course.png') })
+    check('失败路径', '没有课程内容的 PDF：AI 整理后卡片显示“没有从PDF里整理出任何一课”，有“重试”和“移除”，没有可核对的结果', !!msg && (await T('course-job-retry').count()) === 1 && (await T('course-job-remove').count()) === 1 && (await T('course-job-review').count()) === 0 && mock.courseRequests.length === before + 1, String(msg))
+    await T('course-job-remove').first().click()
+    check('失败路径', '点“移除”：卡片消失', await waitFor(async () => (await T('course-job-state').count()) === 0, 8000))
   }
   {
     fs.writeFileSync(f('超大.pdf'), Buffer.alloc(31 * 1024 * 1024))

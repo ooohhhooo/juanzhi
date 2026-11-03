@@ -14,9 +14,14 @@ import '../../design/page-course.css'
 export default function CourseSettings() {
   const { message } = App.useApp()
   const qc = useQueryClient()
-  const [wizard, setWizard] = useState<{ open: boolean; replace?: CourseOutlineCard }>({ open: false })
+  const [wizard, setWizard] = useState<{ open: boolean; replace?: CourseOutlineCard; job?: CourseJob }>({ open: false })
   const [detail, setDetail] = useState<string | null>(null)
   const { data: cards } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
+  // 后台整理的任务（主进程内存里）：有排队 / 整理中的就隔几秒刷新一次
+  const { data: jobs } = useQuery({
+    queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),
+    refetchInterval: q => ((q.state.data ?? []).some(j => j.status === 'queued' || j.status === 'running') ? 1500 : false)
+  })
   const refresh = () => qc.invalidateQueries({ queryKey: ['course'] })
   const tpl = async (kind: 'blank' | 'sample') => { try { const r = await window.api.course.template(kind); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }
   const run = async (fn: () => Promise<unknown>, ok?: string) => { try { await fn(); if (ok) message.success(ok); refresh() } catch (e) { message.error(clean(e)) } }
@@ -28,7 +33,7 @@ export default function CourseSettings() {
         <p className="ewb-rep-note" style={{ marginBottom: 12 }}>
           课程表只存在这台电脑上；整理和匹配时，内容会发给你在“AI 服务”里设置的模型，不会发给卷知开发者。
         </p>
-        {cards && cards.length === 0 && (
+        {cards && cards.length === 0 && !(jobs ?? []).length && (
           <EmptyState inline title="还没有上传课程大纲" description="上传以后，看板的“课程对照”页就能用了。"
             steps={['上传课程表（.xlsx 或 .csv，也可以先下载模板）', '核对 AI 整理的结果，保存', '让 AI 把知识点对应到课，再到看板里看']}
             action={<span className="ewb-rep-row" style={{ justifyContent: 'center' }}>
@@ -38,6 +43,25 @@ export default function CourseSettings() {
             </span>} />
         )}
         <div className="ewb-crs-cards" data-testid="course-cards">
+          {(jobs ?? []).map(j => (
+            <article key={j.id} className="ewb-crs-card" data-testid={`course-job-${j.id}`} data-status={j.status}>
+              <div className="ewb-crs-card__head">
+                <span className="ewb-crs-card__name" data-testid="course-job-name">{j.fileName}</span>
+                {j.replaceId && <span className="ewb-ana-pill ewb-ana-pill--quiet">替换「{(cards ?? []).find(c => c.id === j.replaceId)?.name ?? j.name}」</span>}
+                <span className={`ewb-ana-pill${j.status === 'failed' ? ' ewb-ana-pill--warn' : ''}`} data-testid="course-job-state">
+                  {{ queued: '排队中', running: 'AI 整理中', ready: '待核对', failed: '整理失败' }[j.status]}
+                </span>
+              </div>
+              {j.status === 'failed' && <div className="ewb-crs-card__meta"><span data-testid="course-job-error">{j.error || '没有整理成功'}</span></div>}
+              <div className="ewb-crs-card__actions">
+                {j.status === 'ready' && <Btn tone="primary" size="small" data-testid="course-job-review"
+                  onClick={() => setWizard({ open: true, job: j, replace: j.replaceId ? (cards ?? []).find(c => c.id === j.replaceId) : undefined })}>核对并保存</Btn>}
+                {j.status === 'failed' && <Btn tone="secondary" size="small" data-testid="course-job-retry" onClick={() => run(() => window.api.course.jobRetry(j.id))}>重试</Btn>}
+                {(j.status === 'queued' || j.status === 'running') && <Btn tone="secondary" size="small" data-testid="course-job-cancel" onClick={() => run(() => window.api.course.jobCancel(j.id))}>取消</Btn>}
+                {(j.status === 'ready' || j.status === 'failed') && <Btn tone="quiet" size="small" data-testid="course-job-remove" onClick={() => run(() => window.api.course.jobRemove(j.id))}>移除</Btn>}
+              </div>
+            </article>
+          ))}
           {(cards ?? []).map(c => {
             const w = wordsOf(c.scene)
             return (
@@ -75,7 +99,7 @@ export default function CourseSettings() {
           })}
         </div>
       </Panel>
-      <CourseWizard open={wizard.open} replace={wizard.replace} onClose={() => setWizard({ open: false })} />
+      <CourseWizard open={wizard.open} replace={wizard.replace} job={wizard.job} onClose={() => setWizard({ open: false })} />
       <CourseDetail id={detail} onClose={() => setDetail(null)} />
     </div>
   )
