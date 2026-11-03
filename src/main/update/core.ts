@@ -136,7 +136,12 @@ export function pickPortableExe(m: UpdateManifest): ManifestFile | null {
 /** 清单里附带的更新说明压成几行：去掉 HTML 标签和 markdown 记号，最多 maxLines 行、maxChars 字 */
 export function summarizeNotes(raw: string | undefined | null, maxLines = 6, maxChars = 400): string {
   if (!raw) return ''
-  const lines = raw.replace(/\r/g, '').replace(/<[^>]+>/g, '').split('\n')
+  const all = raw.replace(/\r/g, '').replace(/<[^>]+>/g, '').split('\n')
+  // 发布说明里有「这次更新 / 新功能 / 更新内容」一节时，只取这一节（跳过下载表格、安装说明）
+  const h = all.findIndex(l => /^\s*#{1,6}\s*(这次更新|本次更新|更新内容|新功能|What's new|Changes)/i.test(l))
+  const part = h >= 0 ? all.slice(h + 1, (i => (i < 0 ? all.length : h + 1 + i))(all.slice(h + 1).findIndex(l => /^\s*#{1,6}\s/.test(l)))) : all
+  const lines = part
+    .filter(l => !/^\s*\|/.test(l))   // 表格行不放进提示
     .map(l => l.replace(/^\s*(#{1,6}\s*|[-*+]\s+|\d+\.\s+)/, '').replace(/[*_`]/g, '').trim()).filter(Boolean)
   let out = lines.slice(0, maxLines).join('\n')
   if (out.length > maxChars) out = out.slice(0, maxChars).trimEnd() + '…'

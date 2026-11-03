@@ -19,7 +19,8 @@ export default function UpdateNotice(): null {
       key, duration: 0, placement: 'topRight', message: `卷知有新版本 ${v}`,
       description: (
         <div data-testid="update-notice">
-          {st.notes && <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{st.notes}</p>}
+          {st.notes && <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 4px' }} data-testid="update-notice-notes">{st.notes}</p>}
+          <a style={{ display: 'inline-block', margin: '0 0 8px', fontSize: 13 }} data-testid="update-notice-more" onClick={() => void window.api.update.openReleasePage()}>查看完整更新说明</a>
           <p style={{ margin: '0 0 8px', fontSize: 13 }}>更新不会动你的数据；由你点了才会安装。</p>
           <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
             <Btn tone="primary" size="small" data-testid="update-notice-go" onClick={() => { notification.destroy(key); nav('/settings#about'); setTimeout(() => document.getElementById('set-about')?.scrollIntoView({ block: 'start' }), 200); void window.api.update.download() }}>更新</Btn>

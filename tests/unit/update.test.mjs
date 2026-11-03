@@ -58,9 +58,12 @@ assert.equal(pickMacZip(m, 'x64').sha512, 'XXXX==', 'x64 选 x64 的 zip，不�
 assert.equal(pickMacZip(m, 'ia32'), null)
 assert.equal(pickMacZip(parseManifest(MAC_YML.replace(/Juanzhi-1\.2\.2-mac-x64\.zip/g, 'x.pkg')), 'x64'), null, '清单里没有该架构的 zip → null')
 assert.match(m.releaseNotes, /一键更新/)
-assert.equal(summarizeNotes(m.releaseNotes), '新功能\n一键更新\n修复 若干问题')
+assert.equal(summarizeNotes(m.releaseNotes), '一键更新\n修复 若干问题')
 assert.equal(summarizeNotes('<p>a</p>\n' + 'x\n'.repeat(10), 3), 'a\nx\nx…')
 assert.equal(summarizeNotes(undefined), '')
+// 有「这次更新」一节时只取这一节，表格行不进提示
+assert.equal(summarizeNotes('开头一句\n\n## 下载哪个文件\n| a | b |\n|---|---|\n\n## 这次更新\n\n- **甲**：一\n- 乙\n\n## 测试情况\n- 丙'), '甲：一\n乙')
+assert.equal(summarizeNotes('说明\n| a | b |\n- 丁'), '说明\n丁')
 // 老格式（只有顶层 path / sha512）、Windows 行尾
 const old = parseManifest('version: 1.0.1\r\npath: Juanzhi-1.0.1-win-x64-setup.exe\r\nsha512: ZZ==\r\nsize: 5\r\n')
 assert.deepEqual(old.files, [{ url: 'Juanzhi-1.0.1-win-x64-setup.exe', sha512: 'ZZ==', size: 5 }])
