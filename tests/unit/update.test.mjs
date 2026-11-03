@@ -7,8 +7,12 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import {
   compareVersions, isNewer, parseManifest, pickMacZip, pickPortableExe, summarizeNotes, verifyFile, sha512OfFile,
-  macBundleOf, macInstallBlocker, sweepStages, MAC_SWAP_SCRIPT, WIN_SWAP_SCRIPT, safeArg, feedBases, autoCheckEnabled, RELEASES_PAGE
+  macBundleOf, macInstallBlocker, sweepStages, MAC_SWAP_SCRIPT, WIN_SWAP_SCRIPT, safeArg, feedBases, autoCheckEnabled, RELEASES_PAGE, CHECK_INTERVAL_HOURS, RECHECK_HOURS
 } from '../../src/main/update/core.ts'
+
+// ── 自动检查频率：启动时至少隔 1 小时，开着时每 4 小时 ──
+assert.equal(CHECK_INTERVAL_HOURS, 1)
+assert.equal(RECHECK_HOURS, 4)
 
 // ── 版本比较 ──
 assert.equal(compareVersions('1.2.2', '1.2.1'), 1)

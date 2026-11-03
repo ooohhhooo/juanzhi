@@ -144,12 +144,12 @@
 
 | 你的电脑 | 点这个文件 |
 |---|---|
-| Mac，Apple 芯片（M1、M2、M3、M4…） | `Juanzhi-1.3.0-beta.3-mac-arm64.dmg` |
-| Mac，Intel 处理器 | `Juanzhi-1.3.0-beta.3-mac-x64.dmg` |
-| Windows（推荐） | `Juanzhi-1.3.0-beta.3-win-x64-setup.exe`（安装版） |
-| Windows，没有安装权限 | `Juanzhi-1.3.0-beta.3-win-x64-portable.exe`（免安装版，双击就能用） |
+| Mac，Apple 芯片（M1、M2、M3、M4…） | `Juanzhi-1.3.0-beta.4-mac-arm64.dmg` |
+| Mac，Intel 处理器 | `Juanzhi-1.3.0-beta.4-mac-x64.dmg` |
+| Windows（推荐） | `Juanzhi-1.3.0-beta.4-win-x64-setup.exe`（安装版） |
+| Windows，没有安装权限 | `Juanzhi-1.3.0-beta.4-win-x64-portable.exe`（免安装版，双击就能用） |
 
-- 文件名里的 `1.3.0-beta.3` 是版本号，以页面上的最新版为准。
+- 文件名里的 `1.3.0-beta.4` 是版本号，以页面上的最新版为准。
 - **不要点** `Source code (zip)` 和 `Source code (tar.gz)`，那是给程序员看的源代码，不是安装包。
 - 拿不准 Mac 是哪种芯片就下 Intel 版（`mac-x64`）：Apple 芯片的 Mac 一般也能打开（系统可能提示安装 Rosetta，按提示装即可）；反过来 Apple 芯片的包在 Intel 的 Mac 上打不开。
 - **浏览器说「此文件不常被下载」「可能有害」**：Edge 里点文件旁边的「…」→「保留」→「仍然保留」；Chrome 里点「保留」。原因同样是没买签名证书。

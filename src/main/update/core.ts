@@ -14,8 +14,10 @@ export const GITHUB_OWNER = 'ooohhhooo'
 export const GITHUB_REPO = 'juanzhi'
 /** 下载失败 / 不适合自动更新时，给老师的「手动下载」页 */
 export const RELEASES_PAGE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
-/** 小时：启动时静默检查的最短间隔 */
-export const CHECK_INTERVAL_HOURS = 24
+/** 小时：启动时静默检查的最短间隔（频繁开关软件时不重复查） */
+export const CHECK_INTERVAL_HOURS = 1
+/** 小时：软件一直开着时，隔多久再静默查一次 */
+export const RECHECK_HOURS = 4
 
 /**
  * 更新源（按顺序尝试，前一个连不上就换下一个）。以后要加国内镜像，只改这里：每一项是一个「目录地址」，

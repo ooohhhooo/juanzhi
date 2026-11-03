@@ -9,7 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import {
-  CHECK_INTERVAL_HOURS, RELEASES_PAGE, sweepStages, MAC_SWAP_SCRIPT, WIN_SWAP_SCRIPT, GITHUB_OWNER, GITHUB_REPO,
+  CHECK_INTERVAL_HOURS, RECHECK_HOURS, RELEASES_PAGE, sweepStages, MAC_SWAP_SCRIPT, WIN_SWAP_SCRIPT, GITHUB_OWNER, GITHUB_REPO,
   autoCheckEnabled, feedBases, isNewer, macBundleOf, macInstallBlocker, parseManifest, pickMacZip, pickPortableExe, safeArg, summarizeNotes, verifyFile,
   type Blocker, type ManifestFile, type UpdateManifest
 } from './core'
@@ -152,7 +152,7 @@ export async function checkForUpdate(opts: { silent: boolean }): Promise<UpdateS
     const blocker = currentBlocker()
     // 静默检查：老师以前点过「跳过这个版本」的不再提示（手动检查仍然显示）
     const skipped = opts.silent && persist.skippedVersion === latest
-    set({ phase: 'available', latestVersion: latest, notes: notes || undefined, blocker: blocker ?? undefined, announce: opts.silent && !skipped && !blocker })
+    set({ phase: 'available', latestVersion: latest, notes: notes || undefined, blocker: blocker ?? undefined, announce: opts.silent && !skipped })   // 需要手动更新（blocker）也提示：点「更新」会到设置页看到原因和「手动下载」
     return getUpdateState()
   } catch (e) {
     set(opts.silent ? { phase: 'idle', error: undefined } : { phase: 'error', error: { message: friendly(e), manual: true } })
@@ -358,14 +358,17 @@ export function skipVersion(version: string): void {
 }
 export const openReleasePage = (): Promise<void> => shell.openExternal(RELEASES_PAGE)
 
-/** 启动后静默检查（至多每 24 小时一次） */
+/** 启动后静默检查（距上次检查不到 1 小时就跳过），之后软件开着时每 4 小时再查一次 */
 export function startAutoCheck(): void {
   if (!autoCheckEnabled(process.env, app.isPackaged)) return
   state = { ...state, mode: detectMode(), currentVersion: app.getVersion() }
   const last = readPersist().lastCheckAt ?? 0
-  if (Date.now() - last < CHECK_INTERVAL_HOURS * 3600_000) return
-  const delay = Number(process.env.EWB_UPDATE_CHECK_DELAY_MS) || 8000
-  setTimeout(() => { void checkForUpdate({ silent: true }) }, delay)
+  if (Date.now() - last >= CHECK_INTERVAL_HOURS * 3600_000) {
+    const delay = Number(process.env.EWB_UPDATE_CHECK_DELAY_MS) || 8000
+    setTimeout(() => { void checkForUpdate({ silent: true }) }, delay)
+  }
+  const every = Number(process.env.EWB_UPDATE_RECHECK_MS) || RECHECK_HOURS * 3600_000
+  setInterval(() => { if (state.phase === 'idle' || state.phase === 'uptodate') void checkForUpdate({ silent: true }) }, every).unref?.()
 }
 
 /** 启动时清理上次更新留下的暂存目录（只在打包好的 Mac 版里） */
