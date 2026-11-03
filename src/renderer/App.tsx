@@ -29,6 +29,9 @@ import GlobalNotices from './components/GlobalNotices'
 const SHOW_DESIGN = import.meta.env.DEV || import.meta.env.VITE_EWB_DESIGN === '1'
 const DesignRoutes = SHOW_DESIGN ? lazy(() => import('./design/DesignRoutes')) : null
 
+// 助手画布演示（隐藏路由 /assistant-canvas-demo，侧栏没有入口，只给开发与端到端测试用；懒加载，不访问就不加载）
+const AssistantCanvasDemo = lazy(() => import('./assistant/demo/AssistantCanvasDemo'))
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -127,6 +130,7 @@ export default function App() {
                 <Route path="/report" element={<Report />} />
                 <Route path="/guide" element={<Guide />} />
                 <Route path="/help" element={<Help />} />
+                <Route path="/assistant-canvas-demo" element={<Suspense fallback={null}><AssistantCanvasDemo /></Suspense>} />
               </Route>
             </Routes>
           </HashRouter>

@@ -43,5 +43,7 @@ export const READONLY_CHANNELS = new Set([
   // 课程对照的读取类：列表 / 详情 / 看板 / 状态；pickFile、readFile、readText 只读用户选的文件到内存；template、exportGaps 只写用户选的位置；adviceCopy 只写剪贴板；matchCancel 只改内存
   'course:list', 'course:get', 'course:maps', 'course:search', 'course:pickFile', 'course:readFile', 'course:readText', 'course:preview', 'course:diff', 'course:template',
   'course:suggestCancel', 'course:jobs', 'course:jobTake', 'course:jobCancel', 'course:jobRemove', 'course:jobRetry', 'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:adviceState', 'course:adviceCopy',
+  // 助手产出：list / read 只读；export 只写用户在「另存为」里选的文件；reveal 只在文件管理器里显示（产出本身由 Agent 工具写，不走 IPC）
+  'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:export', 'agent-outputs:reveal',
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

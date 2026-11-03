@@ -221,6 +221,12 @@ interface ElectronAPI {
     export(): Promise<{ saved: boolean; path?: string; dir?: string; bytes?: number; files?: number }>
     short(copy?: boolean): Promise<string>
   }
+  agentOutputs: {
+    list(sessionId: string): Promise<import('../shared/agent-outputs').OutputEntry[]>
+    read(sessionId: string, id: string): Promise<import('../shared/agent-outputs').OutputContent>
+    export(sessionId: string, id: string, format: import('../shared/agent-outputs').OutputExportFormat): Promise<{ saved: boolean; path?: string; format?: string; bytes?: number; fellBackTo?: 'csv' }>
+    reveal(sessionId: string, id: string): Promise<boolean>
+  }
   feedback: {
     url(): Promise<string>
     open(): Promise<boolean>
