@@ -8,7 +8,7 @@ import { parseQueueState } from './parse/queue'
 import { analysisBusy } from './stats/analysis'
 import { reportBusy } from './report/service'
 import { kpAnalysisBusy } from './stats/kp-analysis'
-import { adviceBusy, matchBusy } from './course/service'
+import { adviceBusy, courseJobsBusy, matchBusy } from './course/service'
 
 export function busyReason(): string | null {
   const ex = extractQueueState()
@@ -19,5 +19,6 @@ export function busyReason(): string | null {
   if (n > 0) return '有试卷正在处理中，请稍后再操作'
   if (analysisBusy() || reportBusy() || kpAnalysisBusy()) return '有 AI 分析 / 报告正在生成，请等它结束或先取消'
   if (matchBusy() || adviceBusy()) return '有课程匹配 / 家长建议正在生成，请等它结束或先取消'
+  if (courseJobsBusy()) return '有课程大纲正在后台整理，请等它结束或先取消'
   return null
 }

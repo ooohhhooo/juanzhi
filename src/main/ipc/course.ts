@@ -15,7 +15,7 @@ import { courseDashboard, gapsToCsv } from '../course/stats'
 import { SCENES, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
-  cancelSuggest, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
+  cancelSuggest, setJobHooks, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
 } from '../course/service'
 import type { SuggestResult } from '../course/service'
 import { createJobQueue } from '../course/job-queue'
@@ -155,6 +155,7 @@ export function registerCourseIpc(): void {
     },
     describeError: e => (e instanceof Error ? e.message : String(e)).slice(0, 160)
   })
+  setJobHooks({ busy: () => queue.busy(), clear: () => queue.clear() })
   const jobInfo = (j: ReturnType<typeof queue.list>[number]) => ({
     id: j.id, sessionId: j.sessionId, fileName: j.fileName, status: j.status, error: j.error ?? '', name: j.name, scene: j.scene, termNote: j.termNote, replaceId: j.replaceId ?? null, mode: j.mode
   })
@@ -163,11 +164,18 @@ export function registerCourseIpc(): void {
       sessionId: IdSchema, name: z.string().trim().max(60), scene: z.enum(SCENES as [string, ...string[]]), termNote: z.string().max(100).default(''),
       mode: z.enum(['ai', 'manual']), replaceId: IdSchema.optional()
     })).min(1).max(MAX_FILES).parse(raw)
-    const out = items.map(it => {
-      let fileName = ''
-      try { fileName = sessionOf(it.sessionId).name } catch (e) { throw new Error(e instanceof Error ? e.message : String(e)) }
+    // 先全部校验，通过后再统一入队，避免部分入队后抛错、重试时重复建任务
+    const seen = new Set<string>()
+    const taken = new Set(queue.list().filter(j => j.status === 'queued' || j.status === 'running').map(j => j.sessionId))
+    const names = items.map(it => {
+      if (seen.has(it.sessionId)) throw new Error('同一个文件被重复添加了，请去掉重复的再试')
+      seen.add(it.sessionId)
+      if (taken.has(it.sessionId)) throw new Error('这个文件已经在整理中，请不要重复添加')
+      return sessionOf(it.sessionId).name
+    })
+    const out = items.map((it, i) => {
       keepSession(it.sessionId, true)
-      return queue.add({ ...it, fileName, name: it.name || fileName.slice(0, 60) })
+      return queue.add({ ...it, fileName: names[i], name: it.name || names[i].slice(0, 60) })
     })
     return out.map(jobInfo)
   })

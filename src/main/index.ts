@@ -24,6 +24,7 @@ import { startAutoCheck, sweepStaleStages, checkForUpdate } from './update/servi
 import { destroyPdfRenderer } from './pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from './pipeline/queue'
 import { getMainWindow, setMainWindow } from './window'
+import { cancelCourseJobs } from './course/service'
 import { APP_ID, PRODUCT_NAME, WINDOW_TITLE } from './brand'
 import { buildMacMenuTemplate } from './menu-template'
 import { cliArgvOf } from './cli/args'
@@ -116,6 +117,7 @@ function createWindow(): void {
     setMainWindow(null)
     // 隐藏的 PDF 渲染窗口会让 Windows/Linux 的 window-all-closed 永远不触发，主窗口关闭时必须一起销毁
     destroyPdfRenderer()
+    cancelCourseJobs()   // 后台整理的课程大纲任务只放内存，窗口关了就取消清空
   })
 }
 

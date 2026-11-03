@@ -94,6 +94,18 @@ export function createJobQueue<R>(o: JobQueueOptions<R>) {
       pump(); changed()
       return true
     },
+    /** 是否还有排队 / 整理中的任务 */
+    busy(): boolean { return [...jobs.values()].some(j => j.status === 'queued' || j.status === 'running') },
+    /** 取消并清空全部任务（窗口关闭 / 换数据目录） */
+    clear(): void {
+      for (const id of [...jobs.keys()]) {
+        const j = jobs.get(id)!
+        jobs.delete(id)
+        ctls.get(id)?.abort(); ctls.delete(id)
+        try { o.onRemoved?.(j) } catch { /* 释放失败不影响 */ }
+      }
+      changed()
+    },
     count(status: JobStatus): number { return [...jobs.values()].filter(j => j.status === status).length }
   }
 }

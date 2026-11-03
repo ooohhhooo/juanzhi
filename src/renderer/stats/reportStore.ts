@@ -42,6 +42,8 @@ const emit = () => { for (const l of listeners) l() }
 const subscribe = (cb: () => void) => { listeners.add(cb); return () => { listeners.delete(cb) } }
 const get = (id: string) => jobs.find(j => j.requestId === id)
 const patch = (id: string, p: Partial<ReportEntry>) => { jobs = jobs.map(j => (j.requestId === id ? { ...j, ...p } : j)); emit() }
+/** 任务收尾为 error / cancelled：更新状态并立刻释放 runner 槽位 */
+const settle = (id: string, p: Partial<ReportEntry>) => { patch(id, p); runner.release(id) }
 const remove = (id: string) => { jobs = jobs.filter(j => j.requestId !== id); emit() }
 
 /** 所有排队 / 生成中 / 失败 / 已取消的任务（成功的会变成历史报告，不在这里），按开始顺序 */
@@ -49,15 +51,22 @@ export const useReportJobs = (): ReportEntry[] => useSyncExternalStore(subscribe
 /** 某份报告生成成功时通知（页面据此决定自动打开还是只提示） */
 export function onReportDone(cb: (d: ReportDone) => void): () => void { doneListeners.add(cb); return () => { doneListeners.delete(cb) } }
 
+let pendingDone: ReportDone | null = null
+/** 报告页回来时取走「页面不在时完成的最近一份」 */
+export function takePendingDone(): ReportDone | null { const d = pendingDone; pendingDone = null; return d }
+
 let qc: QueryClient | null = null
 let unsub: (() => void) | null = null
 
 function finishOk(id: string, reportId: string | undefined): void {
   if (!get(id)) return
+  runner.release(id)
   Promise.resolve(qc?.invalidateQueries({ queryKey: ['reports'] })).finally(() => {
     const cur = get(id)
     if (!cur) return
     remove(id)
+    const d: ReportDone = { requestId: id, reportId, reader: cur.reader, filterDesc: cur.filterDesc }
+    if (doneListeners.size === 0 && reportId) pendingDone = d   // 页面没挂载：留着，回到报告页时自动打开
     for (const l of doneListeners) l({ requestId: id, reportId, reader: cur.reader, filterDesc: cur.filterDesc })
   })
 }
@@ -74,8 +83,8 @@ export function installReportChunkListener(queryClient: QueryClient): () => void
     else if (ev.type === 'thinking') patch(j.requestId, { thinking: true })
     else if (ev.type === 'retry') patch(j.requestId, { retried: true })
     else if (ev.type === 'part') { if (ev.state === 'start') patch(j.requestId, { step: { label: ev.label, index: ev.index, total: ev.total } }) }
-    else if (ev.type === 'cancelled') { if (ev.reportId) { finishOk(ev.id, ev.reportId); return } patch(j.requestId, { status: 'cancelled', text: ev.partial }) }
-    else if (ev.type === 'error') patch(j.requestId, { status: 'error', text: ev.partial, message: ev.message, detail: ev.detail, code: ev.code })
+    else if (ev.type === 'cancelled') { if (ev.reportId) { finishOk(ev.id, ev.reportId); return } settle(j.requestId, { status: 'cancelled', text: ev.partial }) }
+    else if (ev.type === 'error') settle(j.requestId, { status: 'error', text: ev.partial, message: ev.message, detail: ev.detail, code: ev.code })
     else if (ev.type === 'done') finishOk(ev.id, ev.reportId)
   })
   return () => { unsub?.(); unsub = null }
@@ -89,11 +98,11 @@ async function runJob(job: ReportEntry): Promise<void> {
     if (!cur) return
     if (r.ok || (r.cancelled && r.reportId)) { finishOk(requestId, r.reportId); return }
     if (cur.status !== 'running') return          // 事件已经先到并处理过了
-    if (r.cancelled) patch(requestId, { status: 'cancelled', text: r.partial ?? cur.text })
-    else patch(requestId, { status: 'error', text: r.partial ?? cur.text, message: r.message ?? '生成失败', detail: r.detail, code: r.code })
+    if (r.cancelled) settle(requestId, { status: 'cancelled', text: r.partial ?? cur.text })
+    else settle(requestId, { status: 'error', text: r.partial ?? cur.text, message: r.message ?? '生成失败', detail: r.detail, code: r.code })
   } catch (e) {
     const cur = get(requestId)
-    if (cur && cur.status === 'running') patch(requestId, { status: 'error', message: (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') })
+    if (cur && cur.status === 'running') settle(requestId, { status: 'error', message: (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') })
   }
 }
 
@@ -114,7 +123,13 @@ export function startReport(filter: StatsFilter, filterDesc: string, reader: Rep
   const job: ReportEntry = { requestId, status: 'queued', text: '', refs: [], filterDesc, reader, startedAt: Date.now(), filter, options, key }
   jobs = [...jobs, job]
   emit()
-  return { result: runner.submit(job), requestId }
+  const result = runner.submit(job)
+  if (result === 'duplicate') {
+    remove(requestId)
+    const ex = jobs.find(j => j.key === key && (j.status === 'queued' || j.status === 'running'))
+    return { result, requestId: ex?.requestId ?? requestId }
+  }
+  return { result, requestId }
 }
 
 /** 取消：排队中的直接移除；生成中的通知主进程中止（收尾走正常的取消事件） */

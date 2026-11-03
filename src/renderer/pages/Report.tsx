@@ -8,7 +8,7 @@ import PageViewer from '../stats/PageViewer'
 import type { ViewTarget } from '../stats/PageViewer'
 import { filterLabel, useScopeGuide, useStatsFilter } from '../stats/StatsFilter'
 import { NotCounted } from '../stats/Parts'
-import { cancelReport, dismissReportEntry, onReportDone, retryReportJob, startReport, useReportJobs } from '../stats/reportStore'
+import { cancelReport, dismissReportEntry, onReportDone, retryReportJob, startReport, takePendingDone, useReportJobs } from '../stats/reportStore'
 import type { ReportEntry } from '../stats/reportStore'
 import { READERS, READER_HINT, READER_LABEL } from '../../shared/report-post'
 import { AiDraftBadge, waitingText } from '../components/Plain'
@@ -150,6 +150,11 @@ export default function Report() {
     if (watchRef.current === null || watchRef.current === d.requestId) setSelected(d.reportId)
     else message.success(`${READER_LABEL[d.reader]}已生成`)
   }), [message])
+  // 报告在页面不在时完成：回来时如果没有选中正在看的报告，自动打开最近完成的那份
+  useEffect(() => {
+    const d = takePendingDone()
+    if (d?.reportId && watchRef.current === null) setSelected(d.reportId)
+  }, [])
   useEffect(() => { setExported(null) }, [current])
 
   const running = entry?.status === 'running'

@@ -51,6 +51,10 @@ export function createRunner<T extends RunnerJob>(o: { max: number; start: (job:
       queue.splice(i, 1)
       return true
     },
+    /** 任务已收尾（事件先于 IPC 返回到达）时提前释放槽位，避免同 key 的重试被判重、排队位被占着 */
+    release(requestId: string): void {
+      if (active.delete(requestId)) pump()
+    },
     isActive: (id: string) => active.has(id),
     isQueued: (id: string) => queue.some(j => j.requestId === id),
     counts: () => ({ active: active.size, queued: queue.length })

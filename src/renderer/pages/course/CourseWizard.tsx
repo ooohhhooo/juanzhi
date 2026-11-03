@@ -73,7 +73,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
         if (!dead) setStep(2)
       } catch (e) { if (!dead) { message.error(clean(e)); onClose() } } finally { if (!dead) setBusy(false) }
     })()
-    return () => { dead = true }
+    return () => { dead = true; setBusy(false) }   // 关闭 / 换任务时 finally 不会执行，这里无条件清掉转圈
   }, [open, job?.id])
 
   const takeSources = (list: CourseSource[]) => {

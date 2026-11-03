@@ -304,6 +304,11 @@ export { TEMPLATE_HEADERS }
 export interface MatchProgress { outlineId: string; done: number; total: number; phase: 'running' | 'done' | 'cancelled' | 'error'; message?: string }
 const matchJobs = new Map<string, { ctl: AbortController; progress: MatchProgress }>()
 export const matchBusy = (outlineId?: string): boolean => (outlineId ? matchJobs.has(outlineId) : matchJobs.size > 0)
+/** 后台整理队列（建在 ipc/course.ts）的钩子：让 busy.ts / 窗口关闭不必依赖 ipc 模块 */
+let jobHooks = { busy: () => false, clear: () => { /* 未注册 */ } }
+export const setJobHooks = (h: typeof jobHooks): void => { jobHooks = h }
+export const courseJobsBusy = (): boolean => jobHooks.busy()
+export const cancelCourseJobs = (): void => jobHooks.clear()
 export const matchProgressOf = (outlineId: string): MatchProgress | null => matchJobs.get(outlineId)?.progress ?? null
 export function cancelMatch(outlineId: string): boolean { const j = matchJobs.get(outlineId); if (!j) return false; j.ctl.abort(); return true }
 

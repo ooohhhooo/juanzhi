@@ -12,6 +12,7 @@ import { LATEST_SCHEMA, configuredDir, defaultDir, getDataDir, getDb, getFilesDi
 import { getMainWindow } from '../window'
 import { notifyDataChanged } from '../events'
 import { busyReason } from '../busy'
+import { cancelCourseJobs } from '../course/service'
 import { PackError } from '../pack/errors'
 import { extractPack } from '../pack/reader'
 import { prepareStagedDb } from '../pack/stage-db'
@@ -209,6 +210,7 @@ export function registerDataIpc(): void {
       const bad = existingDirProblem(target)
       if (bad) throw new Error(bad)
       writeConfig(userData, { dataDir: target })
+      cancelCourseJobs()
       setRestartPending({ target, oldDir: getDataDir() })
       dirChoice = null
       return { restartRequired: true, mode, target, oldDir: getDataDir() }
@@ -242,6 +244,7 @@ export function registerDataIpc(): void {
       } finally { t.close() }
       fs.rmSync(path.join(target, MIGRATING_MARK), { force: true })
       writeConfig(userData, { dataDir: target })
+      cancelCourseJobs()
       setRestartPending({ target, oldDir: getDataDir() })
       dirChoice = null
       return { restartRequired: true, mode, target, oldDir: getDataDir(), files: copied.files, bytes: copied.bytes, backupFiles, backupBytes }
@@ -256,6 +259,7 @@ export function registerDataIpc(): void {
     const busy = busyReason()
     if (busy) throw new Error(busy)
     writeConfig(app.getPath('userData'), {})
+    cancelCourseJobs()
     setRestartPending({ target: defaultDir(), oldDir: getDataDir() })
     return { restartRequired: true, target: defaultDir(), hasData: hasDataLayout(defaultDir()) }
   }))

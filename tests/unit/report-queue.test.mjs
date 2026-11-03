@@ -46,3 +46,20 @@ assert.equal(r2.submit({ requestId: 'a', key: 'a' }), 'started')
 await tick(); await tick()
 assert.equal(r2.submit({ requestId: 'b', key: 'b' }), 'started')
 console.log('report-queue ok')
+
+// release：任务提前收尾时立刻释放槽位，同 key 重试不再被判重，排队的顶上
+{
+  const gs = new Map(); const st = []
+  const q = createRunner({ max: 1, start: job => new Promise(res => { st.push(job.requestId); gs.set(job.requestId, res) }) })
+  assert.equal(q.submit({ requestId: 'a', key: 'K' }), 'started')
+  assert.equal(q.submit({ requestId: 'b', key: 'K2' }), 'queued')
+  assert.equal(q.submit({ requestId: 'a2', key: 'K' }), 'duplicate')
+  q.release('a')
+  await tick()
+  assert.deepEqual(st, ['a', 'b'], '释放后排队的顶上')
+  assert.equal(q.isActive('a'), false)
+  assert.equal(q.submit({ requestId: 'a3', key: 'K' }), 'queued', '释放后同 key 可重试')
+  gs.get('a')()
+  await tick()
+  assert.equal(q.isActive('b'), true)
+}
