@@ -100,9 +100,9 @@ export type ValueMapper = (col: ColumnInfo, value: string) => string
 const typeName: Record<ColumnType, string> = { integer: '整数', real: '小数', date: '日期', datetime: '日期时间', boolean: '是否', text: '文本', select: '选项', multi: '多选' }
 
 /** 每列一行。toModel 用于把敏感列的取值换成代号 */
-export function profileLine(c: ColumnInfo, map?: ValueMapper): string {
+export function profileLine(c: ColumnInfo, map?: ValueMapper, lab: (s: string) => string = s => s): string {
   const p = c.profile
-  const parts: string[] = [`${c.name}（${c.label}）`, typeName[c.type]]
+  const parts: string[] = [`${lab(c.name)}（${lab(c.label)}）`, typeName[c.type]]
   if (c.sensitive) parts.push('敏感列，取值已代号化')
   parts.push(`空${pct(p.nullRate)}`, `${p.distinct}种取值`)
   if (c.sensitive) { /* 敏感列不给范围 / 均值 */ } else if (typeof p.min === 'number' && typeof p.max === 'number') {
@@ -112,17 +112,17 @@ export function profileLine(c: ColumnInfo, map?: ValueMapper): string {
     const m = map ?? ((_c, v) => v)
     const shown = p.top.slice(0, c.type === 'text' ? 5 : 10)
     parts.push('常见：' + shown.map(t => `${m(c, t.value).slice(0, 24)} ${pct(t.share)}`).join('、'))
-  } else if (!c.sensitive && p.examples.length) parts.push('例：' + p.examples.map(e => e.slice(0, 20)).join(' | '))
+  } else if (!c.sensitive && p.examples.length) parts.push('例：' + p.examples.map(e => (map ?? ((_c, v) => v))(c, e).slice(0, 20)).join(' | '))
   if (p.multi) parts.push(`多选，分隔符「${p.multi.separators.map(s => (s === '\n' ? '换行' : s)).join('')}」`)
   if (p.hints.length) parts.push('提示：' + p.hints.join('；'))
   return parts.join('；')
 }
 
-export function tableProfileText(t: TableInfo, map?: ValueMapper): string {
-  const lines = [`表 ${t.name}（来自「${t.sheet}」，${t.rows} 行）`]
-  for (const c of t.columns) lines.push('  ' + profileLine(c, map))
-  for (const v of t.views) lines.push(`  视图 ${v.view}：把 ${v.column} 拆成长表（_row, 选项）`)
-  if (t.derivedView) lines.push(`  视图 ${t.derivedView}：原表 + 派生列`)
-  for (const n of t.notes) lines.push('  注：' + n)
+export function tableProfileText(t: TableInfo, map?: ValueMapper, lab: (s: string) => string = s => s): string {
+  const lines = [`表 ${lab(t.name)}（来自「${lab(t.sheet)}」，${t.rows} 行）`]
+  for (const c of t.columns) lines.push('  ' + profileLine(c, map, lab))
+  for (const v of t.views) lines.push(`  视图 ${lab(v.view)}：把 ${lab(v.column)} 拆成长表（_row, 选项）`)
+  if (t.derivedView) lines.push(`  视图 ${lab(t.derivedView)}：原表 + 派生列`)
+  for (const n of t.notes) lines.push('  注：' + lab(n))
   return lines.join('\n')
 }

@@ -9,7 +9,7 @@ import type { Row } from './core.ts'
 import type { StatTool } from './tools.ts'
 
 export interface ClassifyToolContext {
-  runQuery(sql: string, datasets: string[]): Promise<Row[] | { rows: Row[]; truncated?: boolean }>
+  runQuery(sql: string, datasets: string[]): Promise<Row[] | { rows: Row[]; truncated?: boolean; total?: number }>
   /** 数据集模块提供：给某张表加一列派生列。rows 里 rowid 是原表行的 rowid，value 是这一行的取值（null=留空）。返回最终的列名（重名时可能被改） */
   addDerivedColumn(o: { datasetId: string; table: string; columnName: string; rows: Array<{ rowid: number; value: string | null }>; note?: string }): Promise<{ columnName: string }>
   classifyAi: ClassifyAi
@@ -19,6 +19,25 @@ export interface ClassifyToolContext {
 }
 
 const quote = (id: string): string => `"${id.replace(/"/g, '""')}"`
+
+/** 读出这一列的全部行。结果被截断（truncated）时按 rowid 往后分页取全；取不全就明确报错，绝不把超出的行静默当成空 */
+export async function readAllRows(ctx: Pick<ClassifyToolContext, 'runQuery'>, a: { datasetId: string; table: string; column: string }): Promise<Row[]> {
+  const all: Row[] = []
+  let last = 0
+  for (let page = 0; page < 2000; page++) {
+    const where = page === 0 ? '' : ` WHERE rowid > ${last}`
+    const res = await ctx.runQuery(`SELECT rowid AS __rowid, ${quote(a.column)} AS __text FROM ${quote(a.table)}${where} ORDER BY rowid`, [a.datasetId])
+    const rows = Array.isArray(res) ? res : res.rows
+    const truncated = !Array.isArray(res) && !!res.truncated
+    if (rows.length && !('__rowid' in rows[0])) { if (page === 0) return rows; throw new ClassifyError('读取这一列时出错，请重试') }
+    all.push(...rows)
+    if (!truncated) return all
+    if (!rows.length) throw new ClassifyError('这一列太大，没能完整读出来，没有做归类。请先用 SQL 筛选出一部分再归类')
+    last = Number(rows[rows.length - 1].__rowid)
+    if (!Number.isFinite(last)) throw new ClassifyError('读取这一列时出错，请重试')
+  }
+  throw new ClassifyError('这一列行数太多，没能完整读出来，没有做归类。请先用 SQL 筛选出一部分再归类')
+}
 
 export const textClassifyTool: StatTool<z.ZodObject<{
   datasetId: z.ZodString; table: z.ZodString; column: z.ZodString
@@ -37,8 +56,7 @@ export const textClassifyTool: StatTool<z.ZodObject<{
   }),
   async run(a, ctx) {
     try {
-      const res = await ctx.runQuery(`SELECT rowid AS __rowid, ${quote(a.column)} AS __text FROM ${quote(a.table)}`, [a.datasetId])
-      const rows = Array.isArray(res) ? res : res.rows
+      const rows = await readAllRows(ctx, a)
       if (!rows.length) return { ok: false, error: '这张表没有数据，或这一列不存在' }
       if (!('__text' in rows[0])) return { ok: false, error: `表里没有「${a.column}」这一列` }
       const texts = rows.map(r => (r.__text === null || r.__text === undefined ? '' : String(r.__text)))

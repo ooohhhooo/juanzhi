@@ -146,6 +146,31 @@ function fakeAi(log = [], opts = {}) {
   assert.equal(o2.newColumn, '分类')
 }
 
+// ───── text_classify：结果被截断时分页取全，取不全就报错，不静默写 null ─────
+{
+  const all = Array.from({ length: 25 }, (_, i) => ({ rowid: i + 1, why: i % 2 ? '太贵' : '没空' }))
+  const written = []
+  const mkCtx = cap => ({
+    runQuery: async sql => {
+      const m = /rowid > (\d+)/.exec(sql)
+      const rest = all.filter(r => r.rowid > (m ? Number(m[1]) : 0))
+      const rows = rest.slice(0, cap).map(r => ({ __rowid: r.rowid, __text: r.why }))
+      return { rows, truncated: rest.length > cap, total: rest.length }
+    },
+    addDerivedColumn: async o => { written.push(o); return { columnName: o.columnName } },
+    classifyAi: fakeAi(), classifyPrompts: prompts
+  })
+  const args = textClassifyTool.params.parse({ datasetId: 'd1', table: '退费', column: 'why' })
+  const out = await textClassifyTool.run(args, mkCtx(10))
+  assert.equal(out.ok, true)
+  assert.equal(written[0].rows.length, 25, '25 行全部写回，没有因为每页 10 行而丢')
+  assert.ok(written[0].rows.every(r => r.value !== null), '没有被静默写成 null')
+  // 取不全（每页 0 行但仍说被截断）→ 明确报错，不写回
+  written.length = 0
+  const bad = await textClassifyTool.run(args, { ...mkCtx(10), runQuery: async () => ({ rows: [], truncated: true }) })
+  assert.equal(bad.ok, false); assert.match(bad.error, /没有做归类|没能完整/); assert.equal(written.length, 0)
+}
+
 // ───── 提示词文件 ─────
 for (const f of ['p6_classify_propose', 'p6_classify_assign']) {
   assert.match(read(f + '.system.txt'), /JSON/)

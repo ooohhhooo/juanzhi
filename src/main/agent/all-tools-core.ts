@@ -58,25 +58,28 @@ function outputAgentTools(): AgentTool[] {
 export function connectorAgentTools(tools: ConnectorTool[]): AgentTool[] {
   return tools.map(t => {
     if (t.name === 'connectors_list') {
-      return { name: t.name, description: t.description, params: t.params as ZodType<any>, level: 'read' as const, run: (a: any, ctx: AgentToolContext) => t.run(a, { signal: ctx.signal }) }
+      return { name: t.name, description: t.description, params: t.params as ZodType<any>, level: 'read' as const, run: (a: any, ctx: AgentToolContext) => t.run(a, { signal: ctx.signal, sessionId: ctx.sessionId, dataDir: ctx.dataDir }) }
     }
     return {
       name: t.name, description: t.description, params: t.params as ZodType<any>, level: 'external' as const,
       preview: typeof t.preview === 'function' ? (a: any) => t.preview(a) : undefined,
-      run: (a: any, ctx: AgentToolContext) => t.run(a, { signal: ctx.signal })
+      run: (a: any, ctx: AgentToolContext) => t.run(a, { signal: ctx.signal, sessionId: ctx.sessionId, dataDir: ctx.dataDir })
     }
   })
 }
 
-/** 三组工具合在一起；工具名重复直接报错（内核注册时一眼能看到） */
+/** 三组工具合在一起；工具名重复时保留先到的、跳过后来的（并 console.warn），不整体失败 */
 export function composeTools(connectorTools: ConnectorTool[]): AgentTool[] {
   installTableExporter()
   const all = [...analysisWithBoardRegistration(), ...outputAgentTools(), ...connectorAgentTools(connectorTools)]
   const seen = new Set<string>()
+  const out: AgentTool[] = []
   for (const t of all) {
-    if (seen.has(t.name)) throw new Error(`工具名重复：${t.name}`)
-    seen.add(t.name)
     if (t.level === 'external' && !t.preview) throw new Error(`external 工具必须有 preview：${t.name}`)
+    // 重名不能让整个工具集注册失败（比如两个 MCP 服务器的工具 slug 后撞名）：保留先到的，跳过后面的并记警告
+    if (seen.has(t.name)) { console.warn(`[agent] 工具名重复，已跳过：${t.name}`); continue }
+    seen.add(t.name)
+    out.push(t)
   }
-  return all
+  return out
 }

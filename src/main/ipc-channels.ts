@@ -50,7 +50,7 @@ export const READONLY_CHANNELS = new Set([
   'course:suggestCancel', 'course:jobs', 'course:jobTake', 'course:jobCancel', 'course:jobRemove', 'course:jobRetry', 'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:adviceState', 'course:adviceCopy',
   // 数据集的读取类：pick 只弹对话框；list / profile / preview / profileText 只读
   'datasets:pick', 'datasets:list', 'datasets:profile', 'datasets:preview', 'datasets:profileText',
-  'connectors:types', 'connectors:list', 'connectors:openShimo',   // openShimo 只用浏览器打开石墨官网
+  'connectors:types', 'connectors:list', 'connectors:openShimo', 'connectors:pickSendFile',   // pickSendFile 只弹文件选择框并在内存里记一次性许可   // openShimo 只用浏览器打开石墨官网
   // 助手产出：list / read 只读；export 只写用户在「另存为」里选的文件；reveal 只在文件管理器里显示（产出本身由 Agent 工具写，不走 IPC）
   'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:export', 'agent-outputs:reveal',
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用

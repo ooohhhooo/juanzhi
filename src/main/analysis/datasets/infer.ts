@@ -51,7 +51,32 @@ export function detectHeader(rows: string[][]): number {
     // 下面还有数据：下一个非空行要有内容
     return i
   }
+  // 找不到文字表头时，再看有没有「全是数字」的表头行：评分列 1 2 3 4 5、年份列 2021 2022 2023……
+  for (let i = 0; i < scan.length; i++) {
+    const cells = scan[i].filter(c => c !== '')
+    if (cells.length < need || cells.length < 2) continue
+    if (isNumericHeader(cells, scan.slice(i + 1).find(r => r.some(c => c !== '')))) return i
+  }
   return -1
+}
+
+/**
+ * 全是数字的表头行：格子互不相同的整数，且是「连续递增的一串」（1–5 评分）或「都像年份」（1900–2200）；
+ * 下一行要是数据（格子数相近，且不是接着上一行往下数——否则 1 2 3 / 4 5 6 只是一块数字，没有表头）。
+ */
+function isNumericHeader(cells: string[], next: string[] | undefined): boolean {
+  if (!next) return false
+  if (!cells.every(c => /^\d{1,4}$/.test(c.trim()))) return false
+  const nums = cells.map(c => Number(c.trim()))
+  if (new Set(nums).size !== nums.length) return false
+  const run = nums.every((n, k) => k === 0 || n === nums[k - 1] + 1)
+  const years = nums.every(n => n >= 1900 && n <= 2200)
+  if (!run && !years) return false
+  const nextCells = next.filter(c => c !== '')
+  if (nextCells.length < Math.ceil(cells.length * 0.6)) return false
+  const first = Number(nextCells[0])
+  if (nextCells.every(c => /^\d{1,4}$/.test(c.trim())) && run && first === nums[nums.length - 1] + 1) return false   // 接着数下去：同一块数字
+  return true
 }
 
 // ───────────────────────── 日期 / 数值 ─────────────────────────

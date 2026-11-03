@@ -90,5 +90,28 @@ assert.ok(docWriteSection.description.includes('[[query:'))
 // 引用标签
 assert.deepEqual(splitRefTags('a[[query:4]]b'), [{ text: 'a' }, { ref: { type: 'query', id: '4' } }, { text: 'b' }])
 assert.equal(stripRefTags('新生 9 [[query:4]]'), '新生 9 （查询 #4）')
+// CSV 防公式：只对 = 开头、或 + - @ 开头且不像数值的值加前缀；读回时去掉前缀（xlsx 不带 '）
+{
+  const sc2 = { dataDir, sessionId: 'csvguard' }
+  const rows = [['=1+1', '+SUM(A1)'], ['-12.5%', '+8613812345678'], ['@cmd', '-abc'], ["'=已有引号", "'普通"], ['-.5', '+86 138-1234-5678']]
+  const tb = S.saveTable(sc2, '防公式', ['a', 'b'], rows)
+  const txt = fs.readFileSync(path.join(S.sessionDir(sc2), tb.file), 'utf8')
+  assert.ok(txt.includes("'=1+1") && txt.includes("'+SUM(A1)") && txt.includes("'@cmd") && txt.includes("'-abc"), '公式样的加前缀')
+  assert.ok(txt.includes(',-12.5%') || txt.includes('-12.5%,'), '百分数不加前缀')
+  assert.ok(txt.includes('+8613812345678') && !txt.includes("'+8613812345678"), '+86 开头的号码不加前缀')
+  assert.ok(!txt.includes("'-.5") && !txt.includes("'+86 138"), '数值样式不加前缀')
+  const back = S.readTableRows(sc2, tb.id)
+  assert.deepEqual(back.rows, rows.map(r => r.map(String)), '读回时前缀被去掉，原值一字不差（包括本来就带引号的）')
+  // 导出 xlsx（接了导出器）拿到的是原值，没有前导 '
+  let seen = null
+  setTableExporter(async o => { seen = o; fs.writeFileSync(o.outPath, 'x') })
+  await exportOutput(sc2, tb.id, 'xlsx')
+  setTableExporter(null)
+  assert.deepEqual(seen.rows[0], ['=1+1', '+SUM(A1)'])
+  // csv 导出仍然带防公式前缀
+  const x = await exportOutput(sc2, tb.id, 'csv')
+  assert.ok(fs.readFileSync(x.path, 'utf8').includes("'=1+1"))
+}
+
 fs.rmSync(dataDir, { recursive: true, force: true })
 console.log('agent-outputs.test ✓')

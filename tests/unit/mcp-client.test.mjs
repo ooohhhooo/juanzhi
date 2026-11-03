@@ -42,4 +42,16 @@ const pid2 = c.proc.pid
 closeAllMcp()
 await sleep(500)
 assert.equal(alive(pid2), false)
+// slug 后重名：加连接 id 前几位，再重就加序号
+{
+  const { uniqueToolName } = await import('../../src/main/connectors/mcp-client.ts')
+  assert.equal(mcpToolName('a-b', 'x', 's'), mcpToolName('a_b', 'x', 's'), '前提：两个不同的服务器名 slug 后撞名')
+  const used = new Set()
+  const n1 = uniqueToolName(mcpToolName('a-b', 'x', 's'), 'aaaa1111', used)
+  const n2 = uniqueToolName(mcpToolName('a_b', 'x', 's'), 'bbbb2222', used)
+  const n3 = uniqueToolName(mcpToolName('a b', 'x', 's'), 'bbbb2222', used)
+  assert.equal(new Set([n1, n2, n3]).size, 3, [n1, n2, n3].join(','))
+  assert.equal(n1, 'mcp_a_b_x'); assert.equal(n2, 'mcp_a_b_x_bbbb'); assert.equal(n3, 'mcp_a_b_x_2')
+}
+
 console.log('mcp-client.test ✓')

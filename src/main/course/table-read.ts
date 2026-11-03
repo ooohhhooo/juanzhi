@@ -22,7 +22,7 @@ export interface TableRead {
 /** 白话错误（文件本身有问题）：message 可以直接给用户看 */
 export class CourseFileError extends Error {}
 
-export const LIMITS = { sheets: 20, rows: 5000, cols: 60, cellChars: 2000 } as const
+export const LIMITS = { sheets: 20, rows: 5000, cols: 60, cellChars: 2000, mergeCells: 100_000, totalCells: 5_000_000 } as const
 /** xlsx 本质是 zip：先看目录里声明的大小，解压时再按实际大小计数，防「压缩炸弹」 */
 export const ZIP_LIMITS = { entries: 1000, entryBytes: 50 * 1024 * 1024, totalBytes: 200 * 1024 * 1024, sharedStrings: 300_000, sharedChars: 30_000_000 } as const
 const BOMB_MSG = '这个文件解压后太大，不像正常的课程表（可能已损坏或不安全），已拒绝读取'
@@ -35,6 +35,10 @@ export interface ReadOpts {
   totalBytes?: number
   sharedStrings?: number
   sharedChars?: number
+  /** 单个合并区最多填充多少格（默认 10 万），超出的部分不再填 */
+  mergeCells?: number
+  /** 整个文件最多多少格（行 × 列，所有工作表合计，默认 500 万），超出就拒绝并给白话提示 */
+  totalCells?: number
   /** 超过上限的提示里怎么称呼这个文件（默认「课程表」） */
   label?: string
 }
@@ -221,6 +225,7 @@ export async function readXlsx(buf: Uint8Array, opts?: ReadOpts): Promise<TableR
   const warnings: string[] = []
   const sheets: Sheet[] = []
   let idx = 0
+  let totalCells = 0
   for (const tag of sheetTags) {
     idx++
     if (sheets.length >= LIMITS.sheets) { warnings.push(`工作表超过 ${LIMITS.sheets} 个，后面的已忽略`); break }
@@ -230,7 +235,9 @@ export async function readXlsx(buf: Uint8Array, opts?: ReadOpts): Promise<TableR
     const path = (rid && rels.get(rid)) || `xl/worksheets/sheet${idx}.xml`
     const xml = await readText(zip, path, budget, opts)
     if (xml == null) continue
-    const parsed = parseSheetXml(xml, shared, dateXf, maxRows, maxCols)
+    const parsed = parseSheetXml(xml, shared, dateXf, maxRows, maxCols, opts?.mergeCells ?? LIMITS.mergeCells)
+    totalCells += parsed.rows.length * (parsed.rows[0]?.length ?? 0)
+    if (totalCells > (opts?.totalCells ?? LIMITS.totalCells)) throw new CourseFileError(`这个文件的表格太大了（超过 ${Math.round((opts?.totalCells ?? LIMITS.totalCells) / 10000)} 万个格子），请拆成几个文件，或删掉不需要的行列再导入`)
     if (parsed.truncated) warnings.push(`「${name}」超过 ${maxRows} 行或 ${maxCols} 列，多出的部分已忽略`)
     sheets.push({ name, hidden: state === 'hidden' || state === 'veryHidden', rows: parsed.rows, mergedFilled: parsed.merged })
   }
@@ -238,7 +245,7 @@ export async function readXlsx(buf: Uint8Array, opts?: ReadOpts): Promise<TableR
   return { sheets, warnings }
 }
 
-function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>, maxRows: number = LIMITS.rows, maxCols: number = LIMITS.cols): { rows: string[][]; merged: boolean; truncated: boolean } {
+function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>, maxRows: number = LIMITS.rows, maxCols: number = LIMITS.cols, maxMerge: number = LIMITS.mergeCells): { rows: string[][]; merged: boolean; truncated: boolean } {
   const grid: string[][] = []
   let maxC = 0, truncated = false
   for (const m of scanElements(xml, 'c')) {
@@ -266,16 +273,20 @@ function parseSheetXml(xml: string, shared: string[], dateXf: Set<number>, maxRo
   }
   // 合并单元格：左上角的内容铺满整个区域
   let merged = false
+  let fillBudget = LIMITS.totalCells   // 所有合并区合计最多填这么多格，防几百万个合并声明
   for (const mm of scanElements(xml, 'mergeCell')) {
+    if (fillBudget <= 0) break
     const ref = attr(mm.attrs, 'ref')
     const [a, b] = (ref ?? '').split(':')
     const p1 = a ? parseRef(a) : null, p2 = b ? parseRef(b) : null
     if (!p1 || !p2) continue
     const v = grid[p1.r]?.[p1.c]
     if (!v) continue
-    for (let r = p1.r; r <= Math.min(p2.r, maxRows - 1); r++) {
-      for (let c = p1.c; c <= Math.min(p2.c, maxCols - 1); c++) {
+    let filled = 0
+    for (let r = p1.r; r <= Math.min(p2.r, maxRows - 1) && filled < maxMerge; r++) {
+      for (let c = p1.c; c <= Math.min(p2.c, maxCols - 1) && filled < maxMerge; c++) {
         if (r === p1.r && c === p1.c) continue
+        filled++; fillBudget--
         while (grid.length <= r) grid.push([])
         if (!grid[r][c]) { grid[r][c] = v; merged = true; if (c + 1 > maxC) maxC = c + 1 }
       }

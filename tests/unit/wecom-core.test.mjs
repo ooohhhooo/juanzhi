@@ -49,4 +49,37 @@ assert.match(explainWecomError(93000), /地址无效/)
 assert.match(explainWecomError(45009), /每分钟 20 条/)
 assert.equal(explainWecomError(99999, 'weird key=abc123'), '企业微信返回错误 99999：weird key=****')
 assert.equal(explainWecomError(77777), '企业微信返回错误 77777')
+// ── 发文件白名单（send-guard） ──
+{
+  const fs = await import('node:fs')
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const { checkSendAllowed, allowSendOnce, hasSendPermit } = await import('../../src/main/connectors/send-guard.ts')
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-send-'))
+  const mk = (rel, body = 'hello world') => { const f = path.join(dataDir, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, body); return f }
+  const scope = { sessionId: 's1', dataDir }
+  const ok = mk('agent-outputs/s1/exports/报告.docx')
+  assert.equal(checkSendAllowed(ok, scope), null, '本会话导出目录里的文件放行')
+  assert.ok(checkSendAllowed(mk('agent-outputs/s2/exports/别人的.docx'), scope), '别的会话的导出不行')
+  assert.ok(checkSendAllowed(mk('agent-outputs/s1/index.json'), scope), '会话目录里导出目录以外的不行')
+  // 数据集目录和内部文件一律拒绝，哪怕有一次性许可
+  const ds = [mk('datasets/abc.sqlite'), mk('datasets/abc.codes.json'), mk('datasets/catalog.json'), mk('db.sqlite'), mk('db.sqlite-wal'), mk('agent-outputs/s1/exports/x.codes.json'), mk('agent-outputs/s1/exports/catalog.json')]
+  for (const f of ds) { allowSendOnce(f); assert.ok(checkSendAllowed(f, scope), '应拒绝：' + f); assert.ok(checkSendAllowed(f, scope, { strict: false }), '预览也拒绝：' + f) }
+  // 符号链接指到数据集：看真实路径
+  const link = path.join(dataDir, 'agent-outputs/s1/exports/link.json')
+  fs.symlinkSync(path.join(dataDir, 'datasets/catalog.json'), link)
+  assert.ok(checkSendAllowed(link, scope), '软链接指向数据集也拒绝')
+  // 用户在系统文件框选的文件：一次性许可，用一次就没了
+  const picked = mk('桌面/汇报.pdf')
+  assert.ok(checkSendAllowed(picked, scope), '没选过的文件不行')
+  allowSendOnce(picked)
+  assert.ok(hasSendPermit(picked))
+  assert.equal(checkSendAllowed(picked, scope, { consume: true }), null)
+  assert.ok(checkSendAllowed(picked, scope), '许可只用一次')
+  // 预览阶段不知道会话：只认「像某个会话导出目录」的路径
+  assert.equal(checkSendAllowed(ok, {}, { strict: false }), null)
+  assert.ok(checkSendAllowed(mk('其它/a.docx'), {}, { strict: false }))
+  assert.ok(checkSendAllowed(ok, {}), '严格模式没有会话信息就不放行')
+}
+
 console.log('wecom-core.test ✓')

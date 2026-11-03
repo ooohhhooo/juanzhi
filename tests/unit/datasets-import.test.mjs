@@ -176,4 +176,12 @@ assert.notEqual(inferType(freeText).type, 'multi', '自由文本里的逗号不�
   assert.equal(store.preview(d.id, t.name).columns.length, 4, '预览包含派生列')
 }
 
+// 全是数字的表头行：评分 1–5、年份；接着数下去的一块数字仍然没有表头
+assert.equal(detectHeader([['1', '2', '3', '4', '5'], ['3', '5', '4', '1', '2'], ['5', '5', '4', '4', '3']]), 0, '评分 1–5 作表头')
+assert.equal(detectHeader([['2021', '2022', '2023', '2024'], ['120', '150', '180', '210'], ['90', '95', '99', '101']]), 0, '年份作表头')
+assert.equal(detectHeader([['2024年度表'], ['2021', '2022', '2023'], ['10', '20', '30']]), 1, '标题行之后的年份表头')
+assert.equal(detectHeader([['1', '2', '3'], ['4', '5', '6']]), -1, '接着数下去：没有表头')
+assert.equal(detectHeader([['10', '20', '30'], ['11', '21', '31']]), -1, '普通数字块：没有表头')
+assert.equal(detectHeader([['1', '2', '3']]), -1, '只有一行：没有表头')
+
 console.log('datasets-import.test ✓')

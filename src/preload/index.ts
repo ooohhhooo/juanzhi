@@ -140,7 +140,7 @@ const api = {
     loadSample: (): Promise<any> => ipcRenderer.invoke('data:loadSample'),
     clearSample: (): Promise<any> => ipcRenderer.invoke('data:clearSample'),
   },
-  /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
+  /** 数据集（分析 Agent 的数据底座）：导入、概况、预览、敏感列、改名、备注 */
   datasets: {
     /** 弹对话框选 Excel / CSV，返回路径（已登记） */
     pick: (): Promise<string[]> => ipcRenderer.invoke('datasets:pick'),
@@ -156,6 +156,7 @@ const api = {
     rename: (id: string, name: string): Promise<boolean> => ipcRenderer.invoke('datasets:rename', id, name),
     setNote: (id: string, note: string): Promise<boolean> => ipcRenderer.invoke('datasets:setNote', id, note)
   },
+  /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
   course: {
     list: (): Promise<any[]> => ipcRenderer.invoke('course:list'),
     get: (id: string): Promise<any> => ipcRenderer.invoke('course:get', id),
@@ -232,7 +233,7 @@ const api = {
     status: (): Promise<{ available: boolean; detail: string; lang?: string }> =>
       ipcRenderer.invoke('ocr:status'),
   },
-  /** 命令行工具（短命令 juanzhi）：看装没装、安装 */
+  /** 连接器：企业微信群、MCP 服务器的配置 / 测试 / 允许的工具 */
   connectors: {
     types: (): Promise<any[]> => ipcRenderer.invoke('connectors:types'),
     list: (): Promise<any[]> => ipcRenderer.invoke('connectors:list'),
@@ -241,7 +242,10 @@ const api = {
     test: (id: string): Promise<any> => ipcRenderer.invoke('connectors:test', id),
     setAllowed: (id: string, names: string[]): Promise<any> => ipcRenderer.invoke('connectors:setAllowed', id, names),
     openShimo: (): Promise<boolean> => ipcRenderer.invoke('connectors:openShimo'),
+    /** 弹系统文件框选一个要发出的文件（选中即记一次性发送许可），返回路径；取消返回 null */
+    pickSendFile: (): Promise<string | null> => ipcRenderer.invoke('connectors:pickSendFile'),
   },
+  /** 命令行工具（短命令 juanzhi）：看装没装、安装 */
   cli: {
     status: (): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }> =>
       ipcRenderer.invoke('cli:status'),

@@ -3,6 +3,9 @@ import type { ZodTypeAny } from 'zod'
 
 export interface ActionCtx {
   signal?: AbortSignal
+  /** 当前助手会话和数据目录（发文件时用来限定可发范围） */
+  sessionId?: string
+  dataDir?: string
 }
 
 export interface ActionResult { ok: boolean; message: string }

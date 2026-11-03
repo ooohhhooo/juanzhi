@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { DatasetStore } from '../../src/main/analysis/datasets/store.ts'
-import { checkSql, runReadOnly, QUERY_LIMITS } from '../../src/main/analysis/datasets/query.ts'
+import { checkSql, runReadOnly, QUERY_LIMITS, setQueryExecutor, forkExecutor } from '../../src/main/analysis/datasets/query.ts'
 import { DATASET_TOOLS } from '../../src/main/analysis/datasets/tools.ts'
 
 // ── checkSql：放行 ──
@@ -32,6 +32,13 @@ assert.ok(!checkSql('sel/**/ect 1').ok)
 assert.ok(!checkSql('SeLeCt 1; DrOp TABLE t').ok)
 assert.ok(!checkSql('select 1\n;\nPRAGMA writable_schema=1').ok)
 assert.ok(!checkSql('select load_extension(\'x\')').ok)
+// 病态 / 越权写法
+for (const sql of [
+  'with recursive c(x) as (select 1 union all select x+1 from c) select count(*) from c', 'WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c) SELECT * FROM c',
+  'select hex(zeroblob(500000000))', 'select length(randomblob(1000000000))', "select printf('%1000000000d', 1)", "select format('%*d', 99999999, 1)",
+  'select * from pragma_database_list', 'select name from pragma_table_info(\'t\')', "select readfile('/etc/passwd')", "select writefile('/tmp/x', 'a')"
+]) assert.ok(!checkSql(sql).ok, '应拒绝：' + sql)
+assert.ok(checkSql("select printf('%5.2f', 1.5)").ok && checkSql("select printf('%d', 3)").ok, '普通 printf 放行')
 
 // ── 实际执行 ──
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-ds-query-'))
@@ -78,22 +85,42 @@ assert.equal(r.rows[0][0], 1200)
 
 // 白话错误
 r = await store.runQuery('select * from d1."没有这张表"', [d1.id])
-assert.ok(!r.ok && /没有叫/.test(r.message) && /no such table/.test(r.rawError)); assert.match(r.schema ?? '', /可用的表和列/, '失败时附上可用的表和列')
+assert.ok(!r.ok && /没有叫/.test(r.message) && /no such table/.test(r.detail) && !('rawError' in r), '白话错误 + 处理过的细节，没有 rawError'); assert.match(r.schema ?? '', /可用的表和列/, '失败时附上可用的表和列')
 r = await store.runQuery(`select nonexist from ${T1}`, [d1.id])
 assert.ok(!r.ok && /没有叫 nonexist 的列/.test(r.message))
 r = await store.runQuery('selec 1', [d1.id]); assert.ok(!r.ok)
-r = await store.runQuery(`select * from ${T1} where`, [d1.id]); assert.ok(!r.ok && /语法/.test(r.message) && r.rawError)
+r = await store.runQuery(`select * from ${T1} where`, [d1.id]); assert.ok(!r.ok && /语法/.test(r.message) && !('rawError' in r))
 r = await store.runQuery('delete from x', [d1.id]); assert.ok(!r.ok && /SELECT/.test(r.message))
 r = await store.runQuery('select 1', []); assert.ok(!r.ok)
 
-// 超时：有限但很慢的递归查询，300 ms 就放弃（后台线程会自己跑完）
+// 超时：不含递归的病态查询（四表笛卡尔积，约 2 万亿次），用「独立进程」执行器，300 ms 就放弃，并且进程真的被杀掉
 {
-  const t0 = Date.now()
-  const x = await runReadOnly({ files: [file1], sql: 'with recursive c(x) as (select 1 union all select x+1 from c where x < 60000000) select count(*) from c', timeoutMs: 300 })
-  assert.ok(!x.ok && /超过/.test(x.message) && x.rawError === 'timeout'); assert.ok(Date.now() - t0 < 3000, '及时返回：' + (Date.now() - t0))
+  const pids = []
+  setQueryExecutor(job => { const run = forkExecutor(job); pids.push(run.pid); return run })
+  try {
+    const t0 = Date.now()
+    const x = await runReadOnly({ files: [file1], sql: `select count(*) from ${T1} a, ${T1} b, ${T1} c, ${T1} d`, timeoutMs: 500 })
+    assert.ok(!x.ok && /超过/.test(x.message) && x.rawError === 'timeout'); assert.ok(Date.now() - t0 < 4000, '及时返回：' + (Date.now() - t0))
+    assert.equal(pids.length, 1)
+    await new Promise(r => setTimeout(r, 400))
+    assert.throws(() => process.kill(pids[0], 0), /ESRCH/, '超时后查询进程已被杀掉，没有残留')
+    // 正常查询走同一个执行器
+    const ok = await runReadOnly({ files: [file1], sql: `select count(*) from ${T1}` })
+    assert.ok(ok.ok && ok.rows[0][0] === 1200)
+    await new Promise(r => setTimeout(r, 200))
+    assert.throws(() => process.kill(pids[1], 0), /ESRCH/, '正常结束后进程也退出')
+    // 取消也杀进程
+    const ac = new AbortController()
+    const pr = runReadOnly({ files: [file1], sql: `select count(*) from ${T1} a, ${T1} b, ${T1} c, ${T1} d`, signal: ac.signal, timeoutMs: 20000 })
+    setTimeout(() => ac.abort(), 300)
+    const y = await pr
+    assert.ok(!y.ok && y.rawError === 'aborted')
+    await new Promise(r => setTimeout(r, 400))
+    assert.throws(() => process.kill(pids[2], 0), /ESRCH/, '取消后进程已被杀掉')
+  } finally { setQueryExecutor(null) }
 }
-// 大结果只数到上限
-r = await runReadOnly({ files: [file1], sql: 'with recursive c(x) as (select 1 union all select x+1 from c where x < 300000) select x from c' })
+// 大结果只数到上限（笛卡尔积 144 万行，外层 LIMIT 兜底到 countCap）
+r = await runReadOnly({ files: [file1], sql: `select a._row from ${T1.replace('d1.', '')} a, ${T1.replace('d1.', '')} b` })
 assert.ok(r.ok && r.returned === 500 && r.countCapped && /至少/.test(r.message), JSON.stringify({ ...r, rows: 0 }))
 
 // 模型看到的表和列说明

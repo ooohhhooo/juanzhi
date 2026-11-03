@@ -12,7 +12,7 @@ const plain = (e: unknown) => (e instanceof DatasetError ? e.message : e instanc
 /** 用户写的名称 / 备注也可能带人名：同样过一遍代号化 */
 function mask(ctx: ToolContext | undefined, id: string, text: string): string {
   if (!text) return text
-  return String(storeOf(ctx).toModel([id], ['text'], [[text]])[0][0])
+  return storeOf(ctx).safeText([id], text)
 }
 
 export const listDatasets: ToolDef<Record<string, never>> = {
@@ -24,8 +24,8 @@ export const listDatasets: ToolDef<Record<string, never>> = {
     const s = storeOf(ctx)
     return {
       datasets: s.list().map(d => ({
-        id: d.id, name: mask(ctx, d.id, d.name), sourceFile: d.sourceFile, importedAt: d.importedAt, note: mask(ctx, d.id, d.note),
-        tables: d.tables.map(t => ({ name: t.name, sheet: t.sheet, rows: t.rows, columns: t.columns.length, multiSelectViews: t.views.map(v => v.view) }))
+        id: d.id, name: mask(ctx, d.id, d.name), sourceFile: mask(ctx, d.id, d.sourceFile), importedAt: d.importedAt, note: mask(ctx, d.id, d.note),
+        tables: d.tables.map(t => ({ name: mask(ctx, d.id, t.name), sheet: mask(ctx, d.id, t.sheet), rows: t.rows, columns: t.columns.length, multiSelectViews: t.views.map(v => mask(ctx, d.id, v.view)) }))
       }))
     }
   }
@@ -43,14 +43,15 @@ export const datasetProfile: ToolDef<{ datasetId: string; table?: string }> = {
 
 export const runQuery: ToolDef<{ sql: string; datasets: string[] }> = {
   name: 'run_query',
-  description: '对数据集执行一条只读 SQL（SQLite 语法），只允许单条 SELECT / WITH 查询，不能写入、不能 PRAGMA / ATTACH。datasets 填要用的数据集 id，依次对应别名 d1、d2……，表名要写成 d1."表名"，表名和列名都用双引号括起来，列名用内部列名（如 "c03_年级"，见 dataset_profile）。每张表有行号列 _row；多选列有拆成「一个选项一行」的视图（见概况里的视图名），用 _row 关联原表。最多返回 500 行（超出会注明总行数），10 秒超时；大结果请先 GROUP BY 汇总。敏感列在结果里是代号，SQL 里写代号会自动还原成原值。出错时返回白话原因和原始错误，请据此改写后重试。',
+  description: '对数据集执行一条只读 SQL（SQLite 语法），只允许单条 SELECT / WITH 查询，不能写入、不能 PRAGMA / ATTACH。datasets 填要用的数据集 id，依次对应别名 d1、d2……，表名要写成 d1."表名"，表名和列名都用双引号括起来，列名用内部列名（如 "c03_年级"，见 dataset_profile）。每张表有行号列 _row；多选列有拆成「一个选项一行」的视图（见概况里的视图名），用 _row 关联原表。最多返回 500 行（超出会注明总行数），10 秒超时；大结果请先 GROUP BY 汇总。敏感列在结果里是代号，SQL 里写代号会自动还原成原值。出错时返回白话原因（message）和一小段处理过的错误细节（detail），请据此改写后重试。',
   params: z.object({ sql: z.string().min(1).max(20000), datasets: z.array(z.string()).min(1).max(5).describe('数据集 id 列表，依次是 d1、d2……') }),
   level: 'read',
   async run(args, ctx) {
     try {
       const s = storeOf(ctx)
       const r = await s.runQuery(args.sql, args.datasets, { signal: ctx?.signal })
-      return { ...r, aliases: Object.fromEntries(args.datasets.map((id, i) => [`d${i + 1}`, id])) }
+      const { rawError: _drop, ...safe } = r as typeof r & { rawError?: string }   // 原始错误不给模型
+      return { ...safe, aliases: Object.fromEntries(args.datasets.map((id, i) => [`d${i + 1}`, id])) }
     } catch (e) { return { ok: false, message: plain(e) } }
   }
 }

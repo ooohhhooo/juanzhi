@@ -4,10 +4,16 @@
  * 防护分三层：
  *  1. checkSql：只放行单条 SELECT / WITH；拒绝 PRAGMA / ATTACH / 写语句 / 多语句（先去掉注释，再忽略引号里的内容检查关键字）。
  *  2. 数据集文件用 readOnly 打开；多个数据集用 ATTACH（由我们自己挂，别名 d1、d2……）。被挂载的库继承只读标志。
- *  3. 在 worker 线程里执行，超时就 terminate（node:sqlite 没有 progress handler / interrupt，做不到中途打断原生执行；
- *     超时后调用方立刻拿到「超时」结果，但个别病态查询的线程可能还会在后台把当前这一步算完）。结果最多返回 maxRows 行，
- *     另外继续数到 countCap 行再停，并注明是「至少」。
+ *  3. 在独立进程里执行，超时就 kill（node:sqlite 没有 progress handler / interrupt，线程 terminate 打断不了原生执行，
+ *     只有杀进程才真正停得下来）。Electron 里用 utilityProcess.fork（项目的 runAsNode 熔丝是关的，不能用 child_process 跑 node）；
+ *     纯 node（单测）默认用 worker 线程，也可以用 setQueryExecutor 注入别的执行器（forkExecutor 是 child_process 版，单测用来验证「杀得掉」）。
+ *     外层再包一层 LIMIT 兜底。结果最多返回 maxRows 行，另外继续数到 countCap 行再停，并注明是「至少」。
  */
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { fork } from 'node:child_process'
 import { Worker } from 'node:worker_threads'
 import type { QueryResult } from '../types.ts'
 
@@ -17,7 +23,9 @@ export const QUERY_LIMITS = { rows: 500, countCap: 200_000, timeoutMs: 10_000, c
 
 export interface SqlCheck { ok: boolean; sql: string; message?: string }
 
-const FORBIDDEN = ['pragma', 'attach', 'detach', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 'vacuum', 'reindex', 'analyze', 'begin', 'commit', 'rollback', 'savepoint', 'release', 'load_extension', 'truncate', 'upsert']
+const FORBIDDEN = ['pragma', 'attach', 'detach', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 'vacuum', 'reindex', 'analyze', 'begin', 'commit', 'rollback', 'savepoint', 'release', 'load_extension', 'truncate', 'upsert',
+  // 病态查询 / 越权函数：无界递归、造超大 blob、读写本机文件
+  'recursive', 'zeroblob', 'randomblob', 'readfile', 'writefile', 'fts3_tokenizer', 'sqlite_dbpage']
 
 /** 扫一遍：去掉注释；把引号里的内容换成占位（用于检查关键字）。返回 [去注释后的原文, 占位版] */
 function scan(sql: string): { clean: string; bare: string; unterminated: boolean } {
@@ -63,10 +71,17 @@ export function checkSql(raw: string): SqlCheck {
   if (b.includes(';')) return { ok: false, sql: '', message: '一次只能执行一条查询，请去掉多余的分号和语句。' }
   const first = /^[a-zA-Z]+/.exec(b)?.[0].toLowerCase()
   if (first !== 'select' && first !== 'with') return { ok: false, sql: '', message: '只能执行 SELECT（或 WITH … SELECT）查询，不能修改数据。' }
-  const words = b.toLowerCase().match(/[a-z_][a-z0-9_]*/g) ?? []
+  const words: string[] = b.toLowerCase().match(/[a-z_][a-z0-9_]*/g) ?? []
   for (const w of words) {
     if (FORBIDDEN.includes(w)) return { ok: false, sql: '', message: `查询里不能出现 ${w.toUpperCase()}：这里只允许只读的 SELECT 查询。` }
+    // pragma_database_list 之类的表函数：等于 PRAGMA 的后门
+    if (w.startsWith('pragma_')) return { ok: false, sql: '', message: `查询里不能使用 ${w}：这里只允许查数据本身。` }
   }
+  // printf / format 的宽度写成几千几万会生成超大字符串
+  if (words.includes('printf') || words.includes('format')) {
+    if (/%[-+ #0,!]*(?:\d{4,}|\*)/.test(c)) return { ok: false, sql: '', message: 'printf / format 的宽度太大，请去掉。' }
+  }
+  if (/\bwith\b[\s\S]*\brecursive\b/i.test(b)) return { ok: false, sql: '', message: '不能使用递归查询（RECURSIVE）。' }
   // REPLACE 只能是函数 replace(...)，不能是 REPLACE INTO
   if (/\breplace\b(?!\s*\()/i.test(b)) return { ok: false, sql: '', message: '查询里不能出现 REPLACE 语句（replace() 函数可以用）。' }
   return { ok: true, sql: c }
@@ -88,41 +103,115 @@ export function plainSqlError(err: string): string {
   return 'SQL 执行出错了，请根据原始错误信息改写。'
 }
 
-// ───────────────────────── 执行（worker） ─────────────────────────
+// ───────────────────────── 执行（独立进程 / worker） ─────────────────────────
 
-const WORKER_CODE = `
-const { parentPort, workerData } = require('node:worker_threads')
-const { DatabaseSync } = require('node:sqlite')
-const { files, sql, maxRows, countCap, cellChars } = workerData
-const out = { ok: false, columns: [], rows: [], totalRows: 0, countCapped: false }
-try {
-  const db = new DatabaseSync(files[0], { readOnly: true })
-  files.forEach((f, i) => { db.prepare('ATTACH DATABASE ? AS d' + (i + 1)).run(f) })
-  db.exec('PRAGMA query_only = ON')
-  const stmt = db.prepare(sql)
-  stmt.setReturnArrays(true)
-  stmt.setReadBigInts(true)
-  out.columns = stmt.columns().map(c => c.name)
-  const cell = v => {
-    if (typeof v === 'bigint') { const n = Number(v); return Number.isSafeInteger(n) ? n : v.toString() }
-    if (typeof v === 'string') return v.length > cellChars ? v.slice(0, cellChars) + '…' : v
-    if (v instanceof Uint8Array) return '[二进制数据]'
-    return v
+export interface QueryJob { files: string[]; sql: string; maxRows: number; countCap: number; cellChars: number }
+export interface WorkerOut { ok: boolean; columns: string[]; rows: unknown[][]; totalRows: number; countCapped: boolean; error?: string }
+/** 一次正在跑的查询：result 是结果，kill 必须能真的停掉（幂等） */
+export interface QueryRun { result: Promise<WorkerOut>; kill(): void; pid?: number }
+export type QueryExecutor = (job: QueryJob) => QueryRun | Promise<QueryRun>
+
+/** 在子进程 / 线程里执行的函数体（返回 WorkerOut）。纯 CommonJS 文本 */
+const RUN_JOB_SRC = `
+function runJob(job) {
+  const { DatabaseSync } = require('node:sqlite')
+  const { files, sql, maxRows, countCap, cellChars } = job
+  const out = { ok: false, columns: [], rows: [], totalRows: 0, countCapped: false }
+  try {
+    const db = new DatabaseSync(files[0], { readOnly: true })
+    files.forEach((f, i) => { db.prepare('ATTACH DATABASE ? AS d' + (i + 1)).run(f) })
+    db.exec('PRAGMA query_only = ON')
+    const stmt = db.prepare(sql)
+    stmt.setReturnArrays(true)
+    stmt.setReadBigInts(true)
+    out.columns = stmt.columns().map(c => c.name)
+    const cell = v => {
+      if (typeof v === 'bigint') { const n = Number(v); return Number.isSafeInteger(n) ? n : v.toString() }
+      if (typeof v === 'string') return v.length > cellChars ? v.slice(0, cellChars) + '…' : v
+      if (v instanceof Uint8Array) return '[二进制数据]'
+      return v
+    }
+    let n = 0
+    for (const row of stmt.iterate()) {
+      n++
+      if (n <= maxRows) out.rows.push(row.map(cell))
+      else if (n >= countCap) { out.countCapped = true; break }
+    }
+    out.totalRows = n
+    out.ok = true
+    db.close()
+  } catch (e) {
+    out.error = String(e && e.message ? e.message : e)
   }
-  let n = 0
-  for (const row of stmt.iterate()) {
-    n++
-    if (n <= maxRows) out.rows.push(row.map(cell))
-    else if (n >= countCap) { out.countCapped = true; break }
-  }
-  out.totalRows = n
-  out.ok = true
-  db.close()
-} catch (e) {
-  out.error = String(e && e.message ? e.message : e)
+  return out
 }
-parentPort.postMessage(out)
 `
+const WORKER_THREAD_CODE = RUN_JOB_SRC + `
+const { parentPort, workerData } = require('node:worker_threads')
+parentPort.postMessage(runJob(workerData))
+`
+/** Electron utilityProcess 和 Node child_process.fork 共用：收一条任务，回一条结果 */
+const PROCESS_CODE = RUN_JOB_SRC + `
+if (process.parentPort) process.parentPort.once('message', e => { process.parentPort.postMessage(runJob(e.data)) })
+else process.once('message', m => { process.send(runJob(m)) })
+`
+
+const errOut = (error: string): WorkerOut => ({ ok: false, columns: [], rows: [], totalRows: 0, countCapped: false, error })
+
+/** 把子进程脚本写到临时目录（asar 里的文件起不了进程），按内容哈希命名，只写一次 */
+function processScriptFile(): string {
+  const h = crypto.createHash('sha1').update(PROCESS_CODE).digest('hex').slice(0, 10)
+  const file = path.join(os.tmpdir(), `ewb-query-worker-${h}.cjs`)
+  if (!fs.existsSync(file)) {
+    const tmp = `${file}.${process.pid}.tmp`
+    fs.writeFileSync(tmp, PROCESS_CODE, 'utf8')
+    fs.renameSync(tmp, file)
+  }
+  return file
+}
+
+/** worker 线程版（纯 node 的默认）：超时 terminate 打断不了原生 SQLite，只适合测试 / 普通查询 */
+export const workerExecutor: QueryExecutor = job => {
+  const worker = new Worker(WORKER_THREAD_CODE, { eval: true, workerData: job })
+  const result = new Promise<WorkerOut>(resolve => {
+    worker.once('message', (m: WorkerOut) => resolve(m))
+    worker.once('error', e => resolve(errOut(String(e && e.message ? e.message : e))))
+    worker.once('exit', () => resolve(errOut('worker exit')))
+  })
+  return { result, kill: () => { void worker.terminate() } }
+}
+
+/** child_process.fork 版（用当前 node 起子进程；Electron 里不要用——runAsNode 熔丝关闭）。单测用它验证超时真的杀得掉 */
+export const forkExecutor: QueryExecutor = job => {
+  const child = fork(processScriptFile(), [], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'], execArgv: [] })
+  const result = new Promise<WorkerOut>(resolve => {
+    child.once('message', (m: WorkerOut) => resolve(m))
+    child.once('error', e => resolve(errOut(String(e && e.message ? e.message : e))))
+    child.once('exit', () => resolve(errOut('worker exit')))
+  })
+  child.send(job)
+  return { result, pid: child.pid, kill: () => { try { child.kill('SIGKILL') } catch { /* 已经退出 */ } } }
+}
+
+/** Electron utilityProcess 版：主进程可用，kill() 真的停得下来 */
+export const utilityExecutor: QueryExecutor = async job => {
+  const { utilityProcess } = await import('electron')
+  const child = utilityProcess.fork(processScriptFile(), [], { serviceName: 'ewb-query', stdio: 'ignore' })
+  const result = new Promise<WorkerOut>(resolve => {
+    child.once('message', (m: WorkerOut) => resolve(m))
+    child.once('exit', () => resolve(errOut('worker exit')))
+  })
+  child.postMessage(job)
+  return { result, pid: child.pid, kill: () => { try { child.kill() } catch { /* 已经退出 */ } } }
+}
+
+let injected: QueryExecutor | null = null
+/** 注入执行器（单测）；传 null 恢复默认 */
+export function setQueryExecutor(fn: QueryExecutor | null): void { injected = fn }
+function currentExecutor(): QueryExecutor {
+  if (injected) return injected
+  return process.versions.electron ? utilityExecutor : workerExecutor
+}
 
 export interface RunQueryOptions {
   /** 数据集 sqlite 文件，依次挂成 d1、d2……（第一个同时是 main） */
@@ -142,14 +231,17 @@ export async function runReadOnly(opts: RunQueryOptions): Promise<QueryResult> {
   if (!opts.files.length) return fail('没有选择数据集。')
   const timeoutMs = opts.timeoutMs ?? QUERY_LIMITS.timeoutMs
   const maxRows = opts.maxRows ?? QUERY_LIMITS.rows
+  const job: QueryJob = { files: opts.files, sql: `SELECT * FROM (${chk.sql}\n) LIMIT ${QUERY_LIMITS.countCap}`, maxRows, countCap: QUERY_LIMITS.countCap, cellChars: QUERY_LIMITS.cellChars }
+  let run: QueryRun
+  try { run = await currentExecutor()(job) } catch (e) { return fail('查询执行失败。', String(e instanceof Error ? e.message : e)) }
   return new Promise<QueryResult>(resolve => {
     let done = false
-    const worker = new Worker(WORKER_CODE, { eval: true, workerData: { files: opts.files, sql: chk.sql, maxRows, countCap: QUERY_LIMITS.countCap, cellChars: QUERY_LIMITS.cellChars } })
-    const finish = (r: QueryResult) => { if (done) return; done = true; clearTimeout(timer); opts.signal?.removeEventListener('abort', onAbort); void worker.terminate(); resolve(r) }
+    const finish = (r: QueryResult) => { if (done) return; done = true; clearTimeout(timer); opts.signal?.removeEventListener('abort', onAbort); run.kill(); resolve(r) }
     const timer = setTimeout(() => finish(fail(`查询超过 ${Math.round(timeoutMs / 1000)} 秒还没算完，已放弃。请加筛选条件、减少关联的表，或先分组汇总再查。`, 'timeout')), timeoutMs)
     const onAbort = () => finish(fail('查询已取消。', 'aborted'))
+    if (opts.signal?.aborted) return onAbort()
     opts.signal?.addEventListener('abort', onAbort)
-    worker.on('message', (m: { ok: boolean; columns: string[]; rows: unknown[][]; totalRows: number; countCapped: boolean; error?: string }) => {
+    void run.result.then(m => {
       if (!m.ok) return finish(fail(plainSqlError(m.error ?? ''), m.error))
       const truncated = m.totalRows > m.rows.length
       finish({
@@ -157,7 +249,5 @@ export async function runReadOnly(opts: RunQueryOptions): Promise<QueryResult> {
         message: truncated ? `共 ${m.countCapped ? '至少 ' : ''}${m.totalRows} 行，只返回前 ${m.rows.length} 行；需要全部请加汇总或筛选。` : undefined
       })
     })
-    worker.on('error', e => finish(fail('查询执行失败。', String(e && e.message ? e.message : e))))
-    worker.on('exit', () => { if (!done) finish(fail('查询意外中断。', 'worker exit')) })
   })
 }
