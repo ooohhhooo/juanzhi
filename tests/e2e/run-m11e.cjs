@@ -25,9 +25,9 @@ const callTool = (name, args) => ctx.app.evaluate(async (_m, a) => {
   if (!t) return { missing: true }
   const out = {}
   out.preview = await t.preview(a.args).catch(e => ({ error: String(e.message) }))
-  out.result = await t.run(a.args)
+  out.result = await t.run(a.args, { sessionId: 'e2e', dataDir: a.dataDir })
   return out
-}, { name, args })
+}, { name, args, dataDir: work })
 const toolNames = () => ctx.app.evaluate(() => globalThis.__ewbConnectorTools().map(t => t.name))
 
 async function main() {
@@ -80,7 +80,12 @@ async function main() {
   check('工具', '超长内容自动分段，每段不超过 4096 字节', r2.result.ok && received.length > 1 && received.every(r => Buffer.byteLength(JSON.parse(r.body).markdown.content) <= 4096), `${received.length} 段`)
 
   // ── 5. 发文件 ──
-  const f = path.join(work, '汇报.md'); fs.writeFileSync(f, '# 周报\n正文内容 ABC123\n')
+  // 发文件只允许本会话导出目录（agent-outputs/<会话>/exports）里的文件
+  const expDir = path.join(work, 'agent-outputs', 'e2e', 'exports'); fs.mkdirSync(expDir, { recursive: true })
+  const outside = path.join(work, '外面的.md'); fs.writeFileSync(outside, '# 不在导出目录\n正文内容 ABC123\n')
+  const rOut = await callTool('wecom_send', { targetName: '三年级辅导群', kind: 'file', fileRef: outside })
+  check('文件', '导出目录以外的文件被拒绝，不上传', !rOut.result.ok && !received.some(r => r.url.includes('upload_media')) && /导出|选择/.test(rOut.preview.error || rOut.result.message))
+  const f = path.join(expDir, '汇报.md'); fs.writeFileSync(f, '# 周报\n正文内容 ABC123\n')
   received.length = 0
   const r3 = await callTool('wecom_send', { targetName: '三年级辅导群', kind: 'file', fileRef: f })
   const up = received.find(r => r.url.includes('upload_media'))
@@ -88,7 +93,7 @@ async function main() {
   check('文件', 'preview 显示文件名和路径', /汇报\.md/.test(r3.preview.content))
   check('文件', '先 upload_media（type=file）上传，内容和文件名正确', !!up && up.url.includes('type=file') && up.body.includes('ABC123') && up.body.includes('filename="汇报.md"') || (!!up && up.body.includes('ABC123')), up && up.url)
   check('文件', '再发 file 消息，media_id 是上传返回的', r3.result.ok && !!fileMsg && JSON.parse(fileMsg.body).file.media_id === 'MID-E2E-1')
-  const big = path.join(work, 'big.bin'); fs.writeFileSync(big, Buffer.alloc(21 * 1024 * 1024, 1))
+  const big = path.join(expDir, 'big.bin'); fs.writeFileSync(big, Buffer.alloc(21 * 1024 * 1024, 1))
   const r4 = await callTool('wecom_send', { targetName: '三年级辅导群', kind: 'file', fileRef: big })
   check('文件', '超过 20MB 提示，不上传', /20MB/.test(r4.preview.error || '') && /20MB/.test(r4.result.message) && !r4.result.ok)
   const r5 = await callTool('wecom_send', { targetName: '不存在的群', kind: 'text', content: 'x' }).catch(e => ({ err: String(e) }))
