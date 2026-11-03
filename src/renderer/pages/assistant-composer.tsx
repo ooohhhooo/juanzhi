@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react'
-import { Dropdown, Input, Popover, Slider } from 'antd'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Dropdown, Input, Popover } from 'antd'
 import type { MenuProps } from 'antd'
-import { ArrowUp, ChevronDown, Hand, Plus, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
+import { ArrowUp, Hand, Plus, ShieldCheck, SlidersHorizontal, X } from 'lucide-react'
+import EffortPop from './assistant-effort'
 import { getAssistantSlots } from './assistant-slots'
 import type { Mentionable } from './assistant-slots'
 
@@ -38,8 +39,8 @@ export default function Composer(p: ComposerProps) {
   const slots = getAssistantSlots()
   const [mentions, setMentions] = useState<Mentionable[]>([])
   const [modelOpen, setModelOpen] = useState(false)
-  const [listOpen, setListOpen] = useState(false)
-  const [otherModel, setOtherModel] = useState('')
+  const [leaving, setLeaving] = useState<string[]>([])
+  const [mentionShow, setMentionShow] = useState(false)
   const q = /@([^\s@]*)$/.exec(p.value)
   const addChip = (c: Chip) => { if (!p.chips.some(x => x.key === c.key)) p.onChips([...p.chips, c]) }
   const loadMentions = async () => { try { setMentions((await slots.mentionables?.()) ?? []) } catch { setMentions([]) } }
@@ -65,38 +66,24 @@ export default function Composer(p: ComposerProps) {
   const approvalItems: MenuProps['items'] = (['ask-external', 'ask-all'] as AgentApproval[]).map(a => ({ key: a, label: <span data-testid={`assistant-approval-${a}`} title={APPROVAL_HINT[a]}>{APPROVAL_LABEL[a]}<small className="ewb-lib-sub">　{APPROVAL_HINT[a]}</small></span>, onClick: () => p.onApproval(a) }))
   const modeItems: MenuProps['items'] = (['plan', 'direct', 'auto'] as AgentMode[]).map(m => ({ key: m, label: <span data-testid={`assistant-mode-${m}`}>{MODE_LABEL[m]}<small className="ewb-lib-sub">　{MODE_HINT[m]}</small></span>, onClick: () => p.onMode(m) }))
 
-  const idx = Math.max(0, p.effortChoices.indexOf(p.effort))
-  const marks = Object.fromEntries(p.effortChoices.map((e, i) => [i, EFFORT_LABEL[e]]))
   const curModel = p.model || p.mainModel
-  const hint = p.effort === 'off' && p.curInfo && !p.curInfo.canTurnOff ? '这个模型默认就会思考，选「关」无法真正关闭。' : p.effort === 'off' ? '不使用思考，最快、最省。' : p.effort === 'auto' ? '由服务商默认决定。' : '思考强度越高，回答越慢、用量越大；用量条按所选模型的价格估算。'
+  const removeChip = (key: string) => {
+    const wait = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 150
+    setLeaving(l => [...l, key])
+    window.setTimeout(() => { p.onChips(p.chips.filter(x => x.key !== key)); setLeaving(l => l.filter(k => k !== key)) }, wait)
+  }
+  const mentionOpen = !!q && mentionItems.length > 0
+  useEffect(() => {
+    if (mentionOpen) { setMentionShow(true); return }
+    const t = window.setTimeout(() => setMentionShow(false), 120)
+    return () => window.clearTimeout(t)
+  }, [mentionOpen])
+  const lastMention = useRef<typeof mentionItems>([])
+  if (mentionOpen) lastMention.current = mentionItems
+  const shownMention = mentionOpen ? mentionItems : lastMention.current
 
   const modelPop = (
-    <div className="ewb-as-pop" data-testid="assistant-modelpop">
-      <div className="ewb-as-pop__head">
-        <b data-testid="assistant-effort-name">{EFFORT_LABEL[p.effort]}</b>
-        <button type="button" className="ewb-as-chiplink" data-testid="assistant-model-name" title="点一下切换模型" onClick={() => setListOpen(o => !o)}>{curModel} <ChevronDown size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /></button>
-        <span style={{ flex: 1 }} />
-        <button type="button" className="ewb-as-chiplink" data-testid="assistant-model-reset" onClick={() => { p.onResetModel(); setListOpen(false) }}>恢复默认</button>
-      </div>
-      {listOpen && (
-        <div className="ewb-as-pop__list" data-testid="assistant-model-list">
-          {p.models.map((m, i) => (
-            <button key={m.model} type="button" className="ewb-as-pop__opt" data-testid={`assistant-model-opt-${i}`} disabled={m.toolSupport === 'no'} aria-pressed={m.model === curModel}
-              onClick={() => { p.onModel(m.model); setListOpen(false) }}>
-              {m.model}{m.roles.length ? `（${m.roles.join('、')}）` : ''}{m.toolSupport === 'no' ? ' · 不支持助手' : ''}
-            </button>
-          ))}
-          <div className="ewb-as-ask__other">
-            <Input size="small" placeholder="其他模型：填模型名，回车" value={otherModel} data-testid="assistant-model-other" onChange={e => setOtherModel(e.target.value)}
-              onPressEnter={() => { const m = otherModel.trim(); if (m) { p.onModel(m); setOtherModel(''); setListOpen(false) } }} />
-          </div>
-        </div>
-      )}
-      <div className="ewb-as-pop__slider" data-testid="assistant-effort-slider">
-        <Slider min={0} max={Math.max(1, p.effortChoices.length - 1)} step={null} marks={marks} value={idx} tooltip={{ open: false }} onChange={v => p.onEffort(p.effortChoices[v as number] ?? 'auto')} />
-      </div>
-      <p className="ewb-lib-sub" data-testid="assistant-effort-hint" style={{ margin: 0 }}>{hint}</p>
-    </div>
+    <EffortPop models={p.models} curModel={curModel} onModel={p.onModel} effort={p.effort} onEffort={p.onEffort} effortChoices={p.effortChoices} curInfo={p.curInfo} onResetModel={p.onResetModel} />
   )
 
   return (
@@ -105,8 +92,8 @@ export default function Composer(p: ComposerProps) {
         <div className="ewb-as-chips" data-testid="assistant-chips">
           {p.extra}
           {p.chips.map(c => (
-            <span key={c.key} className="ewb-as-tagchip" data-testid="assistant-chip" data-kind={c.kind}>{KIND_LABEL[c.kind]} · {c.label}
-              <button type="button" aria-label="去掉" data-testid="assistant-chip-remove" onClick={() => p.onChips(p.chips.filter(x => x.key !== c.key))}><X size={12} /></button></span>
+            <span key={c.key} className="ewb-as-tagchip" data-testid="assistant-chip" data-kind={c.kind} data-leaving={leaving.includes(c.key) || undefined}>{KIND_LABEL[c.kind]} · {c.label}
+              <button type="button" aria-label="去掉" data-testid="assistant-chip-remove" onClick={() => removeChip(c.key)}><X size={12} /></button></span>
           ))}
         </div>
       )}
@@ -117,10 +104,10 @@ export default function Composer(p: ComposerProps) {
           onChange={e => { p.onChange(e.target.value); if (/@[^\s@]*$/.test(e.target.value)) void loadMentions() }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); if (mentionItems.length && q) { const i = mentionItems[0]; addChip(i); p.onChange(p.value.replace(/@[^\s@]*$/, '')) } else p.onSend() } }}
         />
-        {q && mentionItems.length > 0 && (
-          <div className="ewb-as-mention" data-testid="assistant-mention-list">
+        {mentionShow && shownMention.length > 0 && (
+          <div className="ewb-as-mention" data-testid="assistant-mention-list" data-closing={!mentionOpen || undefined}>
             {['数据集', 'Skill', '连接器'].map(g => {
-              const items = mentionItems.filter(i => i.group === g)
+              const items = shownMention.filter(i => i.group === g)
               return items.length ? (
                 <div key={g}><div className="ewb-as-mention__g">{g}</div>
                   {items.map(i => <button key={i.key} type="button" className="ewb-as-pop__opt" data-testid="assistant-mention-item" onClick={() => { addChip(i); p.onChange(p.value.replace(/@[^\s@]*$/, '')) }}>{i.label}</button>)}
@@ -130,18 +117,18 @@ export default function Composer(p: ComposerProps) {
         )}
       </div>
       <div className="ewb-as-composer__bar">
-        <Dropdown menu={{ items: plusItems }} trigger={['click']} placement="topLeft">
+        <Dropdown menu={{ items: plusItems }} trigger={['click']} placement="topLeft" rootClassName="ewb-as-dd">
           <button type="button" className="ewb-as-iconbtn" aria-label="添加" data-testid="assistant-plus"><Plus size={16} /></button>
         </Dropdown>
-        <Dropdown menu={{ items: approvalItems, selectedKeys: [p.approval] }} trigger={['click']} placement="topLeft">
+        <Dropdown menu={{ items: approvalItems, selectedKeys: [p.approval] }} trigger={['click']} placement="topLeft" rootClassName="ewb-as-dd">
           <button type="button" className="ewb-as-chiplink" data-testid="assistant-approval-tag" title={APPROVAL_HINT[p.approval]}>{p.approval === 'ask-all' ? <Hand size={13} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> : <ShieldCheck size={13} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} />} {APPROVAL_LABEL[p.approval]}</button>
         </Dropdown>
-        <Dropdown menu={{ items: modeItems, selectedKeys: [p.mode] }} trigger={['click']} placement="topLeft">
+        <Dropdown menu={{ items: modeItems, selectedKeys: [p.mode] }} trigger={['click']} placement="topLeft" rootClassName="ewb-as-dd">
           <button type="button" className="ewb-as-chiplink" data-testid="assistant-mode" title={MODE_HINT[p.mode]}>{MODE_LABEL[p.mode]}</button>
         </Dropdown>
         <span style={{ flex: 1 }} />
-        <Popover content={modelPop} trigger="click" placement="topRight" open={modelOpen} onOpenChange={setModelOpen} arrow={false}>
-          <button type="button" className="ewb-as-chiplink" data-testid="assistant-model-btn"><SlidersHorizontal size={13} style={{ verticalAlign: '-2px' }} /> <span className="ewb-as-modeltxt">{curModel} · {EFFORT_LABEL[p.effort]}</span></button>
+        <Popover content={modelPop} trigger="click" placement="topRight" open={modelOpen} onOpenChange={setModelOpen} arrow={false} rootClassName="ewb-as-dd ewb-as-pp">
+          <button type="button" className="ewb-as-chiplink ewb-as-modelbtn" data-testid="assistant-model-btn" data-open={modelOpen || undefined} aria-expanded={modelOpen}><SlidersHorizontal size={13} style={{ verticalAlign: '-2px' }} /> <span className="ewb-as-modeltxt">{curModel} · {EFFORT_LABEL[p.effort]}</span></button>
         </Popover>
         <button type="button" className="ewb-as-send" aria-label="发送" title="发送（Enter）" disabled={!p.value.trim() || p.busy || p.disabled} data-testid="assistant-send" onClick={p.onSend}><ArrowUp size={16} strokeWidth={2.2} /></button>
       </div>

@@ -57,7 +57,7 @@ async function main() {
   check('＋菜单', '「＋ → 使用 Skill」里能看到新建的 Skill', await waitFor(async () => (await it.count()) === 1, 5000))
   await it.click()
   check('＋菜单', '选中后以小标签出现：Skill · e2e-demo-skill', /Skill · e2e-demo-skill/.test(await txt('assistant-chip')))
-  await T('assistant-chip-remove').click()
+  await T('assistant-chip-remove').click(); await ctx.page.waitForTimeout(350)
 
   // 导入 SKILL.md 文件夹
   const src = path.join(work, 'imp-skill'); fs.rmSync(src, { recursive: true, force: true }); fs.mkdirSync(path.join(src, 'scripts'), { recursive: true })
