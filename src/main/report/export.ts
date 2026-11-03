@@ -23,7 +23,7 @@ import type { ReportDetail } from './service'
 
 
 /** 按引用的定位框从页面图里裁出这道题；没有定位框（或拿不到图）返回 null——不用整页冒充这道题 */
-export function cropForRef(ref: CitationRef): { png: Buffer; width: number; height: number } | null {
+export function cropForRef(ref: CitationRef): { png: Buffer; width: number; height: number; pageW: number } | null {
   if (!ref.pageRel) return null
   // pageRel 来自库里的 pages.image_rel，已在导入 / 写入时校验过格式；这里仍然只接受固定格式，不让路径穿出文件目录
   if (!/^page-\d{1,4}\.png$/.test(ref.pageRel) || !/^[0-9a-f-]{36}$/.test(ref.paperId)) return null
@@ -33,7 +33,7 @@ export function cropForRef(ref: CitationRef): { png: Buffer; width: number; heig
   if (img.isEmpty()) return null
   const { width, height } = img.getSize()
   const r = cropPixels(ref.bbox, width, height)
-  if (r) { const c = img.crop(r); return { png: c.toPNG(), width: r.width, height: r.height } }
+  if (r) { const c = img.crop(r); return { png: c.toPNG(), width: r.width, height: r.height, pageW: width } }
   // 没有定位框：不再拿整页冒充这道题（M9）。返回 null，导出里就不放这张图（计入「没有截图的引用」）
   return null
 }

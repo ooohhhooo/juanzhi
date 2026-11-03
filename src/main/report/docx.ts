@@ -8,7 +8,7 @@ import { parseBlocks, parseInline, splitLatin, trickFields } from '../../shared/
 import { CARD_AMBER, CARD_PAPER } from '../../shared/card-style.ts'
 import type { Block, Inline } from '../../shared/markdown.ts'
 
-export interface DocxImage { png: Buffer; width: number; height: number }
+export interface DocxImage { png: Buffer; width: number; height: number; /** 整页图的像素宽：有它就按「占页宽的比例」定显示宽度，不同分辨率的页面图里的题字号一致 */ pageW?: number }
 
 export interface DocxOptions {
   title: string
@@ -39,7 +39,8 @@ function imageRun(rels: Rels, files: Array<{ name: string; data: Buffer }>, img:
   files.push({ name, data: img.png })
   const id = `rId${rels.next++}`
   rels.items.push({ id, file: `media/${name}` })
-  const cmW = Math.min(MAX_IMG_CM, Math.max(2, img.width / 96 * 2.54 * 0.6))
+  // 整行宽的题（约占页宽 80%）显示为最大宽度，短题按比例缩窄；没有页宽时按像素估
+  const cmW = Math.min(MAX_IMG_CM, Math.max(2, img.pageW ? (img.width / img.pageW / 0.8) * MAX_IMG_CM : img.width / 96 * 2.54 * 0.6))
   const cx = Math.round(cmW * EMU_PER_CM)
   const cy = Math.round(cx * (img.height / Math.max(1, img.width)))
   return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${seq}" name="${esc(name)}" descr="${esc(alt)}"/>` +
