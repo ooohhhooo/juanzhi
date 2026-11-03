@@ -431,13 +431,13 @@ export class DatasetStore {
   }
 
   /** 执行模型写的只读 SQL：先把 SQL 里的代号还原成原值，执行，结果再代号化 */
-  async runQuery(sql: string, datasetIds: string[], opts: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<QueryResult & { schema?: string; total?: number }> {
+  async runQuery(sql: string, datasetIds: string[], opts: { signal?: AbortSignal; timeoutMs?: number; maxRows?: number } = {}): Promise<QueryResult & { schema?: string; total?: number }> {
     if (!datasetIds.length) return { ok: false, columns: [], rows: [], returned: 0, totalRows: 0, truncated: false, message: '请指定要查询的数据集。', elapsedMs: 0 }
     const metas = datasetIds.map(i => this.get(i))
     const decoded = this.fromModel(datasetIds, sql, s => s.replace(/'/g, "''"))
     const chk = checkSql(decoded)
     if (!chk.ok) return { ok: false, columns: [], rows: [], returned: 0, totalRows: 0, truncated: false, message: chk.message, elapsedMs: 0 }
-    const r = await runReadOnly({ files: metas.map(m => this.dbFile(m.id)), sql: chk.sql, signal: opts.signal, timeoutMs: opts.timeoutMs })
+    const r = await runReadOnly({ files: metas.map(m => this.dbFile(m.id)), sql: chk.sql, signal: opts.signal, timeoutMs: opts.timeoutMs, maxRows: opts.maxRows })
     if (!r.ok) return { ...r, schema: /没有叫|语法有误/.test(r.message ?? '') ? this.schemaText(datasetIds) : undefined }
     return { ...r, total: r.totalRows, rows: this.toModel(datasetIds, r.columns, r.rows) }
   }
