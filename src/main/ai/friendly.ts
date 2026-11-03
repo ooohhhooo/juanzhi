@@ -23,6 +23,8 @@ export function friendlyAiError(e: unknown): FriendlyError {
     case 'forbidden': return { message: 'AI 服务拒绝了这次请求：这个密钥没有权限使用设置里的模型。请联系管理员到服务商控制台开通该模型，或换一个有权限的模型（「设置 → 管理员设置 → AI 服务」）', detail: d }
     case 'not_found': return { message: '找不到设置里的 AI 模型，请联系管理员检查「设置 → 管理员设置 → AI 服务」', detail: d }
     case 'bad_request': return { message: `AI 拒绝了这次请求；${RETRY_HINT}`, detail: d }
+    case 'balance': return { message: 'AI 账户余额不足，请到服务商控制台充值后再试（已完成的部分已保留）', detail: d }
+    case 'bad_output': return { message: 'AI 的回答格式不对，这一批没有保存；可以点“继续匹配”重试', detail: d }
     case 'aborted': return { message: '已取消', detail: d }
     default: return { message: `AI 这次没有成功；${RETRY_HINT}`, detail: d }
   }

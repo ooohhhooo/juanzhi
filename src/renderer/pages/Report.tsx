@@ -294,18 +294,18 @@ export default function Report() {
           {usable.length > 0 ? (
             <>
               <Checkbox checked={withCourse && courseSupported} disabled={!courseSupported} data-testid="report-course-check"
-                onChange={e => { setWithCourse(e.target.checked); if (e.target.checked && courseIds.length === 0) setCourseIds(usable.filter(o => o.match?.state === 'done').map(o => o.id)) }}>加入课程对照</Checkbox>
+                onChange={e => { setWithCourse(e.target.checked); if (e.target.checked && courseIds.length === 0) setCourseIds(usable.filter(o => o.match?.state === 'done' || o.match?.state === 'partial').map(o => o.id)) }}>加入课程对照</Checkbox>
               {!courseSupported && <span className="ewb-rep-muted" data-testid="report-course-boss-hint">老板版不加课程对照</span>}
               {courseOn && (
                 <div className="ewb-rep-course__list" data-testid="report-course-list">
                   {usable.map(o => (
-                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={o.match?.state !== 'done'} data-testid={`report-course-outline-${o.id}`}
+                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={o.match?.state !== 'done' && o.match?.state !== 'partial'} data-testid={`report-course-outline-${o.id}`}
                       onChange={e => setCourseIds(e.target.checked ? [...courseIds, o.id] : courseIds.filter(x => x !== o.id))}>
-                      {o.name}{o.match?.state !== 'done' ? '（还没有匹配完，先到「课程大纲」页点“开始匹配”）' : ''}
+                      {o.name}{o.match?.state === 'partial' ? <span data-testid={`report-course-partial-${o.id}`}>（还有 {o.match.total - o.match.checked} 个知识点没匹配，结果可能不全；<a onClick={e => { e.preventDefault(); nav('/courses') }}>去匹配</a>）</span> : o.match?.state !== 'done' ? '（还没有匹配好，先到「课程大纲」页点“开始匹配”）' : ''}
                     </Checkbox>
                   ))}
                   {reader === 'parent' && <Checkbox checked={parentHint} data-testid="report-course-hint" onChange={e => setParentHint(e.target.checked)}>结尾加一句课程建议（超过 300 字会自动省略）</Checkbox>}
-                  {pickedIds.length === 0 && <span className="ewb-rep-muted" data-testid="report-course-none">请至少选一个已匹配好的课程体系，否则这次不加课程对照</span>}
+                  {pickedIds.length === 0 && <span className="ewb-rep-muted" data-testid="report-course-none">请至少选一个已匹配过的课程体系，否则这次不加课程对照</span>}
                 </div>
               )}
             </>

@@ -6,7 +6,7 @@ import { redact } from './guard.ts'
  */
 
 export type AiErrorCode =
-  | 'auth' | 'forbidden' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'bad_request' | 'empty' | 'truncated' | 'aborted' | 'not_found'
+  | 'auth' | 'forbidden' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'bad_request' | 'empty' | 'truncated' | 'aborted' | 'not_found' | 'bad_output' | 'balance'
 
 /** 带给用户看的中文原因；detail 是原始信息，只进日志不直接展示 */
 export class AiError extends Error {
@@ -149,6 +149,8 @@ export function statusError(status: number, body: string, secret = '', model = '
   if (status === 403) return new AiError('forbidden', `这个密钥没有权限使用这个模型${model ? `（${model}）` : ''}（HTTP 403）`, status, snippet)
   if (status === 404) return new AiError('not_found', `接口或模型不存在（HTTP 404），请检查 Base URL 与模型名称`, status, snippet)
   if (status === 408) return new AiError('timeout', '服务端返回请求超时（HTTP 408）', status, snippet)
+  // 余额不足：DeepSeek 等返回 402（"Insufficient Balance"），有的服务商用 400 / 429 + 文字说明；不自动重试
+  if (status === 402 || (status === 400 && /insufficient[_ ]?(balance|quota|funds)|balance.{0,20}(insufficient|not enough)|余额不足|欠费/i.test(body))) return new AiError('balance', `账户余额不足（HTTP ${status}）`, status, snippet)
   if (status === 429) return new AiError('rate_limit', '请求太频繁或额度不足（HTTP 429），稍后重试，或检查账户余额', status, snippet)
   if (status >= 500) return new AiError('server', `服务商暂时不可用（HTTP ${status}）`, status, snippet)
   return new AiError('bad_request', `请求被拒绝（HTTP ${status}）：${snippet.slice(0, 160) || '无详情'}`, status, snippet)

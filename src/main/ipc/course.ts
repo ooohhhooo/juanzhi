@@ -145,19 +145,19 @@ export function registerCourseIpc(): void {
     concurrency: 2,
     onChange: () => notifyDataChanged('course', 'usage'),
     onRemoved: j => { dropSession(j.sessionId) },
-    run: async (j, signal) => {
+    run: async (j, signal, report) => {
       const onAbort = () => { cancelSuggest(j.sessionId) }
       signal.addEventListener('abort', onAbort)
       try {
         const sess = sessionOf(j.sessionId)
-        return await suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode)
+        return await suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode, report)
       } finally { signal.removeEventListener('abort', onAbort) }
     },
     describeError: e => (e instanceof Error ? e.message : String(e)).slice(0, 160)
   })
   setJobHooks({ busy: () => queue.busy(), clear: () => queue.clear() })
   const jobInfo = (j: ReturnType<typeof queue.list>[number]) => ({
-    id: j.id, sessionId: j.sessionId, fileName: j.fileName, status: j.status, error: j.error ?? '', name: j.name, scene: j.scene, termNote: j.termNote, replaceId: j.replaceId ?? null, mode: j.mode
+    id: j.id, sessionId: j.sessionId, fileName: j.fileName, status: j.status, error: j.error ?? '', name: j.name, scene: j.scene, termNote: j.termNote, replaceId: j.replaceId ?? null, mode: j.mode, progress: j.status === 'running' ? j.progress ?? null : null
   })
   ipcMain.handle('course:jobStart', async (_e, raw: unknown) => {
     const items = z.array(z.object({

@@ -22,6 +22,7 @@ import Guide from './pages/Guide'
 import Help from './pages/Help'
 import RestartGate from './components/RestartGate'
 import UpdateNotice from './components/UpdateNotice'
+import GlobalNotices from './components/GlobalNotices'
 
 // 设计预览（隐藏路由 /design、/design/overview）：只在开发模式（或 VITE_EWB_DESIGN=1 的预览构建）里存在。
 // 生产构建里这个条件是常量 false，路由、样板页和样张图片（design/assets/*.png）都不会进入 out/ 和安装包。
@@ -110,6 +111,7 @@ export default function App() {
             <GlobalDrop />
             <RestartGate />
             <UpdateNotice />
+            <GlobalNotices />
             <Routes>
               {DesignRoutes && <Route path="/design/*" element={<Suspense fallback={null}><DesignRoutes /></Suspense>} />}
               <Route element={<AppLayout />}>

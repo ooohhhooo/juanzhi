@@ -14,12 +14,13 @@ const wan = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)} 万` : `${Ma
  * 知识点 → 课次 的 AI 匹配控件（设置的体系卡片和看板的“还没匹配”提示共用）：
  * 先显示规模和预计用量，用户点“开始匹配”才调用 AI；逐批显示进度，可取消，已完成的批次保留。
  */
-export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCard, 'id' | 'name' | 'match' | 'status'>; onDone?: () => void }) {
+export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCard, 'id' | 'name' | 'match' | 'status'> & { lessons?: number }; onDone?: () => void }) {
   const { message } = App.useApp()
   const qc = useQueryClient()
   const [prog, setProg] = useState<CourseMatchProgress | null>(null)
   const [busy, setBusy] = useState(false)
   const [last, setLast] = useState<string | null>(null)
+  const [lastDetail, setLastDetail] = useState('')
   const onlyNew = card.match.state === 'partial'
   const { data: est } = useQuery({ queryKey: ['course', 'estimate', card.id, onlyNew, card.match.state, card.match.total], queryFn: () => window.api.course.matchEstimate(card.id, onlyNew), staleTime: 5_000 })
   useEffect(() => {
@@ -30,10 +31,11 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
   }, [card.id])
 
   const run = async (again: boolean) => {
-    setBusy(true); setLast(null)
+    setBusy(true); setLast(null); setLastDetail('')
     try {
       const r = await window.api.course.match(card.id, again ? false : onlyNew)
       setLast(r.ok ? `匹配完成：${r.matched} 个知识点找到了对应的课，${r.none} 个没有找到${r.dropped ? `（另有 ${r.dropped} 条 AI 回答对不上课程，已丢弃）` : ''}` : r.message ?? '匹配没有完成')
+      setLastDetail(r.ok ? '' : r.detail ?? '')
       if (r.ok) message.success('匹配完成'); else if (!r.cancelled) message.error(r.message ?? '匹配失败')
       qc.invalidateQueries({ queryKey: ['course'] })
       onDone?.()
@@ -63,7 +65,18 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
           )}
         </div>
       )}
+      {!busy && card.match.state === 'partial' && (
+        <p className="ewb-rep-note" data-testid="match-partial-note" style={{ marginTop: 6 }}>
+          {card.lessons ? `${card.lessons} 课里` : ''}已匹配 {card.match.checked} 个知识点，还有 {card.match.total - card.match.checked} 个新知识点没匹配
+        </p>
+      )}
       {last && <p className="ewb-rep-note" data-testid="match-result" style={{ marginTop: 6 }}>{last}</p>}
+      {last && lastDetail && (
+        <details data-testid="match-detail" style={{ marginTop: 4 }}>
+          <summary className="ewb-rep-note" style={{ cursor: 'pointer' }}>查看详情</summary>
+          <pre className="ewb-rep-note" style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{lastDetail}</pre>
+        </details>
+      )}
       {card.match.state === 'none' && est && est.kps === 0 && !busy && <UsageNote kind="tip">库里还没有标过知识点的题目（先导入并审核试卷），暂时没有可匹配的内容。</UsageNote>}
     </div>
   )

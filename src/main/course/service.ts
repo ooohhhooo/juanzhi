@@ -31,6 +31,7 @@ import type { StatsFilter } from '../stats/filter'
 import { scopeCounts, selectedCount } from '../stats/core'
 import { cacheKeys, describeFilter, fillTemplate, normalizeFilter } from '../stats/p2'
 import { p3SampleWarning } from '../stats/p3'
+import { createGate, mapLimit } from './map-limit'
 import { CourseFileError, buildXlsx, readTable } from './table-read'
 import { EXTRACT_MAPPING, KIND_LABEL, MAX_FILE_BYTES, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
 import type { ExtractParse } from './doc-extract'
@@ -146,7 +147,7 @@ async function jsonCall(o: { kind: string; model: string; system: string; user: 
   const t0 = Date.now()
   try {
     const r = await chat({
-      baseUrl: cfg.base_url, apiKey: getApiKey()!, model: o.model, temperature: 0.1, maxTokens: o.maxTokens ?? lim.maxTokens, jsonMode: true, stream: true,
+      baseUrl: cfg.base_url, apiKey: getApiKey()!, model: o.model, temperature: 0.1, maxTokens: o.maxTokens ? Math.min(o.maxTokens, lim.ceiling) : lim.maxTokens, jsonMode: true, stream: true,
       messages: [{ role: 'system', content: o.system }, { role: 'user', content: o.user }],
       timeoutMs: cfg.timeout_sec * 1000, signal: o.signal, fetchImpl: net.fetch as unknown as typeof fetch,
       escalateOnLength: { ceiling: lim.ceiling }, maxTokensFallback: lim.fallback,
@@ -171,17 +172,19 @@ export function cancelSuggest(sessionId: string): boolean {
   return true
 }
 
-export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 'manual'): Promise<SuggestResult> {
+export type SuggestProgress = (done: number, total: number, unit: string) => void
+
+export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 'manual', onProgress?: SuggestProgress): Promise<SuggestResult> {
   const s = sessionOf(sessionId)
   s.ctl?.abort()
   const ctl = new AbortController()
   s.ctl = ctl
   const signal = ctl.signal
-  try { return await suggestInner(sessionId, s, mode, signal) } finally { if (s.ctl === ctl) s.ctl = null }
+  try { return await suggestInner(sessionId, s, mode, signal, onProgress) } finally { if (s.ctl === ctl) s.ctl = null }
 }
 
 /** 文字 → 表：调用一次 p5_course_extract；回答里标题在原文里找不到的课整条去掉，并记成警告 */
-async function organiseText(sessionId: string, s: Session, signal: AbortSignal): Promise<SuggestResult> {
+async function organiseText(sessionId: string, s: Session, signal: AbortSignal, onProgress?: SuggestProgress): Promise<SuggestResult> {
   const e = s.extract!
   const cfg = loadConfig()
   const model = parseModelOf(cfg)
@@ -198,7 +201,10 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal):
     if (cur.length) chunks.push(cur.join('\n'))
     const p: ExtractParse = { ok: true, lessons: [], dropped: [], problems: [] }
     const seen = new Set<string>()
-    for (const chunk of chunks) {
+    let finished = 0
+    onProgress?.(0, chunks.length, '段')
+    // 各段并发（上限 3），合并时仍按原文顺序，去重 / 原文比对逻辑不变；取消时所有在途调用一起中止
+    const parts = await mapLimit(chunks, 3, async chunk => {
       if (signal.aborted) throw new AiError('aborted', '已取消')
       const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: chunk })
       let r
@@ -208,6 +214,10 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal):
       }
       const part = parseExtractResponse(r.content, e.lines)
       if (!part.ok) throw new CourseFileError('AI 的回答格式不对，没能整理出课程表，可以重试一次，或改传 Excel')
+      onProgress?.(++finished, chunks.length, '段')
+      return part
+    })
+    for (const part of parts) {
       for (const l of part.lessons) {
         const k = [l.level, l.seq, l.title].join('|')
         if (seen.has(k)) continue
@@ -226,32 +236,39 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal):
   return { items: { [sheet.name]: { mapping: EXTRACT_MAPPING, problems: [], source: 'ai' } }, model, source: sourceInfo(sessionId, s) }
 }
 
-async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' | 'manual', signal: AbortSignal): Promise<SuggestResult> {
-  if (s.extract) return organiseText(sessionId, s, signal)
+async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' | 'manual', signal: AbortSignal, onProgress?: SuggestProgress): Promise<SuggestResult> {
+  if (s.extract) return organiseText(sessionId, s, signal, onProgress)
   const cfg = loadConfig()
   const model = parseModelOf(cfg)
   const items: Record<string, SuggestItem> = {}
-  for (const sheet of s.read.sheets) {
-    if (sheet.hidden) continue
-    if (mode === 'manual') { items[sheet.name] = { mapping: emptyMapping(), problems: [], source: 'manual' }; continue }
+  const todo = s.read.sheets.filter(sh => !sh.hidden)
+  let finished = 0
+  const aiOn = mode === 'ai' && aiReady()
+  if (aiOn) onProgress?.(0, todo.length, '张表')
+  // 各工作表并发认列（上限 4）；结果按表顺序写入，单张失败回退“按表头猜”，取消时所有在途调用一起中止
+  const results = await mapLimit(todo, 4, async (sheet): Promise<SuggestItem> => {
+    if (mode === 'manual') return { mapping: emptyMapping(), problems: [], source: 'manual' }
     if (mode === 'guess') {
       const g = guessMapping(sheet)
-      items[sheet.name] = { mapping: g ?? emptyMapping(), problems: g ? [] : ['按表头文字没能猜出课次或标题列，请手动选择'], source: 'guess' }
-      continue
+      return { mapping: g ?? emptyMapping(), problems: g ? [] : ['按表头文字没能猜出课次或标题列，请手动选择'], source: 'guess' }
     }
-    if (!aiReady()) { items[sheet.name] = { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: '还没有配置 AI 服务，已按表头文字猜了一遍，请核对' }; continue }
+    if (!aiReady()) return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: '还没有配置 AI 服务，已按表头文字猜了一遍，请核对' }
     try {
+      if (signal.aborted) throw new AiError('aborted', '已取消')
       const user = fillTemplate(promptText('p5_course_cols', 'user'), { SHEET_NAME: sheet.name, SHEET_PREVIEW: sheetPreview(sheet) })
-      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system'), user, signal, maxTokens: 2000 })
+      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system'), user, signal, maxTokens: 8000 })
       const p = parseColsResponse(r.content, sheet)
-      if (p.ok && p.mapping) items[sheet.name] = { mapping: p.mapping, problems: p.problems, source: 'ai' }
-      else items[sheet.name] = { mapping: guessMapping(sheet) ?? emptyMapping(), problems: p.problems, source: 'guess', error: 'AI 没能认出这张表的列，已按表头文字猜了一遍，请核对' }
+      if (p.ok && p.mapping) return { mapping: p.mapping, problems: p.problems, source: 'ai' }
+      return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: p.problems, source: 'guess', error: 'AI 没能认出这张表的列，已按表头文字猜了一遍，请核对' }
     } catch (e) {
       if (e instanceof AiError && e.code === 'aborted') throw e
       const fr = friendlyAiError(e)
-      items[sheet.name] = { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: `AI 整理没成功（${fr.message}），已按表头文字猜了一遍，请核对` }
+      return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: `AI 整理没成功（${fr.message}），已按表头文字猜了一遍，请核对` }
+    } finally {
+      if (aiOn) onProgress?.(++finished, todo.length, '张表')
     }
-  }
+  })
+  todo.forEach((sh, i) => { items[sh.name] = results[i] })
   return { items, model }
 }
 
@@ -337,7 +354,7 @@ function pendingKps(db: Db, outlineId: string, onlyNew: boolean) {
   return all.filter(k => { const d = done.get(k.code); return !d || d.outline_rev !== o?.rev || (d.kp_sig && d.kp_sig !== k.sig) })
 }
 
-export interface MatchResult { ok: boolean; cancelled?: boolean; code?: string; message?: string; done: number; total: number; matched: number; none: number; dropped: number }
+export interface MatchResult { ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; done: number; total: number; matched: number; none: number; dropped: number }
 
 /** 运行匹配。onlyNew = 只补没检查过的知识点（新增的知识点、改了释义的）；否则整体重跑（锁定的人工结果保留）。逐批落库，取消后已完成的批次保留 */
 export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boolean; onProgress?: (p: MatchProgress) => void }): Promise<MatchResult> {
@@ -368,24 +385,44 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
   let matched = 0, none = 0, dropped = 0
   const t0 = Date.now()
   try {
-    for (const batch of batches) {
-      if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
-      const blk = kpBatchBlock(batch)
-      const parts: MatchEntry[][] = []
-      for (let ci = 0; ci < chunks.length; ci++) {
-        const user = fillTemplate(userTpl, { OUTLINE_LINES: chunks[ci].join('\n'), KP_BATCH: blk.text })
-        const r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal })
-        const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
-        const p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo })
-        if (!p.entries.length && p.problems.length) throw new AiError('bad_request', 'AI 的回答不是有效的 JSON，这一批没有保存')
-        dropped += p.dropped
-        parts.push(p.entries)
-      }
-      const merged = chunks.length > 1 ? mergeEntries(parts) : parts[0]
-      const sigs = new Map(batch.map(k => [k.code, k.sig]))
-      const w = applyMatchBatch(db, outlineId, merged, { rev: o.rev, model, promptVersion: version, sigs })
-      matched += w.matched; none += w.none
-      emit({ done: progress.done + 1 })
+    // 批次并发（上限 3），总在途 AI 调用不超过 4；每批完成后立刻落库并进度 +1。任一批出错：中止其余在途调用，已落库的批次保留
+    const gate = createGate(4)
+    let firstErr: unknown
+    try {
+      await mapLimit(batches, 3, async batch => {
+        try {
+          if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
+          const blk = kpBatchBlock(batch)
+          const parts = await Promise.all(chunks.map((chunk, ci) => gate(async () => {
+            if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
+            const user = fillTemplate(userTpl, { OUTLINE_LINES: chunk.join('\n'), KP_BATCH: blk.text })
+            const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
+            // 本地解析不出有效内容：同一调用自动重试一次，仍失败再报错（problems 写日志，不含密钥 / 课程原文）
+            let p = parseMatchResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo })
+            for (let attempt = 1; attempt <= 2; attempt++) {
+              const r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal })
+              p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo })
+              if (p.entries.length || !p.problems.length) break
+              log.warn('course', '匹配回答解析失败', { attempt, problems: p.problems.slice(0, 3), chars: r.content.length })
+            }
+            if (!p.entries.length && p.problems.length) throw new AiError('bad_output', 'AI 的回答解析失败', null, `解析问题：${p.problems.slice(0, 3).join('；')}`)
+            dropped += p.dropped
+            return p.entries
+          })))
+          if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
+          const merged = chunks.length > 1 ? mergeEntries(parts) : parts[0]
+          const sigs = new Map(batch.map(k => [k.code, k.sig]))
+          const w = applyMatchBatch(db, outlineId, merged, { rev: o.rev, model, promptVersion: version, sigs })
+          matched += w.matched; none += w.none
+          emit({ done: progress.done + 1 })
+        } catch (err) {
+          if (firstErr === undefined && !ctl.signal.aborted) firstErr = err
+          ctl.abort()
+          throw err
+        }
+      })
+    } catch (err) {
+      throw firstErr ?? err
     }
     emit({ phase: 'done' })
     log.info('course', '匹配完成', { batches: batches.length, kps: kps.length, matched, none, dropped, ms: Date.now() - t0 })
@@ -394,7 +431,7 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
     if (e instanceof AiError && e.code === 'aborted') { emit({ phase: 'cancelled' }); return { ok: false, cancelled: true, code: 'aborted', message: '已取消，已完成的批次已保留', done: progress.done, total: progress.total, matched, none, dropped } }
     const fr = friendlyAiError(e)
     emit({ phase: 'error', message: fr.message })
-    return { ok: false, code: e instanceof AiError ? e.code : 'error', message: `${fr.message}（已完成 ${progress.done}/${progress.total} 批，已保留；可以再点“继续匹配”）`, done: progress.done, total: progress.total, matched, none, dropped }
+    return { ok: false, code: e instanceof AiError ? e.code : 'error', detail: fr.detail, message: `${fr.message}（已完成 ${progress.done}/${progress.total} 批，已保留；可以再点“继续匹配”）`, done: progress.done, total: progress.total, matched, none, dropped }
   } finally {
     setTimeout(() => matchJobs.delete(outlineId), 0)
   }

@@ -52,6 +52,7 @@ async function main() {
 
   // ── 2. 整理中切到别的页面再回来：任务还在 ──
   await goto('#/overview'); await sleep(500)
+  check('全局提示', '整理期间停在别的页面：任务整理好后全局弹出「去核对」，侧栏「课程」出现待核对数量徽标', await waitFor(async () => (await T('notice-course-go').count()) > 0 && (await T('badge-course').count()) === 1, 30000), await T('badge-course').innerText().catch(() => ''))
   await goto('#/courses'); await T('course-settings').waitFor()
   check('切页面', '切到总览再回来：3 张卡片还在，状态没丢', (await states()).length === 3)
   check('切页面', '整理在后台完成：3 张卡片全部变成“待核对”，按钮“核对并保存”', await waitFor(async () => (await count('ready')) === 3, 30000) && (await T('course-job-review').count()) === 3 && /待核对/.test(await T('course-job-state').first().innerText()))

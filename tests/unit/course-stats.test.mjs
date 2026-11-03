@@ -48,6 +48,17 @@ const F = {}
   assert.ok(d.rows.length > 0 && d.rows.every(r => r.main.length === 0))
 }
 
+// 只匹配了一部分（partial）：仍可出结果（ready），unmatched 记着没匹配的个数；没匹配过的考点不算“课程没覆盖”
+applyMatchBatch(db, oid, [E('GR.PLU', ['Plural', 'high'])], meta)
+{
+  const d = courseDashboard(db, F, [oid])
+  assert.equal(d.outlines[0].match.state, 'partial')
+  assert.equal(d.ready, true, 'partial 也能出结果')
+  assert.equal(d.unmatched, kps.length - 1)
+  assert.ok(d.rows.length > 0)
+  assert.ok(!d.gaps.rows.some(g => g.code === 'GR.COMP' || g.code === 'GR.PAST'), '一个都没匹配过的考点不列入没覆盖')
+}
+
 applyMatchBatch(db, oid, [
   E('GR.PAST.REG', ['Past', 'high']),               // 三级知识点的对应算在二级考点「一般过去时」名下
   E('GR.COMP', ['Compare', 'medium'], ['Hello', 'low']),

@@ -137,7 +137,7 @@ interface ElectronAPI {
     matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number; needsConfirm: boolean }>
     matchProgress(id: string): Promise<CourseMatchProgress | null>
     matchCancel(id: string): Promise<boolean>
-    match(id: string, onlyNew: boolean): Promise<{ ok: boolean; cancelled?: boolean; code?: string; message?: string; done: number; total: number; matched: number; none: number; dropped: number }>
+    match(id: string, onlyNew: boolean): Promise<{ ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; done: number; total: number; matched: number; none: number; dropped: number }>
     mapEdit(edit: CourseMapEdit): Promise<boolean>
     dashboard(scope: CourseScope): Promise<CourseDashboard>
     exportGaps(scope: CourseScope): Promise<{ saved: boolean; path?: string; rows?: number }>
@@ -550,7 +550,7 @@ type CourseLevelDraft = import('../main/course/map').ParsedLevel
 type CourseDashboard = import('../main/course/stats').CourseDashboard
 type CourseRow = import('../main/course/stats').CourseRow
 type CourseLessonRef = import('../main/course/stats').LessonRef
-interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual' }
+interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual'; progress?: { done: number; total: number; unit: string } | null }
 type CourseSource = import('../main/course/service').SourceInfo
 type CourseSuggestItem = import('../main/course/service').SuggestItem
 type CourseMatchProgress = import('../main/course/service').MatchProgress

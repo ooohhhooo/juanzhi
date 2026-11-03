@@ -61,8 +61,10 @@ export interface GapRow { code: string; name: string; papers: number; paperTotal
 export interface CourseDashboard {
   papers: number
   outlines: Array<Pick<OutlineCard, 'id' | 'name' | 'scene' | 'match'> & { levels: Array<{ id: number; name: string }> }>
-  /** 所有选中的体系都已匹配完（块 2、3 才有意义） */
+  /** 所有选中的体系都至少匹配过一部分（none / stale 不算）；有没匹配的知识点时 unmatched > 0，结果可能不全 */
   ready: boolean
+  /** 还没匹配的知识点个数（各选中体系里 partial 的合计；全部 done 时为 0） */
+  unmatched: number
   rows: CourseRow[]
   cross: CrossCell[]
   gaps: { rows: GapRow[]; smallSample: boolean; minPapers: number; computed: boolean }
@@ -131,8 +133,9 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
     levelsOf.get(lv.outline_id)!.push({ id: lv.id, name: lv.name })
   }
   const outlines = cards.map(c => ({ id: c.id, name: c.name, scene: c.scene, match: c.match, levels: levelsOf.get(c.id) ?? [] }))
-  const ready = cards.length > 0 && cards.every(c => c.match.state === 'done')
-  const empty: CourseDashboard = { papers: counts.papers, outlines, ready, rows: [], cross: [], gaps: { rows: [], smallSample: counts.papers < GAP_MIN_PAPERS, minPapers: 2, computed: false }, summary: { lostPoints: 0, withCourse: 0, without: 0 } }
+  const ready = cards.length > 0 && cards.every(c => c.match.state === 'done' || c.match.state === 'partial')
+  const unmatched = cards.reduce((n, c) => n + (c.match.state === 'partial' ? Math.max(0, c.match.total - c.match.checked) : 0), 0)
+  const empty: CourseDashboard = { papers: counts.papers, outlines, ready, unmatched, rows: [], cross: [], gaps: { rows: [], smallSample: counts.papers < GAP_MIN_PAPERS, minPapers: 2, computed: false }, summary: { lostPoints: 0, withCourse: 0, without: 0 } }
   if (!cards.length || counts.papers === 0) return empty
 
   // 块 1 的行：易错题数 > 0 的二级考点（按易错题数）+ 重难点排名靠前的二级考点
@@ -184,6 +187,8 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
     for (const n of nodes) {
       if (n.papers < minPapers) continue
       const codes = sub.get(n.code) ?? [n.code]
+      // 还有没匹配的知识点时：这个考点下一个都没匹配过的，不算“课程没覆盖”（只是还没匹配）
+      if (unmatched > 0 && !codes.some(c => checked.has(c))) continue
       const has = codes.some(c => (byKp.get(c) ?? []).some(isMainMap))
       if (!has) gapRows.push({ code: n.code, name: n.name, papers: n.papers, paperTotal: counts.papers, errorCount: n.errorCount, questions: n.questions })
     }
@@ -191,7 +196,7 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
   }
   const withCourse = rows.filter(r => r.main.length > 0).length
   return {
-    papers: counts.papers, outlines, ready, rows, cross, gaps: { rows: gapRows, smallSample, minPapers, computed: !smallSample && ready },
+    papers: counts.papers, outlines, ready, unmatched, rows, cross, gaps: { rows: gapRows, smallSample, minPapers, computed: !smallSample && ready },
     summary: { lostPoints: rows.length, withCourse, without: rows.length - withCourse }
   }
 }

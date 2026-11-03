@@ -221,6 +221,11 @@ html.ewb-design .ant-btn-color-dangerous.ant-btn-variant-solid, html.ewb-design 
 :root[data-theme="dark"] .ewb-contents__link[aria-current="page"], [data-theme-scope="dark"] .ewb-contents__link[aria-current="page"] { box-shadow: 0 0 0 1px var(--ewb-line); }
 :root[data-theme="dark"] .ewb-contents__link[aria-current="page"] .ewb-contents__icon, [data-theme-scope="dark"] .ewb-contents__link[aria-current="page"] .ewb-contents__icon { color: var(--ewb-primary); }
 .ewb-contents__count { position: absolute; top: -11px; right: -22px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--ewb-r-pill); background: var(--ewb-primary); color: var(--ewb-on-primary); border: 2px solid var(--ewb-paper); box-sizing: content-box; font-size: var(--ewb-fs-xs); font-weight: 700; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.ewb-contents__dot { position: absolute; top: -3px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: #e5484d; border: 2px solid var(--ewb-paper); box-sizing: content-box; }
+.ewb-contents__ring { --p: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--ewb-primary) calc(var(--p) * 1%), var(--ewb-line) 0); font-size: 9px; font-weight: 700; line-height: 1; color: var(--ewb-ink); font-variant-numeric: tabular-nums; position: relative; }
+.ewb-contents__ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--ewb-paper); }
+.ewb-contents__ring > span { position: relative; }
+.ewb-contents__link[data-phase="ready"] .ewb-contents__icon, .ewb-contents__link[data-phase="ready"] .ewb-contents__tag { color: var(--ewb-primary-active); }
 .ewb-contents__link[aria-current="page"] .ewb-contents__count { border-color: var(--ewb-page); }
 
 /* 外观切换（三选一，Gallery 里展示用；侧栏里用 ThemeCycle） */

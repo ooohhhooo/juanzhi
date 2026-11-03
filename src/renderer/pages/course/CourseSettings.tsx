@@ -49,7 +49,7 @@ export default function CourseSettings() {
                 <span className="ewb-crs-card__name" data-testid="course-job-name">{j.fileName}</span>
                 {j.replaceId && <span className="ewb-ana-pill ewb-ana-pill--quiet">替换「{(cards ?? []).find(c => c.id === j.replaceId)?.name ?? j.name}」</span>}
                 <span className={`ewb-ana-pill${j.status === 'failed' ? ' ewb-ana-pill--warn' : ''}`} data-testid="course-job-state">
-                  {{ queued: '排队中', running: 'AI 整理中', ready: '待核对', failed: '整理失败' }[j.status]}
+                  {{ queued: '排队中', running: j.progress && j.progress.total > 1 ? (j.progress.unit === '段' ? `AI 整理中 · 第 ${Math.min(j.progress.done + 1, j.progress.total)}/${j.progress.total} 段` : `AI 整理中 · ${j.progress.done}/${j.progress.total} 张表`) : 'AI 整理中', ready: '待核对', failed: '整理失败' }[j.status]}
                 </span>
               </div>
               {j.status === 'failed' && <div className="ewb-crs-card__meta"><span data-testid="course-job-error">{j.error || '没有整理成功'}</span></div>}

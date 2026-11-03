@@ -310,7 +310,8 @@ async function phaseReportMulti() {
   // ── 生成中切到别的页面再回来，生成继续 ──
   await sleep(500)
   await goto('#/overview')
-  await sleep(800)
+  const globalNote = await waitFor(async () => (await T('notice-report-go').count()) > 0, 40000)
+  check('报告 全局提示', '不在报告页时报告生成完成：全局弹出「xx已生成」并带「查看」按钮', globalNote)
   await goto('#/report')
   await T('report-page').waitFor()
   const stillOrDone = await waitFor(async () => (await jobs().count()) > 0 || (await items().count()) >= base + 1, 8000)

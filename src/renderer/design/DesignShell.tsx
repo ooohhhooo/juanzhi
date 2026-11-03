@@ -6,10 +6,10 @@ import React, { useState } from 'react'
 import { BookOpenText, ChartColumn, ClipboardCheck, FileSearch, GraduationCap, Library, ListOrdered, Settings } from 'lucide-react'
 import Contents, { type ContentsItem } from './Contents'
 
-export const NAV_ITEMS = (queue: number, review: number): ContentsItem[] => [
+export const NAV_ITEMS = (queue: number, review: number, courseReview = 0): ContentsItem[] => [
   { key: '/overview', label: '总览', tag: '总览', icon: BookOpenText },
   { key: '/', label: '试卷库', tag: '试卷', icon: Library },
-  { key: '/courses', label: '课程大纲', tag: '课程', icon: GraduationCap },
+  { key: '/courses', label: '课程大纲', tag: '课程', icon: GraduationCap, count: courseReview, countTestId: 'badge-course' },
   { key: '/queue', label: '处理队列', tag: '队列', icon: ListOrdered, count: queue, countTestId: 'badge-queue' },
   { key: '/review', label: '审核', tag: '审核', icon: ClipboardCheck, count: review, countTestId: 'badge-review' },
   { key: '/dashboard', label: '分析看板', tag: '看板', icon: ChartColumn },
