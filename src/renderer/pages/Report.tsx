@@ -16,6 +16,7 @@ import { useElapsedSeconds } from '../hooks/useElapsed'
 import { useRoleGuideRole } from '../hooks/useUiPrefs'
 import { Btn, EmptyState, NoticeStack, Page, Panel, SkeletonBar, StatusLabel, UsageNote } from '../design'
 import '../design/page-report.css'
+import AiErrorExplain from '../components/AiErrorExplain'
 
 /** 写进剪贴板：优先用标准接口，不行再退回隐藏文本框 + execCommand（窗口没焦点、非安全上下文时标准接口会失败） */
 async function writeClipboard(text: string): Promise<void> {
@@ -336,6 +337,7 @@ export default function Report() {
         <div style={{ marginBottom: 'var(--ewb-sp-4)' }}>
           {entry.status === 'error'
             ? <UsageNote kind="mistake" label="失败" data-testid="report-error" title={entry.message} actions={retryActions(entry)}>
+              <AiErrorExplain message={entry.message} task="report" nonce={entry.requestId} />
               {entry.detail
                 ? <Collapse ghost size="small" style={{ marginInlineStart: -12 }} items={[{ key: 'd', label: <span className="ewb-rep-collapse-label">查看详情（给管理员看）</span>, children: <div data-testid="report-error-detail" className="ewb-rep-detail-text">{entry.detail}</div> }]} />
                 : <span className="ewb-rep-muted">没有保存任何结果，可以直接重试。</span>}

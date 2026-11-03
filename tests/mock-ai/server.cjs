@@ -44,7 +44,9 @@ async function startMock(opts = {}) {
     inflight: 0,
     maxInflight: 0,
     seenSystems: new Set(),
-    quirks: {}
+    quirks: {},
+    billing: null,
+    balanceRequests: []
   }
   const sockets = new Set()
 
@@ -101,6 +103,17 @@ async function startMock(opts = {}) {
   }
 
   const server = http.createServer((req, res) => {
+    // 中转站（one-api 风格）的额度接口：按密钥返回；state.billing = { limitUsd, usageCents }，未设置时 404
+    const bm = /\/v1\/dashboard\/billing\/(subscription|usage)/.exec(req.url)
+    if (req.method === 'GET' && bm) {
+      state.balanceRequests.push({ url: req.url, auth: req.headers.authorization })
+      if (req.headers.authorization !== `Bearer ${state.apiKey}` || !state.billing) {
+        res.writeHead(state.billing ? 401 : 404, { 'Content-Type': 'application/json' }); res.end('{"error":"x"}'); return
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(bm[1] === 'subscription' ? { hard_limit_usd: state.billing.limitUsd } : { total_usage: state.billing.usageCents }))
+      return
+    }
     if (req.method !== 'POST' || !/\/chat\/completions$/.test(req.url)) {
       res.writeHead(404, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: { message: 'not found' } }))
@@ -316,6 +329,9 @@ async function startMock(opts = {}) {
     set courseDelayMs(v) { state.courseDelayMs = v },
     /** canned 响应的「真实模型会犯的错」：{ noFlag, dropContinued, typo, badPage } */
     set quirks(v) { state.quirks = v },
+    /** 余额接口（one-api 风格）：{ limitUsd, usageCents }；null = 不支持（404） */
+    set billing(v) { state.billing = v },
+    get balanceRequests() { return state.balanceRequests },
     /** 追加故障脚本：{ type, times, file? }；按顺序、按文件名子串匹配消费 */
     script(list) { for (const d of list) state.queue.push({ times: 1, ...d }) },
     clearScript() { state.queue.length = 0 },

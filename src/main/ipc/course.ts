@@ -9,6 +9,7 @@ import { log } from '../log'
 import { StatsFilterSchema } from '../stats/filter'
 import { describeFilter } from '../stats/p2'
 import { AiError } from '../ai/client'
+import { withSpend } from './cost'
 import { CourseFileError } from '../course/table-read'
 import { COL_FIELDS } from '../course/map'
 import { courseDashboard, gapsToCsv } from '../course/stats'
@@ -150,7 +151,7 @@ export function registerCourseIpc(): void {
       signal.addEventListener('abort', onAbort)
       try {
         const sess = sessionOf(j.sessionId)
-        return await suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode)
+        return await withSpend('course-organize', () => suggestMappings(j.sessionId, sess.extract ? 'ai' : j.mode))
       } finally { signal.removeEventListener('abort', onAbort) }
     },
     describeError: e => (e instanceof Error ? e.message : String(e)).slice(0, 160)
@@ -243,10 +244,10 @@ export function registerCourseIpc(): void {
   ipcMain.handle('course:match', async (e, id: unknown, onlyNew: unknown) => {
     const outlineId = IdSchema.parse(id)
     const sender = e.sender
-    const r = await runMatch(db(), outlineId, {
+    const r = await withSpend('course-match', () => runMatch(db(), outlineId, {
       onlyNew: z.boolean().default(false).parse(onlyNew),
       onProgress: p => { if (!sender.isDestroyed()) sender.send('course:progress', p) }
-    })
+    }))
     notifyDataChanged('course', 'usage')
     return r
   })

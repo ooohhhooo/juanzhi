@@ -3,6 +3,8 @@ import { App, Popconfirm } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, UsageNote } from '../design'
 import '../design/page-course.css'
+import { CostHint } from './AiCost'
+import AiErrorExplain from './AiErrorExplain'
 
 export const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
@@ -20,6 +22,7 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
   const [prog, setProg] = useState<CourseMatchProgress | null>(null)
   const [busy, setBusy] = useState(false)
   const [last, setLast] = useState<string | null>(null)
+  const [failed, setFailed] = useState(0)   // 每失败一次加 1：触发重新诊断
   const onlyNew = card.match.state === 'partial'
   const { data: est } = useQuery({ queryKey: ['course', 'estimate', card.id, onlyNew, card.match.state, card.match.total], queryFn: () => window.api.course.matchEstimate(card.id, onlyNew), staleTime: 5_000 })
   useEffect(() => {
@@ -34,10 +37,10 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
     try {
       const r = await window.api.course.match(card.id, again ? false : onlyNew)
       setLast(r.ok ? `匹配完成：${r.matched} 个知识点找到了对应的课，${r.none} 个没有找到${r.dropped ? `（另有 ${r.dropped} 条 AI 回答对不上课程，已丢弃）` : ''}` : r.message ?? '匹配没有完成')
-      if (r.ok) message.success('匹配完成'); else if (!r.cancelled) message.error(r.message ?? '匹配失败')
+      if (r.ok) message.success('匹配完成'); else if (!r.cancelled) { message.error(r.message ?? '匹配失败'); setFailed(n => n + 1) }
       qc.invalidateQueries({ queryKey: ['course'] })
       onDone?.()
-    } catch (e) { setLast(clean(e)); message.error(clean(e)) } finally { setBusy(false); setProg(null) }
+    } catch (e) { setLast(clean(e)); message.error(clean(e)); setFailed(n => n + 1) } finally { setBusy(false); setProg(null) }
   }
   if (card.status !== 'active') return null
   const pct = prog && prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0
@@ -61,9 +64,11 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
           {est && card.match.state !== 'done' && est.kps > 0 && (
             <span className="ewb-rep-note" data-testid="match-estimate">约 {est.kps} 个知识点 × {est.lessons} 课，{est.batches} 次请求，预计用量约 {wan(est.tokens)} token（实际以服务商为准）</span>
           )}
+          {est && card.match.state !== 'done' && est.kps > 0 && <CostHint task="course-match" calls={est.batches} fallbackTokens={est.tokens} />}
         </div>
       )}
       {last && <p className="ewb-rep-note" data-testid="match-result" style={{ marginTop: 6 }}>{last}</p>}
+      {last && failed > 0 && !/^匹配完成/.test(last) && <AiErrorExplain message={last} task="course-match" nonce={failed} />}
       {card.match.state === 'none' && est && est.kps === 0 && !busy && <UsageNote kind="tip">库里还没有标过知识点的题目（先导入并审核试卷），暂时没有可匹配的内容。</UsageNote>}
     </div>
   )

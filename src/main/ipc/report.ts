@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { getMainWindow } from '../window'
+import { withSpend } from './cost'
 import { StatsFilterSchema } from '../stats/filter'
 import { assertExportable, confirmReport, deleteReport, generateReport, getReport, listReports, previewReport, removeReportSentence, retryReportPart, tickVariant, wechatText } from '../report/service'
 import { cardHtmlOf, renderCardImage } from '../report/card-image'
@@ -43,9 +44,9 @@ export function registerReportIpc(): void {
     const requestId = z.string().uuid().parse(rawRequestId)
     const reader = ReaderSchema.parse(rawReader ?? undefined) as any
     const sender = e.sender
-    return generateReport(filter, reader, requestId,
+    return withSpend('report', () => generateReport(filter, reader, requestId,
       ev => { if (!sender.isDestroyed()) sender.send('ai:chunk', ev) },
-      cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } }, options)
+      cb => { sender.once('destroyed', cb); return () => { sender.removeListener('destroyed', cb) } }, options))
   })
 
   /** 只重新生成报告里的一个附加段（口诀 / 变形题 / 以后的课程对照）；进度走 ai:chunk 的 part 事件，只发给发起请求的窗口 */

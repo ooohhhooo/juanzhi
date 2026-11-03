@@ -11,6 +11,7 @@ import { registerPaperIpc } from './ipc/papers'
 import { registerRecognitionIpc } from './ipc/recognition'
 import { registerSettingsIpc } from './ipc/settings'
 import { registerAiIpc } from './ipc/ai'
+import { registerCostIpc } from './ipc/cost'
 import { registerParseIpc } from './ipc/parse'
 import { registerQuestionIpc } from './ipc/questions'
 import { registerStatsIpc } from './ipc/stats'
@@ -241,6 +242,7 @@ if (cliArgs) {
     registerRecognitionIpc()
     registerSettingsIpc()
     registerAiIpc()
+    registerCostIpc()
     registerParseIpc()
     registerQuestionIpc()
     registerStatsIpc()

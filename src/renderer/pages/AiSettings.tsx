@@ -3,6 +3,8 @@ import { App, AutoComplete, Collapse, Form, Input, InputNumber, Select, Space, S
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, Panel, UsageNote } from '../design'
 import '../design/page-report.css'
+import { AiBalancePanel, AiUsageByKind } from '../components/AiCost'
+import AiErrorExplain from '../components/AiErrorExplain'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
@@ -202,6 +204,7 @@ export default function AiSettings() {
                   {r.status === 'fail' && r.steps && (
                     <ol className="ewb-set-steps" data-testid="ai-test-steps">{r.steps.map((t, i) => <li key={i}>{t}</li>)}</ol>
                   )}
+                  {r.status === 'fail' && <AiErrorExplain message={r.message} task="test" nonce={`${r.kind}-${r.latencyMs}`} />}
                   {r.detail && <details><summary style={{ cursor: 'pointer' }}>查看详情（服务商返回的原话）</summary><div className="ewb-set-mono" style={{ wordBreak: 'break-all' }}>{r.detail}</div></details>}
                   {r.status !== 'skip' || r.kind !== 'report' ? <Btn tone="secondary" size="small" loading={testing === r.kind} onClick={() => testOne(r.kind)} data-testid={`ai-retest-${r.kind}`}>重测这一项</Btn> : null}
                 </li>
@@ -210,9 +213,11 @@ export default function AiSettings() {
           </UsageNote>
         )}
       </Form>
+      <AiBalancePanel />
       <p className="ewb-rep-note" style={{ marginTop: 12 }}>
         模型名称以服务商控制台为准，会随服务商更新。注意：DeepSeek 已在 2026 年 7 月下线 deepseek-chat，请不要再使用。
       </p>
+      <AiUsageByKind />
       {usage.length > 0 && (
         <div style={{ marginTop: 12 }}>
           <b>累计 token 用量</b>
