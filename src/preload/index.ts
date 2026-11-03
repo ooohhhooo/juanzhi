@@ -233,6 +233,15 @@ const api = {
       ipcRenderer.invoke('ocr:status'),
   },
   /** 命令行工具（短命令 juanzhi）：看装没装、安装 */
+  connectors: {
+    types: (): Promise<any[]> => ipcRenderer.invoke('connectors:types'),
+    list: (): Promise<any[]> => ipcRenderer.invoke('connectors:list'),
+    save: (req: { id?: string; type: string; name: string; config: Record<string, unknown> }): Promise<any> => ipcRenderer.invoke('connectors:save', req),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('connectors:remove', id),
+    test: (id: string): Promise<any> => ipcRenderer.invoke('connectors:test', id),
+    setAllowed: (id: string, names: string[]): Promise<any> => ipcRenderer.invoke('connectors:setAllowed', id, names),
+    openShimo: (): Promise<boolean> => ipcRenderer.invoke('connectors:openShimo'),
+  },
   cli: {
     status: (): Promise<{ supported: boolean; packaged: boolean; portable: boolean; installed: boolean; path: string; dir: string; exePath: string }> =>
       ipcRenderer.invoke('cli:status'),

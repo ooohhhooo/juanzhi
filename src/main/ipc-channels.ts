@@ -23,7 +23,9 @@ export const WRITE_CHANNELS = new Set([
   // 课程对照（beta.2）：写课程表、匹配结果、话术缓存；course:suggest / course:match / course:adviceGenerate 会调用 AI 并写 ai_usage，所以归写入类
   'course:setActive', 'course:rename', 'course:confirmDraft', 'course:remove', 'course:suggest', 'course:save', 'course:jobStart', 'course:match', 'course:mapEdit', 'course:adviceGenerate', 'course:adviceConfirm',
   // 数据集（分析 Agent 的数据底座）：导入 / 删除 / 改标记 / 改名 / 备注都写 <数据目录>/datasets/
-  'datasets:import', 'datasets:remove', 'datasets:setSensitive', 'datasets:rename', 'datasets:setNote'
+  'datasets:import', 'datasets:remove', 'datasets:setSensitive', 'datasets:rename', 'datasets:setNote',
+  // 连接器：写设置表；connectors:test 会往外部发测试消息或启动 MCP 子进程并刷新工具缓存
+  'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
 export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
@@ -48,5 +50,6 @@ export const READONLY_CHANNELS = new Set([
   'course:suggestCancel', 'course:jobs', 'course:jobTake', 'course:jobCancel', 'course:jobRemove', 'course:jobRetry', 'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:adviceState', 'course:adviceCopy',
   // 数据集的读取类：pick 只弹对话框；list / profile / preview / profileText 只读
   'datasets:pick', 'datasets:list', 'datasets:profile', 'datasets:preview', 'datasets:profileText',
+  'connectors:types', 'connectors:list', 'connectors:openShimo',   // openShimo 只用浏览器打开石墨官网
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])
