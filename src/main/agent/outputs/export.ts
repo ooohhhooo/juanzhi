@@ -27,7 +27,7 @@ const rs = (s: Scope, t: string): string => (restorer ? restorer(s.sessionId, t)
 
 export const exportsDir = (s: Scope): string => path.join(sessionDir(s), 'exports')
 
-export function allowedFormats(type: 'md' | 'note' | 'table' | 'board'): OutputExportFormat[] {
+export function allowedFormats(type: 'md' | 'note' | 'table' | 'board' | 'image'): OutputExportFormat[] {
   if (type === 'md' || type === 'note') return ['docx', 'pdf', 'md']
   if (type === 'table') return ['xlsx', 'csv']
   return []

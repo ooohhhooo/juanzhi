@@ -12,6 +12,7 @@ import type { AgentTool as ConnectorTool } from '../connectors/types.ts'
 import { OUTPUT_TOOLS } from './outputs/tools.ts'
 import { registerBoard } from './outputs/store.ts'
 import { setTableExporter } from './outputs/export.ts'
+import { CARD_TOOLS } from '../cards/tools.ts'
 import { analysisTools } from '../analysis/tools-adapter.ts'
 import { exportTableXlsx } from '../analysis/report/export-xlsx.ts'
 import { getBoard } from '../analysis/report/tools.ts'
@@ -71,7 +72,7 @@ export function connectorAgentTools(tools: ConnectorTool[]): AgentTool[] {
 /** 三组工具合在一起；工具名重复时保留先到的、跳过后来的（并 console.warn），不整体失败 */
 export function composeTools(connectorTools: ConnectorTool[]): AgentTool[] {
   installTableExporter()
-  const all = [...analysisWithBoardRegistration(), ...outputAgentTools(), ...connectorAgentTools(connectorTools)]
+  const all = [...analysisWithBoardRegistration(), ...outputAgentTools(), ...CARD_TOOLS, ...connectorAgentTools(connectorTools)]
   const seen = new Set<string>()
   const out: AgentTool[] = []
   for (const t of all) {

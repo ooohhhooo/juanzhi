@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { PanelRightClose, PanelRightOpen, FileText, LayoutDashboard, Sheet, Info, Download, Copy, FolderOpen } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, FileText, LayoutDashboard, Sheet, Info, Download, Copy, FolderOpen, Image as ImageIcon, Send } from 'lucide-react'
 import type { OutputContent, OutputEntry, OutputExportFormat } from '../../../shared/agent-outputs'
 import type { CanvasAction, CanvasNode } from '../types'
 import CardDetail from './CardDetail'
@@ -24,6 +24,10 @@ export interface SidePanelProps {
   /** 不传则面板自己复制（文档复制 Markdown 源码，表格复制成制表符分隔） */
   onCopy?: (id: string) => void
   onReveal: (id: string) => void
+  /** 图片产出（分享卡片）：复制图片 / 另存为 / 发到企业微信（后者交给助手走 wecom_send，需要用户同意） */
+  onCopyImage?: (id: string) => void
+  onSaveImage?: (id: string) => void
+  onSendWecom?: (id: string) => void
   /** 点引用标签 / 出处（打开查询详情等） */
   onOpenRef: (r: OpenRef) => void
   // ── 卡片详情 ──
@@ -41,7 +45,7 @@ export interface SidePanelProps {
 }
 
 const MIN_W = 300, MAX_W = 760, DEF_W = 400
-const TYPE_ICON: Record<OutputEntry['type'], typeof FileText> = { md: FileText, board: LayoutDashboard, table: Sheet, note: Info }
+const TYPE_ICON: Record<OutputEntry['type'], typeof FileText> = { md: FileText, board: LayoutDashboard, table: Sheet, note: Info, image: ImageIcon }
 
 export function relTime(ts: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ts) / 1000))
@@ -58,7 +62,7 @@ function store(): Storage | null { try { return window.localStorage } catch { re
 function copyText(c: OutputContent | null): string {
   if (!c) return ''
   if (c.type === 'table') return [c.columns, ...c.rows].map(r => r.join('\t')).join('\n')
-  if (c.type === 'board') return ''
+  if (c.type === 'board' || c.type === 'image') return ''
   return c.markdown
 }
 
@@ -147,6 +151,7 @@ export default function AssistantSidePanel(p: SidePanelProps) {
                 {writingText && <div className="ewb-side__writing" data-testid="out-writing" role="status">{writingText}</div>}
                 {!c ? <div className="ewb-side__empty">加载中…</div>
                   : c.type === 'board' ? (p.renderBoard ? p.renderBoard(c.boardId) : <div className="ewb-side__empty">看板在这里显示（{c.boardId}）</div>)
+                  : c.type === 'image' ? <div className="ewb-side__imgwrap"><img src={c.dataUrl} alt={active?.name ?? '卡片'} data-testid="out-image" style={{ display: 'block', maxWidth: '100%', margin: '0 auto', borderRadius: 8, boxShadow: '0 2px 10px rgba(0,0,0,.15)' }} /></div>
                   : c.type === 'table' ? (
                     <div className="ewb-side__tablewrap">
                       <table className="ewb-md__table" data-testid="out-table">
@@ -166,7 +171,12 @@ export default function AssistantSidePanel(p: SidePanelProps) {
               </div>
               <div className="ewb-side__foot" data-testid="out-actions">
                 {active && formatsOf(active.type).map(([f, label], i) => <button key={f} type="button" className={`ewb-side__btn${i === 0 ? ' ewb-side__btn--pri' : ''}`} disabled={active.status === 'writing' && active.type !== 'table'} onClick={() => p.onExport(active.id, f)} data-testid={`out-export-${f}`}><Download size={12} strokeWidth={1.9} aria-hidden /> {label}</button>)}
-                {active && active.type !== 'board' && <button type="button" className="ewb-side__btn" onClick={doCopy} data-testid="out-copy"><Copy size={12} strokeWidth={1.9} aria-hidden /> 复制</button>}
+                {active && active.type === 'image' && <>
+                  <button type="button" className="ewb-side__btn ewb-side__btn--pri" onClick={() => p.onCopyImage?.(active.id)} data-testid="out-copy-image"><Copy size={12} strokeWidth={1.9} aria-hidden /> 复制图片</button>
+                  <button type="button" className="ewb-side__btn" onClick={() => p.onSaveImage?.(active.id)} data-testid="out-save-image"><Download size={12} strokeWidth={1.9} aria-hidden /> 保存图片</button>
+                  <button type="button" className="ewb-side__btn" onClick={() => p.onSendWecom?.(active.id)} data-testid="out-send-wecom"><Send size={12} strokeWidth={1.9} aria-hidden /> 发到企业微信</button>
+                </>}
+                {active && active.type !== 'board' && active.type !== 'image' && <button type="button" className="ewb-side__btn" onClick={doCopy} data-testid="out-copy"><Copy size={12} strokeWidth={1.9} aria-hidden /> 复制</button>}
                 {active && active.type !== 'board' && <button type="button" className="ewb-side__btn" onClick={() => p.onReveal(active.id)} data-testid="out-reveal"><FolderOpen size={12} strokeWidth={1.9} aria-hidden /> 在文件夹中显示</button>}
               </div>
             </>

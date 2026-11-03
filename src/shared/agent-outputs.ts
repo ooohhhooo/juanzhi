@@ -3,7 +3,7 @@
  * 纯函数，不依赖 electron，单测直接跑。
  */
 
-export type OutputType = 'md' | 'board' | 'table' | 'note'
+export type OutputType = 'md' | 'board' | 'table' | 'note' | 'image'
 export type OutputStatus = 'writing' | 'done'
 export type OutputExportFormat = 'docx' | 'pdf' | 'xlsx' | 'csv' | 'md'
 
@@ -21,6 +21,8 @@ export interface OutputEntry {
   /** 文档计划写几节（doc_create 时给了就有）；written = 已经写了几节 */
   total?: number
   written?: number
+  /** 分享卡片（type = image）的来源信息 */
+  card?: { kind: string; audience: string; templateId: string; width: number; height: number }
 }
 
 /** 预览用的内容 */
@@ -28,6 +30,7 @@ export type OutputContent =
   | { type: 'md' | 'note'; markdown: string; written: number; total?: number }
   | { type: 'table'; columns: string[]; rows: string[][]; totalRows: number }
   | { type: 'board'; boardId: string }
+  | { type: 'image'; dataUrl: string; width: number; height: number }
 
 export type RefType = 'query' | 'q' | 'lesson' | 'stu'
 export interface RefTag { type: RefType; id: string }

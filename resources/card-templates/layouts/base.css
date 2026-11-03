@@ -1,0 +1,16 @@
+/* 所有版式共用的基础样式。颜色、字体、缩放都来自变量：
+   --accent 主色  --accent-soft/--accent-soft2 主色淡底  --ink 正文色  --muted 次要文字
+   --title-ink 标题色  --title-on 标题小标色  --title-sub 标题副文字色  --foot-ink 底部文字色
+   --font-title / --font-body / --font-latin 字体栈（见 manifest.json 的 fonts）
+   --s 整体缩放（渲染器按内容多少自动调，1 = 原始大小） */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1086px;height:1448px;overflow:hidden}
+body{position:relative;font-family:var(--font-body);color:var(--ink)}
+.bg{position:absolute;left:0;top:0;width:1086px;height:1448px}
+.z{position:absolute;display:flex;flex-direction:column;overflow:hidden}
+.z.title{align-items:center;justify-content:center;text-align:center;font-size:calc(var(--s)*30px)}
+.z.panel{font-size:calc(var(--s)*30px);line-height:1.45}
+.z.foot{align-items:center;justify-content:center;font-size:calc(var(--s)*28px);font-weight:600;color:var(--foot-ink);text-align:center}
+.z>*{flex-shrink:0}
+.latin{font-family:var(--font-latin)}
+b{font-weight:800}

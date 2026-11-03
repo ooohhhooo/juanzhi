@@ -1,0 +1,19 @@
+<style>
+.w-tag{font-size:.93em;font-weight:700;color:var(--title-on);letter-spacing:.2em}
+.w-title{font-size:2.13em;font-weight:800;color:var(--title-ink);margin-top:.15em;font-family:var(--font-title)}
+.w-sub{font-size:.93em;color:var(--title-sub);margin-top:.15em}
+.w-metrics{display:grid;gap:.55em;margin-bottom:.3em}
+.w-m{background:var(--accent-soft);border-radius:.6em;padding:.6em .4em;text-align:center}
+.w-m b{display:block;font-size:1.6em;color:var(--accent)}.w-m span{font-size:.83em;color:var(--muted)}
+.w-h{font-size:1.03em;font-weight:700;color:#1C1B2E;margin:.75em 0 .25em;display:flex;align-items:center;gap:.4em}
+.w-h i{width:.27em;height:.93em;border-radius:.13em;background:var(--accent);display:inline-block}
+.w-p{font-size:1em;line-height:1.55;color:#3A3950}
+.w-tip{background:var(--accent-soft);border-radius:.55em;padding:.55em .7em;margin-top:.6em;font-size:.97em;line-height:1.55;color:#3A3950}
+</style>
+<zone name="title"><div class="w-tag">学情反馈</div><div class="w-title">{{#if student}}{{student}}的{{else}}孩子的{{/if}}本周学习情况</div>{{#if grade}}<div class="w-sub">{{grade}}{{#if week}} · {{week}}{{/if}}</div>{{else}}{{#if week}}<div class="w-sub">{{week}}</div>{{/if}}{{/if}}</zone>
+<zone name="panel"><div class="w-metrics" style="grid-template-columns:repeat({{metricCount}},1fr)">{{#each metrics}}<div class="w-m"><b>{{value}}</b><span>{{label}}</span></div>{{/each}}</div>
+<div class="w-h"><i></i>本周学了</div><div class="w-p">{{learned}}</div>
+<div class="w-h"><i></i>做得好的</div><div class="w-p">{{good}}</div>
+<div class="w-h"><i></i>还要加强</div><div class="w-p">{{improve}}</div>
+<div class="w-tip"><b>家里可以这样配合：</b>{{tips}}</div></zone>
+<zone name="foot"><span>{{#if teacher}}{{teacher}}{{/if}}{{#if date}}{{#if teacher}} · {{/if}}{{date}}{{/if}}</span></zone>

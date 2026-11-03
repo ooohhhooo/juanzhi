@@ -38,6 +38,8 @@ import { closeAllMcp } from './connectors/mcp-client'
 import { registerCourseIpc } from './ipc/course'
 import { registerDatasetsIpc } from './ipc/datasets'
 import { registerAgentOutputsIpc } from './ipc/agent-outputs'
+import { registerCardsIpc } from './ipc/cards'
+import { setCardRoot } from './cards/templates'
 import { registerAgentIpc } from './ipc/agent'
 import { startCliMode } from './cli/run'
 import { acquireRunLock, clearLockFile, inspectRunLock, keepTryingRunLock, processLooksLikeJuanzhi } from './cli/lock'
@@ -263,6 +265,8 @@ if (cliArgs) {
     registerDatasetsIpc()
     registerConnectorsIpc()
     registerAgentOutputsIpc()
+    setCardRoot(path.join(app.getAppPath(), 'resources', 'card-templates'))
+    registerCardsIpc()
     registerAgentIpc()
     createWindow()
     sweepStaleStages()

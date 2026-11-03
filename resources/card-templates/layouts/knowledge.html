@@ -1,0 +1,18 @@
+<style>
+.k-tag{font-size:1em;font-weight:800;color:var(--title-on);letter-spacing:.13em;font-family:var(--font-title)}
+.k-title{font-size:2.4em;font-weight:900;color:var(--title-ink);margin-top:.05em;line-height:1.15;font-family:var(--font-title)}
+.k-hook{font-size:1.4em;font-weight:800;color:var(--accent);text-align:center;margin-bottom:.7em}
+.k-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6em .8em}
+.k-pair{background:var(--accent-soft);border-radius:.75em;padding:.5em .8em;display:flex;justify-content:space-between;gap:.4em;font-size:1.4em;font-weight:800}
+.k-pair .l{color:#8A8A9A}.k-pair .a{color:var(--accent)}.k-pair .r{color:var(--accent)}
+.k-ex{margin-top:1.1em;border-left:.33em solid var(--accent);padding:.2em 0 .2em .8em}
+.k-ex .en{font-size:1.33em;font-weight:700}.k-ex .en b{color:var(--accent)}
+.k-ex .zh{font-size:1.03em;color:var(--muted);margin-top:.2em}
+.k-warn{margin-top:1.1em;background:#FFE8DA;border-radius:.75em;padding:.65em .85em;font-size:1.17em;font-weight:700;color:#C2501A}
+</style>
+<zone name="title"><div class="k-tag">{{#if tag}}{{tag}}{{else}}英语小卡{{/if}}</div><div class="k-title">{{title}}</div></zone>
+<zone name="panel"><div class="k-hook">{{hook}}</div>
+<div class="k-grid latin">{{#each items}}<div class="k-pair"><span class="l">{{left}}</span><span class="a">→</span><span class="r">{{right}}</span></div>{{/each}}</div>
+<div class="k-ex"><div class="en latin">{{{example.enHtml}}}</div><div class="zh">{{example.zh}}</div></div>
+{{#if warning}}<div class="k-warn">{{warning}}</div>{{/if}}</zone>
+<zone name="foot"><span>{{#if signature}}{{signature}}{{/if}}{{#if date}}{{#if signature}} · {{/if}}{{date}}{{/if}}</span></zone>

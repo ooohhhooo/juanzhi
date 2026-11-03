@@ -23,6 +23,7 @@ export const WRITE_CHANNELS = new Set([
   // 课程对照（beta.2）：写课程表、匹配结果、话术缓存；course:suggest / course:match / course:adviceGenerate 会调用 AI 并写 ai_usage，所以归写入类
   'course:setActive', 'course:rename', 'course:confirmDraft', 'course:remove', 'course:suggest', 'course:save', 'course:jobStart', 'course:match', 'course:mapEdit', 'course:adviceGenerate', 'course:adviceConfirm',
   // 数据集（分析 Agent 的数据底座）：导入 / 删除 / 改标记 / 改名 / 备注都写 <数据目录>/datasets/
+  'cards:setDefault', 'cards:setChildName',
   'datasets:import', 'datasets:remove', 'datasets:setSensitive', 'datasets:rename', 'datasets:setNote',
   // 连接器：写设置表；connectors:test 会往外部发测试消息或启动 MCP 子进程并刷新工具缓存
   'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test',
@@ -54,8 +55,10 @@ export const READONLY_CHANNELS = new Set([
   'datasets:pick', 'datasets:list', 'datasets:profile', 'datasets:preview', 'datasets:profileText',
   'connectors:types', 'connectors:list', 'connectors:openShimo', 'connectors:pickSendFile',   // pickSendFile 只弹文件选择框并在内存里记一次性许可   // openShimo 只用浏览器打开石墨官网
   // 助手产出：list / read 只读；export 只写用户在「另存为」里选的文件；reveal 只在文件管理器里显示（产出本身由 Agent 工具写，不走 IPC）
-  'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:board', 'agent-outputs:export', 'agent-outputs:reveal',
+  'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:board', 'agent-outputs:export', 'agent-outputs:reveal', 'agent-outputs:copyImage', 'agent-outputs:saveImage',
   // 助手的读取类：角色 / 状态 / 剧本 / 历史 / 引用解析；stop / answer / approve 只改内存里正在跑的那次提问
   'agent:roles', 'agent:status', 'agent:models', 'agent:modelInfo', 'agent:tools', 'agent:customRoles', 'agent:settings', 'agent:exportRole', 'agent:playbooks', 'agent:playbookGet', 'agent:playbookExport', 'agent:playbookOpenDir', 'agent:sessions', 'agent:session', 'agent:queryRecord', 'agent:cites', 'agent:stop', 'agent:answer', 'agent:approve',
+  // 分享卡片：模板列表 / 示例预览只读；setDefault / setChildName 写 <数据目录>/share-cards.json
+  'cards:templates', 'cards:preview',
   'cli:status', 'cli:install'   // 只写 ~/.local/bin 或用户目录下的包装脚本（和数据目录无关），重启待定时也可以用
 ])

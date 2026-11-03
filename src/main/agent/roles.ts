@@ -36,6 +36,7 @@ export const DATA_TOOLS = [
   'text_classify',
   'board_start', 'board_add_finding', 'board_add_section', 'board_add_block', 'board_set_caliber', 'board_preview', 'board_export',
   'doc_create', 'doc_write_section', 'doc_read', 'table_save', 'outputs_list', 'output_export',
+  'card_templates', 'card_make',
   'connectors_list', 'wecom_send'
 ]
 /** 这些角色可以用用户配置的外部（MCP）工具；它们的名字随连接器配置变化，不写在上面的名单里 */
@@ -65,14 +66,15 @@ export const ROLES: RoleDef[] = [
       '生成本周跟进名单',
       '哪些学员最近到课变少了',
       '这些学员课后该补什么',
-      '帮我写一段和家长沟通续费的话'
+      '帮我写一段和家长沟通续费的话',
+      '给小雨做一张过去时的知识卡'
     ],
     rules: ['试卷数据里没有学生个人的成绩，只有试卷上常见的易错点；学员个人情况只能依据用户导入的数据集回答，没有数据就直说，不要编造。', '名单里只放任务需要的字段；发到外部之前，提醒用户检查里面的个人信息。'],
     enabled: true
   },
   // 下面两个角色先占位：教研、授课老师的工具和剧本后续再接
   { id: 'research', names: { org: '教研', school: '教研组长' }, persona: '', tools: [...BASE_TOOLS, ...EXAM_TOOLS], suggestions: [], rules: [], enabled: false },
-  { id: 'teacher', names: { org: '授课老师', school: '任课老师' }, persona: '', tools: [...BASE_TOOLS, ...EXAM_TOOLS], suggestions: [], rules: [], enabled: false }
+  { id: 'teacher', names: { org: '授课老师', school: '任课老师' }, persona: '', tools: [...BASE_TOOLS, ...EXAM_TOOLS, 'card_templates', 'card_make'], suggestions: ['给学生做一张现在完成时的口诀卡'], rules: [], enabled: false }
 ]
 
 export const enabledRoles = (): RoleDef[] => ROLES.filter(r => r.enabled)

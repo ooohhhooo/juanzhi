@@ -1,0 +1,15 @@
+<style>
+.m-tag{font-size:1em;font-weight:800;color:var(--title-on);letter-spacing:.13em;font-family:var(--font-title)}
+.m-title{font-size:2.4em;font-weight:900;color:var(--title-ink);margin-top:.05em;line-height:1.15;font-family:var(--font-title)}
+.m-lines{background:var(--accent-soft);border-radius:.9em;padding:.8em 1em;display:flex;flex-direction:column;gap:.35em}
+.m-line{font-size:1.5em;font-weight:800;text-align:center;line-height:1.35}
+.m-line em{font-style:normal;color:var(--accent);background:var(--accent-soft2);border-radius:.3em;padding:0 .12em}
+.m-ex{margin-top:.9em;display:flex;flex-direction:column;gap:.55em}
+.m-row{display:flex;gap:.6em;align-items:flex-start;font-size:1.1em}
+.m-label{flex:none;background:var(--accent);color:#fff;border-radius:.9em;padding:.05em .7em;font-size:.85em;font-weight:800;margin-top:.1em}
+.m-text{flex:1;font-weight:600}
+</style>
+<zone name="title"><div class="m-tag">{{#if tag}}{{tag}}{{else}}口诀小卡{{/if}}</div><div class="m-title">{{title}}</div></zone>
+<zone name="panel"><div class="m-lines">{{#each lines}}<div class="m-line">{{{html}}}</div>{{/each}}</div>
+<div class="m-ex">{{#each examples}}<div class="m-row"><span class="m-label">{{label}}</span><span class="m-text latin">{{text}}</span></div>{{/each}}</div></zone>
+<zone name="foot"><span>{{#if signature}}{{signature}}{{/if}}{{#if date}}{{#if signature}} · {{/if}}{{date}}{{/if}}</span></zone>

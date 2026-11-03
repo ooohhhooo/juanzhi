@@ -17,7 +17,8 @@ export function useAgentOutputs(sessionId: string | null) {
     setOutputs(list)
     const cur = activeRef.current && list.some(o => o.id === activeRef.current) ? activeRef.current : (list[list.length - 1]?.id ?? null)
     if (cur !== activeRef.current) setActiveId(cur)
-    setContent(cur ? await window.api.agentOutputs.read(sessionId, cur).catch(() => null) : null)
+    const next = cur ? await window.api.agentOutputs.read(sessionId, cur).catch(() => null) : null
+    if (activeRef.current === cur) setContent(next)   // 读的过程中用户又切了别的产出：丢掉过期的结果
   }, [sessionId])
 
   useEffect(() => { void refresh() }, [refresh, activeId])
@@ -25,7 +26,7 @@ export function useAgentOutputs(sessionId: string | null) {
 
   return {
     outputs, activeId, content,
-    setActiveId: (id: string) => { setActiveId(id); setContent(null) },
+    setActiveId: (id: string) => { if (id === activeRef.current) return; setActiveId(id); setContent(null) },
     exportOutput: (id: string, format: 'docx' | 'pdf' | 'xlsx' | 'csv' | 'md') => (sessionId ? window.api.agentOutputs.export(sessionId, id, format) : Promise.resolve({ saved: false })),
     reveal: (id: string) => (sessionId ? window.api.agentOutputs.reveal(sessionId, id) : Promise.resolve(false))
   }

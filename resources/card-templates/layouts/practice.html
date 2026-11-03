@@ -1,0 +1,13 @@
+<style>
+.p-tag{font-size:1em;font-weight:800;color:var(--title-on);letter-spacing:.13em;font-family:var(--font-title)}
+.p-title{font-size:2.4em;font-weight:900;color:var(--title-ink);margin-top:.05em;line-height:1.15;font-family:var(--font-title)}
+.p-q{display:flex;gap:.7em;align-items:flex-start;background:var(--accent-soft);border-radius:.9em;padding:.65em .85em;margin-bottom:.7em}
+.p-n{flex:none;width:1.7em;height:1.7em;border-radius:50%;background:var(--accent);color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:1.1em}
+.p-body{flex:1}.p-text{font-size:1.2em;font-weight:700}
+.p-opts{margin-top:.3em;display:flex;flex-wrap:wrap;gap:.3em .9em;font-size:1em;color:var(--muted)}
+.p-enc{margin-top:.5em;text-align:center;font-size:1.25em;font-weight:800;color:var(--accent)}
+</style>
+<zone name="title"><div class="p-tag">{{#if tag}}{{tag}}{{else}}小练习{{/if}}</div><div class="p-title">{{title}}</div></zone>
+<zone name="panel">{{#each questions}}<div class="p-q"><span class="p-n">{{@n}}</span><div class="p-body"><div class="p-text latin">{{q}}</div><div class="p-opts latin">{{#each options}}<span>{{this}}</span>{{/each}}</div></div></div>{{/each}}
+{{#if encourage}}<div class="p-enc">{{encourage}}</div>{{/if}}</zone>
+<zone name="foot"><span>{{#if signature}}{{signature}}{{/if}}{{#if date}}{{#if signature}} · {{/if}}{{date}}{{/if}}</span></zone>

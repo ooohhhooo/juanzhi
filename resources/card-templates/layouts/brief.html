@@ -1,0 +1,11 @@
+<style>
+.b-tag{font-size:.93em;font-weight:700;color:var(--title-on);letter-spacing:.2em}
+.b-title{font-size:2.13em;font-weight:800;color:var(--title-ink);margin-top:.15em;font-family:var(--font-title)}
+.b-sub{font-size:.93em;color:var(--title-sub);margin-top:.15em}
+.b-sec{display:flex;gap:.8em;margin-bottom:.9em}
+.b-no{flex:none;font-size:1.7em;font-weight:900;color:var(--accent);font-family:var(--font-latin);line-height:1}
+.b-h{font-weight:800;font-size:1.1em;color:#1C1B2E}.b-p{font-size:.97em;line-height:1.6;color:#3A3950;margin-top:.15em}
+</style>
+<zone name="title"><div class="b-tag">学习简报</div><div class="b-title">{{#if title}}{{title}}{{else}}{{#if student}}{{student}}的{{else}}孩子的{{/if}}学习简报{{/if}}</div>{{#if subline}}<div class="b-sub">{{subline}}</div>{{/if}}</zone>
+<zone name="panel">{{#each sections}}<div class="b-sec"><span class="b-no">{{@nn}}</span><div><div class="b-h">{{heading}}</div><div class="b-p">{{body}}</div></div></div>{{/each}}</zone>
+<zone name="foot"><span>{{#if teacher}}{{teacher}}{{/if}}{{#if date}}{{#if teacher}} · {{/if}}{{date}}{{/if}}</span></zone>
