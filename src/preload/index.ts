@@ -224,7 +224,7 @@ const api = {
   diagnostics: {
     preview: (): Promise<{ entries: Array<{ name: string; desc: string; bytes: number }>; totalBytes: number; neverIncluded: string[] }> => ipcRenderer.invoke('diagnostics:preview'),
     export: (): Promise<{ saved: boolean; path?: string; dir?: string; bytes?: number; files?: number }> => ipcRenderer.invoke('diagnostics:export'),
-    short: (): Promise<string> => ipcRenderer.invoke('diagnostics:short'),
+    short: (copy?: boolean): Promise<string> => ipcRenderer.invoke('diagnostics:short', copy === true),
   },
   /** 反馈问题：打开 GitHub 新建 Issue 页（预填版本、系统；地址由主进程生成） */
   feedback: {

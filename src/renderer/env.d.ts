@@ -202,7 +202,7 @@ interface ElectronAPI {
   diagnostics: {
     preview(): Promise<{ entries: Array<{ name: string; desc: string; bytes: number }>; totalBytes: number; neverIncluded: string[] }>
     export(): Promise<{ saved: boolean; path?: string; dir?: string; bytes?: number; files?: number }>
-    short(): Promise<string>
+    short(copy?: boolean): Promise<string>
   }
   feedback: {
     url(): Promise<string>

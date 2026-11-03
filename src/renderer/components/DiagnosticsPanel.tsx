@@ -26,7 +26,7 @@ export default function DiagnosticsPanel() {
     } catch (e) { message.error(clean(e)) } finally { setSaving(false) }
   }
   const copyShort = async () => {
-    try { await navigator.clipboard.writeText(await window.api.diagnostics.short()); message.success('已复制简短诊断，可以粘贴到反馈里') } catch (e) { message.error(clean(e)) }
+    try { await window.api.diagnostics.short(true); message.success('已复制简短诊断，可以粘贴到反馈里') } catch (e) { message.error(clean(e)) }
   }
 
   return (

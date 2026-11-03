@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, shell } from 'electron'
+import { app, clipboard, dialog, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import { collectDiagnostics, writeDiagnosticsZip, shortDiagnosisText, feedbackLink } from '../diagnostics'
 import { DIAG_NEVER_INCLUDED } from '../diagnostics-core'
@@ -46,7 +46,8 @@ export function registerDiagnosticsIpc(): void {
     return { saved: true, path: out, dir: path.dirname(out), bytes, files: entries.length }
   })
 
-  ipcMain.handle('diagnostics:short', async () => shortDiagnosisText())
+  // copy=true 时由主进程写剪贴板：页面里 navigator.clipboard 要等 IPC 返回后才写，常被系统当成「没有用户操作」拒绝（Write permission denied）
+  ipcMain.handle('diagnostics:short', async (_e, copy: unknown) => { const t = await shortDiagnosisText(); if (copy === true) clipboard.writeText(t); return t })
   ipcMain.handle('feedback:url', async () => feedbackLink())
   ipcMain.handle('feedback:open', async () => { await shell.openExternal(feedbackLink()); return true })
 
