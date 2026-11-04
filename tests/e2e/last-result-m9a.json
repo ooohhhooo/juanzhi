@@ -1,0 +1,404 @@
+[
+  {
+    "feature": "设置",
+    "name": "「同时解析的试卷数」上限提到 16",
+    "pass": true,
+    "detail": "aria-valuemax=16"
+  },
+  {
+    "feature": "设置",
+    "name": "保存 16 能通过校验；17 被拒绝（主进程 zod）",
+    "pass": true,
+    "detail": "16"
+  },
+  {
+    "feature": "设置",
+    "name": "拆题用的模型和写报告用的模型是两个输入框，旧配置里拆题模型是空的（默认等于写报告的那一个）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "设置",
+    "name": "拆题模型旁边写明推荐用快速、不带深度思考的模型",
+    "pass": true,
+    "detail": "推荐用快速、不带深度思考的模型：拆题只是把卷子抄成题目，不需要“想”。留空 = 和右边写报告的模型一样。"
+  },
+  {
+    "feature": "设置",
+    "name": "预设里只给「查得到是快速模型」的服务商填了推荐拆题模型（通义、Kimi），其余留空不猜",
+    "pass": true,
+    "detail": "deepseek: qwen:qwen-plus doubao: kimi:kimi-k2-0905-preview zhipu: custom:"
+  },
+  {
+    "feature": "测试连接",
+    "name": "「测试全部」分别测三项：拆题模型成功、写报告模型成功、视觉模型 403 失败",
+    "pass": true,
+    "detail": "{\"parse\":\"ok\",\"report\":\"ok\",\"vision\":\"fail\"} 请求 mock-parse-model:261026,mock-text-model:261026,mock-vision-403:261026"
+  },
+  {
+    "feature": "测试连接",
+    "name": "403 的话是「这个密钥没有权限使用这个模型」，写明模型名，不再和「密钥无效」混成一句",
+    "pass": true,
+    "detail": "视觉模型：失败 mock-vision-403 这个密钥没有权限使用这个模型（mock-vision-403） 到服务商的控制台，给这把密钥开通这个模型（有的服务商要先「开通模型」，或先创建「推理接入点」，这时模型名要填接入点 ID）； 或者换成这把密钥有权限的模型； 或者让视觉模型改用另一家服务商 / 另一把密钥（在"
+  },
+  {
+    "feature": "测试连接",
+    "name": "403 下面有「怎么办」的几步（开通模型 / 换模型 / 用另一家 / 看详情）和服务商原话",
+    "pass": true,
+    "detail": "steps=4"
+  },
+  {
+    "feature": "测试连接",
+    "name": "三项各用各的模型发请求（拆题 mock-parse-model、写报告 mock-text-model、视觉 mock-vision-403），没有重复测同一个",
+    "pass": true,
+    "detail": "mock-parse-model,mock-text-model,mock-vision-403"
+  },
+  {
+    "feature": "测试连接",
+    "name": "视觉测试发出带图的请求，图是 64×64 的点阵字图（不是纯色块）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "测试连接",
+    "name": "拆题模型留空（= 和写报告的相同）时只测一次，写报告那行写「与拆题用的模型相同，不重复测」",
+    "pass": true,
+    "detail": "mock-text-model,mock-vision-403"
+  },
+  {
+    "feature": "测试连接",
+    "name": "视觉模型读对了测试图上的字（7K）→ 「能看图」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "测试连接",
+    "name": "能连通但读不对测试图 → 黄色提示「可能不会看图，请换一个带视觉能力的模型」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "视觉模型自己的服务",
+    "name": "换了视觉模型的服务地址但没填它自己的密钥：不会把文本模型的密钥发过去，提示先填它自己的 API Key",
+    "pass": true,
+    "detail": "视觉模型：失败 mock-vision-model 视觉模型用了不同的服务地址，请先填写它自己的 API Key 重测这一项"
+  },
+  {
+    "feature": "视觉模型自己的服务",
+    "name": "视觉测试发到了它自己的服务地址，带的是它自己的密钥；文本测试仍发给原来的服务",
+    "pass": true,
+    "detail": "Bearer sk-e2e-M9A-VISION-20261102 | Bearer sk-e2e-M4-SECRET-20261026,Bearer sk-e2e-M4-SECRET-20261026"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "保存后 hasVisionKey = true，配置视图里没有任何密钥；视觉模型的密钥只存在加密槽 ai_key_vision_enc 里，通用设置接口读不到",
+    "pass": true,
+    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:52848/v1\",\"model\":\"mock-text-model\",\"parse_model\":\"\",\"vision_model\":\"m"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "库里存的是密文（不含明文），且数据包 / 日志里不会出现",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "密钥安全",
+    "name": "改视觉模型的服务地址而不重新输入它的密钥 → 拒绝保存（已存的密钥不会被发往新地址）",
+    "pass": true,
+    "detail": "Error invoking remote method 'ai:saveConfig': Error: 更换视觉模型的服务地址后需要重新输入它的 API Key（已保存的密钥不会被发往新的地址）"
+  },
+  {
+    "feature": "密钥安全",
+    "name": "主进程输出里没有任何密钥",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "三种夹具",
+    "name": "PNG 截图、手机照片（JPG）、Word 都解析成功（待审核）",
+    "pass": true,
+    "detail": "png:reviewing jpg:reviewing docx:reviewing"
+  },
+  {
+    "feature": "三种夹具",
+    "name": "png：25 道题里 24 道有框（≥ 90%），框都是题目区域（面积 < 页面的一半），不是整页",
+    "pass": true,
+    "detail": "24/25 最大面积 0.023"
+  },
+  {
+    "feature": "三种夹具",
+    "name": "jpg：25 道题里 24 道有框（≥ 90%），框都是题目区域（面积 < 页面的一半），不是整页",
+    "pass": true,
+    "detail": "24/25 最大面积 0.038"
+  },
+  {
+    "feature": "三种夹具",
+    "name": "docx：12 道题里 12 道有框（≥ 90%），框都是题目区域（面积 < 页面的一半），不是整页",
+    "pass": true,
+    "detail": "12/12 最大面积 0.033"
+  },
+  {
+    "feature": "三种夹具",
+    "name": "png：用的是本机识别的文字定位（text-anchor，真实 OCR 的行位置），识别方式记为 Mac 自带识别；置信度偏低不算「识别可能不完整」",
+    "pass": true,
+    "detail": "mac-vision/ocr-ok conf=0.54"
+  },
+  {
+    "feature": "三种夹具",
+    "name": "jpg：用的是本机识别的文字定位（text-anchor，真实 OCR 的行位置），识别方式记为 Mac 自带识别；置信度偏低不算「识别可能不完整」",
+    "pass": true,
+    "detail": "mac-vision/ocr-ok conf=0.49"
+  },
+  {
+    "feature": "Word 页面图",
+    "name": "Word 试卷有页面图（A4 宽的 PNG，文件真实存在），行带坐标（lines_json），识别方式 = Word 直接读取文字",
+    "pass": true,
+    "detail": "1 页 1588×1616 行 32"
+  },
+  {
+    "feature": "Word 页面图",
+    "name": "Word 的自动编号补回了题号（「1. What is your name?」类），填空横线保留成下划线（「7. I ________」）",
+    "pass": true,
+    "detail": "1. What's your name? | A. Tom B. Tom is C. I Tom | 2. Is this a pen? | A. Yes, it is. B. Yes, this is. C. No, I am not."
+  },
+  {
+    "feature": "Word 页面图",
+    "name": "Word 的题 bbox_source = text-anchor（和 PDF / 图片同一套定位）",
+    "pass": true,
+    "detail": "text-anchor"
+  },
+  {
+    "feature": "识别方式",
+    "name": "试卷详情里 Word 一行写「Word 文件：直接读取文字，不经过识别」",
+    "pass": true,
+    "detail": "识别方式 每一页是怎么识别的 第 1 页：Word 文件：直接读取文字，不经过识别 Word 里的文字可以直接读出来"
+  },
+  {
+    "feature": "出自原卷",
+    "name": "总览每个知识点的「出自原卷」都是按框裁出的题目区域（框面积 < 页面的一半），没有整页",
+    "pass": true,
+    "detail": "9 个：crop"
+  },
+  {
+    "feature": "出自原卷",
+    "name": "PNG 截图的试卷同样是区域截图",
+    "pass": true,
+    "detail": "10 个"
+  },
+  {
+    "feature": "出自原卷",
+    "name": "没有框的题：不显示整页，写明「这道题还没在原卷上框出位置」，并有「去框一下」按钮",
+    "pass": true,
+    "detail": "{\"mode\":\"nobox\",\"text\":\"这道题还没在原卷上框出位置\\n没有框，就截不到这道题；整页不能代替它。\\n去框一下\",\"imgs\":0,\"btn\":1}"
+  },
+  {
+    "feature": "去框一下",
+    "name": "点「去框一下」跳到审核页，地址里带着这道题的 id，属于这份试卷",
+    "pass": true,
+    "detail": "#/review/e184fd8c-9238-408e-b36f-ac3240e4935d?q=0360a6eb-df0a-4d9a-8311-e76233da0ea3"
+  },
+  {
+    "feature": "去框一下",
+    "name": "审核页选中的就是这道题（页面图上有「这道题没有定位框」+「在此页画一个框」）",
+    "pass": true,
+    "detail": "第 8 题"
+  },
+  {
+    "feature": "去框一下",
+    "name": "画框后立即写库（bbox_source = manual）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "去框一下",
+    "name": "回到总览，这个知识点的「出自原卷」变成了截图，其余还没框的仍写「去框一下」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "没找到位置",
+    "name": "试卷详情写「4 道题没找到位置」，列出题号，并有「去框一下」",
+    "pass": true,
+    "detail": "注意 4 道题没找到位置 这些题还没在原卷上框出位置，“出自原卷”里就看不到它们的截图（共 25 道题，已找到 21 道）：第 1、2、3、25 题。 在审核页选中这道题、在页面图上拖一个框，截图马上就有了。 去框一下"
+  },
+  {
+    "feature": "没找到位置",
+    "name": "点「去框一下」跳到审核页的第一道没框的题",
+    "pass": true,
+    "detail": "#/review/abe9353f-bc3e-464e-83c5-6664fe6fbc45?q=a44e5307-8639-4ad7-86e0-6bb325f6f598"
+  },
+  {
+    "feature": "没找到位置",
+    "name": "都框好之后这条提示不再出现",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "识别质量",
+    "name": "Windows 英文引擎 + 固定 0.8 置信度 + 中文卷（auto）：这页改用 AI 读图（以前永远不会）",
+    "pass": true,
+    "detail": "reviewing vision-model/lang-mismatch"
+  },
+  {
+    "feature": "识别质量",
+    "name": "读图请求发到了视觉模型自己的服务地址、带自己的密钥；文本服务没有收到 P1 请求",
+    "pass": true,
+    "detail": "mock2=1 mock=0"
+  },
+  {
+    "feature": "识别质量",
+    "name": "读图后每道题有框（要求视觉模型给框）：≥ 90% 有框",
+    "pass": true,
+    "detail": "25/25"
+  },
+  {
+    "feature": "识别方式",
+    "name": "试卷详情写「第 1 页：AI 读图」和为什么（这台电脑没装中文识别，所以交给 AI 读图）",
+    "pass": true,
+    "detail": "识别方式 每一页是怎么识别的 第 1 页：AI 读图 这台电脑没装中文识别，中文认不全，所以交给 AI 读图"
+  },
+  {
+    "feature": "识别质量",
+    "name": "没有视觉模型：仍用本机文字解析成功，记下「识别效果不好但没有视觉模型」，没有发图",
+    "pass": true,
+    "detail": "reviewing win-ocr/no-vision-model"
+  },
+  {
+    "feature": "识别方式",
+    "name": "papers:list 带 rec_low，试卷库用它标「识别可能不完整」",
+    "pass": true,
+    "detail": "1"
+  },
+  {
+    "feature": "识别方式",
+    "name": "试卷库这一行有「识别可能不完整」小标签（文字，不只靠颜色）",
+    "pass": true,
+    "detail": "2024-2025学年第二学期四年级英语期末试卷疑似重复AI 猜的，请确认 4年级 下 2024-2025 期末 1 页 待审核 · 疑似重复 识别可能不完整 "
+  },
+  {
+    "feature": "识别方式",
+    "name": "详情页写「第 1 页：Windows 自带识别（English）　没装中文语言包，中文可能认不全」，并说明为什么只能用它",
+    "pass": true,
+    "detail": "识别方式 这份卷子的识别可能不完整 第 1 页：Windows 自带识别（English）没装中文语言包，中文可能认不全 识别效果不好，但还没有设置能读图的 AI 模型，只能用现有的文字"
+  },
+  {
+    "feature": "识别方式",
+    "name": "macOS 上不显示「怎么安装中文识别」（Windows 才有）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "识别方式",
+    "name": "审核页顶部同样有「识别方式」卡",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "读图策略",
+    "name": "「图片和扫描件一律交给 AI 读图」：本机识别正常的页也发图",
+    "pass": true,
+    "detail": "vision-model/policy-images-always"
+  },
+  {
+    "feature": "读图策略",
+    "name": "「从不读图」：识别很差也只用本机文字，不发图，记下原因",
+    "pass": true,
+    "detail": "win-ocr/vision-never"
+  },
+  {
+    "feature": "视觉要框",
+    "name": "视觉模型有题没给框：第一次的结果不直接收，带着「哪些题没给 anchor」再要一次，补全后入库",
+    "pass": true,
+    "detail": "请求 2 次；有框 25/25；你上一次的输出不符合要求：\n这些题的 anchor 是 null 或缺失：第 1、2、3、4、5、6、7、8、9、10、"
+  },
+  {
+    "feature": "读图 403",
+    "name": "视觉模型 403：这页改用本机识别的文字，卷子仍解析成功，原因记为「读图时没有权限」",
+    "pass": true,
+    "detail": "reviewing win-ocr/vision-forbidden"
+  },
+  {
+    "feature": "读图 403",
+    "name": "批次明细里：读图那批失败（forbidden），随后文本那批成功",
+    "pass": true,
+    "detail": "[{\"mode\":\"vision\",\"model\":\"mock-vision-403\",\"ok\":0,\"err_code\":\"forbidden\"},{\"mode\":\"text\",\"model\":\"mock-text-model\",\"ok\":1,\"err_code\":null}]"
+  },
+  {
+    "feature": "读图 403",
+    "name": "详情页的原因：AI 读图时这个密钥没有权限，已改用本机识别的文字",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "模型拆分",
+    "name": "拆题请求用的是「拆题用的模型」（推理型 mock-reasoning-parse），不是写报告的 mock-report-model",
+    "pass": true,
+    "detail": "mock-reasoning-parse,mock-reasoning-parse"
+  },
+  {
+    "feature": "批次明细",
+    "name": "写长度截断后加长重试成功的批次：parse_batches 记录 truncated=1、escalated=1、尝试 ≥ 2 次、模型、耗时",
+    "pass": true,
+    "detail": "{\"id\":11,\"paper_id\":\"99f035fd-4906-4f8c-93d5-48d9b3e8dbdd\",\"run_id\":10,\"seq\":1,\"mode\":\"text\",\"model\":\"mock-reasoning-parse\",\"pages\":\"1\",\"attempts\":2,\"truncated\":1,\"escalated\":1,\"reasoning_tokens\":null,\"prompt_tokens\":14311,\"completion_tokens\":6783,\"ms\":48,\"ok\":1,\"err_code\":null,\"created_at\":\"2026-11-02 22:44:01\"}"
+  },
+  {
+    "feature": "模型拆分",
+    "name": "用量记录里拆题的调用记在拆题模型名下",
+    "pass": true,
+    "detail": "[{\"model\":\"mock-reasoning-parse\",\"kind\":\"parse-text\"},{\"model\":\"mock-reasoning-parse\",\"kind\":\"parse-text\"}]"
+  },
+  {
+    "feature": "模型拆分",
+    "name": "解析记录的 AI 模型是拆题模型",
+    "pass": true,
+    "detail": "mock-reasoning-parse"
+  },
+  {
+    "feature": "建议换模型",
+    "name": "设置页出现建议条：写明模型名、最近几批里几批被重试、建议换成更快的拆题模型；程序不会自己换",
+    "pass": true,
+    "detail": "注意 拆题比较慢，建议换一个更快的模型 你用的拆题模型 mock-reasoning-parse 是深度思考型，最近 10 批里有 4 批因为写不完被自动重试，拆一份卷子要等很久。 建议在下面把「拆题用的模型」换成更快、不带深度思考的。程序不会自己换模型，由你决定。 以后不再提示"
+  },
+  {
+    "feature": "建议换模型",
+    "name": "只提示、不自动切换：配置一字未改",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "建议换模型",
+    "name": "处理队列页顶部也有同样的建议条（去设置 / 以后不再提示）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "建议换模型",
+    "name": "点「以后不再提示」后建议条消失，刷新页面也不再出现",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "建议换模型",
+    "name": "批次不足 10 个不下结论",
+    "pass": true,
+    "detail": "{\"suggest\":false,\"total\":2,\"retried\":0,\"medianMs\":95000,\"reason\":null,\"model\":\"mock-reasoning-parse\",\"reasoning\":true,\"recommend\":null}"
+  },
+  {
+    "feature": "建议换模型",
+    "name": "拆题用的是深度思考型模型时，设置页写明「深度思考型（较慢）」并预先建议换快速的",
+    "pass": true,
+    "detail": "深度思考型（较慢）"
+  },
+  {
+    "feature": "截图",
+    "name": "新界面状态的浅色 / 深色截图已存到 docs/screenshots/m9a-*.png",
+    "pass": true,
+    "detail": "m9a-missing-box-dark.png m9a-missing-box-light.png m9a-model-hint-light.png m9a-overview-crop-light.png m9a-overview-nobox-dark.png m9a-overview-nobox-light.png m9a-queue-model-hint-light.png m9a-recognition-card-dark.png m9a-recognition-card-light.png m9a-review-from-origin-light.png m9a-settings-split-dark.png m9a-settings-split-light.png m9a-settings-test-403-light.png m9a-word-detail-light.png m9a-word-page-image.png"
+  },
+  {
+    "feature": "控制台",
+    "name": "整个测试里页面没有未捕获的错误",
+    "pass": true,
+    "detail": "[]"
+  }
+]

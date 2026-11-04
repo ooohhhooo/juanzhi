@@ -1,0 +1,434 @@
+[
+  {
+    "feature": "M7 status",
+    "name": "status：退出码 0，stdout 只有一行 JSON（{ok:true,data}），版本号、数据目录、卷子数、AI 是否已配置、OCR 是否可用都在",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\" → v10\\n[db] schema 已升级到 v10\\n[juanzhi][debug] db ready\\n[juanzhi][debug] run command\\n[juanzhi][debug] finish ok=true\\n[juanzhi][debug] visibleWindows=0 totalWindows=0 dock=false\\n[juanzhi][debug] exit(0)\\n\"}"
+  },
+  {
+    "feature": "M7 stderr",
+    "name": "进度和日志写 stderr（有 [juanzhi] 或 [db] 日志），stdout 里没有任何日志",
+    "pass": true,
+    "detail": "[juanzhi][debug] ready\n[juanzhi][debug] lock acquired\n[db] 使用 node:sqlite\n[db] 执行迁移 v0 → v1\n[db] 执行迁移 v1 → v2\n[db] 执行迁移 "
+  },
+  {
+    "feature": "M7 无窗口",
+    "name": "命令行运行期间没有任何可见窗口，Mac 上没有 Dock 图标",
+    "pass": true,
+    "detail": "[juanzhi][debug] ready [juanzhi][debug] lock acquired [juanzhi][debug] db ready [juanzhi][debug] run command [juanzhi][debug] finish ok=true [juanzhi][debug] visibleWindows=0 totalWindows=0 dock=false [juanzhi][debug] exit(0)"
+  },
+  {
+    "feature": "M7 帮助",
+    "name": "不带命令：返回命令清单和退出码表（ok:true），不需要数据库",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 退出码 2",
+    "name": "未知命令：退出码 2、code=usage，message 是中文",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"没有「bogus」这个命令。可用命令：status、import、papers list、papers show、papers confirm、stats overview、stats hot、stats compare、report generate、report list、report show、report export\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 退出码 2",
+    "name": "缺参数 / 非法 id / 非法筛选值 / 未知参数：都是退出码 2",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"「papers show」需要 <id>\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 安全",
+    "name": "没有设置 / 读取 API Key 的命令，也没有改数据目录的参数（config、--data-dir、--api-key 都是退出码 2）",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"没有「config set-key」这个命令。可用命令：status、import、papers list、papers show、papers confirm、stats overview、stats hot、stats compare、report generate、report list、report show、report export\"},\"err\":\"\"}{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"「status」不认识参数 --data-dir\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 退出码 5",
+    "name": "没配 AI：import 报 ai_not_configured（退出码 5），提示到「设置 → AI 服务」里填写，命令行不能设置密钥；没有导入任何东西",
+    "pass": true,
+    "detail": "{\"code\":5,\"json\":{\"ok\":false,\"code\":\"ai_not_configured\",\"message\":\"还没有配置 AI 服务。命令行不能设置 API Key：请打开卷知窗口，到「设置 → 管理员设置 → AI 服务」里填写并保存，再回来使用命令行\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46707:1027/210343.112405:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 5",
+    "name": "没配 AI：report generate 同样报 ai_not_configured",
+    "pass": true,
+    "detail": "{\"code\":5,\"json\":{\"ok\":false,\"code\":\"ai_not_configured\",\"message\":\"还没有配置 AI 服务。命令行不能设置 API Key：请打开卷知窗口，到「设置 → 管理员设置 → AI 服务」里填写并保存，再回来使用命令行\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46711:1027/210343.396494:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 8",
+    "name": "papers confirm 没带 --i-reviewed：退出码 8、confirmation_required，message 说明风险并让用户在界面里审核",
+    "pass": true,
+    "detail": "{\"code\":8,\"json\":{\"ok\":false,\"code\":\"confirmation_required\",\"message\":\"这条命令会跳过人工审核，把整份试卷的所有题目直接标为「已确认」。AI 解析的题型、分值、知识点可能有错，这些错会直接进入统计和报告。应该在卷知界面里逐题审核；如果你（或使用者）确实已经审核过了，再加上 --i-reviewed 参数重新运行\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46717:1027/210343.680017:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 6",
+    "name": "papers show / papers confirm 用了不存在的 id：退出码 6、not_found",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 退出码 13",
+    "name": "数据目录找不到：退出码 13、data_unavailable，没有弹对话框也没有悄悄建一个空库",
+    "pass": true,
+    "detail": "{\"code\":13,\"json\":{\"ok\":false,\"code\":\"data_unavailable\",\"message\":\"找不到之前设置的数据目录：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/不存在的移动硬盘/workbench-data。如果它在移动硬盘或网络位置上，请先连接好；或打开卷知窗口改用默认位置\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 --out",
+    "name": "--out / --result-file / 环境变量 JUANZHI_RESULT_FILE：把同一段 JSON 同时写进文件（和 stdout 一致）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46744:1027/210345.118674:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 report list",
+    "name": "空库：report list 返回空列表",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 status",
+    "name": "配好 AI 之后：ai.configured = true，只告诉有没有配（输出里没有密钥、没有服务地址）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46786:1027/210348.179783:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 9",
+    "name": "导入不存在的文件：退出码 9、import_failed，data.papers 里有每份的结果",
+    "pass": true,
+    "detail": "{\"code\":9,\"json\":{\"ok\":false,\"code\":\"import_failed\",\"message\":\"有 1 份没能导入或解析成功：不存在.pdf（文件不存在或不是普通文件）\"},\"err\":\".Electron.MachPortRendezvousServer.46787: Unknown service name (1102)\\n[46790:1027/210348.494106:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 import",
+    "name": "import <pdf> --wait：提取 + AI 解析（mock），等到「待审核」才返回，每份有 paperId / status / 题数；提示「AI 解析结果未经人工审核」",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"cEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 导入 1 份文件……\\n[juanzhi] extracting\\n\"} 1015ms"
+  },
+  {
+    "feature": "M7 stderr 进度",
+    "name": "import 的进度写在 stderr（[juanzhi] 导入 / 状态）",
+    "pass": true,
+    "detail": "cEncryptionAvailable' instead.\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\n[juanzhi] 导入 1 份文件……\n[juanzhi] extracting\n"
+  },
+  {
+    "feature": "M7 重复导入",
+    "name": "导入内容相同的文件：不重复导入，status = duplicate，summary.duplicates = 1",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"e 'safeStorage.isAsyncEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 导入 1 份文件……\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 10",
+    "name": "--timeout 到了还没处理完：退出码 10、timeout，data 里带当前每份的状态",
+    "pass": true,
+    "detail": "{\"code\":10,\"json\":{\"ok\":false,\"code\":\"timeout\",\"message\":\"等了 2 秒还有试卷没处理完（命令行退出后这些任务不会继续）。可以加大 --timeout 再试\"},\"err\":\"cEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 导入 1 份文件……\\n[juanzhi] extracting\\n\"}"
+  },
+  {
+    "feature": "M7 papers list",
+    "name": "papers list：列出试卷（id / 标题 / 状态 / 题数）；上一次被中断的导入在下一次命令行启动时退回（已提取 / failed），不会一直卡在「处理中」",
+    "pass": true,
+    "detail": "[[\"g4-2026-slow.pdf\",\"extracted\"],[\"g4-2025.pdf\",\"reviewing\"]]"
+  },
+  {
+    "feature": "M7 papers list 筛选",
+    "name": "papers list --status reviewing 只给待审核的",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 papers show",
+    "name": "papers show：题目（题型、分值、知识点、难度、是否已确认），知识点名称里没有内部代码，待审核时写明「还没有经过人工审核」",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46841:1027/210353.146969:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 stats 待审核",
+    "name": "stats overview：待审核的卷子默认不计入；加 --include-reviewing 才计入（和界面一致）",
+    "pass": true,
+    "detail": "[{\"papers\":0,\"questions\":0,\"kps\":0,\"pending\":1},{\"papers\":1,\"questions\":36,\"kps\":25,\"pending\":1}]"
+  },
+  {
+    "feature": "M7 papers confirm 守卫",
+    "name": "没带 --i-reviewed：退出码 8，这份卷子仍是待审核",
+    "pass": true,
+    "detail": "{\"code\":8,\"json\":{\"ok\":false,\"code\":\"confirmation_required\",\"message\":\"这条命令会跳过人工审核，把整份试卷的所有题目直接标为「已确认」。AI 解析的题型、分值、知识点可能有错，这些错会直接进入统计和报告。应该在卷知界面里逐题审核；如果你（或使用者）确实已经审核过了，再加上 --i-reviewed 参数重新运行\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46858:1027/210354.060889:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 7",
+    "name": "确认一份还没解析完成（已提取 / failed）的卷子：退出码 7、invalid_state",
+    "pass": true,
+    "detail": "{\"code\":7,\"json\":{\"ok\":false,\"code\":\"invalid_state\",\"message\":\"这份试卷现在是「extracted」状态，还没有解析完成，不能确认\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46865:1027/210354.392528:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 papers confirm",
+    "name": "带 --i-reviewed：整份确认（status = done，所有题已确认），返回里再提醒一次「跳过了人工审核」",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46870:1027/210354.734639:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 stats",
+    "name": "stats overview / hot：返回和界面一致的统计（确认后卷子计入）；hot 支持 --level 和筛选",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46874:1027/210355.029622:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46883:1027/210355.323443:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 stats 参数",
+    "name": "非法 --level、compare 缺 --target：退出码 2",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 stats compare",
+    "name": "stats compare --target 2025 --base before：同比结果（样本不足时有提示，不下结论）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46902:1027/210356.520830:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 report generate boss",
+    "name": "report generate --reader boss：返回 reportId、markdown、unverified、warnings、draft（没有老师核对都是 AI 草稿）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"cEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 生成报告……\\n[juanzhi] 报告生成中……已收到 0 字\\n\"}"
+  },
+  {
+    "feature": "M7 report generate teacher",
+    "name": "report generate --reader teacher：返回 reportId、markdown、unverified、warnings、draft（没有老师核对都是 AI 草稿）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46910:1027/210357.373587:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 report generate parent",
+    "name": "report generate --reader parent：返回 reportId、markdown、unverified、warnings、draft（没有老师核对都是 AI 草稿）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"cEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 生成报告……\\n[juanzhi] 报告生成中……已收到 0 字\\n\"}"
+  },
+  {
+    "feature": "M7 report generate full",
+    "name": "report generate --reader full：返回 reportId、markdown、unverified、warnings、draft（没有老师核对都是 AI 草稿）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"cEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 生成报告……\\n[juanzhi] 报告生成中……已收到 0 字\\n\"}"
+  },
+  {
+    "feature": "M7 家长版草稿",
+    "name": "家长版：返回的 JSON 里 parentDraft = true，并有「AI 草稿 · 未经老师核对，请勿直接发给家长」的 warning；没有任何命令能替老师点「我已核对」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 内部代码",
+    "name": "报告正文里没有内部代码（过滤在命令行路径上照样生效）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 退出码 2",
+    "name": "report generate 缺 --reader / 读者不对：退出码 2",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 退出码 14",
+    "name": "AI 服务调用失败：退出码 14、ai_failed，message 是白话（不含 HTTP 状态码这类技术词）",
+    "pass": true,
+    "detail": "{\"code\":14,\"json\":{\"ok\":false,\"code\":\"ai_failed\",\"message\":\"AI 服务暂时不可用，请稍后再试；可以点「重试」，多次失败请联系管理员\"},\"err\":\"cEncryptionAvailable' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 生成报告……\\n[juanzhi] 报告生成中……已收到 0 字\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 7",
+    "name": "范围里没有可统计的卷子：report generate 退出码 7、invalid_state（不花 AI 的钱）",
+    "pass": true,
+    "detail": "{\"code\":7,\"json\":{\"ok\":false,\"code\":\"invalid_state\",\"message\":\"当前筛选下没有计入统计的试卷，无法生成报告\"},\"err\":\".Electron.MachPortRendezvousServer.46950: Unknown service name (1102)\\n[46955:1027/210403.037906:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 report list",
+    "name": "report list：4 份报告，每份有 id / 版本 / 是否草稿",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46961:1027/210403.355277:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client"
+  },
+  {
+    "feature": "M7 report show",
+    "name": "report show <id>：完整 markdown、未核实句子、refs；家长版仍标草稿",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46968:1027/210403.634302:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client"
+  },
+  {
+    "feature": "M7 导出 家长版 md",
+    "name": "家长版没核对导出 Markdown：文件开头有醒目的「AI 草稿 · 未经老师核对，请勿直接发给家长」，页脚注释写 AI 草稿；JSON 里 draft = true 并带 warning",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46972:1027/210403.916809:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 导出 家长版 docx",
+    "name": "家长版没核对导出 Word：正文开头有草稿标记；JSON 里 draft = true",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46976:1027/210404.220123:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}给家长的话\n\nAI 草稿 · 未经老师核对，请勿直接发给家长\n\n各位家长好，这次期末英语有 3 个小地方孩子容易错，在家几分钟就能帮上：\n\n1.  孩子在“细节"
+  },
+  {
+    "feature": "M7 导出 家长版 pdf",
+    "name": "家长版没核对导出 PDF：页面上有草稿标记；JSON 里 draft = true",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"[db] 使用 node:sqlite\\n\"}AI 草稿 · 未经⽼师核对，请勿直接发给家⻓各位家⻓好，这次期末英语有 3 个⼩地⽅孩⼦容易错，在家⼏分钟就能帮上：1. 孩⼦在“细节理解”这类题上容易出错，"
+  },
+  {
+    "feature": "M7 导出 boss",
+    "name": "boss 导出 Markdown：成功，不带家长版的草稿标记（parentDraft = false），但 draft = true（没有老师核对过，都是 AI 草稿），开头来源注释写明「AI 草稿 · 请老师核对」",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[46999:1027/210406.560114:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 导出 teacher",
+    "name": "teacher 导出 Markdown：成功，不带家长版的草稿标记（parentDraft = false），但 draft = true（没有老师核对过，都是 AI 草稿），开头来源注释写明「AI 草稿 · 请老师核对」",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"[db] 使用 node:sqlite\\n\"}"
+  },
+  {
+    "feature": "M7 导出 full",
+    "name": "full 导出 Markdown：成功，不带家长版的草稿标记（parentDraft = false），但 draft = true（没有老师核对过，都是 AI 草稿），开头来源注释写明「AI 草稿 · 请老师核对」",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"[db] 使用 node:sqlite\\n\"}"
+  },
+  {
+    "feature": "M7 导出 扩展名",
+    "name": "--out 没写扩展名：自动补 .md",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[47015:1027/210407.447636:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 导出 --result-file",
+    "name": "report export 里 --out 是文档路径，JSON 副本用 --result-file",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 导出 参数",
+    "name": "缺 --out / --format / 格式不对：退出码 2",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 家长版已核对",
+    "name": "老师在界面里点过「我已核对」之后，命令行导出的家长版没有草稿标记，JSON 里 draft = false、reviewed = true",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[47072:1027/210410.782288:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}<!-- 由「卷知」导出（已由老师核对（2026-10-27 21:04:10）；数据来源：1 份校考卷（2024-2025 学年）） -->\n\n各位家长好，这次期末英语有 3 个小地方孩子容易错，在"
+  },
+  {
+    "feature": "M7 退出码 11",
+    "name": "家长版内容太少（只剩 1 条）：命令行也拒绝导出，退出码 11、export_blocked（把关在命令行路径上照样生效）",
+    "pass": true,
+    "detail": "{\"code\":11,\"json\":{\"ok\":false,\"code\":\"export_blocked\",\"message\":\"这份家长版只剩 1 条要点（至少要 2 条），可能是不通顺的条目被程序去掉了，建议重新生成一份\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[47079:1027/210411.091329:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 结果文件不能覆盖数据库",
+    "name": "--result-file / --out / JUANZHI_RESULT_FILE 指向数据库、数据目录或 userData：退出码 2，数据库一个字节都没变",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"结果文件不能放在卷知的数据目录里（/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/A）：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/A/workbench-data/db.sqlite\"},\"err\":\"/workbench-data/db.sqlite）：结果文件不能放在卷知的数据目录里（/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/A）：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/A/workbench-data/db.sqlite\\n\"}"
+  },
+  {
+    "feature": "M7 不覆盖别人的文件",
+    "name": "结果文件已经存在、而且不是卷知以前写的结果文件：拒绝（退出码 2），原文件不变；扩展名不是 .json / .txt 也拒绝",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/my-notes.txt 已经存在，而且不是卷知以前写的结果文件，不会覆盖。请换一个文件名\"},\"err\":\"nzhi] 没有写结果文件（/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/my-notes.txt）：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/my-notes.txt 已经存在，而且不是卷知以前写的结果文件，不会覆盖。请换一个文件名\\n\"}"
+  },
+  {
+    "feature": "M7 可以覆盖自己的结果",
+    "name": "卷知以前写的结果文件可以直接覆盖（反复运行同一条命令不用先删文件）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 命令写错也写结果文件",
+    "name": "命令写错（退出码 2）时，--result-file 指定的文件里也有 {ok:false,…}",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"没有「bogus」这个命令。可用命令：status、import、papers list、papers show、papers confirm、stats overview、stats hot、stats compare、report generate、report list、report show、report export\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 命令名不撞原型",
+    "name": "constructor / toString 这类名字当命令：退出码 2（usage），不是内部错误",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 导出不静默覆盖",
+    "name": "report export 目标已存在：默认拒绝（退出码 2、旧文件不变），加 --overwrite 才覆盖；不能导出到数据目录里",
+    "pass": true,
+    "detail": "{\"code\":2,\"json\":{\"ok\":false,\"code\":\"usage\",\"message\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/exports/exists.md 已经存在。要覆盖它请加 --overwrite，或者换一个文件名\"},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[47150:1027/210414.123684:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 stdout 纯 ASCII",
+    "name": "stdout 里的 JSON 是纯 ASCII（中文写成 \\uXXXX），Windows 的 PowerShell / cmd 在任何控制台编码下都不会乱码；解析回来 markdown 还是中文；写给 --result-file 的也是 ASCII",
+    "pass": true,
+    "detail": "{\"ok\":true,\"data\":{\"id\":\"23c70628-4af7-4ef2-ae2f-79832e1fdf25\",\"title\":\"\\u56db\\u"
+  },
+  {
+    "feature": "M7 退出码 3",
+    "name": "卷知窗口正在运行时：命令行退出码 3、app_running，提示先退出卷知（Mac 上要 Cmd+Q，只关窗口不行）",
+    "pass": true,
+    "detail": "{\"code\":3,\"json\":{\"ok\":false,\"code\":\"app_running\",\"message\":\"卷知窗口正在运行，请先退出卷知再用命令行（Mac 上要按 Cmd+Q 退出，只关闭窗口不行；Windows 上关闭窗口就是退出）\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 窗口不受影响",
+    "name": "命令行被拒绝的同时，正在运行的窗口照常工作（命令行没有碰它的数据，也没有抢焦点）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 窗口关闭后",
+    "name": "窗口关闭后命令行又能用（运行锁已释放）",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\".github.Electron.MachPortRendezvousServer.1: Permission denied (1100)\\n[47189:1027/210417.170214:ERROR:base/memory/shared_memory_switch.cc:261] No rendezvous client, terminating process (parent died?)\\n\"}"
+  },
+  {
+    "feature": "M7 退出码 4",
+    "name": "另一个命令行（import，会写数据）正在运行：第二个命令行退出码 4、cli_busy，message 里有对方的进程号",
+    "pass": true,
+    "detail": "{\"code\":4,\"json\":{\"ok\":false,\"code\":\"cli_busy\",\"message\":\"另一个卷知命令行任务（进程 47190）正在使用数据，请等它结束后再试\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 不会同时写数据",
+    "name": "另一个 import 同时启动：被拒绝（退出码 4），没有导入任何东西",
+    "pass": true,
+    "detail": "{\"code\":4,\"json\":{\"ok\":false,\"code\":\"cli_busy\",\"message\":\"另一个卷知命令行任务（进程 47190）正在使用数据，请等它结束后再试\"},\"err\":\"\"}"
+  },
+  {
+    "feature": "M7 窗口被拦",
+    "name": "命令行正在运行时打开窗口：不启动，提示「卷知命令行正在使用数据，请等它结束后再打开窗口」并带对方的进程号（测试里用 EWB_NO_DIALOG 改成写 stderr，退出码 3）",
+    "pass": true,
+    "detail": "3 [卷知] 卷知命令行正在使用数据，请等它结束后再打开窗口（进程 47190，开始于 2026-10-27T13:04:17.448Z）\n"
+  },
+  {
+    "feature": "M7 持有者不受影响",
+    "name": "被拒绝的命令没有打扰正在运行的那个：import 照常做完，卷子进入待审核",
+    "pass": true,
+    "detail": "{\"code\":0,\"json\":{\"ok\":true},\"err\":\"le' instead.\\n(electron) 'safeStorage.decryptString' is deprecated and will be removed. Please use 'safeStorage.decryptStringAsync' instead.\\n[juanzhi] 导入 1 份文件……\\n[juanzhi] extracting\\n[juanzhi] parsing\\n\"}"
+  },
+  {
+    "feature": "M7 崩溃后自动释放",
+    "name": "命令行被强杀（kill -9）后：锁自动释放（下一个命令行马上能用，不用等、不用手动删文件），被中断的卷子退回「已提取」或失败，没有留在「处理中」",
+    "pass": true,
+    "detail": "null 0 extracted"
+  },
+  {
+    "feature": "M7 同时运行",
+    "name": "两个命令行同时启动：每个要么成功、要么得到退出码 4，数据库完整（integrity_check = ok）",
+    "pass": true,
+    "detail": "4/0 ok"
+  },
+  {
+    "feature": "M7 安装按钮",
+    "name": "设置 → 管理员设置里有「命令行工具」：显示状态、「安装命令行工具」按钮（开发版里是禁用的，打包版可点）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 安装命令行工具",
+    "name": "Mac：写 ~/.local/bin/juanzhi（可执行的 shell 脚本，exec <程序> cli \"$@\"），返回如何把目录加进 PATH 的提示",
+    "pass": true,
+    "detail": "{\"ok\":true,\"platform\":\"darwin\",\"path\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/home/.local/bin/juanzhi\",\"dir\":\"/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-yf4Vlq/home/.local/bin\",\"onPath\":false,\"warnings\":[],\"hint\":\"已写入 /var/folders/dh/qqg15f895k30z8l7v5l2tyw40000g"
+  },
+  {
+    "feature": "M7 安装后状态",
+    "name": "安装后设置页显示「已安装」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "M7 密钥",
+    "name": "所有命令行输出（stdout / stderr）里都没有 API Key",
+    "pass": true,
+    "detail": ""
+  }
+]
