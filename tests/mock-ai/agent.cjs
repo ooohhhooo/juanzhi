@@ -1,6 +1,7 @@
 // 助手（Agent）的模拟模型：请求里带 tools 时走这里。按「最后一条用户消息」里的关键字选一套预设的工具调用序列：
 //   · 含「周报」  → 列计划 → ask_user → 一次并行两个工具（看整体 + 更新计划）→ 查某知识点的题 → 最终回答（带真实题目引用 + 一个假引用）
 //   · 含「满意度」→ 数据分析全流程（计划 → 数据集 → 查询 → 统计 → 看板 → 汇报 → 名单 → 发企业微信 → 回答），见下面 analysis()
+//   · 含「发到外部」→ 调用 mcp_*_post_message 外部工具一次（测外部发送必须确认）
 //   · 含「慢慢」  → 一条很慢的流式文字回答（给「停止」按钮用）
 //   · 含「卡住」  → 一直重复同一个工具调用（测卡住检测）
 //   · 其余       → 一句普通回答
@@ -98,6 +99,12 @@ function next(body) {
   if (/再做一张卡/.test(q)) return cards(round, true)
   if (/做卡片/.test(q)) return cards(round, false)
   if (/满意度/.test(q)) return analysis(round, toolTexts)
+  // 外部 MCP 工具：调用名字形如 mcp_<连接名>_post_message 的工具（发到外部），测「外部发送必须先确认」
+  if (/发到外部/.test(q)) {
+    const t = toolNames.find(n => /^mcp_.*_post_message$/.test(n))
+    if (round === 0 && t) return { content: '', toolCalls: [call(t, { text: '本周提醒：请跟进三年级' }, 0)] }
+    return { content: t ? '处理完了（模拟）。' : '没有可用的外部工具。', toolCalls: [] }
+  }
   if (/慢慢/.test(q)) return { content: '好的，我慢慢来。'.repeat(40), toolCalls: [], opts: { pieceChars: 6, chunkDelayMs: 350 } }
   if (/周报/.test(q) && lastMsg.role === 'user' && /^用户想修改计划/.test(textOf(lastMsg.content))) {
     return { content: '好的，按你的意见改一下。', toolCalls: [call('update_plan', { items: [{ content: '确认范围（已审核）', status: 'doing' }, { content: '查最常考和最易错的知识点', status: 'todo' }, { content: '写周报', status: 'todo' }] }, 'r' + revisions.length)] }

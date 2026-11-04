@@ -1,0 +1,20 @@
+/* 设置 → 连接器：添加连接的目录、已连接的卡片 */
+.ewb-conn-group { margin: 0 0 var(--ewb-sp-4); }
+.ewb-conn-group__title { margin: 0 0 var(--ewb-sp-2); font-size: var(--ewb-fs-sm); font-weight: 600; color: var(--ewb-ink-2); }
+.ewb-conn-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ewb-sp-2); }
+.ewb-conn-item {
+  display: flex; align-items: flex-start; gap: var(--ewb-sp-3); width: 100%; padding: 10px 12px; text-align: left; cursor: pointer;
+  background: var(--ewb-page); color: var(--ewb-ink); font: inherit; border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-md);
+  transition: border-color 0.15s var(--ewb-ease), background 0.15s var(--ewb-ease);
+}
+.ewb-conn-item:hover { border-color: var(--ewb-primary); background: var(--ewb-primary-soft); }
+.ewb-conn-item:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }
+.ewb-conn-item__icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--ewb-r-sm); background: var(--ewb-note); color: var(--ewb-primary); }
+.ewb-conn-item__body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ewb-conn-item__name { font-weight: 600; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ewb-conn-item__desc { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); line-height: 1.4; }
+.ewb-conn-tip { display: flex; align-items: center; gap: var(--ewb-sp-3); flex-wrap: wrap; padding: 10px 12px; border: 1px dashed var(--ewb-line-strong); border-radius: var(--ewb-r-md); }
+.ewb-conn-tip__text { flex: 1 1 220px; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+.ewb-conn-tools { display: flex; flex-direction: column; gap: 4px; }
+.ewb-conn-ro { margin-left: 6px; font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-pill); padding: 0 6px; }
+@media (max-width: 640px) { .ewb-conn-grid { grid-template-columns: minmax(0, 1fr); } }

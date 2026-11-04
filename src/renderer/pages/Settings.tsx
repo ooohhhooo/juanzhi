@@ -21,7 +21,7 @@ const GROUPS: Array<{ label: string; tabs: TabDef[] }> = [
   { label: '常用', tabs: [
     { id: 'show', label: '显示与演示', desc: '界面大小、示例数据、打开软件先进哪一页。', icon: Monitor },
     { id: 'kp', label: '知识点', desc: 'AI 标题目、看板统计都按这棵树来；可以改名，加白话说明和例句。', icon: ListTree },
-    { id: 'connectors', label: '连接器', desc: '把结果发到企业微信群，或放进石墨文档。', icon: Plug },
+    { id: 'connectors', label: '连接器', desc: '连接企业微信、飞书等外部工具，助手就能把结果发出去或读取那边的资料。', icon: Plug },
     { id: 'about', label: '关于与更新', desc: '版本、软件更新、使用说明，以及重新检查重复试卷。', icon: Info }
   ] },
   { label: '管理员', tabs: [
