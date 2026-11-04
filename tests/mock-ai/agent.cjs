@@ -1,6 +1,7 @@
 // 助手（Agent）的模拟模型：请求里带 tools 时走这里。按「最后一条用户消息」里的关键字选一套预设的工具调用序列：
 //   · 含「周报」  → 列计划 → ask_user → 一次并行两个工具（看整体 + 更新计划）→ 查某知识点的题 → 最终回答（带真实题目引用 + 一个假引用）
 //   · 含「满意度」→ 数据分析全流程（计划 → 数据集 → 查询 → 统计 → 看板 → 汇报 → 名单 → 发企业微信 → 回答），见下面 analysis()
+//   · 含「这批问卷的满意度」→ README 截图专用的同一流程（不发企业微信、不导出，计划随进度更新，最终回答读起来像真的）
 //   · 含「发到外部」→ 调用 mcp_*_post_message 外部工具一次（测外部发送必须确认）
 //   · 含「慢慢」  → 一条很慢的流式文字回答（给「停止」按钮用）
 //   · 含「卡住」  → 一直重复同一个工具调用（测卡住检测）
@@ -13,7 +14,7 @@ const call = (name, args, n) => ({ id: `mock_call_${name}_${n}`, type: 'function
 
 const SQL = '\n'
 /** 数据分析剧本：数据集编号、老师代号、手机代号都从前面的工具结果里读（模型始终只看到代号） */
-function analysis(round, toolTexts) {
+function analysis(round, toolTexts, readme = false) {
   const all = toolTexts.join('\n')
   const dsId = /"id":"([0-9a-f-]{36})"/.exec(all)?.[1] ?? 'missing-dataset'
   const teacher = /人员A\d+/.exec(toolTexts.find(t => /偏低|分组|组/.test(t) && /人员A\d+/.test(t)) ?? all)?.[0] ?? '人员A001'
@@ -43,7 +44,34 @@ function analysis(round, toolTexts) {
       content: ['## 结论', '', `${teacher} 的满意度偏低 [[query:6]]。`, '', '## 依据', '', `按老师分组对比：${teacher} 明显低于其他老师 [[query:5]]。`, '', '## 下一步', '', `建议先和 ${teacher} 沟通 [[query:99]]。`].join('\n'), toolCalls: []
     })
   ]
+  if (readme) return readmeAnalysis(round, steps, plan, teacher)
   return (steps[Math.min(round, steps.length - 1)] ?? steps[steps.length - 1])()
+}
+
+/** README 截图专用：同样的数据分析流程，但不发企业微信、不导出文件（没有审批弹窗和失败行），计划随进度更新，最终回答是一段读起来像真的汇报 */
+function readmeAnalysis(round, steps, plan, teacher) {
+  const withPlan = (i, p) => () => { const o = steps[i](); return { ...o, toolCalls: [...o.toolCalls, call('update_plan', p, 'rm' + i)] } }
+  const seq = [
+    steps[0], steps[1], steps[2],
+    withPlan(3, plan('done', 'doing', 'todo')),
+    steps[4], steps[5], steps[6],
+    withPlan(7, plan('done', 'done', 'doing')),
+    steps[8], steps[9], steps[10], steps[11],
+    withPlan(12, plan('done', 'done', 'done')),
+    () => ({
+      content: [
+        '## 结论', '',
+        `这次共回收 300 份问卷，整体满意度不错，但 **${teacher} 带的班级明显偏低**：满意度均值只有 2.5 分，其他老师在 3.1 分左右 [[query:6]]。`, '',
+        '## 依据', '',
+        `- 按授课老师分组对比，${teacher} 比平均水平低约 0.6 分，样本量足够，不是个别家长的情绪 [[query:5]]。`,
+        '- 家长的文字意见集中在「上课时间不太合适」和「作业偏多」两类。', '',
+        '## 下一步建议', '',
+        '1. 本周先和该班家长做一次回访，确认上课时间能不能调整。',
+        '2. 汇报和跟进名单已经放在右侧「产出」里，看板也可以直接给团队看。'
+      ].join('\n'), toolCalls: []
+    })
+  ]
+  return seq[Math.min(round, seq.length - 1)]()
 }
 
 /** 分享卡片剧本（虚构学生）：列模板 → 学生知识卡 → 家长本周学情卡 → 回答；「再做一张卡」只出一张学生卡（不指定模板，用设置里的默认） */
@@ -106,6 +134,7 @@ function next(body) {
   }
   if (/再做一张卡/.test(q)) return cards(round, true)
   if (/做卡片/.test(q)) return cards(round, false)
+  if (/这批问卷的满意度/.test(q)) return analysis(round, toolTexts, true)   // README 截图剧本
   if (/满意度/.test(q)) return analysis(round, toolTexts)
   // 外部 MCP 工具：调用名字形如 mcp_<连接名>_post_message 的工具（发到外部），测「外部发送必须先确认」
   if (/发到外部/.test(q)) {
