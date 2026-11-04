@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import type * as InkNS from 'ink'
 import type { Engine, Choice } from './engine'
 import { MODE_LABEL } from './engine'
+import { mascotPlain, mascotRows } from './mascot'
 import { fmtMs, fmtUsage } from './chat-model'
 import type { Item, PlanRow, Pending } from './chat-model'
 import { clipWidth, parseMarkdown, tableFallback, tableLines, textWidth } from './markdown'
@@ -112,26 +113,30 @@ export function createApp(ink: Ink, engine: Engine, bridge: UiBridge, o: { noCol
     </Box>
   )
 
+  /** 开场：左边卷卷的像素画，右边三行（名称 + 版本、模型 + 角色、数据目录），下面一行淡色的概况；不画框 */
   const BannerView = ({ item, cols }: { item: Extract<Item, { kind: 'banner' }>; cols: number }) => {
     const b = item.banner
-    const w = Math.max(30, Math.min(cols, 96))
     const narrow = cols < 60
+    const rows = mascotRows()
+    const plain = mascotPlain()
     return (
-      <Box flexDirection="column" borderStyle="round" borderColor={ACCENT} paddingX={1} width={w}>
-        <Text><Text color={ACCENT} bold>✦ 卷知</Text><Text dimColor>  v{b.version}</Text></Text>
-        {!narrow && <Text dimColor wrap="truncate-middle">{b.dataDir}</Text>}
-        <Box marginTop={1} flexDirection="column">
-          {b.model
-            ? <Text><Text dimColor>模型  </Text>{b.model}</Text>
-            : <Text color={WARN}>还没有配置 AI：请打开卷知窗口，到「设置 → 管理员设置 → AI 服务」填写</Text>}
-          <Text><Text dimColor>试卷  </Text>{b.papers} 份，已解析 {b.parsed} 份<Text dimColor>  ·  </Text><Text dimColor>数据集  </Text>{b.datasets} 个</Text>
-          <Text><Text dimColor>助手  </Text><Text color={ACCENT}>{b.role}</Text></Text>
+      <Box flexDirection="column" width={Math.min(cols, 120)}>
+        <Box>
+          <Box flexDirection="column" flexShrink={0} marginRight={2}>
+            {o.noColor
+              ? plain.map((l, i) => <Text key={i}>{l}</Text>)
+              : rows.map((r, i) => <Text key={i}>{r.map((c, j) => <Text key={j} color={c.fg} backgroundColor={c.bg}>{c.ch}</Text>)}</Text>)}
+          </Box>
+          <Box flexDirection="column" justifyContent="center" flexShrink={1}>
+            <Text wrap="truncate-end"><Text bold>卷知</Text><Text dimColor>  v{b.version}</Text></Text>
+            <Text wrap="truncate-end">{b.model ? b.model : <Text color={WARN}>未配置 AI</Text>}<Text dimColor> · </Text><Text color={ACCENT}>{b.role}</Text></Text>
+            {!narrow && <Text dimColor wrap="truncate-middle">{b.dataDir}</Text>}
+          </Box>
         </Box>
-        <Box marginTop={1} flexDirection="column">
-          <Text dimColor>· 直接输入问题，和助手对话</Text>
-          <Text dimColor>· 输入 / 查看命令</Text>
-          {!narrow && <Text dimColor>· 把文件路径拖进来可以导入试卷</Text>}
+        <Box marginTop={1}>
+          <Text dimColor wrap="truncate-end">│ 试卷 {b.papers} 份（已解析 {b.parsed}）· 数据集 {b.datasets} 个 · /help 查看命令</Text>
         </Box>
+        {!b.model && <Text dimColor wrap="truncate-end">│ 还没有配置 AI：请打开卷知窗口，到「设置 → 管理员设置 → AI 服务」填写</Text>}
       </Box>
     )
   }
@@ -355,6 +360,7 @@ export function createApp(ink: Ink, engine: Engine, bridge: UiBridge, o: { noCol
         }
         submit(e.text); return
       }
+      if (key.tab && key.shift) { engine.cycleMode(); return }
       if (key.tab) { if (popup) { const c = matches[Math.min(sel, matches.length - 1)]; set(ed.fromText(`/${c.name}${c.args ? ' ' : ''}`)) } return }
       if (key.upArrow) {
         if (popup) { setSel(s => (s + matches.length - 1) % matches.length); return }
@@ -387,18 +393,22 @@ export function createApp(ink: Ink, engine: Engine, bridge: UiBridge, o: { noCol
     const m = engine.model
     const usage = fmtUsage(m.totalUsage(), engine.priced)
     const wide = cols >= 72
+    const rule = '─'.repeat(Math.max(10, cols))
+    const modeColor = engine.mode === 'auto' ? WARN : engine.mode === 'plan' ? ACCENT : undefined
     return (
       <Box flexDirection="column">
-        <Box borderStyle="round" borderColor={busy ? undefined : ACCENT} borderDimColor={busy} paddingX={1} width={Math.min(cols, 96)}>
-          <Text color={busy ? undefined : ACCENT} bold>❯ </Text>
+        <Text dimColor>{rule}</Text>
+        <Box>
+          <Text color={busy ? undefined : ACCENT} bold dimColor={busy}>❯ </Text>
           <Box flexDirection="column" flexShrink={1}>
             {e.text === '' && !busy
-              ? <Text><Text inverse> </Text><Text dimColor>输入问题，或输入 / 查看命令</Text></Text>
+              ? <Text><Text inverse> </Text><Text dimColor>试试「哪些班到课率掉得最厉害」</Text></Text>
               : busy && e.text === ''
                 ? <Text dimColor>{m.live.running ? '助手正在工作…… Esc 中断' : '请稍等……'}</Text>
                 : view.map((l, i) => 'plain' in l ? <Text key={i}>{l.plain || ' '}</Text> : <Text key={i}>{l.before}<Text inverse>{l.at}</Text>{l.after}</Text>)}
           </Box>
         </Box>
+        <Text dimColor>{rule}</Text>
         {popup && (
           <Box flexDirection="column" paddingLeft={2}>
             {matches.slice(0, 8).map((c, i) => {
@@ -413,17 +423,15 @@ export function createApp(ink: Ink, engine: Engine, bridge: UiBridge, o: { noCol
             {matches.length > 8 ? <Text dimColor>  ……还有 {matches.length - 8} 个，继续输入缩小范围</Text> : null}
           </Box>
         )}
-        <Box paddingLeft={2}>
+        <Box justifyContent="space-between">
           {hint
-            ? <Text color={WARN}>{hint}</Text>
-            : (
-              <Text dimColor wrap="truncate-end">
-                <Text color={ACCENT}>{engine.roleLabel}</Text>
-                {`  ·  ${MODE_LABEL[engine.mode]}`}
-                {wide ? `  ·  ${engine.aiReady ? engine.effectiveModel : '未配置 AI'}` : ''}
-                {`  ·  ${usage}`}
-              </Text>
-            )}
+            ? <Text color={WARN}>  {hint}</Text>
+            : <Text color={modeColor} wrap="truncate-end">  ►► {MODE_LABEL[engine.mode]}<Text dimColor>（shift+tab 切换）</Text></Text>}
+          <Box flexShrink={1} marginLeft={2}>
+            <Text dimColor wrap="truncate-start">
+              {`${engine.roleLabel}  ·  `}{wide ? `${engine.aiReady ? engine.effectiveModel : '未配置 AI'}  ·  ` : ''}{usage}
+            </Text>
+          </Box>
         </Box>
       </Box>
     )

@@ -1,9 +1,11 @@
 // 命令行交互界面（`juanzhi` 不带参数 / `juanzhi chat`）端到端：在伪终端里启动，用 @xterm/headless 还原屏幕再断言。全程 mock AI。
 //   · 机器模式不变：带命令、stdout 不是终端、`cli` 不带参数但没有终端时，仍然只输出一行 JSON
-//   · 欢迎框（版本、数据目录、模型 / 没配 AI 的提示、统计、角色、小提示）、输入框、状态栏、/ 命令弹窗与补全、/help /status /papers /datasets /mode /role /new /history /clear /exit
+//   · 开场（卷卷像素画、版本、模型 + 角色、数据目录、概况行、没配 AI 的提示）、两条细线之间的输入框、状态栏（►► 回答方式，Shift+Tab 轮流切换）、/ 命令弹窗与补全、/help /status /papers /datasets /mode /role /new /history /clear /exit
 //   · 对话：流式回答、工具行（✓ 耗时）、计划清单、先出计划的确认、ask_user 编号选择、Markdown（标题 / 列表 / 表格）、Esc 中断、token / ¥ 用量
 //   · 审批：对外发送一定弹确认（发往哪里、内容、个人信息提醒），按 n 拒绝后假企业微信服务器没有收到；按 y 才发
 //   · 运行锁：别的命令行在跑时，交互界面在框里说明原因，不输出 JSON；NO_COLOR 时没有颜色码；窄终端
+//   · 人读输出：终端里 status / papers list 是中文表格（没有 \u 转义），--json 在终端里仍是 JSON，非终端字节和以前一致
+//   · 窗口正在运行：面板、Esc 取消（退出码 3）、Enter 让窗口体面退出后接着用
 // 用法：node tests/e2e/run-tui.cjs   （沙箱外运行；先 electron-vite build；Mac / Linux，用 tests/e2e/pty-run.py 开伪终端）
 const http = require('node:http')
 const { spawn } = require('node:child_process')
@@ -90,16 +92,73 @@ async function main() {
   const chatPlain = await runPlain(udB, ['chat'])
   check('机器模式', 'chat 在没有终端时报用法错误（退出码 2，一行 JSON，说明要在终端里运行）', chatPlain.code === 2 && chatPlain.lines.length === 1 && chatPlain.json?.ok === false && chatPlain.json.code === 'usage' && /终端/.test(chatPlain.json.message), chatPlain.out.slice(0, 200))
 
-  // ── 2. 没配 AI：欢迎框、命令弹窗、本地命令 ──
+  {
+    const plainJson = await runPlain(udB, ['status', '--json'])
+    check('机器模式', '非终端：status 与 status --json 输出逐字节相同，纯 ASCII 单行，是「序列化后的 JSON + 换行」',
+      plainJson.out === st.out && /^[\x00-\x7f]*$/.test(st.out) && st.out.endsWith('\n') && st.out.split('\n').length === 2 && st.out === require('node:util').format('%s\n', st.out.trimEnd()), st.out.slice(0, 80))
+    const asciiEsc = await runPlain(udB, ['papers', 'list', '--json'])
+    check('机器模式', '非终端：papers list 里的中文仍写成 \\uXXXX 转义（ASCII JSON 不变）', asciiEsc.lines.length === 1 && asciiEsc.json?.ok === true && (/\\u[0-9a-f]{4}/.test(asciiEsc.out) || asciiEsc.json.data.papers.length === 0), asciiEsc.out.slice(0, 100))
+    const bad = await runPlain(udB, ['nope'])
+    check('机器模式', '非终端：命令写错 → 退出码 2，一行 JSON（含 \\u 转义）', bad.code === 2 && bad.lines.length === 1 && bad.json?.code === 'usage' && /\\u[0-9a-f]{4}/.test(bad.out), bad.out.slice(0, 100))
+  }
+
+  // ── 1b. 终端里的人读输出 ──
+  {
+    const ptyRun = async (ud, args, env = {}) => {
+      const t0 = startTui({ ud, cols: 100, rows: 30, args, env })
+      const code = await t0.waitExit(60000).catch(() => null)
+      const raw = t0.raw(); allRaw.push(raw)
+      return { t: t0, code, raw, screen: t0.screen() }
+    }
+    const h = await ptyRun(udB, ['status'])
+    snap(h.t, '20-status-human')
+    check('人读输出', '终端里 status：中文表格（项目 / 内容），不是 JSON，没有 \\u 转义，退出码 0',
+      h.code === 0 && /项目\s+内容/.test(h.screen) && /数据目录/.test(h.screen) && /试卷\s+共 \d+ 份/.test(h.screen) && /✓ 已配置\s+模型 mock-text-model/.test(h.screen) && !/\\u[0-9a-f]{4}/.test(h.raw) && !/"ok"\s*:/.test(h.raw) && !/\[db\]|deprecated/.test(h.raw), h.screen.slice(0, 300))
+    check('人读输出', '表格上面没有 [db] 日志和 Electron 弃用警告的杂音', !/\[db\]|deprecated/.test(h.screen), h.screen.slice(0, 200))
+    check('人读输出', 'status 里有 ✓ 绿色和各状态份数的小表（试卷状态 / 份数）', /\x1b\[32m/.test(h.raw) && /试卷状态\s+份数/.test(h.screen))
+    h.t.kill()
+    const hp = await ptyRun(udB, ['papers', 'list'])
+    check('人读输出', '终端里 papers list：编号 / 试卷 / 状态 / 题数 / 年级学期 对齐的表格', hp.code === 0 && /编号\s+试卷\s+状态\s+题数\s+年级学期/.test(hp.screen) && /共 \d+ 份试卷/.test(hp.screen) && !/\\u[0-9a-f]{4}/.test(hp.raw), hp.screen.slice(0, 300))
+    hp.t.kill()
+    const hn = await ptyRun(udB, ['status'], { NO_COLOR: '1' })
+    check('人读输出', 'NO_COLOR：表格照样有，但没有颜色控制码', hn.code === 0 && /项目\s+内容/.test(hn.screen) && !/\x1b\[(3[0-7]|9[0-7]|4[0-7]|38;|48;)/.test(hn.raw), (hn.raw.match(/\x1b\[[0-9;]*m/g) ?? []).slice(0, 4).join(' '))
+    hn.t.kill()
+    const he = await ptyRun(udB, ['papers', 'show', 'not-an-id'])
+    snap(he.t, '21-error-human')
+    check('人读输出', '终端里出错：✗ + 原因 + → 提示，退出码和以前一样（2）', he.code === 2 && /✗ .*id 的格式不对/.test(he.screen) && /→ 运行 juanzhi --help/.test(he.screen) && !/"ok"/.test(he.raw), he.screen.slice(0, 300))
+    he.t.kill()
+    const hj = await ptyRun(udB, ['status', '--json'])
+    const hjLines = hj.raw.replace(/\r/g, '').split('\n').filter(l => l.startsWith('{'))   // 伪终端里 stderr 的日志行也会混进来，只看 stdout 的 JSON 行
+    const hjLine = hjLines[0] ?? ''
+    check('--json', '终端里加 --json：stdout 仍然只有一行 JSON（\\u 转义），和非终端逐字节相同', hj.code === 0 && hjLines.length === 1 && hjLine + '\n' === st.out, hj.raw.slice(0, 120))
+    hj.t.kill()
+    const hf = path.join(work, 'tty-result.json')
+    const hr = await ptyRun(udB, ['status', '--result-file', hf])
+    check('--result-file', '终端里带 --result-file：stdout 仍是 JSON，文件里也是 JSON', hr.code === 0 && /"ok":true/.test(hr.raw) && fs.existsSync(hf) && JSON.parse(fs.readFileSync(hf, 'utf8')).ok === true, hr.raw.slice(0, 100))
+    hr.t.kill()
+  }
+
+  // ── 2. 没配 AI：开场、命令弹窗、本地命令 ──
   {
     const t = startTui({ ud: udA, cols: 100, rows: 40 })
-    let s = await t.waitFor(/输入问题，或输入 \//, 40000)
+    let s = await t.waitFor(/试试「哪些班到课率掉得最厉害」/, 40000)
     snap(t, '01-welcome-noai')
-    check('欢迎框', '圆角框里有卷知名称、版本、数据目录', /╭─+╮/.test(s) && /✦ 卷知\s+v\d+\.\d+/.test(s) && /workbench-data/.test(s), s.split('\n').slice(0, 4).join(' | '))
-    check('欢迎框', '没配 AI：提示到窗口里配置', /还没有配置 AI/.test(s) && /设置 → 管理员设置 → AI 服务/.test(s))
-    check('欢迎框', '统计（试卷 / 已解析 / 数据集）和当前助手角色', /试卷\s+0 份，已解析 0 份/.test(s) && /数据集\s+0 个/.test(s) && /助手\s+运营/.test(s))
-    check('欢迎框', '有小提示：直接提问、/ 查看命令、拖入路径导入', /直接输入问题/.test(s) && /输入 \/ 查看命令/.test(s) && /拖进来/.test(s))
-    check('输入框', '底部有圆角输入框和状态栏（角色 · 回答方式 · 模型 · 用量）', /╭─+╮\n│ ❯/.test(s) && /运营\s+·\s+先出计划/.test(s) && /0 tokens/.test(s))
+    check('开场', '左上角有卷卷像素画（半块字符、5 行），旁边：卷知 + 版本、模型 + 角色、数据目录', /[▀▄█]{4,}/.test(s) && s.split('\n').slice(0, 6).filter(l => /[▀▄█]/.test(l)).length >= 5 && /卷知\s+v\d+\.\d+/.test(s) && /未配置 AI\s+·\s+运营/.test(s) && /workbench-data/.test(s) && !/╭─+╮/.test(s), s.split('\n').slice(0, 6).join(' | '))
+    check('开场', '卷卷用了前景 / 背景色（奶油 + 蓝紫）', (t.raw().match(/\x1b\[(38|48);[25];[\d;]+m/g) ?? []).length >= 10)
+    check('开场', '没配 AI：一行淡色提示到窗口里配置', /还没有配置 AI/.test(s) && /设置 → 管理员设置 → AI 服务/.test(s))
+    check('开场', '概况行：试卷 / 已解析 / 数据集 / /help', /│ 试卷 0 份（已解析 0）· 数据集 0 个 · \/help 查看命令/.test(s))
+    const sl = s.split('\n')
+    const rules = sl.map((l, i) => /^─{20,}$/.test(l) ? i : -1).filter(i => i >= 0)
+    check('输入框', '输入行夹在两条细线之间（不是圆角框），`❯` 提示符 + 灰色占位符', rules.length >= 2 && rules[1] - rules[0] === 2 && /^❯\s+试试「哪些班到课率掉得最厉害」/.test(sl[rules[0] + 1]) && !/│ ❯/.test(s), sl.slice(-5).join('|'))
+    check('状态栏', '细线下面：►► 先出计划（shift+tab 切换），右边淡色的角色 · 模型 · 用量', /►► 先出计划（shift\+tab 切换）/.test(s) && /运营\s+·\s+未配置 AI\s+·\s+0 tokens/.test(s), sl.slice(-2).join('|'))
+    const lastLine = () => t.screen().split('\n').slice(-1)[0]
+    t.send('\x1b[Z'); await sleep(500)
+    check('Shift+Tab', '先出计划 → 直接回答', /►► 直接回答/.test(lastLine()), lastLine())
+    t.send('\x1b[Z'); await sleep(500)
+    check('Shift+Tab', '直接回答 → 自动完成', /►► 自动完成/.test(lastLine()), lastLine())
+    t.send('\x1b[Z'); await sleep(500)
+    check('Shift+Tab', '自动完成 → 回到先出计划（轮流切换）', /►► 先出计划/.test(lastLine()), lastLine())
+    snap(t, '01b-welcome-noai-after-cycle')
 
     t.send('/'); s = await t.waitFor(/\/help\s+查看命令/, 8000)
     snap(t, '02-slash-menu')
@@ -121,13 +180,13 @@ async function main() {
     snap(t, '03-mode-picker')
     check('/mode', '弹出三选一：直接回答 / 先出计划 / 自动完成', /1\. 直接回答/.test(s) && /2\. 先出计划/.test(s) && /3\. 自动完成/.test(s))
     t.send('3'); s = await t.waitFor(/回答方式：自动完成/, 8000)
-    check('/mode', '按数字选 3：状态栏变成自动完成', /运营\s+·\s+自动完成/.test(t.screen().split('\n').slice(-3).join('\n')))
+    check('/mode', '按数字选 3：状态栏变成自动完成', /►► 自动完成/.test(t.screen().split('\n').slice(-3).join('\n')))
     await t.type('/role'); t.send(ENTER); s = await t.waitFor(/选择助手角色/, 8000)
     check('/role', '列出角色（运营、辅导老师）', /运营/.test(s) && /辅导老师/.test(s))
     t.send(DOWN); await sleep(150); t.send(ENTER); s = await t.waitFor(/已切换到「辅导老师」/, 8000)
     check('/role', '↓ Enter 切换到辅导老师，状态栏跟着变', /辅导老师\s+·/.test(t.screen().split('\n').slice(-3).join('\n')))
     await t.type('/clear'); t.send(ENTER); await sleep(800)
-    check('/clear', '清屏后重新显示欢迎框', /✦ 卷知/.test(t.screen()) && !/快捷键/.test(t.screen()))
+    check('/clear', '清屏后重新显示开场', /卷知\s+v\d/.test(t.screen()) && !/快捷键/.test(t.screen()))
     await t.type('/exit'); t.send(ENTER)
     const code = await t.waitExit(15000).catch(() => null)
     allRaw.push(t.raw())
@@ -138,8 +197,8 @@ async function main() {
   // ── 3. 窄终端 + NO_COLOR ──
   {
     const t = startTui({ ud: udA, cols: 48, rows: 30, env: { NO_COLOR: '1' } })
-    const s = await t.waitFor(/输入问题/, 40000)
-    check('窄终端', '48 列：欢迎框和输入框不超出宽度，仍然有圆角框', t.screen().split('\n').every(l => [...l].length <= 48) && /╭─+╮/.test(s), String(Math.max(...t.screen().split('\n').map(l => [...l].length))))
+    const s = await t.waitFor(/试试「/, 40000)
+    check('窄终端', '48 列：开场、两条细线和状态栏都不超出宽度，细线铺满整行', t.screen().split('\n').every(l => [...l].length <= 48) && /^─{40,}$/m.test(s), String(Math.max(...t.screen().split('\n').map(l => [...l].length))))
     const raw = t.raw()
     check('NO_COLOR', 'NO_COLOR 时输出里没有前景色 / 背景色控制码', !/\x1b\[(3[0-7]|9[0-7]|4[0-7]|38;|48;)/.test(raw), (raw.match(/\x1b\[[0-9;]*m/g) ?? []).slice(0, 5).join(' '))
     await quit(t); t.kill()
@@ -147,10 +206,10 @@ async function main() {
 
   // ── 4. 配好 AI：欢迎框、对话 ──
   const t = startTui({ ud: udB, cols: 100, rows: 44 })
-  let s = await t.waitFor(/输入问题，或输入 \//, 40000)
+  let s = await t.waitFor(/试试「/, 40000)
   snap(t, '04-welcome')
-  check('欢迎框', '配好 AI：显示模型 mock-text-model，不再有配置提示', /模型\s+mock-text-model/.test(s) && !/还没有配置 AI/.test(s))
-  check('欢迎框', '统计里有试卷数和数据集 1 个', /试卷\s+\d+ 份，已解析 \d+ 份/.test(s) && /数据集\s+1 个/.test(s) && !/试卷\s+0 份/.test(s), s.split('\n').filter(l => /试卷/.test(l)).join('|'))
+  check('开场', '配好 AI：第二行是 模型 · 角色，不再有配置提示', /mock-text-model\s+·\s+运营/.test(s) && !/还没有配置 AI/.test(s))
+  check('开场', '概况行里有试卷数和数据集 1 个', /│ 试卷 \d+ 份（已解析 \d+）· 数据集 1 个/.test(s) && !/试卷 0 份/.test(s), s.split('\n').filter(l => /试卷/.test(l)).join('|'))
 
   // 4.1 直接回答模式下的普通对话
   await t.type('/mode'); t.send(ENTER); await t.waitFor(/回答方式/, 8000); t.send('1'); await t.waitFor(/回答方式：直接回答/, 8000)
@@ -202,12 +261,12 @@ async function main() {
   check('流式', '回答一边生成一边显示，运行中有转圈提示和「Esc 中断」', /Esc 中断/.test(s))
   t.send(ESC)
   s = await t.waitFor(/已中断/, 15000)
-  check('中断', 'Esc 中断运行中的回答，显示「已中断」，输入框恢复可用', /已中断/.test(s) && await (async () => { await sleep(500); return /输入问题，或输入 \//.test(t.screen()) })())
+  check('中断', 'Esc 中断运行中的回答，显示「已中断」，输入框恢复可用', /已中断/.test(s) && await (async () => { await sleep(500); return /试试「哪些班/.test(t.screen()) })())
 
   // 4.5 多行输入 + 历史
   await t.type('第一行'); t.send('\x0a'); await t.type('第二行')
   s = t.screen()
-  check('多行输入', 'Ctrl+J 换行，输入框变成两行', /❯ 第一行/.test(s) && /│\s+第二行/.test(s), s.split('\n').slice(-6).join('|'))
+  check('多行输入', 'Ctrl+J 换行，输入框变成两行', /❯ 第一行/.test(s) && /^\s+第二行/m.test(s), s.split('\n').slice(-6).join('|'))
   t.send(CTRL_C); await sleep(300)
   check('Ctrl+C', '有输入内容时 Ctrl+C 先清空输入', !/第一行/.test(t.screen().split('\n').slice(-6).join('\n')))
   t.send('\x1b[A'); await sleep(300)
@@ -237,7 +296,8 @@ async function main() {
   {
     const run = async (answerKey) => {
       const t2 = startTui({ ud: udB, cols: 100, rows: 48, env: { EWB_TEST_HOOKS: '1' } })
-      await t2.waitFor(/输入问题，或输入 \//, 40000)
+      await t2.waitFor(/试试「哪些班/, 40000)
+      await sleep(800)   // 首帧画出来后输入处理还要一会儿才挂上，马上打字偶尔会被吞
       await t2.type('/mode'); t2.send(ENTER); await t2.waitFor(/回答方式/, 8000); t2.send('3'); await t2.waitFor(/回答方式：自动完成/, 8000)
       await t2.type('分析满意度，出一份看板'); t2.send(ENTER)
       const s2 = await t2.waitFor(/需要你确认/, 180000)
@@ -269,14 +329,84 @@ async function main() {
   // ── 6. 运行锁 ──
   {
     const a = startTui({ ud: udB, cols: 100, rows: 30 })
-    await a.waitFor(/输入问题，或输入 \//, 40000)
+    await a.waitFor(/试试「哪些班/, 40000)
     const b = startTui({ ud: udB, cols: 100, rows: 30 })
     const code = await b.waitExit(40000).catch(() => null)
     const s3 = b.screen()
     snap(b, '13-lock-busy')
-    check('运行锁', '另一个命令行在用数据时：框里说明原因（不是 JSON），退出码非 0', code !== 0 && code !== null && /╭─+╮/.test(s3) && /命令行/.test(s3) && !/"ok"/.test(s3), `${code} ${s3.slice(0, 160)}`)
+    check('运行锁', '另一个命令行在用数据时：框里说明原因（不是 JSON），退出码 4', code === 4 && code !== 0 && code !== null && /╭─+╮/.test(s3) && /命令行/.test(s3) && !/"ok"/.test(s3), `${code} ${s3.slice(0, 160)}`)
     allRaw.push(b.raw()); b.kill()
     await quit(a); a.kill()
+  }
+
+  // ── 7. 卷知窗口正在运行：面板、Esc 取消、Enter 让窗口体面退出、窗口忙时拒绝 ──
+  {
+    const PANEL = '卷知窗口正在运行。命令行和窗口不能同时用同一份数据。'
+    const PROMPT = '按 Enter 让卷知窗口退出并继续，按 Esc 取消'
+    const alive = () => ctx.page.evaluate(() => window.api.papers.list()).then(() => true).catch(() => false)
+    await open(udB, { extraEnv: { EWB_TEST_HOOKS: '1' } })
+
+    // 7.1 交互界面：面板 → Esc → 退出码 3，窗口不受影响
+    {
+      const t7 = startTui({ ud: udB, cols: 100, rows: 30 })
+      const s7 = await t7.waitFor(/按 Enter 让卷知窗口退出并继续/, 40000)
+      snap(t7, '30-app-running-panel')
+      check('窗口运行中', '交互界面：面板说明「命令行和窗口不能同时用同一份数据」并提示 Enter / Esc', s7.includes(PANEL) && s7.includes(PROMPT) && /╭─+╮/.test(s7) && !/"ok"/.test(s7), s7.slice(0, 300))
+      t7.send(ESC)
+      const c7 = await t7.waitExit(20000).catch(() => null)
+      const after = t7.screen()
+      allRaw.push(t7.raw())
+      check('窗口运行中', '按 Esc 取消：退出码 3，说明怎么自己退出（Cmd+Q），不输出 JSON，窗口照常工作', c7 === 3 && /已取消/.test(after) && /Cmd\+Q/.test(after) && !/"ok"/.test(after) && await alive(), `${c7} ${after.slice(-200)}`)
+      t7.kill()
+    }
+    // 7.2 终端里的命令：同样的面板；--json / 非终端：照旧直接报错
+    {
+      const t7 = startTui({ ud: udB, cols: 100, rows: 30, args: ['status'] })
+      const s7 = await t7.waitFor(/按 Enter 让卷知窗口退出并继续/, 40000)
+      check('窗口运行中', '终端里的命令（status）也显示面板', s7.includes(PANEL))
+      t7.send(ESC)
+      const c7 = await t7.waitExit(20000).catch(() => null)
+      check('窗口运行中', '命令按 Esc 取消：退出码 3，✗ 加原因', c7 === 3 && /✗ 已取消/.test(t7.screen()), t7.screen().slice(-200))
+      allRaw.push(t7.raw()); t7.kill()
+      const j7 = startTui({ ud: udB, cols: 100, rows: 30, args: ['status', '--json'] })
+      const cj = await j7.waitExit(40000).catch(() => null)
+      const rawj = j7.raw().replace(/\r/g, '')
+      check('窗口运行中', '终端里加 --json：不问，直接一行 JSON app_running，退出码 3，文字和以前一致', cj === 3 && !rawj.includes('按 Enter') && /"code":"app_running"/.test(rawj) && /请先退出卷知/.test(JSON.parse(rawj.trim()).message) && /Cmd\+Q/.test(JSON.parse(rawj.trim()).message), rawj.slice(0, 200))
+      allRaw.push(j7.raw()); j7.kill()
+      const pj = await runPlain(udB, ['status'])
+      check('窗口运行中', '非终端：仍是原来的一行 JSON app_running，退出码 3（不会卡在等按键）', pj.code === 3 && pj.lines.length === 1 && pj.json?.code === 'app_running' && /请先退出卷知/.test(pj.json.message), pj.out.slice(0, 160))
+    }
+    // 7.3 窗口有任务在跑（助手对话）：Enter 之后被拒绝，窗口不退出
+    {
+      const run = await ctx.page.evaluate(() => window.api.agent.run({ role: 'ops', text: '慢慢说', mode: 'direct' }))
+      await sleep(1500)
+      const t7 = startTui({ ud: udB, cols: 100, rows: 30 })
+      await t7.waitFor(/按 Enter 让卷知窗口退出并继续/, 40000)
+      t7.send(ENTER)
+      const c7 = await t7.waitExit(30000).catch(() => null)
+      const s7 = t7.screen()
+      snap(t7, '31-app-busy')
+      check('窗口运行中', '窗口正在处理任务：Enter 后提示「卷知正在处理任务，请等它结束后再试」，退出码 3，窗口没有被关掉', c7 === 3 && s7.includes('卷知正在处理任务，请等它结束后再试') && await alive(), `${c7} ${s7.slice(-200)}`)
+      allRaw.push(t7.raw()); t7.kill()
+      await ctx.page.evaluate(sid => window.api.agent.stop(sid), run.sessionId).catch(() => undefined)
+      await waitFor(async () => !(await ctx.page.evaluate(sid => window.api.agent.session(sid), run.sessionId).then(x => x?.running ?? false).catch(() => false)), 30000).catch(() => undefined)
+      await sleep(1500)
+    }
+    // 7.4 空闲：Enter → 窗口体面退出 → 命令行接着打开
+    {
+      const t7 = startTui({ ud: udB, cols: 100, rows: 30 })
+      await t7.waitFor(/按 Enter 让卷知窗口退出并继续/, 40000)
+      t7.send(ENTER)
+      const s7 = await t7.waitFor(/试试「哪些班/, 60000)
+      snap(t7, '32-after-window-quit')
+      check('窗口运行中', '空闲时按 Enter：窗口退出，交互界面接着打开（有开场和输入框）', /卷知窗口已退出/.test(s7) && /卷知\s+v\d/.test(s7), s7.slice(0, 200))
+      const gone = await waitFor(async () => !(await alive()), 20000).then(() => true, () => false)
+      check('窗口运行中', '窗口进程确实退出了（不是被杀：正常 quit，数据库已关）', gone)
+      await quit(t7); t7.kill()
+      ctx.app = null
+      const free = await runPlain(udB, ['status'])
+      check('窗口运行中', '之后命令行可以正常用', free.code === 0 && free.json?.ok === true, free.out.slice(0, 100))
+    }
   }
 
   check('密钥', '所有终端输出里都没有 API Key', !allRaw.join('').includes(SECRET))

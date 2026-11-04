@@ -27,6 +27,8 @@ import type { Banner } from './chat-model'
 import { splitPaths } from './slash-defs'
 
 export const MODE_LABEL: Record<AgentMode, string> = { direct: '直接回答', plan: '先出计划', auto: '自动完成' }
+/** Shift+Tab 轮流切换的顺序：先出计划 → 直接回答 → 自动完成 → 回到先出计划 */
+export const MODE_CYCLE: AgentMode[] = ['plan', 'direct', 'auto']
 const MODE_HINT: Record<AgentMode, string> = { direct: '简单问题，最多几步就答', plan: '先给计划，你确认再做（默认）', auto: '不暂停，只在提问和写操作时停' }
 const PAPER_STATUS: Record<string, string> = { reviewing: '待审核', done: '已确认', failed: '失败', parsing: '解析中', extracting: '提取中', queued: '排队中', imported: '已导入' }
 const READERS: Array<{ value: string; label: string; hint: string }> = [
@@ -92,6 +94,13 @@ export class Engine {
       this.labels.set(name, l)
       return l
     } catch { return name }
+  }
+
+  /** Shift+Tab：切到下一个回答方式（对话进行中不切，免得和正在跑的这一轮对不上） */
+  cycleMode(): void {
+    if (this.busy) return
+    this.mode = MODE_CYCLE[(MODE_CYCLE.indexOf(this.mode) + 1) % MODE_CYCLE.length]
+    this.deps.changed()
   }
 
   // ───────── 显示用 ─────────

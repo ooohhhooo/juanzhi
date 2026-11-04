@@ -94,9 +94,10 @@ export const COMMANDS: Record<string, CommandSpec> = {
 }
 
 /** 不带值的参数（其余参数都要带一个值） */
-const BOOLEAN_FLAGS = new Set(['wait', 'overwrite', 'i-reviewed', 'only-new', 'estimate-only', 'yes', 'include-reviewing', 'include-duplicates', 'no-align', 'quiet', 'help'])
+const BOOLEAN_FLAGS = new Set(['wait', 'overwrite', 'i-reviewed', 'only-new', 'estimate-only', 'yes', 'include-reviewing', 'include-duplicates', 'no-align', 'quiet', 'help', 'json'])
 /** 所有命令都接受的全局参数 */
-const GLOBAL_FLAGS = ['out', 'result-file', 'timeout', 'quiet', 'help']
+/** `--json`：在真实终端里也输出那一行 JSON（不加时，终端里给人看的是中文表格；非终端本来就是 JSON，这个参数不改变输出） */
+const GLOBAL_FLAGS = ['out', 'result-file', 'timeout', 'quiet', 'help', 'json']
 
 export interface ParsedArgs {
   command: string

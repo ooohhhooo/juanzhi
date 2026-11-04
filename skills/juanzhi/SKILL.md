@@ -19,19 +19,19 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 
 优先用短命令 `juanzhi`（用户在卷知「设置 → 管理员设置 → 命令行工具」里装过）。没有就用完整路径：
 
-- Mac：`"/Applications/卷知.app/Contents/MacOS/卷知" cli <命令>`
-- Windows：`"<安装目录>\EnglishExamWorkbench.exe" cli <命令>`（直接运行 exe 拿不到输出：加 `--result-file <文件>`，用 `Start-Process -Wait -PassThru` 等它结束再读文件；用 `juanzhi` 短命令则没有这个问题）
+- Mac：`"/Applications/卷知.app/Contents/MacOS/卷知" cli <命令> --json`
+- Windows：`"<安装目录>\EnglishExamWorkbench.exe" cli <命令> --json`（直接运行 exe 拿不到输出：加 `--result-file <文件>`，用 `Start-Process -Wait -PassThru` 等它结束再读文件；用 `juanzhi` 短命令则没有这个问题）
 
 **stdout 只有一段 JSON**：成功 `{"ok":true,"data":…}`，失败 `{"ok":false,"code":"…","message":"中文白话","exit":N}`。输出是纯 ASCII（中文写成 `\uXXXX`），**用 JSON 解析器读**，不要用文本方式直接读。进度写在 stderr，可以忽略。先解析 JSON 的 `ok`，失败时把 `message` 原样转告用户。
 
-**如果输出的不是 JSON，而是 `Cannot find module '…/cli'` 或 `bad option`**（常见于你自己运行在 Electron 程序里，环境带着 `ELECTRON_RUN_AS_NODE=1`；卷知 1.2.1 起已修复）：去掉这个变量再重试，Mac `env -u ELECTRON_RUN_AS_NODE juanzhi <命令>`，Windows PowerShell 先 `Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue`。
+**如果输出的不是 JSON，而是 `Cannot find module '…/cli'` 或 `bad option`**（常见于你自己运行在 Electron 程序里，环境带着 `ELECTRON_RUN_AS_NODE=1`；卷知 1.2.1 起已修复）：去掉这个变量再重试，Mac `env -u ELECTRON_RUN_AS_NODE juanzhi <命令> --json`，Windows PowerShell 先 `Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue`。
 
-> 终端里不带参数的 `juanzhi`（或 `juanzhi chat`）会打开给人用的交互界面。Agent 调用时 stdout 不是终端，不会进入它，永远带上具体命令（如 `juanzhi status`）即可，输出格式不变。
+> 终端里不带参数的 `juanzhi`（或 `juanzhi chat`）会打开给人用的交互界面。Agent 调用时 stdout 不是终端，不会进入它，永远带上具体命令和 `--json`（如 `juanzhi status --json`）：非终端时输出本来就是 JSON，加 `--json` 是保险——万一在真实终端里运行，不加会得到给人看的中文表格而不是 JSON。
 
 ## 使用前提（先检查）
 
 1. **卷知必须已经退出。** 卷知开着时命令行报 `app_running`（退出码 3）：请用户先退出卷知（**Mac 上只关窗口不行，要按 Cmd+Q**；Windows 上关闭窗口就是退出），不要重试。
-2. **先跑 `juanzhi status`。** 看 `ai.configured`：为 `false` 时 `import` 和 `report generate` 会报 `ai_not_configured`（退出码 5）。这时让用户打开卷知窗口，到「设置 → AI 服务」里填写；**你不能也不应该设置或询问 API Key**。
+2. **先跑 `juanzhi status --json`。** 看 `ai.configured`：为 `false` 时 `import` 和 `report generate` 会报 `ai_not_configured`（退出码 5）。这时让用户打开卷知窗口，到「设置 → AI 服务」里填写；**你不能也不应该设置或询问 API Key**。
 
 ## 命令清单
 
@@ -55,12 +55,12 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 
 ## 典型流程
 
-1. `juanzhi status`：确认 AI 已配置；没配就告诉用户去窗口里配，然后停下。
-2. `juanzhi import <文件…> --wait`：导入、等解析。命令会运行几分钟，不要中途打断。结果里每份有 `status`（`reviewing` 成功；`failed` 失败；`duplicate` 已经导入过）。
+1. `juanzhi status --json`：确认 AI 已配置；没配就告诉用户去窗口里配，然后停下。
+2. `juanzhi import <文件…> --wait --json`：导入、等解析。命令会运行几分钟，不要中途打断。结果里每份有 `status`（`reviewing` 成功；`failed` 失败；`duplicate` 已经导入过）。
 3. **提醒用户人工审核**：「这几份卷子是 AI 解析的，题型、分值、知识点可能有错，请在卷知窗口里审核（或告诉我你已经审核过了）」。统计默认只计入已确认的卷子；`--include-reviewing` 可以把待审核的也算上，但要告诉用户这些数据未经审核。
-4. 用户确认后，`juanzhi stats overview` / `stats hot` 看统计；样本少时返回里有提示，**不要对「难点」下结论**。
-5. `juanzhi report generate --reader <读者> [筛选]`：生成。读返回的 `unverified`（事实核对没通过的句子）和 `warnings`，**把它们转告用户**，不要自己悄悄删掉或改写。
-6. `juanzhi report export <id> --format docx --out <路径>`：导出，把文件路径告诉用户。
+4. 用户确认后，`juanzhi stats overview --json` / `stats hot --json` 看统计；样本少时返回里有提示，**不要对「难点」下结论**。
+5. `juanzhi report generate --reader <读者> [筛选] --json`：生成。读返回的 `unverified`（事实核对没通过的句子）和 `warnings`，**把它们转告用户**，不要自己悄悄删掉或改写。
+6. `juanzhi report export <id> --format docx --out <路径> --json`：导出，把文件路径告诉用户。
 
 ## 必须遵守的规则
 

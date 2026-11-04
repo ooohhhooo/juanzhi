@@ -42,6 +42,9 @@ import { registerCardsIpc } from './ipc/cards'
 import { setCardRoot } from './cards/templates'
 import { registerAgentIpc } from './ipc/agent'
 import { startCliMode } from './cli/run'
+import { busyReason } from './busy'
+import { agentBusy } from './agent/service'
+import { getExporting } from './restart'
 import { acquireRunLock, clearLockFile, inspectRunLock, keepTryingRunLock, processLooksLikeJuanzhi } from './cli/lock'
 
 // 数据目录固定为 <appData>/english-exam-workbench，与启动方式、productName 无关。
@@ -134,6 +137,20 @@ function createWindow(): void {
 const cliArgs = cliArgvOf(process.argv, app.isPackaged)
 let releaseRunLock: (() => void) | null = null
 
+/**
+ * 命令行（用户在终端里按了 Enter）请窗口体面地退出，好让命令行接手数据。只有完全空闲才答应：
+ * 有试卷在提取 / 解析、AI 分析 / 报告 / 课程任务、助手对话在跑、正在导出数据包、数据库还没准备好，一律回 busy，什么都不做。
+ * 答应后走 app.quit()（和用户按 Cmd+Q 一样：before-quit 里关数据库、释放运行锁），不强杀。
+ */
+function handleLockRequest(cmd: string): { result: string } {
+  if (cmd !== 'quit') return { result: 'unsupported' }
+  let busy = true
+  try { busy = !!busyReason() || agentBusy() || getExporting() } catch { busy = true }   // 查不出来（比如数据库还没打开）就当作忙
+  if (busy) return { result: 'busy' }
+  setTimeout(() => app.quit(), 80)   // 先让回复发出去
+  return { result: 'quitting' }
+}
+
 if (cliArgs) {
   startCliMode(cliArgs)
 } else if (!app.requestSingleInstanceLock()) {
@@ -152,7 +169,7 @@ if (cliArgs) {
     // 锁子系统本身出故障（目录只读、抢锁超时……）不能让窗口打不开：写日志后照常打开
     try {
       const userDataDir = app.getPath('userData')
-      let lock = await acquireRunLock(userDataDir, 'gui')
+      let lock = await acquireRunLock(userDataDir, 'gui', process.pid, { onRequest: handleLockRequest })
       if (!lock.ok) {
         const h = lock.holder
         const who = h?.pid ? `进程 ${h.pid}${h.startedAt ? `，开始于 ${h.startedAt}` : ''}` : '进程未知'
@@ -187,7 +204,7 @@ if (cliArgs) {
           } else {
             for (const sig of ['SIGTERM', 'SIGKILL'] as const) {
               try { process.kill(h!.pid, sig) } catch { /* 已经结束了 */ }
-              for (let i = 0; i < 25; i++) { await new Promise(r => setTimeout(r, 200)); lock = await acquireRunLock(userDataDir, 'gui'); if (lock.ok) break }
+              for (let i = 0; i < 25; i++) { await new Promise(r => setTimeout(r, 200)); lock = await acquireRunLock(userDataDir, 'gui', process.pid, { onRequest: handleLockRequest }); if (lock.ok) break }
               if (lock.ok) break
             }
           }
