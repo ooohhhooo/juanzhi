@@ -1,11 +1,11 @@
-// 连接目录端到端（M11k）：添加连接的目录（预设 / 自定义 / 石墨提示）→ 网址方式 MCP（假 HTTP 服务器，JSON 与 SSE 两种回复）
+// 连接目录端到端（M11m）：添加连接的目录（预设 / 自定义 / 石墨提示）→ 网址方式 MCP（假 HTTP 服务器，JSON 与 SSE 两种回复）
 // → 测试连接显示状态和工具数 → 只选读取类 → 助手调用外部 MCP 工具时必须弹窗确认（取消则服务器没收到，同意才发）。
-// 用法：node tests/e2e/run-m11k.cjs   （沙箱外运行；先 electron-vite build）。截图目录可用环境变量 EWB_SHOTS 指定。
+// 用法：node tests/e2e/run-m11m.cjs   （沙箱外运行；先 electron-vite build）。截图目录可用环境变量 EWB_SHOTS 指定。
 const M = require('./m4-lib.cjs')
 const { check, sleep, waitFor, withDb, fs, path, work, SECRET, ctx, T, txt, goto, cfgFor, saveCfg, startMock, open, closeApp, L } = M
 const { startFakeMcpHttp } = require('../fixtures/fake-mcp-http-server.cjs')
 
-const SHOTS = process.env.EWB_SHOTS || path.join(work, 'shots-m11k')
+const SHOTS = process.env.EWB_SHOTS || path.join(work, 'shots-m11m')
 fs.mkdirSync(SHOTS, { recursive: true })
 const shot = async name => { await sleep(700); return ctx.page.screenshot({ path: path.join(SHOTS, `m11k-${name}.png`) }) }
 const count = id => T(id).count()
@@ -19,7 +19,7 @@ async function main() {
   const fSse = await startFakeMcpHttp({ mode: 'sse', token })
   const mock = await startMock({ apiKey: SECRET })
   ctx.mock = mock
-  const ud = path.join(work, 'userM11k')
+  const ud = path.join(work, 'userM11m')
   await open(ud, { extraEnv: { EWB_TEST_HOOKS: '1' } })
   await saveCfg(cfgFor(mock, { auto_parse: false }), SECRET)
 
@@ -134,13 +134,13 @@ async function main() {
 }
 
 main().then(() => {
-  const failed = L.finish(path.join(__dirname, 'last-result-m11k.json'))
+  const failed = L.finish(path.join(__dirname, 'last-result-m11m.json'))
   process.exit(failed ? 1 : 0)
 }).catch(async e => {
   console.error(e)
   check('运行', '测试脚本异常退出', false, String(e && e.stack ? e.stack : e).slice(0, 400))
   try { const f = path.join(work, 'failure.png'); await ctx.page.screenshot({ path: f }); console.error('失败现场截图：', f) } catch { /* 应用可能已退出 */ }
-  L.finish(path.join(__dirname, 'last-result-m11k.json'))
+  L.finish(path.join(__dirname, 'last-result-m11m.json'))
   try { await closeApp() } catch { /* 忽略 */ }
   process.exit(1)
 })

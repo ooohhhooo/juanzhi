@@ -37,7 +37,7 @@
     "test:e2e:m11g": "electron-vite build && node tests/e2e/run-m11g.cjs",
     "test:e2e:m11f": "electron-vite build && node tests/e2e/run-m11f.cjs",
     "test:e2e:m11e": "electron-vite build && node tests/e2e/run-m11e.cjs",
-    "test:e2e:m11k": "electron-vite build && node tests/e2e/run-m11k.cjs",
+    "test:e2e:m11m": "electron-vite build && node tests/e2e/run-m11m.cjs",
     "test:e2e:m11i": "electron-vite build && node tests/e2e/run-m11i.cjs",
     "test:e2e:m11a": "electron-vite build && node tests/e2e/run-m11a.cjs",
     "test:e2e:m10e": "electron-vite build && node tests/e2e/run-m10e.cjs",
