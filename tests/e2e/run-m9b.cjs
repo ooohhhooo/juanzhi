@@ -44,7 +44,7 @@ async function main() {
     await page.reload(); await T('dropzone').waitFor({ timeout: 30000 }); await sleep(1500)
     check('公测版', '重新打开后不再出现欢迎说明', (await T('beta-welcome').count()) === 0)
     check('公测版', '侧栏品牌下面不写「公测版」（只在「关于」和首次欢迎里说明）', (await T('beta-badge').count()) === 0)
-    await goto('#/settings'); await T('about-card').waitFor()
+    await goto('#/settings?tab=about'); await T('about-card').waitFor()
     check('公测版', '设置 → 关于：版本号后面有「公测版」标签', (await txt('about-beta')) === '公测版')
 
     // 反馈：桩掉 shell.openExternal，记下要打开的地址
@@ -150,7 +150,7 @@ async function main() {
     const diagFile = path.join(work, 'diag-out', '诊断.zip')
     fs.mkdirSync(path.dirname(diagFile), { recursive: true })
     await stubSave(diagFile)
-    await goto('#/settings'); await T('about-card').waitFor()
+    await goto('#/settings?tab=about'); await T('about-card').waitFor()
     await T('diag-open').click()
     await T('diag-preview').waitFor({ timeout: 15000 })
     const prev = await T('diag-preview').innerText()
@@ -213,7 +213,7 @@ async function main() {
     check('日志', '渲染端上报的错误只记错误类型和短指纹；就算混进原文，冒号后面的内容、密钥、路径都不落盘', /renderer .*TypeError #1a2b3c/.test(logText) && !logText.includes('sk-RENDERER-SECRET') && !logText.includes('请选出画线部分') && !logText.includes('张三'), '')
     check('日志', '日志文件每个不超过 2 MB，总数不超过 5 个', files.length <= 5 && files.every(f => fs.statSync(path.join(ud, 'logs', f)).size <= 2 * 1024 * 1024), files.join(','))
     check('日志', '整份日志（含失败路径）里没有密钥、AI 返回的题干、学生姓名、文件名', !logText.includes(SECRET) && !/学生王小明/.test(logText) && !logText.includes('张三') && !dbStems.some(s => logText.includes(s)) && /解析失败/.test(logText) && /提取失败/.test(logText))
-    await goto('#/settings'); await T('about-card').waitFor()
+    await goto('#/settings?tab=about'); await T('about-card').waitFor()
     await T('diag-open').click(); await T('diag-preview').waitFor()
     await sleep(500); await shot9('diagnostics-modal-light')
     await page.keyboard.press('Escape')
@@ -382,7 +382,7 @@ async function main() {
   {
     await setTheme('dark')
     await goto('#/queue'); await sleep(800); await shot9('queue-dark')
-    await goto('#/settings'); await T('about-card').waitFor(); await T('about-card').scrollIntoViewIfNeeded(); await sleep(400); await shot9('about-dark')
+    await goto('#/settings?tab=about'); await T('about-card').waitFor(); await T('about-card').scrollIntoViewIfNeeded(); await sleep(400); await shot9('about-dark')
     await T('diag-open').click(); await T('diag-preview').waitFor(); await sleep(400); await shot9('diagnostics-dark'); await page.keyboard.press('Escape')
     await page.evaluate(() => window.api.settings.set('ui_stats_filter', {}))
     await goto('#/overview'); await page.reload(); await T('scope-bar').waitFor({ timeout: 30000 })

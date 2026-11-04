@@ -78,7 +78,7 @@ async function main() {
     const pvRe = (await api(() => window.api.ai.prompts())).items.find(i => i.id === 'p3_teacher' && i.part === 'system')
     check('提示词', '重新保存旧的自定义版：保留原来的“基于 v2.0”，「默认版已更新」标记还在（要采用新默认版，得先「恢复默认」）', pvRe.isCustom && pvRe.defaultUpdated)
     await api(t => window.api.ai.savePrompt('p3_teacher', 'system', t), CUSTOM)
-    await goto('#/settings'); await page.waitForSelector('[data-testid=prompt-settings]')
+    await goto('#/settings?admin=1&tab=prompts'); await page.waitForSelector('[data-testid=prompt-settings]')
     const body = await T('prompt-settings').innerText()
     check('提示词', '设置页提示词管理里，老师版那一组标着「默认版已更新，可对比」', /P3 考情分析报告：老师版[\s\S]*默认版已更新，可对比/.test(body))
     await page.getByText('P3 考情分析报告：老师版').first().click()

@@ -87,7 +87,7 @@ async function phaseSetup() {
   })
 
   // 设置页：走真实界面填写 AI 配置
-  await page.evaluate(() => { location.hash = '#/settings' })
+  await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=ai' })
   await page.waitForSelector('[data-testid=ai-settings]')
   await page.locator('[data-testid=ai-provider]').click()
   await page.locator('.ant-select-item-option', { hasText: 'DeepSeek' }).click()
@@ -161,7 +161,7 @@ async function phaseSetup() {
   const badUrlTest = await page.evaluate(() => window.api.ai.test({ kind: 'text', cfg: { base_url: 'file:///etc/passwd' }, apiKey: 'sk-x' }))
   check('密钥安全', '连接测试只接受 http(s) 地址（file:// 之类被拒，不会让主进程去请求任意 URL）', badUrlTest.ok === false && /http/.test(badUrlTest.message), badUrlTest.message)
   // 明文 http 警告
-  await page.evaluate(() => { location.hash = '#/settings' })
+  await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=ai' })
   await page.waitForSelector('[data-testid=ai-base-url]')
   await page.locator('[data-testid=ai-base-url]').fill('http://api.example.com/v1')
   const warnShown = await page.locator('[data-testid=ai-http-warning]').isVisible()
@@ -656,7 +656,7 @@ async function phasePrompts() {
   const id = ctx.metaId
   mock.apiKey = SECRET
   await saveCfg(page, cfgFor(mock, { auto_parse: false }))
-  await page.evaluate(() => { location.hash = '#/settings' })
+  await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=prompts' })
   await page.waitForSelector('[data-testid=prompt-settings]')
   await page.getByText('P1 解析（文本版）').first().click()
   const ta = page.locator('[data-testid=prompt-text-p1_text-system]')

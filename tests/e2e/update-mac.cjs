@@ -158,7 +158,7 @@ async function main() {
       const dir = freshCopy('B'); const target = path.join(dir, '卷知.app'); const ud = path.join(work, 'udB')
       const snapshot = execFileSync('/usr/bin/find', [target, '-type', 'f', '-newer', '/dev/null'], { maxBuffer: 1 << 28 }).length
       const { app, page } = await launch(dir, ud, 'bad', { EWB_UPDATE_CHECK_DELAY_MS: '600000' })
-      await page.evaluate(() => { location.hash = '#/settings' })
+      await page.evaluate(() => { location.hash = '#/settings?tab=about' })
       await page.waitForSelector('[data-testid=update-check]')
       await page.click('[data-testid=update-check]')
       await page.waitForSelector('[data-testid=update-download]', { timeout: 30000 })
@@ -177,7 +177,7 @@ async function main() {
     for (const [tag, extra] of [['D', { EWB_UPDATE_STALL_MS: '3000' }], ['E', { EWB_UPDATE_STALL_MS: '600000' }]]) {
       const dir = freshCopy(tag); const target = path.join(dir, '卷知.app'); const ud = path.join(work, 'ud' + tag)
       const { app, page } = await launch(dir, ud, 'stall', { EWB_UPDATE_CHECK_DELAY_MS: '600000', ...extra })
-      await page.evaluate(() => { location.hash = '#/settings' })
+      await page.evaluate(() => { location.hash = '#/settings?tab=about' })
       await page.waitForSelector('[data-testid=update-check]')
       await page.click('[data-testid=update-check]')
       await page.waitForSelector('[data-testid=update-download]', { timeout: 30000 })
@@ -200,7 +200,7 @@ async function main() {
       fs.chmodSync(dir, 0o555)
       try {
         const { app, page } = await launch(dir, ud, 'ok', { EWB_UPDATE_CHECK_DELAY_MS: '600000' })
-        await page.evaluate(() => { location.hash = '#/settings' })
+        await page.evaluate(() => { location.hash = '#/settings?tab=about' })
         await page.waitForSelector('[data-testid=update-check]')
         await page.click('[data-testid=update-check]')
         const b = await page.waitForSelector('[data-testid=update-blocker]', { timeout: 30000 }).catch(() => null)

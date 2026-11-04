@@ -138,7 +138,7 @@ async function phaseDataDir() {
 // ───────── 阶段 5：示例数据（在有真实数据的库里）─────────
 async function phaseSample() {
   const { page } = ctx
-  await gotoSettings()
+  await goto('#/settings?tab=show'); await T('data-sample').waitFor()
   const real = await api(async () => JSON.stringify([await window.api.stats.overview({}), await window.api.stats.distribution({}), await window.api.stats.hot({}, 2), await window.api.stats.matrix({}, 1), await window.api.stats.compare({ grade: '4' }, 2025, 'before', 2)]))
   const realFiles = fs.readdirSync(path.join(dataDirOf(), 'files')).length
   check('示例数据', '加载前：没有示例数据，设置页"清除示例数据"按钮是灰的；总览看真实数据（18 份）', (await txt('sample-status')).includes('还没有加载') && (await T('sample-clear').isDisabled()) && (await api(() => window.api.data.sampleStatus())).loaded === false)
@@ -204,6 +204,7 @@ async function phaseSample() {
   sd.close()
   check('示例数据 导出', '包里的数据库也没有示例数据派生的东西：没有示例卷、没有基于示例筛选的 P3 报告、没有示例范围的 P2 分析（真实报告 2 份仍在）', inPack.papers === 0 && inPack.reports === 0 && inPack.analyses === 0 && inPack.realReports === 2, JSON.stringify(inPack))
   // 清除
+  await goto('#/settings?tab=show'); await T('data-sample').waitFor()
   await T('sample-clear').click()
   await ctx.page.locator('.ant-popconfirm .ant-btn-primary, .ant-popover .ant-btn-primary').last().click()
   const cleared = await waitFor(async () => !(await api(() => window.api.data.sampleStatus())).loaded, 30000)
@@ -233,7 +234,7 @@ async function phaseOnboarding() {
   // 配 AI → 第 1 步自动完成
   const mock = ctx.mock
   await saveCfg(cfgFor(mock), SECRET)
-  check('首次启动', '到设置里配好 AI 后，回到试卷库第 1 步自动变"已配置"', await (async () => { await goto('#/settings'); await T('data-pack').waitFor(); await goto('#/'); return waitFor(async () => (await ds('onb-step-ai')) === '1', 8000) })())
+  check('首次启动', '到设置里配好 AI 后，回到试卷库第 1 步自动变"已配置"', await (async () => { await goto('#/settings?admin=1&tab=data'); await T('data-pack').waitFor(); await goto('#/'); return waitFor(async () => (await ds('onb-step-ai')) === '1', 8000) })())
   // 拖入第一批卷子：用 M1 样本里的一份（真实流水线：提取 → mock AI 解析），第 2 步变完成
   const sample = path.join(root, 'samples', 'g4-2025.pdf')
   const alt = fs.existsSync(sample) ? sample : null

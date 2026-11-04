@@ -20,7 +20,7 @@ const statSnap = () => api(async () => {
 })
 /** 暂存目录真的是空的（或不存在）：导入成功 / 失败 / 被拒绝之后都不能留着解出来的文件 */
 const stagingEmpty = () => { const d = path.join(dataDirOf(), '.import-staging'); return !fs.existsSync(d) || fs.readdirSync(d).length === 0 }
-const gotoSettings = async () => { await goto('#/settings'); await T('data-pack').waitFor() }
+const gotoSettings = async () => { await goto('#/settings?admin=1&tab=data'); await T('data-pack').waitFor() }
 
 // 把零件拼成一个"恶意"数据包（用单测里的手写 zip 构造器）
 async function makeBad(name, entries) {
