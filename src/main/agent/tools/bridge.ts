@@ -18,7 +18,7 @@ export const PLAN_SAFE_TOOLS = new Set(['list_datasets', 'dataset_profile', 'col
 export const AI_BOUND_TOOLS = new Set(['text_classify'])
 
 export const TOOL_LABELS: Record<string, string> = {
-  list_datasets: '看有哪些数据', dataset_profile: '看数据概况', run_query: '查数据', column_values: '看某一列的取值', read_document: '读文档',
+  list_datasets: '看有哪些数据', dataset_profile: '看数据概况', run_query: '查数据', column_values: '看某一列的取值', read_document: '读文档', report_generate: '生成报告',
   stat_nps: '算推荐分', stat_compare_groups: '分组对比', stat_find_low_groups: '找偏低的分组', stat_period_compare: '两期对比', stat_crosstab: '交叉统计',
   stat_multi_choice: '多选题统计', stat_option_impact: '选项影响分析', stat_distribution: '看分布', stat_ratio: '算占比', stat_middle_segment: '看中间段',
   text_classify: '文字归类', board_start: '新建看板', board_add_finding: '写核心发现', board_add_section: '加看板章节', board_add_block: '加图表或表格',

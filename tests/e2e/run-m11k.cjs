@@ -2,7 +2,10 @@
 // 助手的数据目录里能看到文档、试卷、课程、报告，read_document 读到的文字去掉了手机号。全程 mock AI，数据虚构。
 // 用法：node tests/e2e/run-m11k.cjs   （沙箱外运行；先 electron-vite build；PATH=/usr/bin:$PATH，去掉代理变量）
 const M = require('./m4-lib.cjs')
-const { check, waitFor, fs, path, work, SECRET, ctx, T, goto, cfgFor, saveCfg, startMock, open, closeApp, L } = M
+const { check, waitFor, fs, path, work, SECRET, pageImg, ctx, T, goto, cfgFor, saveCfg, startMock, open, closeApp, L } = M
+const { seed } = require('./fixtures-m3.cjs')
+const { DatabaseSync } = require('node:sqlite')
+const countReports = ud => { const d = new DatabaseSync(path.join(ud, 'workbench-data', 'db.sqlite')); try { return d.prepare("SELECT COUNT(*) c FROM reports WHERE kind = 'report'").get().c } finally { d.close() } }
 
 const SHOTS = process.env.EWB_SHOTS || path.join(work, 'shots-m11k')
 fs.mkdirSync(SHOTS, { recursive: true })
@@ -31,7 +34,8 @@ const toolCalls = () => ctx.page.locator('[data-testid=assistant-tool]').evaluat
 async function main() {
   const mock = await startMock({ apiKey: SECRET })
   ctx.mock = mock
-  await open(path.join(work, 'userM11k'), { extraEnv: { EWB_TEST_HOOKS: '1' } })
+  const ud = path.join(work, 'userM11k')
+  await open(ud, { extraEnv: { EWB_TEST_HOOKS: '1' } })
   await saveCfg(cfgFor(mock, { auto_parse: false }), SECRET)
   await goto('#/assistant'); await T('assistant-page').waitFor()
   await T('assistant-mode').click(); await ctx.page.locator('.ant-dropdown [data-testid=assistant-mode-direct]').click()
@@ -78,6 +82,20 @@ async function main() {
   await T('document-remove').first().click()
   await ctx.page.locator('.ant-popconfirm .ant-btn-primary, .ant-popover .ant-btn-primary').last().click()
   check('数据页', '删除后少一份', await waitFor(async () => (await count('document-card')) === 1, 8000))
+
+  // ── 5. 助手里生成报告：和报告页同一套流程，生成后报告页能看到 ──
+  await closeApp()
+  seed(ud, { bboxes: {}, pageImage: pageImg, pageSize: { width: 1224, height: 1584 } })
+  const r0 = countReports(ud)
+  await open(ud, { extraEnv: { EWB_TEST_HOOKS: '1' } })
+  await goto('#/assistant'); await T('assistant-page').waitFor()
+  await T('assistant-new').first().click()
+  await T('assistant-mode').click(); await ctx.page.locator('.ant-dropdown [data-testid=assistant-mode-direct]').click()
+  await ask('给四年级出一份家长版报告')
+  const c3 = await toolCalls()
+  check('生成报告', '依次调用了 papers_list、report_generate，都成功', c3.join(',') === 'papers_list:true,report_generate:true', c3.join(','))
+  check('生成报告', '报告页多了一份报告', countReports(ud) === r0 + 1, `${r0} → ${countReports(ud)}`)
+  await shot('03-report')
 
   await closeApp()
   await mock.close?.()

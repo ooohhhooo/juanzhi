@@ -5,7 +5,8 @@
 import { getConnectorTools } from '../connectors/tools'
 import { composeTools } from './all-tools-core.ts'
 import type { AgentTool } from './tool-types'
+import { reportGenerate } from './report-tool'
 
 export function allTools(): AgentTool[] {
-  return composeTools(getConnectorTools())
+  return [...composeTools(getConnectorTools()), reportGenerate]
 }

@@ -85,6 +85,11 @@ function next(body) {
     if (round === 1) { const id = /"id":"(doc-[0-9a-f-]+)"/.exec(toolTexts.join('\n'))?.[1] ?? /(doc-[0-9a-f-]{8,})/.exec(toolTexts.join('\n'))?.[1] ?? 'none'; return { content: '', toolCalls: [call('read_document', { documentId: id }, 1)] } }
     return { content: '资料都看过了。', toolCalls: [] }
   }
+  if (/出一份家长版报告/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('papers_list', { grade: '4' }, 0)] }
+    if (round === 1) return { content: '', toolCalls: [call('report_generate', { reader: 'parent', grade: '4' }, 1)] }
+    return { content: /已生成家长版报告/.test(toolTexts.join('\n')) ? '家长版报告已经生成好了，在「报告」页。' : '报告没有生成成功。', toolCalls: [] }
+  }
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
   if (/再做一张卡/.test(q)) return cards(round, true)
   if (/做卡片/.test(q)) return cards(round, false)
