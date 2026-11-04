@@ -262,6 +262,7 @@ interface ElectronAPI {
     export(sessionId: string, id: string, format: import('../shared/agent-outputs').OutputExportFormat): Promise<{ saved: boolean; path?: string; format?: string; bytes?: number; fellBackTo?: 'csv' }>
     reveal(sessionId: string, id: string): Promise<boolean>
     copyImage(sessionId: string, id: string): Promise<boolean>
+    rerenderCard(sessionId: string, id: string, templateId: string): Promise<{ templateId: string; templateName: string }>
     saveImage(sessionId: string, id: string): Promise<{ saved: boolean; path?: string }>
   }
   cards: {

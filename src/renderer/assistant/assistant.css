@@ -107,6 +107,9 @@
 .ewb-side__file[data-active] { background: var(--ewb-primary-soft); }
 .ewb-side__foot { flex: none; display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--ewb-line); background: var(--ewb-paper-2); }
 .ewb-side__btn { font: inherit; font-size: 12px; padding: 3px 12px; border-radius: 999px; cursor: pointer; background: var(--ewb-page); color: var(--ewb-ink); border: 1px solid var(--ewb-line-strong); }
+.ewb-side__tpl { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ewb-ink-2, var(--ewb-ink)); flex-basis: 100%; }
+.ewb-side__tpl select { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--ewb-line-strong); background: var(--ewb-page); color: var(--ewb-ink); }
+.ewb-side__tplbusy { color: var(--ewb-ink-3, #888); }
 .ewb-side__btn:hover:not(:disabled) { border-color: var(--ewb-primary); color: var(--ewb-primary); }
 .ewb-side__btn:disabled { opacity: .45; cursor: default; }
 .ewb-side__btn--pri { background: var(--ewb-primary); border-color: var(--ewb-primary); color: var(--ewb-on-primary); }

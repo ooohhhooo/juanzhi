@@ -7,6 +7,7 @@ import { getMainWindow } from '../window'
 import { allowedFormats, exportOutput } from '../agent/outputs/export'
 import { restoreDeep } from '../agent/names'
 import { getBoard } from '../analysis/report/tools'
+import { rerenderCard } from '../cards/make'
 import { entryPath, getEntry, listOutputs, onOutputsChanged, readContent, safeFileStem, sessionDir } from '../agent/outputs/store'
 
 const SessionSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)
@@ -43,6 +44,8 @@ export function registerAgentOutputsIpc(): void {
     if (!e || !p) throw new Error('找不到这张图片')
     return { e, p }
   }
+  /** 卡片换模板：同样的内容按另一个模板重画（不调用 AI），原地替换这张图 */
+  ipcMain.handle('agent-outputs:rerenderCard', async (_e, rawSid: unknown, rawId: unknown, rawTid: unknown) => rerenderCard(scope(SessionSchema.parse(rawSid)), IdSchema.parse(rawId), z.string().min(1).max(20).parse(rawTid)))
   ipcMain.handle('agent-outputs:copyImage', async (_e, rawSid: unknown, rawId: unknown) => {
     const { p } = imageOf(rawSid, rawId)
     const buf = fs.readFileSync(p)

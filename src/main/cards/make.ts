@@ -4,7 +4,8 @@
  */
 import { restoreDeep } from '../agent/names.ts'
 import path from 'node:path'
-import { saveImage, sessionDir } from '../agent/outputs/store.ts'
+import fs from 'node:fs'
+import { getEntry, replaceImage, saveImage, sessionDir } from '../agent/outputs/store.ts'
 import type { Scope } from '../agent/outputs/store.ts'
 import { applyNamePolicy, audienceOf, checkFinal, checkRaw, KIND_LABEL, parseCardContent } from './schema.ts'
 import type { Audience, CardKind } from './schema.ts'
@@ -58,7 +59,25 @@ export async function makeCard(scope: Scope, input: MakeInput): Promise<MakeResu
   const r = await render(t, kind, prepareData(kind, data))
   const name = cardName(kind, data)
   const e = saveImage(scope, name, r.png, { kind, audience, templateId: t.id, width: r.width, height: r.height })
+  // 卡片内容（真名，只在本机）另存一份，给「换模板」重画用；不进 index.json，免得被 outputs_list 发给模型
+  try { fs.writeFileSync(contentFile(scope, e.id), JSON.stringify({ kind, data })) } catch { /* 存不下就不能换模板 */ }
   return { ok: true, outputId: e.id, name: e.name, path: path.join(sessionDir(scope), e.file!), templateId: t.id, templateName: t.name, notices: parsed.notices, scale: r.scale }
+}
+
+const contentFile = (scope: Scope, id: string) => path.join(sessionDir(scope), 'exports', `${id}.card.json`)
+
+/** 换模板：用同样的内容按另一个模板重画（不经过 AI），原地替换图片 */
+export async function rerenderCard(scope: Scope, outputId: string, templateId: string): Promise<{ templateId: string; templateName: string }> {
+  const e = getEntry(scope, outputId)
+  if (!e || e.type !== 'image' || !e.card) throw new Error('找不到这张卡片')
+  let saved: { kind: CardKind; data: Record<string, any> }
+  try { saved = JSON.parse(fs.readFileSync(contentFile(scope, outputId), 'utf8')) } catch { throw new Error('这张卡片是旧版本做的，没有保存内容，换不了模板；可以让助手按新模板重做一张') }
+  const t = findTemplate(templateId)
+  if (!t) throw new Error('没有这个模板')
+  if (t.audience !== audienceOf(saved.kind)) throw new Error('这个模板和卡片的对象（学生 / 家长）不一致')
+  const r = await render(t, saved.kind, prepareData(saved.kind, saved.data))
+  replaceImage(scope, outputId, r.png, { ...e.card, templateId: t.id, width: r.width, height: r.height })
+  return { templateId: t.id, templateName: t.name }
 }
 
 export function templateRows(audience: Audience, dataDir: string) {

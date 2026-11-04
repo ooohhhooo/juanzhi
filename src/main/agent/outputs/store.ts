@@ -153,6 +153,17 @@ export function saveImage(s: Scope, name: string, png: Buffer, card: NonNullable
   return e
 }
 
+/** 换模板重画：同一个产出，图片文件原地替换，记下新模板 */
+export function replaceImage(s: Scope, id: string, png: Buffer, card: NonNullable<OutputEntry['card']>): OutputEntry {
+  const idx = readIndex(s)
+  const e = idx.items.find(x => x.id === id && x.type === 'image')
+  if (!e || !e.file) throw new Error('找不到这张图片')
+  atomicWrite(path.join(sessionDir(s), e.file), png)
+  e.card = card; e.updatedAt = Date.now()
+  writeIndex(s, idx)
+  return e
+}
+
 // ───────────── 表格 ─────────────
 
 const MAX_COLS = 100

@@ -91,6 +91,10 @@ function next(body) {
     return { content: /已生成家长版报告/.test(toolTexts.join('\n')) ? '家长版报告已经生成好了，在「报告」页。' : '报告没有生成成功。', toolCalls: [] }
   }
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
+  if (/做一张口诀卡/.test(q)) {
+    const m = { audience: 'student', kind: 'mnemonic', content: { title: "Let's 后面跟原形", lines: [{ text: "Let's 后面跟原形", highlight: '原形' }, { text: '不加 to，不加 ing' }, { text: 'go、run 直接站中间' }], examples: [{ label: '去动物园', text: "Let's go to the zoo." }, { label: '一起跑', text: "Let's run together." }] } }
+    return round === 0 ? { content: '', toolCalls: [call('card_make', m, 0)] } : { content: '口诀卡做好了。', toolCalls: [] }
+  }
   if (/再做一张卡/.test(q)) return cards(round, true)
   if (/做卡片/.test(q)) return cards(round, false)
   if (/满意度/.test(q)) return analysis(round, toolTexts)

@@ -599,6 +599,7 @@ export default function Assistant() {
         renderBoard={() => <BoardPane sessionId={active} onSource={openQuery} />}
         onExport={(id, f) => { void outs.exportOutput(id, f).then(r => { if (r.saved) message.success('已导出') }, e => message.error(errMsg(e))) }}
         onReveal={id => { void outs.reveal(id) }}
+        onRerenderCard={async (id, tid) => { if (!active) return; try { const r = await window.api.agentOutputs.rerenderCard(active, id, tid); message.success(`已换成「${r.templateName}」`) } catch (e) { message.error(errMsg(e)) } }}
         onCopyImage={id => { if (active) void window.api.agentOutputs.copyImage(active, id).then(() => message.success('图片已复制，可以直接粘贴发送'), e => message.error(errMsg(e))) }}
         onSaveImage={id => { if (active) void window.api.agentOutputs.saveImage(active, id).then(r => { if (r.saved) message.success('图片已保存') }, e => message.error(errMsg(e))) }}
         onSendWecom={id => { const o = outs.outputs.find(x => x.id === id); if (o) void send(`请把产出「${o.name}」（编号 ${o.id}）这张图片发到企业微信群：先用 outputs_list 查它的文件路径，再用 wecom_send（kind=file）发送。`) }}

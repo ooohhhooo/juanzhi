@@ -327,6 +327,7 @@ const api = {
     export: (sessionId: string, id: string, format: 'docx' | 'pdf' | 'xlsx' | 'csv' | 'md'): Promise<any> => ipcRenderer.invoke('agent-outputs:export', sessionId, id, format),
     reveal: (sessionId: string, id: string): Promise<boolean> => ipcRenderer.invoke('agent-outputs:reveal', sessionId, id),
     copyImage: (sessionId: string, id: string): Promise<boolean> => ipcRenderer.invoke('agent-outputs:copyImage', sessionId, id),
+    rerenderCard: (sessionId: string, id: string, templateId: string): Promise<{ templateId: string; templateName: string }> => ipcRenderer.invoke('agent-outputs:rerenderCard', sessionId, id, templateId),
     saveImage: (sessionId: string, id: string): Promise<{ saved: boolean; path?: string }> => ipcRenderer.invoke('agent-outputs:saveImage', sessionId, id),
   },
   /** 分享卡片：模板列表（含默认 / 孩子称呼设置）、示例预览、改默认模板、改孩子称呼 */

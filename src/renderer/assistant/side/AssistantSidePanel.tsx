@@ -28,6 +28,8 @@ export interface SidePanelProps {
   onCopyImage?: (id: string) => void
   onSaveImage?: (id: string) => void
   onSendWecom?: (id: string) => void
+  /** 卡片换模板（同样内容按另一个模板重画）；没给就不显示 */
+  onRerenderCard?: (id: string, templateId: string) => Promise<void>
   /** 点引用标签 / 出处（打开查询详情等） */
   onOpenRef: (r: OpenRef) => void
   // ── 卡片详情 ──
@@ -74,6 +76,9 @@ export default function AssistantSidePanel(p: SidePanelProps) {
   // 在画布上点了卡片：卡片详情要看得到，收起的话自动展开
   useEffect(() => { if (p.mode === 'card' && p.node) setFolded(false) }, [p.mode, p.node?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const [, tick] = useState(0)
+  const [tpls, setTpls] = useState<{ student: Array<{ id: string; name: string }>; parent: Array<{ id: string; name: string }> } | null>(null)
+  const [rerendering, setRerendering] = useState(false)
+  useEffect(() => { if (p.onRerenderCard && !tpls) void window.api.cards.templates().then((r: any) => setTpls({ student: r.student, parent: r.parent })).catch(() => {}) }, [p.onRerenderCard, tpls])
   const widthRef = useRef(width); widthRef.current = width
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30_000); return () => clearInterval(t) }, [])
 
@@ -171,6 +176,16 @@ export default function AssistantSidePanel(p: SidePanelProps) {
               </div>
               <div className="ewb-side__foot" data-testid="out-actions">
                 {active && formatsOf(active.type).map(([f, label], i) => <button key={f} type="button" className={`ewb-side__btn${i === 0 ? ' ewb-side__btn--pri' : ''}`} disabled={active.status === 'writing' && active.type !== 'table'} onClick={() => p.onExport(active.id, f)} data-testid={`out-export-${f}`}><Download size={12} strokeWidth={1.9} aria-hidden /> {label}</button>)}
+                {active && active.type === 'image' && active.card && p.onRerenderCard && tpls && (
+                  <label className="ewb-side__tpl" data-testid="out-card-template">
+                    <span>模板</span>
+                    <select value={active.card.templateId} disabled={rerendering} aria-label="换模板" data-testid="out-card-template-select"
+                      onChange={e => { const tid = e.target.value; setRerendering(true); void p.onRerenderCard!(active.id, tid).finally(() => setRerendering(false)) }}>
+                      {(active.card.audience === 'parent' ? tpls.parent : tpls.student).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    {rerendering && <span className="ewb-side__tplbusy">正在重画…</span>}
+                  </label>
+                )}
                 {active && active.type === 'image' && <>
                   <button type="button" className="ewb-side__btn ewb-side__btn--pri" onClick={() => p.onCopyImage?.(active.id)} data-testid="out-copy-image"><Copy size={12} strokeWidth={1.9} aria-hidden /> 复制图片</button>
                   <button type="button" className="ewb-side__btn" onClick={() => p.onSaveImage?.(active.id)} data-testid="out-save-image"><Download size={12} strokeWidth={1.9} aria-hidden /> 保存图片</button>

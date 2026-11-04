@@ -11,7 +11,7 @@ import type { CardKind } from './schema.ts'
 /** 字号缩放下限：再小就看不清了，宁可让 Agent 精简内容 */
 export const MIN_SCALE = 0.8
 /** 内容少时最多放大到这个倍数 */
-export const MAX_SCALE = 1.25
+export const MAX_SCALE = 1.7
 const STEP = 0.03
 const TIMEOUT_MS = 30_000
 
@@ -62,6 +62,8 @@ export async function renderCardPng(t: CardTemplate, kind: CardKind, data: Recor
       if (scale < MIN_SCALE) throw new CardTooMuchError()
       await wc.executeJavaScript(`document.body.style.setProperty('--s','${scale}');true`)
     }
+    // 放大到头还有空：内容在纸面上略偏上居中，不要全挤在顶上
+    await wc.executeJavaScript(`(()=>{const z=document.getElementById("zc"),f=z.firstElementChild;const free=z.clientHeight-f.getBoundingClientRect().height;if(free>8)f.style.marginTop=Math.round(free*0.42)+"px";return true})()`)
     await new Promise(r => setTimeout(r, 120))
     let img = await wc.capturePage({ x: 0, y: 0, width: t.width, height: t.height })
     const sz = img.getSize()
