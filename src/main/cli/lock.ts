@@ -68,11 +68,32 @@ function probe(endpoint: string, timeoutMs = 1500): Promise<{ alive: boolean | n
   })
 }
 
-function listen(endpoint: string, info: LockInfo): Promise<net.Server | 'busy'> {
+/** 持有者收到的请求（目前只有 quit：请窗口体面地退出）；回复 result：quitting（正在退出）/ busy（有任务在跑，不退出）/ 其他自定义 */
+export type LockRequestHandler = (cmd: string) => Promise<{ result: string }> | { result: string }
+
+function listen(endpoint: string, info: LockInfo, onRequest?: LockRequestHandler): Promise<net.Server | 'busy'> {
   return new Promise((resolve, reject) => {
     const server = net.createServer(sock => {
-      try { sock.end(JSON.stringify(info) + '\n') } catch { /* 对方已经走了 */ }
       sock.on('error', () => { /* 忽略 */ })
+      if (!onRequest) { try { sock.end(JSON.stringify(info) + '\n') } catch { /* 对方已经走了 */ } return }
+      // 先回持有者信息（探测的人读到这一行就够了），再等一会儿看对方有没有发请求；没有就关连接
+      try { sock.write(JSON.stringify(info) + '\n') } catch { /* 对方已经走了 */ }
+      let buf = ''
+      let handled = false
+      const close = (): void => { clearTimeout(idle); try { sock.end() } catch { /* 已关闭 */ } }
+      const idle = setTimeout(close, 400)
+      sock.setEncoding('utf8')
+      sock.on('data', d => {
+        buf += d
+        const nl = buf.indexOf('\n')
+        if (nl < 0 || handled) return
+        handled = true
+        clearTimeout(idle)
+        let cmd = ''
+        try { cmd = String(JSON.parse(buf.slice(0, nl)).cmd ?? '') } catch { /* 格式不对：当作没有请求 */ }
+        if (!cmd) { close(); return }
+        Promise.resolve().then(() => onRequest(cmd)).then(r => { try { sock.end(JSON.stringify(r) + '\n') } catch { /* 对方走了 */ } }, () => close())
+      })
     })
     server.once('error', e => {
       const code = (e as NodeJS.ErrnoException).code
@@ -80,6 +101,29 @@ function listen(endpoint: string, info: LockInfo): Promise<net.Server | 'busy'> 
       else reject(e)
     })
     server.listen(endpoint, () => { server.removeAllListeners('error'); server.on('error', () => { /* 运行中的错误不影响持锁 */ }); resolve(server) })
+  })
+}
+
+/** 给持有锁的窗口发一个请求，返回对方的 result；对方是旧版本（不认请求）/ 没回话 / 连不上返回 null */
+export function sendLockRequest(dir: string, cmd: string, timeoutMs = 5000): Promise<string | null> {
+  return new Promise(resolve => {
+    const s = net.connect(lockEndpoint(dir))
+    let buf = ''
+    let settled = false
+    const done = (): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      s.destroy()
+      let r: string | null = null
+      try { const j = JSON.parse(buf.split('\n')[1] ?? ''); if (j && typeof j.result === 'string') r = j.result } catch { /* 没有第二行 */ }
+      resolve(r)
+    }
+    const timer = setTimeout(done, timeoutMs)
+    s.setEncoding('utf8')
+    s.on('connect', () => { try { s.write(JSON.stringify({ cmd }) + '\n') } catch { /* 对方走了 */ } })
+    s.on('data', d => { buf += d })
+    s.on('end', done); s.on('close', done); s.on('error', done)
   })
 }
 
@@ -176,7 +220,7 @@ function acquireFileLock(dir: string, info: LockInfo, socketGone = false): Acqui
 export type AcquireResult = { ok: true; release: () => void; endpoint: string } | { ok: false; holder: LockInfo | null }
 
 /** 拿锁。已有活着的持有者返回 { ok:false, holder }（holder 为 null = 连得上但对方没回信息）；拿到后一直持有到 release() 或进程结束 */
-export async function acquireRunLock(dir: string, mode: LockMode, pid = process.pid, opts: { noSocket?: boolean } = {}): Promise<AcquireResult> {
+export async function acquireRunLock(dir: string, mode: LockMode, pid = process.pid, opts: { noSocket?: boolean; onRequest?: LockRequestHandler } = {}): Promise<AcquireResult> {
   fs.mkdirSync(dir, { recursive: true })
   const endpoint = lockEndpoint(dir)
   const info: LockInfo = { pid, mode, startedAt: new Date().toISOString() }
@@ -190,7 +234,7 @@ export async function acquireRunLock(dir: string, mode: LockMode, pid = process.
       let s: net.Server | 'busy'
       try {
         if (opts.noSocket) throw Object.assign(new Error('测试：模拟沙箱禁止监听套接字'), { code: 'EPERM' })   // 只给单测用
-        s = await listen(endpoint, info)
+        s = await listen(endpoint, info, opts.onRequest)
       } catch (e) {
         // 不让监听（沙箱）：退回锁文件
         const code = (e as NodeJS.ErrnoException).code

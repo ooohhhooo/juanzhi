@@ -319,7 +319,7 @@ The requirements are the same as in the installation prompt: stop on failure, do
 
 From version 1.2.0, Juanzhi comes with a **command-line interface**. You type one command in a terminal to do "import papers → AI analysis → view statistics → generate a report → export to Word / PDF". An AI assistant that can run commands (Codex, Claude Code, WorkBuddy and others) can use the same commands to work for you and read the results back.
 
-**Interactive interface (new in 1.4, Mac):** type just `juanzhi` and press Enter (nothing after it) to open an interface like Claude Code's: type to chat with the assistant, and type `/` to see commands (import papers, make a report, switch role, view earlier conversations…). The form with a command (such as `juanzhi status`) is meant for programs and AI assistants and prints JSON. On Windows only the command form works for now.
+**Interactive interface (new in 1.4, Mac):** type just `juanzhi` and press Enter (nothing after it) to open an interface like Claude Code's: type to chat with the assistant, and type `/` to see commands (import papers, make a report, switch role, view earlier conversations…). The form with a command (such as `juanzhi status --json`) is meant for programs and AI assistants and prints JSON; typed by hand in a terminal without `--json`, a command prints a colored, readable table with ✓ / ✗ messages instead. If the Juanzhi window is open, `juanzhi` asks "Press Enter to make the Juanzhi window quit and continue, Esc to cancel" (it refuses while the window is busy with a job). On Windows only the command form works for now.
 
 The command line and the window are **the same software with the same data**. Papers imported from the command line show up when you open the window. Papers you have reviewed in the window can be counted by the command line.
 
@@ -349,7 +349,7 @@ The example below is: "import two Grade 4 final papers, generate one teacher-ver
 juanzhi status
 ```
 
-Every command prints **one piece of JSON** (a long piece of text wrapped in curly braces, made for programs to read). On success it starts with `{"ok":true`. On failure it starts with `{"ok":false`, followed by `code`, `message` (the reason) and `exit` (the exit code). In the result of `status`, find `"ai"`. The `"configured"` after it should be `true`. If it is `false`, go back to the window and set up the AI.
+Typed by hand in a terminal, commands print a readable table with ✓ / ✗ messages. **For programs and AI assistants add `--json`** (or let a program capture the output), and every command prints **one piece of JSON** (a long piece of text wrapped in curly braces, made for programs to read). On success it starts with `{"ok":true`. On failure it starts with `{"ok":false`, followed by `code`, `message` (the reason) and `exit` (the exit code). In the result of `status`, find `"ai"`. The `"configured"` after it should be `true`. If it is `false`, go back to the window and set up the AI.
 
 > Chinese text in the output (including `message`) is written as escape codes like `\u8fd8\u6ca1…`, so it never shows up garbled on Windows. This is normal. AI assistants and JSON tools (PowerShell's `ConvertFrom-Json`, `jq` and so on) turn it back into Chinese automatically. If you cannot read it yourself, just give the whole output to an AI assistant. The `ok` and `exit` fields are readable without turning anything back.
 

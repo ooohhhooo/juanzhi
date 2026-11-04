@@ -18,7 +18,10 @@ import { registerReportIpc } from '../ipc/report'
 import { destroyPdfRenderer } from '../pipeline/pdf-renderer'
 import { recoverInterruptedPapers } from '../pipeline/queue'
 import { startSimilarScan } from '../similar-runner'
-import { acquireRunLock } from './lock'
+import { acquireRunLock, sendLockRequest } from './lock'
+import type { AcquireResult } from './lock'
+import { colorWanted, humanWanted, renderHuman } from './human'
+import { BUSY_MESSAGE, CANCELLED_MESSAGE, TIMEOUT_MESSAGE, UNSUPPORTED_MESSAGE, readEnterOrEsc, windowRunningPanel } from './running-panel'
 import { CliError, failFromError, helpData, okResult, parseArgs, scanOutputFlags, serializeResult } from './args'
 import type { CliFail, CliOk, ParsedArgs } from './args'
 import { assertResultFileWritable, writeFileAtomic } from './outfile'
@@ -61,6 +64,29 @@ export function wantsInteractive(rawArgs: string[], tty: boolean): boolean {
   return rawArgs.length === 0 && tty
 }
 
+const sleepMs = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+
+/**
+ * 窗口占着锁，而人在终端里：显示面板，Enter 就请窗口体面地退出（窗口自己判断有没有任务在跑，有就拒绝），Esc 取消。
+ * 窗口退出后抢到锁就返回，调用方继续往下走；否则抛 app_running（退出码和以前一样是 3），message 写明原因。
+ */
+async function offerWindowQuit(dir: string): Promise<Extract<AcquireResult, { ok: true }>> {
+  process.stdout.write(windowRunningPanel({ color: colorWanted() }))
+  if (await readEnterOrEsc(process.stdin) === 'esc') throw new CliError('app_running', CANCELLED_MESSAGE)
+  const dim = (s: string): string => (colorWanted() ? `\x1b[2m${s}\x1b[22m` : s)
+  process.stdout.write(dim('  正在请卷知窗口退出……') + '\n')
+  const res = await sendLockRequest(dir, 'quit')
+  if (res === 'busy') throw new CliError('app_running', BUSY_MESSAGE)
+  if (res !== 'quitting') throw new CliError('app_running', UNSUPPORTED_MESSAGE)
+  const deadline = Date.now() + 20_000
+  while (Date.now() < deadline) {
+    const again = await acquireRunLock(dir, 'cli')
+    if (again.ok) { process.stdout.write(`  ${colorWanted() ? '\x1b[32m✓\x1b[0m' : '✓'} 卷知窗口已退出\n`); return again }
+    await sleepMs(300)
+  }
+  throw new CliError('app_running', TIMEOUT_MESSAGE)
+}
+
 export function startCliMode(rawArgs: string[]): void {
   const tty = canRunTui()
   const interactive = tty && wantsInteractive(rawArgs, tty)
@@ -77,6 +103,16 @@ export function startCliMode(rawArgs: string[]): void {
   let exiting = false
   const out = scanOutputFlags(rawArgs)
   let forbidden: string[] = []   // 结果文件不能落在这些目录里（userData、数据目录）
+  // 人读输出：stdout 是真实终端，且没有 --json、没有任何结果文件；否则原样输出那一行 JSON（Agent / 管道 / 重定向都走这条）
+  const humanOut = !interactive && humanWanted({
+    stdoutTty: !!process.stdout.isTTY, json: rawArgs.includes('--json'), resultFile: out.resultFile, jsonOut: out.jsonOut, envResultFile: process.env.JUANZHI_RESULT_FILE
+  })
+  if (humanOut) {
+    // 给人看的输出：主进程里零散的 console.log 提示（"[db] 使用 node:sqlite"）和 Electron 的弃用警告对使用者没用，别混进表格上面；进度（[juanzhi] …）仍然在 stderr
+    const noop = (): void => undefined
+    console.log = noop; console.info = noop; console.debug = noop
+    ;(process as NodeJS.Process & { noDeprecation?: boolean }).noDeprecation = true
+  }
 
   /** 写结果文件（--result-file、--out 的副本、环境变量 JUANZHI_RESULT_FILE）：每个都过安全检查，写不了只报 stderr，不影响命令结果 */
   const writeFiles = (line: string, exit: number): void => {
@@ -127,7 +163,8 @@ export function startCliMode(rawArgs: string[]): void {
       debug(`exit(${code})`)
       setTimeout(() => app.exit(code), 30)
     }
-    try { process.stdout.on('error', () => exit()); process.stdout.write(line + '\n', () => exit()) } catch { exit() }
+    const text = humanOut ? renderHuman(r, parsed?.command ?? '', { color: colorWanted(), columns: process.stdout.columns || 80 }) : line + '\n'
+    try { process.stdout.on('error', () => exit()); process.stdout.write(text, () => exit()) } catch { exit() }
     setTimeout(exit, 3000).unref?.()   // stdout 回调一直不来（管道被占住）时也要退出
   }
 
@@ -151,7 +188,11 @@ export function startCliMode(rawArgs: string[]): void {
       forbidden = [app.getPath('userData')]
 
       // 运行锁：窗口 / 别的命令行在跑（锁是「持有者活着才持有」，崩溃后自动释放）
-      const got = await acquireRunLock(app.getPath('userData'), 'cli')
+      let got = await acquireRunLock(app.getPath('userData'), 'cli')
+      // 窗口占着锁而人坐在终端前（交互界面，或终端里不带 --json 的命令）：给面板并问要不要让窗口退出；其余（Agent、管道、--json）照旧直接报错
+      if (!got.ok && got.holder?.mode === 'gui' && process.stdin.isTTY && process.stdout.isTTY && (interactive || humanOut)) {
+        got = await offerWindowQuit(app.getPath('userData'))
+      }
       if (!got.ok) {
         if (got.holder?.mode === 'gui') throw new CliError('app_running', '卷知窗口正在运行，请先退出卷知再用命令行（Mac 上要按 Cmd+Q 退出，只关闭窗口不行；Windows 上关闭窗口就是退出）')
         if (!got.holder) throw new CliError('cli_busy', '卷知（窗口或另一个命令行任务）正在使用数据，请等它结束后再试；如果一直这样，请退出卷知窗口后再试')
