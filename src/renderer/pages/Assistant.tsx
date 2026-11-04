@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input } from 'antd'
 import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, PanelLeftClose, PanelLeftOpen, Settings, Square, SquarePen, Trash2, Wrench, FileSpreadsheet, GitBranch, FileText, Image as ImageIcon } from 'lucide-react'
@@ -303,6 +303,19 @@ export default function Assistant() {
     clearPickedDatasets(); clearAttachments(); setSelNode(null); setSideMode('outputs'); setToolProg({}); setView('chat')
     setActive(null); setSteps([]); setBranchId('main'); setForkFrom(null); setStale(false); setLive(''); setProgress(null); setRunning(false); setApproval(null); setStatusText(''); setSessTok(0)
   }, [qc])
+
+  // 从报告页「问助手」进来（#/assistant?report=<id>）：开一个新对话，输入框预填报告编号，聚焦，不自动发送
+  const [sp, setSp] = useSearchParams()
+  const askReport = sp.get('report')
+  useEffect(() => {
+    if (!askReport) return
+    setSp({}, { replace: true })
+    newChat()
+    void window.api.report.get(askReport).then(r => {
+      setText(r ? `结合报告《${r.title}》（编号 ${askReport}）：` : `结合报告（编号 ${askReport}）：`)
+      window.setTimeout(() => { const el = document.querySelector<HTMLTextAreaElement>('[data-testid=assistant-input]'); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length) }, 80)
+    }, () => undefined)
+  }, [askReport, newChat, setSp])
 
   // 主进程推来的过程事件
   useEffect(() => window.api.on('agent:event', (e: AgentEventMsg) => {

@@ -111,7 +111,10 @@ const api = {
     generate: (filter: Record<string, unknown> | undefined, requestId: string, reader?: string, options?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('report:generate', filter, requestId, reader, options),
     retryPart: (id: string, part: string, requestId: string): Promise<any> => ipcRenderer.invoke('report:retryPart', id, part, requestId),
     variantTick: (id: string, variantId: string, ok: boolean): Promise<any> => ipcRenderer.invoke('report:variantTick', id, variantId, ok),
-    cardImage: (id: string, kind: string, index: number, mode: string): Promise<any> => ipcRenderer.invoke('report:cardImage', id, kind, index, mode),
+    cardImage: (id: string, kind: string, index: number, mode: string, templateId?: string): Promise<any> => ipcRenderer.invoke('report:cardImage', id, kind, index, mode, templateId),
+    cardTemplates: (): Promise<any> => ipcRenderer.invoke('report:cardTemplates'),
+    parentCardPlan: (id: string): Promise<any> => ipcRenderer.invoke('report:parentCardPlan', id),
+    parentCard: (id: string, mode: string, templateId?: string): Promise<any> => ipcRenderer.invoke('report:parentCard', id, mode, templateId),
     delete: (id: string): Promise<boolean> => ipcRenderer.invoke('report:delete', id),
     export: (id: string, fmt: 'md' | 'pdf' | 'docx'): Promise<any> => ipcRenderer.invoke('report:export', id, fmt),
     // 老师点「我已核对」（家长版必须先核对才能导出 / 复制）

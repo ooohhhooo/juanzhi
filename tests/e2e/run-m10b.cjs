@@ -162,19 +162,36 @@ async function main() {
     await T('card-save-answercard-0').click()
     await waitFor(async () => fs.existsSync(f), 20000)
     const sz = fs.existsSync(f) ? pngSize(f) : { w: 0, h: 0 }
-    check('图片', '「保存图片」：写出 PNG；宽度 1504 像素 = (720 + 两侧白边) × 2（2 倍清晰度），高度符合内容', M.isPng(f) && sz.w === 1504 && sz.h > 500 && sz.h < 3000, `${sz.w}×${sz.h}`)
+    check('图片', '「保存图片」：走新卡片引擎，写出 1086×1448 的 PNG', M.isPng(f) && sz.w === 1086 && sz.h === 1448, `${sz.w}×${sz.h}`)
     fs.copyFileSync(f, path.join(shots, 'm10b-card-answer-image.png'))
     await ctx.app.evaluate(({ clipboard }) => clipboard.writeText('旧的剪贴板内容'))
     await T('card-copy-answercard-0').click()
     const clip = await waitFor(async () => { const c = await clipImage(); return c && c.len > 1000 ? c : null }, 20000)
-    check('图片', '「复制图片」：剪贴板里是 PNG 图片（非空，宽 1504），不是文字', !!clip && clip.w === 1504 && clip.h === sz.h, JSON.stringify(clip))
+    check('图片', '「复制图片」：剪贴板里是 PNG 图片（非空，1086×1448），不是文字', !!clip && clip.w === 1086 && clip.h === 1448, JSON.stringify(clip))
     const f2 = path.join(work, 'trick-card.png')
     await stubSave(f2)
     await T('card-save-trick-0').click()
     await waitFor(async () => fs.existsSync(f2), 20000)
     const sz2 = fs.existsSync(f2) ? pngSize(f2) : { w: 0, h: 0 }
-    check('图片', '口诀卡同样能存成 2 倍图片（宽 1504），比答题卡矮', sz2.w === 1504 && sz2.h > 200 && sz2.h < sz.h, `${sz2.w}×${sz2.h}`)
+    check('图片', '口诀卡同样能存成 1086×1448 图片', sz2.w === 1086 && sz2.h === 1448, `${sz2.w}×${sz2.h}`)
     fs.copyFileSync(f2, path.join(shots, 'm10b-card-trick-image.png'))
+    {
+      // 模板下拉：列出 10 套学生模板（默认带「（默认）」）；换一套再保存，出来的图和默认的不同
+      const SHOTS = process.env.EWB_SHOTS_DIR || shots; fs.mkdirSync(SHOTS, { recursive: true })
+      fs.copyFileSync(f, path.join(SHOTS, 'teacher-answercard-default.png')); fs.copyFileSync(f2, path.join(SHOTS, 'teacher-trick-default.png'))
+      const opts = await T('card-template-trick-0').locator('option').allInnerTexts()
+      check('模板下拉', '口诀卡 / 答题卡旁各有一个样式下拉：列出 10 套学生模板，默认的带「（默认）」，已选中默认', opts.length === 10 && opts.filter(o => /（默认）/.test(o)).length === 1 && /（默认）/.test(await T('card-template-trick-0').evaluate(el => el.options[el.selectedIndex].text)) && (await T('card-template-answercard-0').locator('option').count()) === 10, opts.join('|'))
+      const other = await T('card-template-trick-0').locator('option').nth(3).getAttribute('value')
+      await T('card-template-trick-0').selectOption(other)
+      const f3 = path.join(work, 'trick-card-2.png')
+      await stubSave(f3)
+      await T('card-save-trick-0').click()
+      await waitFor(async () => fs.existsSync(f3) && fs.statSync(f3).size > 2000, 20000)
+      check('模板下拉', '换一套样式再保存：仍是 1086×1448 的 PNG，但和默认样式的图不同；另一张卡的选择不受影响', M.isPng(f3) && pngSize(f3).w === 1086 && pngSize(f3).h === 1448 && !fs.readFileSync(f3).equals(fs.readFileSync(f2)) && /（默认）/.test(await T('card-template-answercard-0').evaluate(el => el.options[el.selectedIndex].text)))
+      fs.copyFileSync(f3, path.join(SHOTS, 'teacher-trick-other-template.png'))
+      await T('card-actions-trick-0').scrollIntoViewIfNeeded()
+      await ctx.page.screenshot({ path: path.join(SHOTS, 'report-teacher-card-buttons.png') })
+    }
   }
 
   // ───────────────────────── 5. 复制到微信 / 导出 Word、PDF、Markdown ─────────────────────────

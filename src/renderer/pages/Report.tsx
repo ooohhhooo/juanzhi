@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { App, Checkbox, Collapse, Modal, Popconfirm, Tooltip } from 'antd'
-import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
+import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, Mail, MessageSquare, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import MarkdownView from '../stats/MarkdownView'
@@ -184,24 +184,54 @@ export default function Report() {
       qc.setQueryData(['reports', 'detail', detail.id], updated)
     } catch (e) { message.error(clean(e)) }
   }
+  // 卡片模板：学生卡（口诀卡 / 答题卡）和家长卡各有一个下拉，默认用「助手设置 → 分享卡片」里的默认模板，可以按卡片单独换
+  const { data: tpls } = useQuery({ queryKey: ['reports', 'cardTemplates'], queryFn: () => window.api.report.cardTemplates(), staleTime: 0 })
+  const [tplPick, setTplPick] = useState<Record<string, string>>({})
+  const tplOf = (key: string, audience: 'student' | 'parent'): string => {
+    const rows = tpls?.[audience] ?? []
+    const v = tplPick[key]
+    return v && rows.some(r => r.id === v) ? v : (rows.find(r => r.isDefault)?.id ?? rows[0]?.id ?? '')
+  }
+  const tplSelect = (key: string, audience: 'student' | 'parent') => {
+    const rows = tpls?.[audience] ?? []
+    return (
+      <select className="ewb-cardview__tpl" data-testid={`card-template-${key}`} aria-label="卡片样式" value={tplOf(key, audience)} onChange={e => setTplPick(p => ({ ...p, [key]: e.target.value }))}>
+        {rows.map(r => <option key={r.id} value={r.id}>{r.name}{r.isDefault ? '（默认）' : ''}</option>)}
+      </select>
+    )
+  }
   const [imaging, setImaging] = useState<string | null>(null)
   const cardImage = async (kind: 'trick' | 'answercard', index: number, mode: 'save' | 'copy') => {
     if (!detail) return
     const key = `${kind}-${index}-${mode}`
     setImaging(key)
     try {
-      const r = await window.api.report.cardImage(detail.id, kind, index, mode)
+      const r = await window.api.report.cardImage(detail.id, kind, index, mode, tplOf(`${kind}-${index}`, 'student') || undefined)
+      if (r.notes?.length) message.info(r.notes.join('；'))
       if (r.saved) message.success(mode === 'copy' ? '已复制图片，可以直接粘贴到微信或文档里' : '已保存图片')
     } catch (e) { message.error(clean(e)) }
     finally { setImaging(null) }
   }
   const cardActions = (kind: 'trick' | 'answercard', index: number) => (
     <div className="ewb-cardview__acts" data-testid={`card-actions-${kind}-${index}`}>
+      {tplSelect(`${kind}-${index}`, 'student')}
       <Btn tone="secondary" size="small" icon={ImageDown} data-testid={`card-save-${kind}-${index}`} disabled={blockedExport} loading={imaging === `${kind}-${index}-save`} onClick={() => cardImage(kind, index, 'save')}>保存图片</Btn>
       <Btn tone="secondary" size="small" icon={ImagePlus} data-testid={`card-copy-${kind}-${index}`} disabled={blockedExport} loading={imaging === `${kind}-${index}-copy`} onClick={() => cardImage(kind, index, 'copy')}>复制图片</Btn>
-      <span className="ewb-cardview__hint">2 倍清晰度的图片{kind === 'answercard' ? '，不含学生信息，姓名和日期留给学生手写' : ''}</span>
+      <span className="ewb-cardview__hint">{kind === 'answercard' ? '不含学生信息，姓名和日期留给学生手写' : '竖版图片，可发给学生'}</span>
     </div>
   )
+  // 家长卡片（绘本来信）：只有家长版有；和导出同一道门槛（blockedExport）
+  const { data: parentPlan } = useQuery({ queryKey: ['reports', 'parentCardPlan', detail?.id, detail?.markdown], queryFn: () => window.api.report.parentCardPlan(detail!.id), enabled: detail?.reader === 'parent' && !blockedExport })
+  const [parentImaging, setParentImaging] = useState<'save' | 'copy' | null>(null)
+  const parentCard = async (mode: 'save' | 'copy') => {
+    if (!detail) return
+    setParentImaging(mode)
+    try {
+      const r = await window.api.report.parentCard(detail.id, mode, tplOf('parent', 'parent') || undefined)
+      if (r.saved) message.success(mode === 'copy' ? '已复制家长卡片，可以直接粘贴到微信' : '已保存家长卡片')
+    } catch (e) { message.error(clean(e)) }
+    finally { setParentImaging(null) }
+  }
   const doExport = async (fmt: 'md' | 'pdf' | 'docx') => {
     if (!detail) return
     setExporting(fmt)
@@ -423,6 +453,7 @@ export default function Report() {
                     <Btn tone="secondary" icon={Copy} data-testid="report-copy-advice" disabled={!detail.confirmedAt || detail.status === 'stale'} onClick={copyAdvice}>复制给家长</Btn>
                   </Tooltip>
                 )}
+                <Btn tone="secondary" icon={MessageSquare} data-testid="report-ask-assistant" onClick={() => nav(`/assistant?report=${encodeURIComponent(detail.id)}`)}>问助手</Btn>
                 {!detail.confirmedAt && <Btn tone="secondary" icon={ShieldCheck} data-testid="report-confirm" disabled={!!detail.blockReason && conflictCount === 0} onClick={confirm}>我已核对</Btn>}
                 <Tooltip title={blockedExport ? (detail?.blockReason ?? '家长版要先由老师点「我已核对」，才能复制') : '复制成纯文本（带换行和序号），可以直接粘贴到微信'}>
                   <Btn tone="secondary" icon={Copy} data-testid="report-copy-wechat" disabled={blockedExport} loading={exporting === 'wechat'} onClick={copyWechat}>复制到微信</Btn>
@@ -437,6 +468,20 @@ export default function Report() {
                   <Btn tone="secondary" icon={FileText} data-testid="report-export-md" disabled={blockedExport} loading={exporting === 'md'} onClick={() => doExport('md')}>导出 Markdown</Btn>
                 </Tooltip>
               </div>
+              {detail.reader === 'parent' && (
+                <div className="ewb-cardview__acts ewb-cardview__parent" data-testid="parent-card-actions">
+                  <span className="ewb-cardview__lbl"><Mail size={14} strokeWidth={1.9} aria-hidden /> 家长卡片</span>
+                  {tplSelect('parent', 'parent')}
+                  <Tooltip title={blockedExport ? blockTip : ''}>
+                    <Btn tone="secondary" size="small" icon={ImageDown} data-testid="parent-card-save" disabled={blockedExport} loading={parentImaging === 'save'} onClick={() => parentCard('save')}>保存图片</Btn>
+                  </Tooltip>
+                  <Tooltip title={blockedExport ? blockTip : ''}>
+                    <Btn tone="secondary" size="small" icon={ImagePlus} data-testid="parent-card-copy" disabled={blockedExport} loading={parentImaging === 'copy'} onClick={() => parentCard('copy')}>复制图片</Btn>
+                  </Tooltip>
+                  {!blockedExport && parentPlan?.ok && parentPlan.notes.length > 0 && <span className="ewb-cardview__hint" data-testid="parent-card-note">{parentPlan.notes.join('；')}</span>}
+                  {!blockedExport && parentPlan && !parentPlan.ok && <span className="ewb-cardview__hint" data-testid="parent-card-note">{parentPlan.message}</span>}
+                </div>
+              )}
               {exported && (
                 <UsageNote kind="tip" label="已导出" data-testid="report-export-result"
                   title={`已导出 ${FMT_NAME[exported.fmt]}${exported.images ? `（含 ${exported.images} 张题目截图${exported.fmt === 'md' ? '，在同名文件夹里' : ''}）` : ''}`}
