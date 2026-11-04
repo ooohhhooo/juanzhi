@@ -210,3 +210,16 @@ applyMatchBatch(db, oid, [
 }
 
 console.log('course-stats.test ✓')
+
+// 只有示例数据时：用示例试卷的知识点做课程匹配；有真实试卷后只算真实的
+{
+  const { db: d2 } = newDb()
+  useTree(d2, [['GR', null, '语法', 1], ['GR.PAST', 'GR', '一般过去时', 2], ['GR.PLU', 'GR', '名词复数', 2]])
+  assert.equal(targetKps(d2).length, 0)
+  const s1 = addPaper(d2, { title: '示例', questions: [{ kp: 'GR.PAST' }] })
+  d2.prepare('UPDATE papers SET is_sample = 1 WHERE id = ?').run(s1)
+  assert.deepEqual(targetKps(d2).map(k => k.code), ['GR.PAST'], '只有示例数据时用示例的知识点')
+  addPaper(d2, { title: '真实', questions: [{ kp: 'GR.PLU' }] })
+  assert.deepEqual(targetKps(d2).map(k => k.code), ['GR.PLU'], '有真实试卷后只用真实的')
+  console.log('course targetKps 示例数据 ✓')
+}

@@ -124,6 +124,11 @@ const results = events => evs(events, 'tool_result')
   assert.match(sp, /先出计划/); assert.match(sp, /机构说明/); assert.match(sp, /启蒙/); assert.match(sp, /默认做法.*学情周报/)
   assert.match(buildSystemPrompt({ role: getRole('ops'), scene: 'org', playbooks: [], today: 'x', mode: 'direct' }), /直接回答/)
   assert.ok(!/机构说明/.test(buildSystemPrompt({ role: getRole('ops'), scene: 'org', playbooks: [], today: 'x' })))
+  // 先出计划：确认后才能用的工具也写进 system，模型不会以为「没开放」
+  const pp = buildSystemPrompt({ role: getRole('ops'), scene: 'org', playbooks: [], today: 'x', mode: 'plan', laterTools: [{ name: 'card_make', label: '做分享卡片' }] })
+  assert.match(pp, /确认计划后你还能用的工具[\s\S]*card_make：做分享卡片/)
+  assert.match(pp, /不要对用户说某个功能「没开放」/)
+  assert.ok(!/确认计划后你还能用的工具/.test(buildSystemPrompt({ role: getRole('ops'), scene: 'org', playbooks: [], today: 'x', mode: 'auto', laterTools: [{ name: 'card_make', label: 'x' }] })), '只在先出计划模式里写')
 }
 
 // ───────── 自动整理：到上限约 70% 触发；计划和查询编号压缩后仍可取回；AI 摘要失败兜底 ─────────

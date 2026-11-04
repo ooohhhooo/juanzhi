@@ -182,9 +182,12 @@ export interface KpTarget extends KpLite { sig: string }
 
 /** 要匹配的知识点：库里（非示例卷）至少有一道题标过的二、三级知识点 */
 export function targetKps(db: Db): KpTarget[] {
-  const rows = db.prepare(`SELECT DISTINCT k.code, k.name, k.plain, k.example_en, k.hint_words, k.sort FROM kps k
+  const q = (sample: 0 | 1) => db.prepare(`SELECT DISTINCT k.code, k.name, k.plain, k.example_en, k.hint_words, k.sort FROM kps k
     JOIN question_kps qk ON qk.kp_code = k.code JOIN questions q ON q.id = qk.question_id JOIN papers p ON p.id = q.paper_id
-    WHERE p.is_sample = 0 AND k.level >= 2 ORDER BY k.sort, k.code`).all() as any[]
+    WHERE p.is_sample = ${sample} AND k.level >= 2 ORDER BY k.sort, k.code`).all() as any[]
+  // 只有示例数据（新用户先试用）时，用示例试卷里的知识点匹配，课程对照才看得到效果；有了真实试卷就只匹配真实数据
+  let rows = q(0)
+  if (!rows.length) rows = q(1)
   return rows.map(r => {
     const kp: KpLite = { code: r.code, name: safeKpName(r.name), plain: r.plain ?? '', exampleEn: r.example_en ?? '', hintWords: r.hint_words ?? '' }
     return { ...kp, sig: kpSig(kp) }

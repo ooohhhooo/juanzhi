@@ -163,7 +163,9 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
     }
     if (!parsed.ok || !tool) return done(false, parsed.ok ? '工具不存在' : parsed.error)
     if (!deps.toolNames.includes(name)) return done(false, `当前角色不能使用工具「${name}」。可用的工具：${deps.toolNames.join('、')}`)
-    if (!allowedNow(name)) return done(false, mode === 'direct' && name === 'update_plan' ? '现在是「直接回答」模式，不需要写计划，请直接查询并回答。' : '现在是「先出计划」阶段：这个工具要等用户确认计划后才能用。请先用 update_plan 给出计划。')
+    if (!allowedNow(name)) return done(false, !deps.toolNames.includes(name) ? `当前角色没有「${name}」这个工具，请用你有的工具完成，或告诉用户换一个有这项能力的角色。`
+      : mode === 'direct' && name === 'update_plan' ? '现在是「直接回答」模式，不需要写计划，请直接查询并回答。'
+      : '现在是「先出计划」阶段：这个工具是可以用的，只是要等用户确认计划后才能调用。请先用 update_plan 写出计划（把这一步写进去），用户点「按这个做」后再调用它。不要告诉用户这个功能不能用。')
     if (tool.level === 'write') {
       const skipAsk = deps.approvalMode === 'ask-external' && tool.effect === 'export'
       if (skipAsk) { try { return done(true, await tool.run(parsed.args, ctx)) } catch (e) { if (isAbort(e, signal)) throw e; return done(false, `工具运行出错：${(e as Error).message}`) } }
