@@ -6,7 +6,9 @@ import { getMainWindow } from '../window'
 import { withSpend } from './cost'
 import { StatsFilterSchema } from '../stats/filter'
 import { assertExportable, confirmReport, deleteReport, generateReport, getReport, listReports, previewReport, removeReportSentence, retryReportPart, tickVariant, wechatText } from '../report/service'
-import { cardHtmlOf, renderCardImage } from '../report/card-image'
+import { cardTemplateRows, renderMapped } from '../report/share-card'
+import { answercardToCard, parentTextToBrief, trickToCard } from '../report/share-card-content'
+import { getDataDir } from '../db'
 import { exportReportTo } from '../report/export-run'
 import { safeStem } from '../report/export-plan'
 import { READERS, READER_LABEL } from '../../shared/report-post'
@@ -64,31 +66,62 @@ export function registerReportIpc(): void {
   ipcMain.handle('report:variantTick', async (_e, rawId: unknown, rawVariantId: unknown, rawOk: unknown) =>
     tickVariant(IdSchema.parse(rawId), z.string().min(1).max(100).parse(rawVariantId), z.boolean().parse(rawOk)))
 
-  /** 卡片存成 / 复制成 2 倍清晰度的图片：save 弹系统「另存为」，copy 只写剪贴板。取消返回 { saved: false } */
-  ipcMain.handle('report:cardImage', async (_e, rawId: unknown, rawKind: unknown, rawIndex: unknown, rawMode: unknown) => {
+  /** 把一张卡片图片交出去：copy 写剪贴板，save 弹系统「另存为」。取消返回 { saved: false } */
+  const deliver = async (img: { png: Buffer; width: number; height: number }, mode: 'save' | 'copy', title: string, stem: string, extra: Record<string, unknown>) => {
+    if (mode === 'copy') {
+      // Electron 45 的剪贴板是 W3C 风格的异步接口：写一个 image/png 条目
+      await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(img.png)], { type: 'image/png' }) })])
+      return { saved: true, width: img.width, height: img.height, ...extra }
+    }
+    const win = getMainWindow()
+    const opts: Electron.SaveDialogOptions = { title, defaultPath: `${safeStem(stem)}-${stamp()}.png`, filters: [{ name: 'PNG 图片', extensions: ['png'] }] }
+    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (r.canceled || !r.filePath) return { saved: false, ...extra }
+    const out = r.filePath.toLowerCase().endsWith('.png') ? r.filePath : `${r.filePath}.png`
+    fs.writeFileSync(out, img.png)
+    exported.add(path.resolve(out))
+    return { saved: true, path: out, width: img.width, height: img.height, ...extra }
+  }
+  const TemplateArg = z.string().regex(/^[a-z0-9-]{1,24}$/).optional()
+
+  /** 卡片模板清单（学生 / 家长），带当前默认；报告页的模板下拉用 */
+  ipcMain.handle('report:cardTemplates', async () => cardTemplateRows(getDataDir()))
+
+  /** 老师版口诀卡 / 答题卡存成 / 复制成图片：走新的分享卡片引擎（默认学生模板，可指定 templateId）。1086×1448 */
+  ipcMain.handle('report:cardImage', async (_e, rawId: unknown, rawKind: unknown, rawIndex: unknown, rawMode: unknown, rawTemplate?: unknown) => {
     const id = IdSchema.parse(rawId)
     const kind = z.enum(['trick', 'answercard']).parse(rawKind)
     const index = z.number().int().min(0).max(50).parse(rawIndex)
     const mode = z.enum(['save', 'copy']).parse(rawMode)
+    const templateId = TemplateArg.parse(rawTemplate ?? undefined)
     const report = getReport(id)
     if (!report) throw new Error('这份报告已经不存在了')
     assertExportable(report)
-    const html = cardHtmlOf(report.markdown, kind, index)
-    if (!html) throw new Error(kind === 'answercard' ? '答题卡里还没有题：请先在下面逐题勾「我核对过」' : '没有找到这张卡片')
-    const img = await renderCardImage(html)
-    if (mode === 'copy') {
-      // Electron 45 的剪贴板是 W3C 风格的异步接口：写一个 image/png 条目
-      await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(img.png)], { type: 'image/png' }) })])
-      return { saved: true, width: img.width, height: img.height }
-    }
-    const win = getMainWindow()
-    const opts: Electron.SaveDialogOptions = { title: kind === 'answercard' ? '保存答题卡图片' : '保存口诀卡图片', defaultPath: `${safeStem(kind === 'answercard' ? '答题卡' : `口诀大招-${index + 1}`)}-${stamp()}.png`, filters: [{ name: 'PNG 图片', extensions: ['png'] }] }
-    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
-    if (r.canceled || !r.filePath) return { saved: false }
-    const out = r.filePath.toLowerCase().endsWith('.png') ? r.filePath : `${r.filePath}.png`
-    fs.writeFileSync(out, img.png)
-    exported.add(path.resolve(out))
-    return { saved: true, path: out, width: img.width, height: img.height }
+    const mapped = kind === 'trick' ? trickToCard(report.markdown, index) : answercardToCard(report.markdown, index)
+    if (!mapped) throw new Error(kind === 'answercard' ? '答题卡里还没有题：请先在下面逐题勾「我核对过」' : '没有找到这张卡片')
+    const img = await renderMapped(getDataDir(), mapped, templateId)
+    return deliver(img, mode, kind === 'answercard' ? '保存答题卡图片' : '保存口诀卡图片', kind === 'answercard' ? '答题卡' : `口诀大招-${index + 1}`, { templateId: img.templateId, notes: img.notes })
+  })
+
+  /** 家长卡片会放哪些话（不渲染）：给界面显示“只放了前几句”的说明 */
+  ipcMain.handle('report:parentCardPlan', async (_e, rawId: unknown) => {
+    const report = getReport(IdSchema.parse(rawId))
+    if (!report) throw new Error('这份报告已经不存在了')
+    if (report.reader !== 'parent') throw new Error('只有家长版可以生成家长卡片')
+    try { return { ok: true as const, notes: parentTextToBrief(wechatText(report)).notes } } catch (e) { return { ok: false as const, message: clean(e) } }
+  })
+
+  /** 家长版 → 「绘本来信」家长卡片：和导出同一道门槛（没点「我已核对」不给出） */
+  ipcMain.handle('report:parentCard', async (_e, rawId: unknown, rawMode: unknown, rawTemplate?: unknown) => {
+    const report = getReport(IdSchema.parse(rawId))
+    if (!report) throw new Error('这份报告已经不存在了')
+    const mode = z.enum(['save', 'copy']).parse(rawMode)
+    const templateId = TemplateArg.parse(rawTemplate ?? undefined)
+    if (report.reader !== 'parent') throw new Error('只有家长版可以生成家长卡片')
+    assertExportable(report)
+    const mapped = parentTextToBrief(wechatText(report))
+    const img = await renderMapped(getDataDir(), mapped, templateId)
+    return deliver(img, mode, '保存家长卡片', '家长卡片', { templateId: img.templateId, notes: img.notes })
   })
 
   /** 复制到微信：纯文本（带换行和序号，没有 Markdown 符号），写进系统剪贴板；家长版没核对不给复制 */

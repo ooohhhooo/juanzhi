@@ -326,6 +326,11 @@ const teacherCards = await waitFor(async () => (await T('report-body').locator('
     const rej = await api(i => window.api.report.copyWechat(i).then(() => 'ok', e => String(e.message)), parent.id)
     const rej2 = await api(i => window.api.report.export(i, 'docx').then(() => 'ok', e => String(e.message)), parent.id)
     check('A2 后端把关', '绕过界面直接调接口也不行：家长版未核对时复制 / 导出都被拒绝（「先点我已核对」）', /我已核对/.test(rej) && /我已核对/.test(rej2), `${rej}｜${rej2}`)
+    {
+      // 家长卡片（绘本来信）：和导出同一道门槛。没点「我已核对」前，按钮是灰的，直接调接口也被拒绝
+      const pc0 = await api(i => window.api.report.parentCard(i, 'copy').then(() => 'ok', e => String(e.message)), parent.id)
+      check('A2 家长卡片门槛', '家长版未核对：「生成家长卡片」的保存 / 复制按钮是灰的；绕过界面直接调接口也被拒绝（先点我已核对）', (await T('parent-card-save').isDisabled()) && (await T('parent-card-copy').isDisabled()) && /我已核对/.test(pc0), pc0)
+    }
     await T('report-confirm').click()
     await T('confirm-dialog').waitFor()
     const dlg = await txt('confirm-dialog')
@@ -335,6 +340,39 @@ const teacherCards = await waitFor(async () => (await T('report-body').locator('
     await T('confirm-ok').click()
     await waitFor(async () => !(await T('report-copy-wechat').isDisabled()), 8000)
     check('A2 核对后', '核对后：标识换成「已由老师核对 · 时间」，导出和复制到微信可用，库里 confirmed_at 有值', (await T('ai-draft-badge').getAttribute('data-confirmed')) === '1' && /已由老师核对/.test(await txt('ai-draft-badge')) && !(await T('report-export-docx').isDisabled()) && withDb(ctx.ud, d => d.prepare('SELECT confirmed_at c FROM reports WHERE id = ?').get(parent.id).c) !== null)
+    {
+      // 家长卡片：核对后可用；模板下拉列出家长模板、默认选中默认模板；保存出 1086×1448 的 PNG，复制进剪贴板
+      const SHOTS = process.env.EWB_SHOTS_DIR || path.join(root, 'docs/screenshots'); fs.mkdirSync(SHOTS, { recursive: true })
+      await waitFor(async () => !(await T('parent-card-save').isDisabled()), 8000)
+      const opts = await T('card-template-parent').locator('option').allInnerTexts()
+      check('A2 家长卡片模板', '家长卡片有模板下拉：列出 10 套家长模板，默认模板带「（默认）」', opts.length === 10 && opts.filter(o => /（默认）/.test(o)).length === 1, opts.join('|'))
+      const second = await T('card-template-parent').locator('option').nth(1).getAttribute('value')
+      await T('card-template-parent').selectOption(second)
+      const pf = path.join(work, 'parent-card.png')
+      await stubSave(pf)
+      await T('parent-card-save').click()
+      await waitFor(async () => fs.existsSync(pf) && fs.statSync(pf).size > 2000, 30000)
+      const pb = fs.existsSync(pf) ? fs.readFileSync(pf) : Buffer.alloc(24)
+      check('A2 家长卡片', '核对后「保存图片」：写出 PNG，尺寸 1086×1448（新卡片引擎，绘本来信）', M.isPng(pf) && pb.readUInt32BE(16) === 1086 && pb.readUInt32BE(20) === 1448, `${pb.readUInt32BE(16)}×${pb.readUInt32BE(20)}`)
+      fs.copyFileSync(pf, path.join(SHOTS, 'parent-card.png'))
+      await ctx.app.evaluate(({ clipboard }) => clipboard.writeText('旧的剪贴板内容'))
+      await T('parent-card-copy').click()
+      const clip = await waitFor(async () => ctx.app.evaluate(async ({ clipboard }) => { const it = (await clipboard.read()).find(i => i.types.includes('image/png')); if (!it) return null; const b = Buffer.from(await (await it.getType('image/png')).arrayBuffer()); return b.length > 2000 ? { w: b.readUInt32BE(16), h: b.readUInt32BE(20) } : null }), 20000)
+      check('A2 家长卡片', '「复制图片」：剪贴板里是 1086×1448 的 PNG', !!clip && clip.w === 1086 && clip.h === 1448, JSON.stringify(clip))
+      const pn = await T('parent-card-note').count() ? await txt('parent-card-note') : ''
+      check('A2 家长卡片说明', '内容放得下时没有“只放了前几句”的说明；放不下时说明整句取舍（不截半句）', pn === '' || /前 \d+ 句完整的话/.test(pn), pn)
+      await T('parent-card-actions').scrollIntoViewIfNeeded()
+      await ctx.page.screenshot({ path: path.join(SHOTS, 'report-parent-buttons.png') })
+      // 问助手：跳到助手，新对话，输入框预填报告编号，不自动发送
+      await T('report-ask-assistant').click()
+      await T('assistant-input').waitFor({ timeout: 15000 })
+      const pre = await waitFor(async () => { const v = await T('assistant-input').inputValue(); return v.includes(parent.id) ? v : null }, 10000)
+      const focused = await waitFor(async () => ctx.page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'assistant-input'), 5000)
+      check('A2 问助手', '点「问助手」：跳到助手，输入框预填「结合报告《…》（编号 …）：」并聚焦，不自动发送；地址里的 report 参数已清掉', !!pre && /^结合报告《.+》（编号 [0-9a-f-]{36}）：$/.test(pre) && focused && !/report=/.test(await ctx.page.evaluate(() => location.hash)), pre ?? '')
+      await goto('#/report'); await T('report-page').waitFor()
+      await T(`report-item-${parent.id}`).click()
+      await waitFor(async () => (await T('parent-card-actions').count()) > 0, 8000)
+    }
     // 复制到微信：纯文本
     await ctx.app.evaluate(({ clipboard }) => clipboard.writeText('旧的剪贴板内容'))
     await T('report-copy-wechat').click()

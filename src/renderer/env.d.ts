@@ -88,7 +88,13 @@ interface ElectronAPI {
     /** 逐题勾「我核对过」：勾了的变形题才会放进答题卡；返回更新后的报告 */
     variantTick(id: string, variantId: string, ok: boolean): Promise<ReportDetail>
     /** 把卡片存成 / 复制成 2 倍清晰度的图片（kind = trick 口诀卡 / answercard 答题卡；index 是第几张同类卡片，从 0 起） */
-    cardImage(id: string, kind: 'trick' | 'answercard', index: number, mode: 'save' | 'copy'): Promise<{ saved: boolean; path?: string; width?: number; height?: number }>
+    cardImage(id: string, kind: 'trick' | 'answercard', index: number, mode: 'save' | 'copy', templateId?: string): Promise<{ saved: boolean; path?: string; width?: number; height?: number; templateId?: string; notes?: string[] }>
+    /** 分享卡片模板清单（学生 / 家长），带当前默认 */
+    cardTemplates(): Promise<{ student: CardTemplateRow[]; parent: CardTemplateRow[] }>
+    /** 家长卡片会放哪些话（太长时只放前几句完整的话，notes 里说明） */
+    parentCardPlan(id: string): Promise<{ ok: true; notes: string[] } | { ok: false; message: string }>
+    /** 家长版 → 「绘本来信」家长卡片，存成 / 复制成图片 */
+    parentCard(id: string, mode: 'save' | 'copy', templateId?: string): Promise<{ saved: boolean; path?: string; width?: number; height?: number; templateId?: string; notes?: string[] }>
     delete(id: string): Promise<boolean>
     export(id: string, fmt: 'md' | 'pdf' | 'docx'): Promise<{ saved: boolean; path?: string; dir?: string | null; images?: number; missingImages?: number; bytes?: number }>
     /** 老师点「我已核对」。家长版必须带 acknowledged = 勾了「已确认无误」的未核实句子原文（每句未核实的话要么已删掉、要么在这里），有矛盾句或内容太少一律拒绝（白话 message）；其他版本可省略 */
@@ -859,6 +865,7 @@ interface ReportVariantView {
   notes: string[]
   secondAnswer: string | null
 }
+interface CardTemplateRow { id: string; name: string; scene: string; isDefault: boolean }
 interface ReportDetail extends ReportItem {
   markdown: string
   refs: Array<CitationRef & { missing?: boolean }>

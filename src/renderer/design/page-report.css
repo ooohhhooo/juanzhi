@@ -177,6 +177,9 @@
 .ewb-cardview .ewb-card { margin: 0; }
 :root[data-theme="dark"] .ewb-cardview .ewb-card { outline: 1px solid var(--ewb-card-amber-theme-line); outline-offset: 2px; }
 .ewb-cardview__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ewb-sp-2); margin-top: var(--ewb-sp-2); }
+.ewb-cardview__tpl { height: 28px; max-width: 180px; padding: 0 var(--ewb-sp-2); border: 1px solid var(--ewb-line-strong); border-radius: var(--ewb-r-sm); background: var(--ewb-page); color: var(--ewb-ink); font: inherit; font-size: var(--ewb-fs-xs); }
+.ewb-cardview__parent { margin: var(--ewb-sp-3) 0; }
+.ewb-cardview__lbl { display: inline-flex; align-items: center; gap: 4px; font-size: var(--ewb-fs-sm); font-weight: 600; }
 .ewb-cardview__tag { display: inline-flex; align-items: center; height: 24px; padding: 0 var(--ewb-sp-3); border-radius: 999px; background: var(--ewb-card-amber-theme-band); color: var(--ewb-card-amber-theme-ink); font-size: var(--ewb-fs-xs); font-weight: 600; }
 .ewb-cardview__hint { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
 
