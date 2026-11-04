@@ -71,6 +71,20 @@ function next(body) {
   const lastMsg = msgs[msgs.length - 1]
   const toolTexts = after.filter(m => m.role === 'tool').map(m => textOf(m.content))
 
+  // 跨对话记忆：翻以前的对话 → 读那一段 → 回答里带上读到的内容
+  if (/上次那段话术/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('history_search', { query: '话术' }, 0)] }
+    if (round === 1) { const id = /对话 ([0-9a-f-]{36})/.exec(toolTexts.join('\n'))?.[1] ?? 'none'; return { content: '', toolCalls: [call('history_read', { sessionId: id }, 1)] } }
+    const t = toolTexts.join('\n')
+    return { content: /话术示例：坚持练习/.test(t) ? '找到了，上次那段话术是：话术示例：坚持练习。' : '没找到以前的对话。', toolCalls: [] }
+  }
+  if (/写一段话术/.test(q)) return { content: '好的。话术示例：坚持练习，下学期继续一起进步。', toolCalls: [] }
+  // 数据目录：文档资料 + 试卷 / 课程 / 报告
+  if (/看看所有资料/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('list_datasets', {}, 0), call('papers_list', {}, 0), call('course_coverage', {}, 0), call('reports_list', {}, 0)] }
+    if (round === 1) { const id = /"id":"(doc-[0-9a-f-]+)"/.exec(toolTexts.join('\n'))?.[1] ?? /(doc-[0-9a-f-]{8,})/.exec(toolTexts.join('\n'))?.[1] ?? 'none'; return { content: '', toolCalls: [call('read_document', { documentId: id }, 1)] } }
+    return { content: '资料都看过了。', toolCalls: [] }
+  }
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
   if (/再做一张卡/.test(q)) return cards(round, true)
   if (/做卡片/.test(q)) return cards(round, false)

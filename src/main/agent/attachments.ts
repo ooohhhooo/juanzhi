@@ -97,10 +97,8 @@ function plainText(file: string): string {
 
 const KIND_LABEL: Record<AttachKind, string> = { image: '图片', pdf: 'PDF', docx: 'Word', text: '文本' }
 
-/** 读一个文件的文字，存进内存，返回编号和概况 */
-export async function readAttachment(file: string, displayName?: string): Promise<AttachInfo> {
-  prune()
-  const name = (displayName || path.basename(file)).slice(0, 120)
+/** 读一个文件的全部文字（图片 / 扫描页走 OCR）；数据页的文档资料也用它 */
+export async function extractText(file: string): Promise<{ kind: AttachKind; text: string }> {
   const kind = attachKindOf(file)
   if (!kind) {
     const ext = path.extname(file).toLowerCase()
@@ -115,6 +113,14 @@ export async function readAttachment(file: string, displayName?: string): Promis
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
   const text = raw.replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
   if (!text) throw new AttachError(kind === 'image' ? '这张图片里没有认出文字（助手现在只能读图片里的文字，看不懂图本身）' : `${KIND_LABEL[kind]}里没有读到文字`)
+  return { kind, text }
+}
+
+/** 读一个文件的文字，存进内存，返回编号和概况 */
+export async function readAttachment(file: string, displayName?: string): Promise<AttachInfo> {
+  prune()
+  const name = (displayName || path.basename(file)).slice(0, 120)
+  const { kind, text } = await extractText(file)
   const truncated = text.length > ATTACH_MAX_CHARS
   const info: AttachInfo = { id: crypto.randomUUID(), name, kind, chars: Math.min(text.length, ATTACH_MAX_CHARS), truncated }
   store.set(info.id, { info, text: text.slice(0, ATTACH_MAX_CHARS), at: Date.now() })

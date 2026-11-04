@@ -26,6 +26,7 @@ import { runCommand } from './commands'
 import type { CliCtx } from './commands'
 import { initAgent, resetStaleRunning } from '../agent/service'
 import { setDataDirProvider } from '../analysis/datasets/index'
+import { setDocumentsDirProvider } from '../analysis/documents'
 import { closeAllMcp } from '../connectors/mcp-client'
 import { errorBox } from './tui/box'
 
@@ -197,7 +198,7 @@ export function startCliMode(rawArgs: string[]): void {
       }
       if (interactive) {
         // 助手要用的接线（窗口模式在 registerAgentIpc / registerDatasetsIpc 里做）
-        initAgent(); setDataDirProvider(() => getDataDir())
+        initAgent(); setDataDirProvider(() => getDataDir()); setDocumentsDirProvider(() => getDataDir())
         try { resetStaleRunning() } catch { /* 表还没建好 */ }
         const { runTui } = await import('./tui/index')
         await runTui({

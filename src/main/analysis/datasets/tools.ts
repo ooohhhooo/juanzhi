@@ -6,6 +6,7 @@ import { z } from 'zod'
 import type { ToolContext, ToolDef } from '../types.ts'
 import { storeOf } from './index.ts'
 import { DatasetError } from './store.ts'
+import { documentsForModel, readDocument } from '../documents.ts'
 
 const plain = (e: unknown) => (e instanceof DatasetError ? e.message : e instanceof Error ? e.message : String(e))
 
@@ -17,7 +18,7 @@ function mask(ctx: ToolContext | undefined, id: string, text: string): string {
 
 export const listDatasets: ToolDef<Record<string, never>> = {
   name: 'list_datasets',
-  description: '列出用户已导入的所有数据集（id、名称、来源文件、备注、每张表的表名和行数、列数）。开始分析前先调用它，拿到 datasetId。',
+  description: '数据目录：列出用户已导入的所有数据集（id、名称、来源文件、备注、每张表的表名和行数、列数）和文档资料（documents：图片识别文字、PDF、Word、文本，用 read_document 读）。开始分析前先调用它，拿到 datasetId / documentId。试卷库、课程大纲、报告不在这里，用 papers_list、course_coverage、reports_list。',
   params: z.object({}),
   level: 'read',
   async run(_args, ctx) {
@@ -26,7 +27,8 @@ export const listDatasets: ToolDef<Record<string, never>> = {
       datasets: s.list().map(d => ({
         id: d.id, name: mask(ctx, d.id, d.name), sourceFile: mask(ctx, d.id, d.sourceFile), importedAt: d.importedAt, note: mask(ctx, d.id, d.note),
         tables: d.tables.map(t => ({ name: mask(ctx, d.id, t.name), sheet: mask(ctx, d.id, t.sheet), rows: t.rows, columns: t.columns.length, multiSelectViews: t.views.map(v => mask(ctx, d.id, v.view)) }))
-      }))
+      })),
+      documents: documentsForModel(ctx as { documents?: unknown })
     }
   }
 }
@@ -66,4 +68,4 @@ export const columnValues: ToolDef<{ datasetId: string; table: string; column: s
   }
 }
 
-export const DATASET_TOOLS: ToolDef[] = [listDatasets, datasetProfile, runQuery, columnValues]
+export const DATASET_TOOLS: ToolDef[] = [listDatasets, datasetProfile, runQuery, columnValues, readDocument]

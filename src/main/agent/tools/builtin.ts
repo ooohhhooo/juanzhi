@@ -67,4 +67,62 @@ export const sessionState: ToolDef = {
   }
 }
 
-export const BUILTIN_TOOLS: ToolDef[] = [updatePlan, askUser, loadPlaybook, sessionState]
+// ───────── 以前的对话（跨对话记忆） ─────────
+const clip = (t: string, n: number) => { const x = t.replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n) + '…' : x }
+const turnsOf = (db: any, sid: string): Array<{ q: string; a: string }> => {
+  const rows = db.prepare("SELECT kind, payload_json FROM agent_steps WHERE session_id = ? AND kind IN ('user','answer') ORDER BY seq").all(sid) as any[]
+  const out: Array<{ q: string; a: string }> = []
+  for (const r of rows) {
+    let p: any = {}
+    try { p = JSON.parse(r.payload_json) } catch { /* 空 */ }
+    if (r.kind === 'user') out.push({ q: String(p.text ?? ''), a: '' })
+    else if (out.length) out[out.length - 1].a = String(p.text ?? '')
+  }
+  return out
+}
+
+export const historySearch: ToolDef = {
+  name: 'history_search', label: '翻以前的对话', planSafe: true,
+  level: 'read',
+  description: '在用户以前和你的对话里找内容（问题和你的回答都会搜）。用户说「之前那个……」「上次你写的……」「另一个窗口里的……」，或提到这次对话里没有的东西时，先用它找，再用 history_read 读全文。query 写关键词，空格分隔多个词；不写 query 就列出最近的对话。',
+  schema: z.object({ query: z.string().max(80).default('').describe('关键词，空格分隔；留空 = 最近的对话'), limit: z.number().int().min(1).max(20).default(8) }),
+  run: (args, ctx) => {
+    const words = String(args.query ?? '').split(/\s+/).map((w: string) => w.trim()).filter(Boolean).slice(0, 6)
+    const sessions = ctx.db.prepare('SELECT id, title, role, updated_at FROM agent_sessions WHERE id <> ? ORDER BY updated_at DESC LIMIT 200').all(ctx.sessionId) as any[]
+    const hits: string[] = []
+    for (const s of sessions) {
+      if (hits.length >= (args.limit ?? 8)) break
+      const turns = turnsOf(ctx.db, s.id)
+      if (!words.length) { hits.push(`- 对话 ${s.id}｜${s.updated_at.slice(0, 16)}｜${clip(s.title || turns[0]?.q || '', 40)}｜${turns.length} 轮`); continue }
+      const hay = (s.title + '\n' + turns.map(t => t.q + '\n' + t.a).join('\n')).toLowerCase()
+      const score = words.filter((w: string) => hay.includes(w.toLowerCase())).length
+      if (!score) continue
+      const t = turns.find(x => words.some((w: string) => (x.q + x.a).toLowerCase().includes(w.toLowerCase())))
+      hits.push(`- 对话 ${s.id}｜${s.updated_at.slice(0, 16)}｜${clip(s.title, 40)}｜命中 ${score}/${words.length} 个词${t ? `｜问：${clip(t.q, 40)}｜答：${clip(t.a, 80)}` : ''}`)
+    }
+    if (!hits.length) return { text: words.length ? `以前的对话里没有找到「${words.join(' ')}」。可以换个说法，或不写 query 列出最近的对话。` : '还没有以前的对话。', count: 0 }
+    return { text: hits.join('\n'), count: hits.length }
+  }
+}
+
+export const historyRead: ToolDef = {
+  name: 'history_read', label: '读以前的对话', planSafe: true,
+  level: 'read',
+  description: '读一段以前的对话：每一轮用户的问题和你的最终回答（不含中间查询过程）。sessionId 来自 history_search。',
+  schema: z.object({ sessionId: z.string().min(1).max(80) }),
+  run: (args, ctx) => {
+    const s = ctx.db.prepare('SELECT id, title, updated_at FROM agent_sessions WHERE id = ?').get(args.sessionId) as any
+    if (!s) return { text: '找不到这个对话，请先用 history_search 找编号。', count: 0 }
+    const turns = turnsOf(ctx.db, s.id)
+    let left = 12000
+    const parts: string[] = []
+    for (const [i, t] of turns.entries()) {
+      const block = `## 第 ${i + 1} 轮\n用户：${t.q}\n\n你的回答：${t.a || '（这一轮没有回答完）'}`
+      if (block.length > left) { parts.push(`（后面还有 ${turns.length - i} 轮，太长没有列出）`); break }
+      parts.push(block); left -= block.length
+    }
+    return { text: `对话「${clip(s.title, 60)}」（${s.updated_at.slice(0, 16)}，共 ${turns.length} 轮）\n\n${parts.join('\n\n')}`, count: turns.length }
+  }
+}
+
+export const BUILTIN_TOOLS: ToolDef[] = [updatePlan, askUser, loadPlaybook, sessionState, historySearch, historyRead]

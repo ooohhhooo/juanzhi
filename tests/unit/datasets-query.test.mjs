@@ -130,7 +130,7 @@ assert.match(schema, /d1\."big"/); assert.match(schema, /d2\."teachers"/); asser
 for (const tool of DATASET_TOOLS) {
   assert.equal(tool.level, 'read'); assert.equal(typeof tool.run, 'function'); assert.ok(tool.description.length > 20); assert.equal(typeof tool.params.safeParse, 'function')
 }
-assert.deepEqual(DATASET_TOOLS.map(x => x.name), ['list_datasets', 'dataset_profile', 'run_query', 'column_values'])
+assert.deepEqual(DATASET_TOOLS.map(x => x.name), ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'read_document'])
 const rq = DATASET_TOOLS.find(x => x.name === 'run_query')
 assert.ok(!rq.params.safeParse({ sql: '', datasets: [] }).success)
 const out = await rq.run({ sql: 'drop table x', datasets: [d1.id] }, { store })

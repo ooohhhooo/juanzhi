@@ -29,7 +29,7 @@ export interface RoleTemplate {
   popular?: number
 }
 
-const DATA = ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'text_classify']
+const DATA = ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'read_document', 'text_classify']
 const STAT = DATA_TOOLS.filter(t => t.startsWith('stat_'))
 const OUT = DATA_TOOLS.filter(t => /^(board_|doc_|table_|outputs_list|output_export)/.test(t))
 const CONN = ['connectors_list', 'wecom_send']
@@ -92,7 +92,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     names: { org: '课程顾问', school: '课程顾问' }, hiddenIn: ['school'],
     who: { org: '给家长介绍课程、帮着选班', school: '给家长介绍课程' },
     description: '你在帮课程顾问向家长讲清楚课程：用大白话说每个级别学什么、适合什么基础的孩子。语气亲切、不夸大效果，不承诺提分。',
-    tools: [...EXAM_TOOLS, 'list_datasets', 'dataset_profile', 'run_query', ...DOC],
+    tools: [...EXAM_TOOLS, 'list_datasets', 'dataset_profile', 'run_query', 'read_document', ...DOC],
     suggestions: ['这个知识点对应哪节课', '帮我写一段给家长的课程介绍', '孩子这个薄弱点该上哪个级别', '家长问效果怎么回答'],
     notes: '只讲软件里查得到的课程内容；没有的信息直接说没有，不要编造。'
   },
@@ -110,7 +110,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     names: { org: '授课老师', school: '任课老师' },
     who: { org: '给学生上课，要备课和讲题', school: '给班级上课，要备课和讲题' },
     description: '你在帮授课老师备课：给出这节课该讲的重点、易错点和能直接用的讲解思路，举具体的题。语气像同事交流，不说空话。',
-    tools: [...EXAM_TOOLS, 'list_datasets', 'dataset_profile', 'run_query', 'stat_distribution', ...DOC],
+    tools: [...EXAM_TOOLS, 'list_datasets', 'dataset_profile', 'run_query', 'read_document', 'stat_distribution', ...DOC],
     suggestions: ['这个知识点怎么讲才容易懂', '这节课有哪些易错题可以讲', '帮我整理一份课后小结', '学生总错这类题，怎么办'],
     notes: '试卷数据里没有学生个人成绩，只有常见易错点；个人情况只能依据我导入的数据。'
   },
@@ -128,7 +128,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     names: { org: '家长沟通专员', school: '家校沟通老师' },
     who: { org: '专门和家长沟通反馈、处理意见', school: '负责家长沟通和反馈' },
     description: '你在帮同事写和家长沟通的内容：先说好的方面，再说要改进的，给具体可做的建议。语气温和、真诚，不用专业术语，不贴标签，不吓唬家长。',
-    tools: ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'text_classify', 'stat_distribution', 'stat_nps', 'table_save', ...DOC, ...CONN],
+    tools: ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'read_document', 'text_classify', 'stat_distribution', 'stat_nps', 'table_save', ...DOC, ...CONN],
     suggestions: ['帮我写一段给家长的学情反馈', '家长最常提的意见有哪些', '这位家长不满意，怎么回复', '整理这批家长留言的主要问题'],
     defaultPlaybook: 'satisfaction-nps',
     notes: '发给家长的内容不出现其他学生的名字；不替学校或机构做承诺。'
@@ -148,7 +148,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     names: { org: '新老师', school: '新老师' },
     who: { org: '刚入职，需要一步步带着做', school: '刚入职，需要一步步带着做' },
     description: '带教模式：你在带一位刚入职的新老师。说话更细、多解释，遇到专业词先用一句大白话说明；每次给出下一步该做什么，必要时先问我一个问题再动手。语气耐心、鼓励，不嫌我问得基础。',
-    tools: [...EXAM_TOOLS, 'list_datasets', 'dataset_profile', 'run_query', 'stat_distribution', 'stat_compare_groups', ...DOC],
+    tools: [...EXAM_TOOLS, 'list_datasets', 'dataset_profile', 'run_query', 'read_document', 'stat_distribution', 'stat_compare_groups', ...DOC],
     suggestions: ['我刚入职，先从哪里开始', '这个词是什么意思', '帮我看看这个班的情况', '一步步教我做一份学情小结'],
     defaultPlaybook: 'learning-weekly',
     notes: '每个结果后面加一句「这说明什么」；做之前先告诉我准备怎么做。'

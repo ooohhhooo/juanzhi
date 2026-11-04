@@ -121,8 +121,12 @@ interface ElectronAPI {
   /** 数据集（数据页）：Excel / CSV 导入成本机的 SQLite，供分析 Agent 查询。类型定义见 src/main/analysis/types.ts */
   datasets: {
     pick(): Promise<string[]>
-    import(paths: string[]): Promise<Array<{ file: string; ok: boolean; id?: string; error?: string }>>
+    import(paths: string[]): Promise<Array<{ file: string; ok: boolean; id?: string; error?: string; kind?: 'dataset' | 'document' }>>
     list(): Promise<DatasetMetaView[]>
+    documents(): Promise<Array<{ id: string; name: string; kind: 'image' | 'pdf' | 'docx' | 'text'; chars: number; importedAt: string; note: string }>>
+    documentText(id: string): Promise<string>
+    removeDocument(id: string): Promise<boolean>
+    sources(): Promise<{ papers: number; outlines: number; reports: number }>
     profile(id: string): Promise<DatasetMetaView>
     profileText(id: string, table?: string): Promise<string>
     preview(id: string, table: string): Promise<{ columns: Array<{ name: string; label: string; type: string; sensitive: boolean }>; rows: unknown[][]; total: number }>

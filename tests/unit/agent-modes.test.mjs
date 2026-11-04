@@ -55,7 +55,7 @@ const results = events => evs(events, 'tool_result')
   ], { mode: 'plan' })
   const r = await s.run()
   assert.equal(r.stop, 'answered')
-  assert.deepEqual(s.seen[0].tools.sort(), ['ask_user', 'load_playbook', 'overview', 'session_state', 'update_plan'], '计划阶段发给模型的工具清单里没有 detail')
+  assert.deepEqual(s.seen[0].tools.sort(), ['ask_user', 'history_read', 'history_search', 'load_playbook', 'overview', 'session_state', 'update_plan'], '计划阶段发给模型的工具清单里没有 detail')
   const res = results(s.events)
   assert.equal(res[0].name, 'detail'); assert.equal(res[0].ok, false); assert.match(res[0].text, /先出计划/, '就算模型硬调，程序也拒绝执行')
   assert.equal(res[1].ok, true)   // overview 可用

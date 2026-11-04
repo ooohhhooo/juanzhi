@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { App, Drawer, Input, Popconfirm, Switch, Table, Tabs, Tag } from 'antd'
-import { Inbox, Trash2 } from 'lucide-react'
+import { FileText, Image as ImageIcon, Inbox, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, EmptyState, Icon, Page } from '../../design'
 import '../../design/page-report.css'
@@ -23,6 +24,9 @@ export default function DatasetsPage() {
   const [progress, setProgress] = useState<Progress | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const { data: list = [] } = useQuery({ queryKey: ['datasets', 'list'], queryFn: () => window.api.datasets.list() })
+  const { data: docs = [] } = useQuery({ queryKey: ['datasets', 'documents'], queryFn: () => window.api.datasets.documents() })
+  const { data: src } = useQuery({ queryKey: ['datasets', 'sources'], queryFn: () => window.api.datasets.sources() })
+  const [docId, setDocId] = useState<string | null>(null)
   const refresh = () => qc.invalidateQueries({ queryKey: ['datasets'] })
 
   useEffect(() => window.api.on('datasets:progress', (p: Progress) => setProgress(p)), [])
@@ -47,19 +51,25 @@ export default function DatasetsPage() {
     for (const f of Array.from(e.dataTransfer.files)) { try { const p = window.api.getPathForFile(f); if (p) paths.push(p) } catch { /* 忽略 */ } }
     await doImport(paths)
   }
+  const removeDoc = async (id: string) => { try { await window.api.datasets.removeDocument(id); message.success('已删除'); if (docId === id) setDocId(null); refresh() } catch (e) { message.error(clean(e)) } }
   const remove = async (id: string) => { try { await window.api.datasets.remove(id); message.success('已删除'); if (openId === id) setOpenId(null); refresh() } catch (e) { message.error(clean(e)) } }
 
   return (
     <Page data-testid="datasets-page">
       <h1 className="ewb-rep-h1">数据</h1>
-      <p className="ewb-set-lead">导入 Excel 或 CSV，之后可以让助手查询和分析。数据只存在这台电脑上，发给 AI 前姓名、手机号等敏感列会换成代号。</p>
+      <p className="ewb-set-lead">导入表格、图片或文档，之后可以让助手查询和分析。数据只存在这台电脑上，发给 AI 前姓名、手机号等会换成代号或去掉。</p>
+      {src && (src.papers + src.outlines + src.reports > 0) && (
+        <p className="ewb-rep-note" data-testid="datasets-sources" style={{ margin: '0 0 12px' }}>
+          助手也能直接用卷知里的这些数据：<Link to="/">试卷 {src.papers} 份</Link> · <Link to="/courses">课程大纲 {src.outlines} 套</Link> · <Link to="/report">报告 {src.reports} 份</Link>
+        </p>
+      )}
       <div
         data-testid="datasets-drop" data-over={over ? 'true' : 'false'} className="ewb-lib-drop" role="button" tabIndex={0}
         onDrop={drop} onDragOver={e => { e.preventDefault(); e.stopPropagation(); setOver(true) }} onDragLeave={e => { e.preventDefault(); setOver(false) }}
         onClick={() => void pick()} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void pick() } }}>
         <div className="ewb-lib-drop__icon"><Icon as={Inbox} size={32} /></div>
         <p className="ewb-lib-drop__main">拖入文件到此处，或点击选择</p>
-        <p className="ewb-lib-drop__sub">支持 .xlsx 和 .csv，最多 50 万行、200 MB</p>
+        <p className="ewb-lib-drop__sub">表格：.xlsx、.csv（最多 50 万行）；图片、PDF、Word（.docx）、文本：读出文字后保存</p>
       </div>
       {progress && (
         <div className="ewb-lib-progress" data-testid="datasets-progress" style={{ marginBottom: 16 }}>
@@ -67,7 +77,8 @@ export default function DatasetsPage() {
           <div className="ewb-thinking__rail" aria-hidden><div className="ewb-thinking__fill" style={{ transform: `scaleX(${progress.total ? Math.min(1, progress.done / progress.total) : 0})` }} /></div>
         </div>
       )}
-      {list.length === 0 && !busy && <EmptyState inline title="还没有数据" description="导入后会在这里列出，可以查看每列的概况。" />}
+      {list.length === 0 && docs.length === 0 && !busy && <EmptyState inline title="还没有数据" description="导入后会在这里列出：表格可以查看每列的概况，文档可以查看读出的文字。" />}
+      {list.length > 0 && docs.length > 0 && <h3 className="ewb-rep-h2" style={{ margin: '8px 0' }}>表格</h3>}
       <div className="ewb-crs-cards" data-testid="datasets-list">
         {list.map(d => (
           <article key={d.id} className="ewb-crs-card" data-testid={`dataset-${d.id}`} data-name={d.name}>
@@ -87,8 +98,42 @@ export default function DatasetsPage() {
           </article>
         ))}
       </div>
+      {docs.length > 0 && (
+        <>
+          <h3 className="ewb-rep-h2" style={{ margin: '20px 0 8px' }}>文档资料</h3>
+          <div className="ewb-crs-cards" data-testid="documents-list">
+            {docs.map(d => (
+              <article key={d.id} className="ewb-crs-card" data-testid="document-card" data-name={d.name}>
+                <div className="ewb-crs-card__head">
+                  <span className="ewb-crs-card__name">{d.kind === 'image' ? <ImageIcon size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} /> : <FileText size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />}{d.name}</span>
+                  <span className="ewb-rep-row">
+                    <Btn tone="secondary" size="small" data-testid="document-open" onClick={() => setDocId(d.id)}>查看文字</Btn>
+                    <Popconfirm title="删除这份文档？" description="读出的文字会一并删除（原文件不受影响）。" okText="删除" cancelText="取消" onConfirm={() => void removeDoc(d.id)}>
+                      <Btn tone="danger" size="small" icon={Trash2} data-testid="document-remove">删除</Btn>
+                    </Popconfirm>
+                  </span>
+                </div>
+                <p className="ewb-rep-note">{DOC_KIND[d.kind]} · {d.chars.toLocaleString()} 字 · {d.importedAt.slice(0, 10)}{d.note ? ` · ${d.note}` : ''}</p>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+      <DocumentDrawer id={docId} name={docs.find(d => d.id === docId)?.name ?? ''} onClose={() => setDocId(null)} />
       <DatasetDrawer id={openId} onClose={() => setOpenId(null)} onChanged={refresh} />
     </Page>
+  )
+}
+
+const DOC_KIND: Record<string, string> = { image: '图片（识别出的文字）', pdf: 'PDF', docx: 'Word', text: '文本' }
+
+function DocumentDrawer({ id, name, onClose }: { id: string | null; name: string; onClose: () => void }) {
+  const { data: text } = useQuery({ queryKey: ['datasets', 'doctext', id], queryFn: () => window.api.datasets.documentText(id!), enabled: !!id })
+  return (
+    <Drawer open={!!id} onClose={onClose} width={720} title={name || '文档'} destroyOnHidden data-testid="document-drawer">
+      <p className="ewb-rep-note">这是软件读出来的文字，助手分析时读的就是这些（发给 AI 前手机号、身份证号等会去掉）。</p>
+      <pre data-testid="document-text" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.7 }}>{text ?? ''}</pre>
+    </Drawer>
   )
 }
 

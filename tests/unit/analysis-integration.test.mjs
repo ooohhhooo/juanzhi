@@ -65,7 +65,7 @@ const call = async (name, args) => {
 // ── 工具清单 ──
 const names = tools.map(t => t.name)
 assert.equal(new Set(names).size, names.length, '工具名不能重复')
-assert.deepEqual(names.filter(n => !n.startsWith('stat_')), ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'text_classify', 'board_start', 'board_add_finding', 'board_add_section', 'board_add_block', 'board_set_caliber', 'board_preview', 'board_export'])
+assert.deepEqual(names.filter(n => !n.startsWith('stat_')), ['list_datasets', 'dataset_profile', 'run_query', 'column_values', 'read_document', 'text_classify', 'board_start', 'board_add_finding', 'board_add_section', 'board_add_block', 'board_set_caliber', 'board_preview', 'board_export'])
 assert.equal(names.filter(n => n.startsWith('stat_')).length, 10)
 const level = n => byName[n].level
 assert.equal(level('run_query'), 'read'); assert.equal(level('stat_nps'), 'read'); assert.equal(level('text_classify'), 'external')

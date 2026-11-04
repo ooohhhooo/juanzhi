@@ -26,12 +26,12 @@ export interface RoleDef {
 }
 
 /** 所有角色都有的基础工具（计划、提问、剧本） */
-export const BASE_TOOLS = ['update_plan', 'ask_user', 'load_playbook', 'session_state']
+export const BASE_TOOLS = ['update_plan', 'ask_user', 'load_playbook', 'session_state', 'history_search', 'history_read']
 /** 现有试卷数据的只读工具 */
-export const EXAM_TOOLS = ['stats_overview', 'kp_questions', 'course_for_kp', 'fact_check']
+export const EXAM_TOOLS = ['stats_overview', 'kp_questions', 'course_for_kp', 'fact_check', 'papers_list', 'course_coverage', 'reports_list', 'report_read']
 /** 数据分析工具：数据集、统计、文字归类、看板、产出、连接器（运营、辅导老师用） */
 export const DATA_TOOLS = [
-  'list_datasets', 'dataset_profile', 'run_query', 'column_values',
+  'list_datasets', 'dataset_profile', 'run_query', 'column_values', 'read_document',
   'stat_nps', 'stat_compare_groups', 'stat_find_low_groups', 'stat_period_compare', 'stat_crosstab', 'stat_multi_choice', 'stat_option_impact', 'stat_distribution', 'stat_ratio', 'stat_middle_segment',
   'text_classify',
   'board_start', 'board_add_finding', 'board_add_section', 'board_add_block', 'board_set_caliber', 'board_preview', 'board_export',

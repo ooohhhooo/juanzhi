@@ -31,7 +31,8 @@ import type { CustomRole } from './custom-roles'
 import { takeAttachments } from './attachments'
 import type { AttachInfo } from './attachments'
 import { clipOrgContext, contextLimitFor, DEFAULT_CONTEXT_LIMIT, ORG_CONTEXT_MAX } from './limits'
-import { appendStep, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
+import { scrubPII } from '../analysis/scrub'
+import { appendStep, listSessions, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
 import type { StepKind } from './store'
 import { createRegistry } from './tools'
 import { adaptAgentTools } from './tools/bridge'
@@ -362,9 +363,11 @@ async function execute(x: ExecArgs): Promise<void> {
   const playbooks = playbooksForRole(allPlaybooks(), role.id)
   const org = clipOrgContext(readOrgContext())
   const chosen = selectedDatasets(sid)
-  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
+  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
   const { registry, dynamic } = buildRegistry()
-  const toolNames = CONNECTOR_ROLES.includes(role.id) ? [...role.tools, ...dynamic] : role.tools
+  // 老角色文件（自建 / 导入）里没有后来加的查询：翻以前的对话所有角色都有；能查数据集的也能读文档；能看试卷统计的也能看试卷清单、课程覆盖、报告
+  const extraTools = ['history_search', 'history_read', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read'] : [])]
+  const toolNames = [...new Set([...role.tools, ...extraTools, ...(CONNECTOR_ROLES.includes(role.id) ? dynamic : [])])]
   const prices = getPriceMap()
   const lim = effectiveMaxTokens(cfg, model)
   const st = readSetting(SETTINGS_KEY) ?? {}

@@ -12,6 +12,8 @@ import { checkRules } from '../../../shared/factcheck.ts'
 import { isMainMap } from '../../course/match.ts'
 import { lessonName } from '../../course/map.ts'
 import type { ToolDef } from '../types.ts'
+import { READER_LABEL, stripInternalCodes } from '../../../shared/report-post.ts'
+import type { ReportReader } from '../../../shared/report-post.ts'
 
 const oneLine = (s: string | null | undefined, n: number) => {
   const t = (s ?? '').replace(/\s+/g, ' ').trim()
@@ -174,4 +176,95 @@ export const factCheck: ToolDef = {
   }
 }
 
-export const DATA_TOOLS: ToolDef[] = [statsOverview, kpQuestions, courseForKp, factCheck]
+// ───────── papers_list ─────────
+const STATUS_LABEL: Record<string, string> = { done: '已审核', reviewing: '待审核', parsing: '识别中', queued: '排队中', imported: '已导入', error: '出错', failed: '出错' }
+export const papersList: ToolDef = {
+  name: 'papers_list', label: '看有哪些试卷', planSafe: true,
+  level: 'read',
+  description: '列出试卷库里的试卷：卷名、年级、学期、学年、考试类型、学校、状态、题数。可以按年级等筛选；默认列出全部状态（统计类工具只算已审核的）。',
+  schema: z.object({ ...FilterShape, limit: z.number().int().min(1).max(100).default(40).describe('最多列几份，默认 40') }),
+  run: (a, ctx) => {
+    const db = ctx.db
+    const conds: string[] = ['p.is_sample = 0']
+    const params: unknown[] = []
+    for (const k of ['grade', 'semester', 'school_year_start', 'exam_type', 'textbook', 'region'] as const) if (a[k] !== undefined) { conds.push(`p.${k} = ?`); params.push(a[k]) }
+    const all = db.prepare(`SELECT p.id, p.title, p.grade, p.semester, p.school_year_start, p.exam_type, p.school, p.status, (SELECT COUNT(*) FROM questions q WHERE q.paper_id = p.id) AS qn
+      FROM papers p WHERE ${conds.join(' AND ')} ORDER BY p.created_at DESC`).all(...params) as any[]
+    if (!all.length) return { text: `「${describeFilter(a)}」里没有试卷。`, count: 0 }
+    const limit = a.limit ?? 40
+    const by = new Map<string, number>()
+    for (const p of all) by.set(STATUS_LABEL[p.status] ?? p.status, (by.get(STATUS_LABEL[p.status] ?? p.status) ?? 0) + 1)
+    const lines = all.slice(0, limit).map((p, i) => `${i + 1}. 《${oneLine(p.title, 40) || '（无标题）'}》${p.grade ? ` ${p.grade} 年级` : ''}${p.semester ? ` ${p.semester}学期` : ''}${p.school_year_start ? ` ${p.school_year_start}学年` : ''}${p.exam_type ? ` ${p.exam_type}` : ''}${p.school ? `｜${oneLine(p.school, 20)}` : ''}｜${STATUS_LABEL[p.status] ?? p.status}｜${p.qn} 题`)
+    return { text: `范围：${describeFilter(a)}，共 ${all.length} 份（${[...by].map(([k, v]) => `${k} ${v}`).join('、')}）${all.length > limit ? `，只列最新 ${limit} 份` : ''}\n${lines.join('\n')}`, count: Math.min(all.length, limit) }
+  }
+}
+
+// ───────── course_coverage ─────────
+export const courseCoverage: ToolDef = {
+  name: 'course_coverage', label: '看课程覆盖',
+  level: 'read',
+  description: '课程对照总览：已启用的课程大纲有哪些、匹配进度，以及在这批试卷里「常考但课程没有对应课」的知识点（课程缺口）。要看某个知识点对应哪几课用 course_for_kp。',
+  schema: z.object({ ...FilterShape }),
+  run: (a, ctx) => {
+    const db = ctx.db
+    const outlines = db.prepare("SELECT id, name FROM course_outlines WHERE active = 1 AND status = 'active' ORDER BY name").all() as any[]
+    if (!outlines.length) return { text: '软件里还没有导入（或启用）课程大纲。', count: 0 }
+    const scope = paperScope(toFilter(a))
+    const c = scopeCounts(db, scope)
+    const out = [`已启用的课程大纲：${outlines.map(o => `《${o.name}》`).join('、')}`, `范围：${describeFilter(a)}，已审核试卷 ${c.papers} 份`]
+    for (const o of outlines) {
+      const lessons = (db.prepare('SELECT COUNT(*) c FROM course_lessons WHERE outline_id = ?').get(o.id) as any).c
+      const checked = (db.prepare('SELECT COUNT(DISTINCT kp_code) c FROM course_kp_check WHERE outline_id = ?').get(o.id) as any).c
+      out.push(`- 《${o.name}》：${lessons} 课，已匹配 ${checked} 个知识点`)
+    }
+    if (c.papers === 0) return { text: out.join('\n') + '\n这个范围里还没有已审核的试卷，算不出课程缺口。', count: outlines.length }
+    const ids = outlines.map(o => o.id)
+    const ph = ids.map(() => '?').join(',')
+    const nodes = nodeStats(db, scope, 2).filter(n => n.level === 2 && n.papers > 0).sort((x, y) => y.papers - x.papers || y.errorCount - x.errorCount)
+    const covered = new Set<string>()
+    const checkedKps = new Set<string>()
+    for (const r of db.prepare(`WITH RECURSIVE ${CLOSURE_CTE} SELECT DISTINCT c.anc AS node, m.confidence, m.state FROM course_kp_map m JOIN closure c ON c.code = m.kp_code WHERE m.outline_id IN (${ph}) AND m.state <> 'rejected'`).all(...ids) as any[]) if (isMainMap(r)) covered.add(r.node)
+    for (const r of db.prepare(`WITH RECURSIVE ${CLOSURE_CTE} SELECT DISTINCT c.anc AS node FROM course_kp_check k JOIN closure c ON c.code = k.kp_code WHERE k.outline_id IN (${ph})`).all(...ids) as any[]) checkedKps.add(r.node)
+    const minPapers = Math.max(2, Math.ceil(c.papers * 0.3))
+    const gaps = nodes.filter(n => n.papers >= minPapers && checkedKps.has(n.code) && !covered.has(n.code))
+    const coveredTop = nodes.filter(n => covered.has(n.code)).slice(0, 8)
+    out.push('', coveredTop.length ? `常考且课程里有对应课的知识点（前 ${coveredTop.length}）：${coveredTop.map(n => `${n.name}（代码 ${n.code}，${n.papers}/${c.papers} 份卷子）`).join('；')}` : '常考知识点里还没有课程对应（可能还没做课程匹配）。')
+    out.push(gaps.length ? `课程缺口（至少出现在 ${minPapers} 份卷子里、但课程里没有对应课）：\n${gaps.slice(0, 15).map((n, i) => `${i + 1}. ${n.name}（代码 ${n.code}）：${n.papers}/${c.papers} 份卷子，${n.questions} 道题${n.errorCount ? `，易错 ${n.errorCount} 道` : ''}`).join('\n')}` : '没有发现课程缺口（常考的知识点都有对应课，或者还没匹配完）。')
+    if (c.papers < 3) out.push('说明：试卷少于 3 份，缺口结论只作参考。')
+    return { text: out.join('\n'), count: gaps.length }
+  }
+}
+
+// ───────── reports_list / report_read ─────────
+const readerOf = (r: any): ReportReader => (['boss', 'parent', 'teacher', 'full'].includes(r.reader) ? r.reader : 'full')
+export const reportsList: ToolDef = {
+  name: 'reports_list', label: '看已生成的报告', planSafe: true,
+  level: 'read',
+  description: '列出「报告」页里已经生成的考情分析报告：编号、版本（老板版 / 家长版 / 老师版 / 完整数据版）、范围、生成时间、是否已由老师核对。读内容用 report_read。',
+  schema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
+  run: (a, ctx) => {
+    const rows = ctx.db.prepare("SELECT rowid AS n, id, reader, filter_json, created_at, confirmed_at, length(markdown) AS len FROM reports WHERE kind = 'report' ORDER BY created_at DESC, rowid DESC LIMIT ?").all(a.limit ?? 20) as any[]
+    if (!rows.length) return { text: '还没有生成过报告（可以到「报告」页生成）。', count: 0 }
+    const lines = rows.map(r => {
+      let scope = ''
+      try { const f = JSON.parse(r.filter_json ?? '{}'); scope = describeFilter({ grade: f.grade, semester: f.semester, school_year_start: f.school_year_start, exam_type: f.exam_type, textbook: f.textbook, region: f.region }) + (f.paperIds?.length ? `（选中的 ${f.paperIds.length} 份）` : '') } catch { /* 旧格式 */ }
+      return `- 编号 ${r.id}｜${READER_LABEL[readerOf(r)]}｜${scope}｜${r.created_at}${r.confirmed_at ? '｜已由老师核对' : '｜AI 草稿'}｜约 ${r.len ?? 0} 字`
+    })
+    return { text: lines.join('\n'), count: rows.length }
+  }
+}
+export const reportRead: ToolDef = {
+  name: 'report_read', label: '读报告',
+  level: 'read',
+  description: '读一份已生成报告的正文（Markdown）。reportId 来自 reports_list。长报告分段读：from 是起始字位置，一次最多 8000 字，nextFrom 不为空说明后面还有。',
+  schema: z.object({ reportId: z.string().min(1).max(80), from: z.number().int().min(0).default(0) }),
+  run: (a, ctx) => {
+    const r = ctx.db.prepare("SELECT id, reader, markdown, created_at, confirmed_at FROM reports WHERE kind = 'report' AND id = ?").get(a.reportId) as any
+    if (!r) return { text: '找不到这份报告，请先用 reports_list 看编号。', count: 0 }
+    const md = stripInternalCodes(String(r.markdown ?? ''))
+    const from = Math.min(a.from ?? 0, md.length), end = Math.min(md.length, from + 8000)
+    return { text: `${READER_LABEL[readerOf(r)]}，生成于 ${r.created_at}${r.confirmed_at ? '，已由老师核对' : '，AI 草稿（老师还没核对）'}；第 ${from}–${end} 字 / 共 ${md.length} 字${end < md.length ? `，后面还有（nextFrom=${end}）` : ''}\n\n${md.slice(from, end)}`, count: 1 }
+  }
+}
+
+export const DATA_TOOLS: ToolDef[] = [statsOverview, kpQuestions, courseForKp, factCheck, papersList, courseCoverage, reportsList, reportRead]

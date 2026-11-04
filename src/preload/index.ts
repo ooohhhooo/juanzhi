@@ -186,6 +186,12 @@ const api = {
     /** 导入若干文件（路径必须来自 pick 或 getPathForFile）；进度见事件 `datasets:progress` */
     import: (paths: string[]): Promise<Array<{ file: string; ok: boolean; id?: string; error?: string }>> => ipcRenderer.invoke('datasets:import', paths),
     list: (): Promise<any[]> => ipcRenderer.invoke('datasets:list'),
+    /** 文档资料（图片识别文字、PDF、Word、文本） */
+    documents: (): Promise<any[]> => ipcRenderer.invoke('datasets:documents'),
+    documentText: (id: string): Promise<string> => ipcRenderer.invoke('datasets:documentText', id),
+    removeDocument: (id: string): Promise<boolean> => ipcRenderer.invoke('datasets:removeDocument', id),
+    /** 卷知里其他数据的数量：试卷、课程大纲、报告 */
+    sources: (): Promise<{ papers: number; outlines: number; reports: number }> => ipcRenderer.invoke('datasets:sources'),
     profile: (id: string): Promise<any> => ipcRenderer.invoke('datasets:profile', id),
     profileText: (id: string, table?: string): Promise<string> => ipcRenderer.invoke('datasets:profileText', id, table),
     /** 前 100 行预览（界面显示真名） */
