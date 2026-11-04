@@ -5,14 +5,14 @@
 Turn a stack of primary-school English exam papers into a "dictionary of exam points". You can see at a glance what was tested this year, where students make the most mistakes, and what changed compared with earlier years. Then generate analysis reports for different readers: a **boss version, a teacher version and a parent version**.
 
 - Free and open source. Installers for both Mac and Windows.
-- No sign-up, no login. Your papers and results stay on your own computer. Paper text is sent to an AI service of your own choice only when you ask the AI to split questions or write a report (see [section 9](#9-data-and-privacy)).
+- No sign-up, no login. Your papers and results stay on your own computer. Paper text is sent to an AI service of your own choice only when you ask the AI to split questions or write a report (see [section 10](#10-data-and-privacy)).
 - You do not need to know grammar terms. Every exam point comes with a plain-language explanation and an example sentence.
 
 > **Note:** The app's interface, its AI prompts and the reports it generates are in Chinese only. It is built for Chinese primary-school English teaching (PEP-style textbooks, Chinese school years and semesters). This English README only explains how to install and use it.
 
 ![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v13-overview.png)
 
-> **This is the 1.3.0 public beta (公测版).** New: course mapping, an upgraded teacher report, and diagnostics and feedback. All features are usable; please report any problems you find (see [section 10](#10-faq-known-limitations-and-feedback)).
+> **This is the 1.4.0 public beta (公测版).** New: a built-in assistant (ask about your data in Chinese, make dashboards, drafts and share cards; it remembers earlier conversations), a Data page that takes spreadsheets, images, PDF and Word files, connectors for WeCom and common MCP tools, and an interactive terminal interface. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
 
 > **Download: [click here to open the download page](https://github.com/ooohhhooo/juanzhi/releases/latest)**　|　Full installation guide: [docs/安装指南.md](docs/安装指南.md) (the guide is in Chinese)
 
@@ -26,11 +26,12 @@ Turn a stack of primary-school English exam papers into a "dictionary of exam po
 4. [Which file to download](#4-which-file-to-download)
 5. [Installation steps (Mac / Windows)](#5-installation-steps)
 6. [First use: three steps](#6-first-use-three-steps)
-7. [Beginner's guide: let an AI assistant install it for you (WorkBuddy, Doubao, Codex, Claude Code)](#7-beginners-guide-let-an-ai-assistant-install-it-for-you)
-8. [Command line (CLI): use it yourself or hand it to an AI assistant](#8-command-line-cli-use-it-yourself-or-hand-it-to-an-ai-assistant)
-9. [Data and privacy](#9-data-and-privacy)
-10. [FAQ, known limitations and feedback](#10-faq-known-limitations-and-feedback)
-11. [For developers](#11-for-developers)
+7. [Built-in assistant: ask about your data in Chinese, make dashboards, drafts and cards](#7-built-in-assistant-ask-about-your-data-in-chinese-make-dashboards-drafts-and-cards)
+8. [Beginner's guide: let an AI assistant install it for you (WorkBuddy, Doubao, Codex, Claude Code)](#8-beginners-guide-let-an-ai-assistant-install-it-for-you)
+9. [Command line (CLI): use it yourself or hand it to an AI assistant](#9-command-line-cli-use-it-yourself-or-hand-it-to-an-ai-assistant)
+10. [Data and privacy](#10-data-and-privacy)
+11. [FAQ, known limitations and feedback](#11-faq-known-limitations-and-feedback)
+12. [For developers](#12-for-developers)
 
 ---
 
@@ -42,6 +43,8 @@ Juanzhi is a program you install on your computer. It is made for **primary-scho
 2. **Counts the exam points.** The Overview page turns the exam points into a "dictionary". Each exam point is one entry with a plain-language explanation, English example sentences, how many papers tested it, and screenshots from the original papers. The Analysis dashboard (「分析看板」) shows the distribution, compares with earlier years, and finds key and difficult points.
 3. **Writes reports for each reader.** The same data is written up in different versions for different people.
 4. **Maps exam points to your courses.** Upload your own course table (Excel, CSV, Word, PDF or an image; non-spreadsheet files are turned into a table by the AI for you to check before saving) on the 「课程大纲」(Course outlines) page in the sidebar, and the AI maps exam points to lessons. The 「课程对照」(Course mapping) tab on the dashboard shows which lesson covers each error-prone point and which frequently tested points no lesson covers. Tick 「加入课程对照」(Include course mapping) when generating a report to add it to the report too.
+
+5. **Built-in assistant (new in 1.4).** Ask questions in Chinese in the 「助手」(Assistant) page, such as "which classes' attendance dropped most" or "write a message to a parent about renewing". It looks up papers, courses, reports and the data you imported, and makes dashboards, write-ups, lists and share cards. See [section 7](#7-built-in-assistant-ask-about-your-data-in-chinese-make-dashboards-drafts-and-cards).
 
 | Report version | Who reads it | What it says |
 |---|---|---|
@@ -218,7 +221,37 @@ If you want to see how it works first without touching real data, go to 「设�
 
 ---
 
-## 7. Beginner's guide: let an AI assistant install it for you
+## 7. Built-in assistant: ask about your data in Chinese, make dashboards, drafts and cards
+
+The first item in the sidebar, 「助手」(Assistant), works like a chat. It uses the same AI service you set up in 「设置 → AI 服务」, so there is nothing extra to configure. The assistant works in Chinese.
+
+**First use:** pick the role closest to yours (operations, tutoring teacher, campus manager, academic affairs…), or let the assistant draft one for you. The role decides what it can look up and how it talks.
+
+**What you can ask**
+
+- **Data:** "How satisfied are parents in this survey? Make a dashboard." "Which classes' attendance dropped most?" "Compare renewal rates between two terms."
+- **Papers and courses:** "Which knowledge points do Grade 4 students get wrong most?" "Which frequently tested points does our course not cover?" "What did last week's parent report say?"
+- **Writing:** "Write a message to a parent about renewing." "Turn this report into a WeChat message."
+- **Reports:** "Make a parent-version report for Grade 4 midterms." This is exactly the same as generating on the 「报告」(Report) page, and the report appears there.
+- **Share cards:** knowledge, mnemonic or practice cards for students (picture-book style, starring the mascot 卷卷) and weekly or progress cards for parents (picture-book letter style), 10 templates each. Use the 「模板」(Template) menu under a card in the right panel to switch templates in one click.
+
+**Giving it material**
+
+- **The 「数据」(Data) page:** drop in Excel / CSV files (they become tables the assistant can query), or images, PDF, Word and text files (their text is read out and kept as documents; click 「查看文字」 to see exactly what the assistant reads). Import once and every conversation can use it.
+- **Attach in a chat:** drag a file onto the assistant page, or paste a screenshot into the input box (Command / Ctrl + V). For images, only the text in them is read; the assistant cannot understand the picture itself.
+- **It remembers earlier conversations:** say "the message you wrote last time" and it searches earlier chats.
+
+**Three answer modes** (switch under the input box): 「直接回答」 (answer directly) for simple questions; 「先出计划」 (plan first, the default) shows you its plan and starts only after you click 「按这个做」; 「自动完成」 (do it all) works through to the end and only asks when you need to decide.
+
+**Outputs:** dashboards, write-ups (Word / PDF), lists (Excel) and card images appear in the 「产出」(Outputs) panel on the right, where you can preview, export and copy them. Every number in an answer links to the query that produced it.
+
+**Connectors** (「设置 → 连接器 → 添加连接」): a WeCom group robot, common MCP tools such as Feishu / Lark, Notion, GitHub, a local folder and web fetch, or any MCP server (a local command or a URL). **Every time something is sent outside, you see the full content first, and it is sent only after you click 「发送」.** Feishu, Notion and the local-folder tool need Node.js installed on the computer; web fetch needs uv.
+
+**Skills** (「助手设置 → Skill」): written analysis methods (renewal analysis, refund reasons, attendance…) that the assistant follows for related questions. You can write your own, import them (.md files or folders with a SKILL.md) and export them for colleagues.
+
+---
+
+## 8. Beginner's guide: let an AI assistant install it for you
 
 If you are not comfortable installing software, you can ask an AI assistant on your computer to do it: **choose an assistant → copy the matching block below to it in full → it tells you the result after each step**.
 
@@ -278,9 +311,11 @@ The requirements are the same as in the installation prompt: stop on failure, do
 
 ---
 
-## 8. Command line (CLI): use it yourself or hand it to an AI assistant
+## 9. Command line (CLI): use it yourself or hand it to an AI assistant
 
 From version 1.2.0, Juanzhi comes with a **command-line interface**. You type one command in a terminal to do "import papers → AI analysis → view statistics → generate a report → export to Word / PDF". An AI assistant that can run commands (Codex, Claude Code, WorkBuddy and others) can use the same commands to work for you and read the results back.
+
+**Interactive interface (new in 1.4, Mac):** type just `juanzhi` and press Enter (nothing after it) to open an interface like Claude Code's: type to chat with the assistant, and type `/` to see commands (import papers, make a report, switch role, view earlier conversations…). The form with a command (such as `juanzhi status`) is meant for programs and AI assistants and prints JSON. On Windows only the command form works for now.
 
 The command line and the window are **the same software with the same data**. Papers imported from the command line show up when you open the window. Papers you have reviewed in the window can be counted by the command line.
 
@@ -436,7 +471,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 
 | What you want to do | How |
 |---|---|
-| Install or upgrade | See [section 7](#7-beginners-guide-let-an-ai-assistant-install-it-for-you) above |
+| Install or upgrade | See [section 8](#8-beginners-guide-let-an-ai-assistant-install-it-for-you) above |
 | Troubleshoot a problem | Send the assistant a screenshot of the error, together with the links to this README and the [installation guide](docs/安装指南.md) (in Chinese) |
 | Turn a report into another form | Give the exported report (Word, PDF or .md) to the assistant and ask it to rewrite it as a speech for a parents' meeting, an outline for a teaching-research PPT, a group notice, and so on. **After rewriting, ask a teacher to check it again** |
 
@@ -444,17 +479,18 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 
 ---
 
-## 9. Data and privacy
+## 10. Data and privacy
 
 - **Your data is stored on your own computer.** There is no cloud and no account. Location: on a Mac, "your Home folder / Library / Application Support / english-exam-workbench". On Windows, `%APPDATA%\english-exam-workbench`.
 - **Only when you ask the AI to analyse papers or generate reports** is paper text sent to the AI provider you chose. If you have also set up an "AI model that can read images" (a vision model), images of scanned pages that could not be read well are sent too. The author of Juanzhi receives none of your data.
+- **Assistant:** in imported tables, sensitive columns such as names and phone numbers are replaced with codes before anything is sent to the AI (the interface and exported files show the real names). Phone numbers, ID numbers and similar are removed from documents and attachments before they are sent. Conversations, imported data and outputs stay on this computer. Every outside send (WeCom, MCP tools) needs your confirmation.
 - Course outlines are stored only on this computer. When organising and matching courses, the course table is sent to the model you set in 「AI 服务」.
 - The API Key is stored encrypted on your computer (on a Mac, in the system keychain). It is not shown in the interface or in the logs, and it is not included in exported data packages.
 - To change computers or make a backup, export / import under 「设置 → 管理员设置 → 数据包」 (Settings → Admin settings → Data package). For details see [section 6 of the installation guide](docs/安装指南.md#六换电脑--备份数据) (in Chinese).
 
 ---
 
-## 10. FAQ, known limitations and feedback
+## 11. FAQ, known limitations and feedback
 
 - For common problems such as the app not opening, a white screen, or garbled recognition, see [section 9 of the installation guide](docs/安装指南.md#九常见问题) (in Chinese).
 - If you hit a problem or have a suggestion, open 「设置 → 关于」(Settings → About) in Juanzhi. Click 「导出诊断信息」(Export diagnostics) to save a zip file (it contains no student data or keys), then click 「反馈问题」(Report a problem). This opens a new issue on the [Issues page](https://github.com/ooohhhooo/juanzhi/issues) with your version and system filled in. Write **what you did and what you saw**, and drag in the zip file and screenshots. **Please do not post private information such as student names or API Keys.**
@@ -469,7 +505,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 
 ---
 
-## 11. For developers
+## 12. For developers
 
 Tech stack: Electron 45 + React 19 + TypeScript + Ant Design 6. The database is Node's built-in `node:sqlite`. There are no native modules.
 
