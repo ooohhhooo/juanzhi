@@ -33,7 +33,7 @@ assert.ok(Date.now() - t0 < 5000)
 await sleep(500)
 assert.equal(alive(pid), false, '超时后子进程已被清理')
 
-await assert.rejects(withMcp({ command: '/no/such/cmd-xyz' }, c => c.listTools()), /没能启动|已退出/)
+await assert.rejects(withMcp({ command: '/no/such/cmd-xyz' }, c => c.listTools()), /没能启动|已退出|找不到命令/)
 await assert.rejects(withMcp({ command: process.execPath, args: ['-e', 'process.exit(3)'] }, c => c.listTools()), /已退出/)
 
 // 应用退出时关闭
@@ -112,3 +112,25 @@ assert.equal(alive(pid2), false)
 
 console.log('mcp-client.test ✓')
 
+
+// ── 补全 PATH 与「找不到命令」的白话 ──
+{
+  const { augmentPath, missingCommandHint } = await import('../../src/main/connectors/mcp-client.ts')
+  const have = new Set(['/Users/u/.local/bin', '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'])
+  const p = augmentPath('/usr/bin:/bin', 'darwin', '/Users/u', d => have.has(d), '/Users/u/.nvm/bin:/usr/bin')
+  const parts = p.split(':')
+  assert.deepEqual(parts.slice(0, 2), ['/usr/bin', '/bin'], '原来的 PATH 排在前面')
+  for (const d of ['/Users/u/.nvm/bin', '/Users/u/.local/bin', '/opt/homebrew/bin', '/usr/local/bin']) assert.ok(parts.includes(d), d)
+  assert.ok(!parts.includes('/Users/u/.cargo/bin'), '不存在的目录不加')
+  assert.equal(new Set(parts).size, parts.length, '不重复')
+  assert.match(missingCommandHint('uvx'), /uv/)
+  assert.match(missingCommandHint('npx.cmd'), /Node\.js/)
+  assert.match(missingCommandHint('/x/foo'), /找不到命令「\/x\/foo」/)
+  // 真的找不到命令：报白话，不是 spawn ENOENT
+  const StdioMcpClient = McpClient
+  if (StdioMcpClient) {
+    const c = new StdioMcpClient({ command: 'uvx-definitely-missing-ewb', args: [] })
+    await assert.rejects(() => c.start(3000), /找不到命令/)
+  }
+  console.log('mcp-client PATH / 缺命令提示 ✓')
+}

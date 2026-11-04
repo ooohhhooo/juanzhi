@@ -2,7 +2,10 @@
  * 最小 MCP 客户端：stdio（按行分隔的 JSON-RPC 2.0）和网址方式（Streamable HTTP，旧版 HTTP+SSE 自动回退）。
  * 只做 initialize、tools/list、tools/call。不依赖 electron。每次用到时连接，用完关闭；超时与退出时都会清理。
  */
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 export interface McpServerSpec {
   command?: string; args?: string[]
@@ -42,12 +45,47 @@ export function decodeLines(buf: string): { messages: any[]; rest: string } {
   return { messages, rest }
 }
 
+/**
+ * 补全 PATH：从程序坞 / 开始菜单打开的卷知只带系统默认的几个目录，找不到用户装的 npx（Node.js）、uvx（uv）等命令。
+ * 加上终端登录时的 PATH（Mac / Linux，取一次缓存）和常见安装目录（存在的才加），用户自己配的 PATH 排在最前面。
+ */
+let shellPath: string | null | undefined
+function loginShellPath(platform: NodeJS.Platform): string | null {
+  if (shellPath !== undefined) return shellPath
+  shellPath = null
+  if (platform === 'win32') return null
+  try {
+    const sh = process.env.SHELL || '/bin/zsh'
+    const out = execFileSync(sh, ['-ilc', 'printf "__EWB_PATH__%s__EWB_END__" "$PATH"'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] })
+    shellPath = /__EWB_PATH__(.*?)__EWB_END__/s.exec(out)?.[1] ?? null
+  } catch { /* 取不到就只用常见目录 */ }
+  return shellPath
+}
+export function augmentPath(cur: string, platform: NodeJS.Platform = process.platform, home: string = os.homedir(), exists: (p: string) => boolean = p => fs.existsSync(p), shell: string | null = loginShellPath(platform)): string {
+  const sep = platform === 'win32' ? ';' : ':'
+  const extra = platform === 'win32'
+    ? [path.join(process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'npm'), path.join(home, '.local', 'bin'), path.join(home, '.cargo', 'bin'), 'C:\\Program Files\\nodejs']
+    : [path.join(home, '.local', 'bin'), path.join(home, '.cargo', 'bin'), '/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', path.join(home, '.volta', 'bin'), path.join(home, '.bun', 'bin'), path.join(home, 'Library', 'pnpm'), '/usr/bin', '/bin', '/usr/sbin', '/sbin']
+  const parts = [...cur.split(sep), ...(shell ? shell.split(sep) : []), ...extra.filter(exists)]
+  return [...new Set(parts.filter(Boolean))].join(sep)
+}
+
 /** 子进程环境：只带必要的系统变量 + 用户配的变量，不继承卷知自己的环境 */
 export function buildEnv(extra: Record<string, string> = {}, base: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const keep = ['PATH', 'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'SystemRoot', 'TEMP', 'TMP', 'TMPDIR', 'LANG', 'SHELL', 'COMSPEC', 'PATHEXT']
   const env: Record<string, string> = {}
   for (const k of keep) if (base[k]) env[k] = base[k] as string
-  return { ...env, ...extra }
+  const out = { ...env, ...extra }
+  out.PATH = augmentPath(out.PATH ?? '')
+  return out
+}
+
+/** 命令找不到时的白话：缺哪个软件、怎么装 */
+export function missingCommandHint(command: string): string {
+  const b = path.basename(command).replace(/\.(cmd|exe)$/i, '').toLowerCase()
+  if (b === 'npx' || b === 'node' || b === 'npm') return '找不到 npx：这个连接需要电脑上装有 Node.js。到 https://nodejs.org 下载 LTS 版安装，装好后完全退出卷知再打开，重新「测试连接」。'
+  if (b === 'uvx' || b === 'uv') return `找不到 uvx：这个连接需要电脑上装有 uv。${process.platform === 'win32' ? '在 PowerShell 里运行 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"' : '在终端里运行 curl -LsSf https://astral.sh/uv/install.sh | sh'}，装好后完全退出卷知再打开，重新「测试连接」。`
+  return `找不到命令「${command}」：请确认已经安装；也可以在「命令」里填它的完整路径（在终端里用 which ${b} 查）。`
 }
 
 /** stdio 与网址客户端共用的 tools/list、tools/call */
@@ -107,8 +145,9 @@ export class McpClient extends McpBase {
     const failAll = (why: string): void => {
       for (const [id, p] of this.pending) { clearTimeout(p.timer); p.reject(new Error(why)); this.pending.delete(id) }
     }
-    this.proc.on('error', e => { failAll(`没能启动：${this.redact(e.message)}`); this.close() })
-    this.proc.on('exit', code => { failAll(`服务器已退出（${code ?? '被终止'}）${this.stderrTail ? '：' + this.redact(this.stderrTail.trim().slice(-300)) : ''}`); this.closed = true; live.delete(this) })
+    this.proc.on('error', e => { failAll((e as NodeJS.ErrnoException).code === 'ENOENT' ? missingCommandHint(command) : `没能启动：${this.redact(e.message)}`); this.close() })
+    // Windows 走 cmd：命令不存在时不是 ENOENT，而是 cmd 报「不是内部或外部命令」后退出
+    this.proc.on('exit', code => { failAll(/不是内部或外部命令|is not recognized as an internal or external command/i.test(this.stderrTail) ? missingCommandHint(command) : `服务器已退出（${code ?? '被终止'}）${this.stderrTail ? '：' + this.redact(this.stderrTail.trim().slice(-300)) : ''}`); this.closed = true; live.delete(this) })
     await this.request('initialize', { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: 'juanzhi', version: '1' } }, timeoutMs)
     this.notify('notifications/initialized')
   }
