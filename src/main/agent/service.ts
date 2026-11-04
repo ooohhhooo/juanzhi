@@ -234,8 +234,14 @@ export function resetStaleRunning(): void { getDb().prepare("UPDATE agent_sessio
 /** 给界面看的步骤内容：代号还原成真名（数据库里和发给 AI 的始终是代号） */
 export function showPayload(sid: string, kind: string, payload: unknown): unknown { return kind === 'user' ? payload : restoreDeep(sid, payload) }
 
+/** 事件出口：窗口照旧收 agent:event；命令行的交互界面（cli/tui）没有窗口，注册一个 sink 来收同样的事件。sink 抛错不影响运行 */
+export type AgentEventSink = (payload: Record<string, unknown>) => void
+let eventSink: AgentEventSink | null = null
+export function setAgentEventSink(fn: AgentEventSink | null): void { eventSink = fn }
+
 function send(payload: Record<string, unknown>): void {
   getMainWindow()?.webContents.send('agent:event', payload)
+  if (eventSink) { try { eventSink(payload) } catch (e) { console.warn('[agent] 事件接收端出错:', (e as Error).message) } }
 }
 
 export interface RunArgs {

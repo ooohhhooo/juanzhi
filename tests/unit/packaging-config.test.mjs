@@ -20,22 +20,28 @@ assert.equal(cfg.npmRebuild, false, '不重建原生模块（没有原生模块�
 // ── 2. 主进程在运行时 require / import 的包必须是 dependencies（打包只带 dependencies）──
 const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.name.startsWith('._') ? [] : e.isDirectory() ? walk(path.join(d, e.name)) : /\.(ts|tsx)$/.test(e.name) ? [path.join(d, e.name)] : [])
 const bare = new Set()
+const bareOutsideTui = new Set()   // 命令行交互界面（src/main/cli/tui）用 Ink，Ink 要和主进程同一份 react；除此之外主进程不该碰 react
 for (const f of [...walk('src/main'), ...walk('src/preload'), ...walk('src/shared')]) {
   const src = fs.readFileSync(f, 'utf8')
+  const inTui = f.split(path.sep).join('/').startsWith('src/main/cli/tui/')
   for (const m of src.matchAll(/(?:from\s+|import\(\s*|require\(\s*|require\.resolve\(\s*)['"]([^'"./][^'"]*)['"]/g)) {
     const name = m[1].startsWith('@') ? m[1].split('/').slice(0, 2).join('/') : m[1].split('/')[0]
     if (name === 'electron' || name.startsWith('node:')) continue
     bare.add(name)
+    if (!inTui) bareOutsideTui.add(name)
   }
 }
 assert.ok(bare.size >= 6, `扫到的主进程依赖数量异常：${[...bare]}`)
 for (const name of bare) assert.ok(pkg.dependencies?.[name], `主进程用到了「${name}」，但它不在 dependencies 里（打包后会找不到）`)
 // 反过来：只给渲染端用的大包（打进渲染端 bundle）不应该留在 dependencies 里，否则整套 antd 都会被塞进 app.asar
-for (const name of ['antd', '@ant-design/icons', 'react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'dayjs']) {
+// react 例外：Ink（命令行交互界面）把它当作必需的同伴依赖，所以和 ink 一起放在 dependencies
+assert.ok(pkg.dependencies?.ink && pkg.dependencies?.react, '命令行交互界面用 Ink：ink 和 react 都要在 dependencies')
+for (const name of ['antd', '@ant-design/icons', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'dayjs']) {
   assert.ok(!pkg.dependencies?.[name] && pkg.devDependencies?.[name], `${name} 只给渲染端用，应在 devDependencies`)
 }
 // 主进程不能 import 渲染端才有的包
-for (const name of ['antd', 'react', 'react-dom']) assert.ok(!bare.has(name), `主进程里不应 import ${name}`)
+for (const name of ['antd', 'react-dom']) assert.ok(!bare.has(name), `主进程里不应 import ${name}`)
+assert.ok(!bareOutsideTui.has('react'), '主进程只有 cli/tui 可以 import react')
 
 // ── 3. 运行时资源：OCR 组件在 asar 之外，路径与 src/main/pipeline/ocr.ts 一致 ──
 const ocr = fs.readFileSync('src/main/pipeline/ocr.ts', 'utf8')
