@@ -296,7 +296,7 @@ export function startRun(a: RunArgs): { sessionId: string; branchId: string } {
 
   const run: Run = { ctl: new AbortController(), asks: new Map(), approvals: new Map() }
   runs.set(sid, run)
-  const att = takeAttachments(a.attachments ?? [])
+  const att = takeAttachments(a.attachments ?? [], sid)
   void execute({ sid, text: a.text, attach: att.infos.length ? { infos: att.infos, block: att.block } : undefined, role, scene, run, mode, approval, model, effort, branchId, branchFrom: a.branchFrom, playbooks: a.playbooks }).catch(e => {
     console.warn('[agent] 运行出错:', (e as Error).message)
     send({ sessionId: sid, type: 'done', status: 'error' })
@@ -366,7 +366,7 @@ async function execute(x: ExecArgs): Promise<void> {
   const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
   const { registry, dynamic } = buildRegistry()
   // 老角色文件（自建 / 导入）里没有后来加的查询：翻以前的对话所有角色都有；能查数据集的也能读文档；能看试卷统计的也能看试卷清单、课程覆盖、报告
-  const extraTools = ['history_search', 'history_read', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read', 'report_generate'] : [])]
+  const extraTools = ['history_search', 'history_read', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read', 'report_generate', 'paper_import'] : [])]
   const toolNames = [...new Set([...role.tools, ...extraTools, ...(CONNECTOR_ROLES.includes(role.id) ? dynamic : [])])]
   const prices = getPriceMap()
   const lim = effectiveMaxTokens(cfg, model)

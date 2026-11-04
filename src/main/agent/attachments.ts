@@ -17,6 +17,8 @@ import { scrubPII } from '../analysis/scrub'
 
 export type AttachKind = 'image' | 'pdf' | 'docx' | 'text'
 export interface AttachInfo { id: string; name: string; kind: AttachKind; chars: number; truncated: boolean }
+/** 主进程内部用：附件的原文件（拖入的文件路径，或粘贴截图另存的副本），助手导入试卷时用 */
+export interface AttachSource { name: string; kind: AttachKind; path: string }
 
 /** 一个附件最多带给 AI 的字数；一次提问所有附件合计的上限 */
 export const ATTACH_MAX_CHARS = 20_000
@@ -39,7 +41,10 @@ export function attachKindOf(file: string): AttachKind | null {
   return null
 }
 
-const store = new Map<string, { info: AttachInfo; text: string; at: number }>()
+const store = new Map<string, { info: AttachInfo; text: string; at: number; source?: string }>()
+/** 每个对话用过的附件原文件（只在内存里，重启就没了） */
+const bySession = new Map<string, AttachSource[]>()
+export const sessionAttachSources = (sid: string): AttachSource[] => bySession.get(sid) ?? []
 const TTL_MS = 6 * 60 * 60 * 1000
 function prune(): void {
   const now = Date.now()
@@ -117,13 +122,13 @@ export async function extractText(file: string): Promise<{ kind: AttachKind; tex
 }
 
 /** 读一个文件的文字，存进内存，返回编号和概况 */
-export async function readAttachment(file: string, displayName?: string): Promise<AttachInfo> {
+export async function readAttachment(file: string, displayName?: string, source: string = file): Promise<AttachInfo> {
   prune()
   const name = (displayName || path.basename(file)).slice(0, 120)
   const { kind, text } = await extractText(file)
   const truncated = text.length > ATTACH_MAX_CHARS
   const info: AttachInfo = { id: crypto.randomUUID(), name, kind, chars: Math.min(text.length, ATTACH_MAX_CHARS), truncated }
-  store.set(info.id, { info, text: text.slice(0, ATTACH_MAX_CHARS), at: Date.now() })
+  store.set(info.id, { info, text: text.slice(0, ATTACH_MAX_CHARS), at: Date.now(), source })
   log.info('agent', '读取附件', { kind, chars: text.length })
   return info
 }
@@ -132,19 +137,19 @@ export async function readAttachment(file: string, displayName?: string): Promis
 export async function readPastedImage(name: string, bytes: Uint8Array): Promise<AttachInfo> {
   if (bytes.byteLength > MAX_FILE_BYTES) throw new AttachError('图片太大了（超过 30MB）')
   const ext = /\.(png|jpe?g|webp|gif|bmp)$/i.exec(name)?.[0].toLowerCase() ?? '.png'
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-paste-'))
-  try {
-    const f = path.join(dir, `pasted${ext}`)
-    fs.writeFileSync(f, bytes)
-    return await readAttachment(f, name || `粘贴的图片${ext}`)
-  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  // 留一份副本（用户可能让助手把它导入试卷库）；放在系统临时目录，系统会定期清理
+  const keepDir = path.join(os.tmpdir(), 'ewb-attach-src')
+  fs.mkdirSync(keepDir, { recursive: true })
+  const f = path.join(keepDir, `${crypto.randomUUID()}${ext}`)
+  fs.writeFileSync(f, bytes)
+  return await readAttachment(f, name || `粘贴的图片${ext}`, f)
 }
 
 /**
  * 按编号取出附件，拼成附在问题后面的一段文字（发给 AI 用；界面上只显示文件名）。
  * 合计超过上限的部分截掉并注明。找不到的编号（过期 / 重启过）忽略。
  */
-export function takeAttachments(ids: string[]): { infos: AttachInfo[]; block: string } {
+export function takeAttachments(ids: string[], sessionId?: string): { infos: AttachInfo[]; block: string } {
   const infos: AttachInfo[] = []
   const parts: string[] = []
   let left = ATTACH_TOTAL_MAX
@@ -155,6 +160,7 @@ export function takeAttachments(ids: string[]): { infos: AttachInfo[]; block: st
     const cut = a.info.truncated || body.length < a.text.length
     left -= body.length
     infos.push({ ...a.info, chars: body.length, truncated: cut })
+    if (sessionId && a.source) bySession.set(sessionId, [...sessionAttachSources(sessionId), { name: a.info.name, kind: a.info.kind, path: a.source }])
     parts.push(`【附件：${a.info.name}（${KIND_LABEL[a.info.kind]}${a.info.kind === 'image' ? '，以下是识别出的文字' : ''}${cut ? '，内容太长，只附了前一部分' : ''}）】\n${body}\n【附件结束】`)
   }
   return { infos, block: parts.length ? `\n\n下面是我附上的文件内容：\n\n${parts.join('\n\n')}` : '' }

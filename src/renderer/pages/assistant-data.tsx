@@ -49,7 +49,10 @@ const attEmit = () => { for (const f of attSubs) f() }
 const setAtt = (next: Attachment[]) => { attachments = next; attEmit() }
 export const getAttachmentIds = (): string[] => attachments.filter(a => a.id).map(a => a.id!)
 export const attachmentsLoading = (): boolean => attachments.some(a => a.kind === 'loading')
-export function clearAttachments(): void { if (attachments.length) setAtt([]) }
+/** 发出后清空；换对话时 resetNames = true，截图编号从 1 重新数 */
+export function clearAttachments(resetNames = false): void { if (resetNames) pasteSeq = 0; if (attachments.length) setAtt([]) }
+// 粘贴的截图没有文件名（都叫 image.png）：按粘贴顺序叫「截图1、截图2…」，助手才分得清、能按名字分组导入
+let pasteSeq = 0
 function useAttachments(): Attachment[] {
   return useSyncExternalStore(cb => { attSubs.add(cb); return () => { attSubs.delete(cb) } }, () => attachments)
 }
@@ -77,7 +80,11 @@ export async function addDroppedFiles(files: File[]): Promise<void> {
     try { p = window.api.getPathForFile(f) } catch { /* 没有路径：粘贴的截图 */ }
     if (p && TABLE_EXT.test(p)) tables.push(p)
     else if (p) jobs.push(readOne(f.name, () => window.api.agent.readAttachment(p)))
-    else if (f.type.startsWith('image/')) jobs.push(readOne(f.name || '粘贴的图片', async () => window.api.agent.readPastedImage(f.name || 'pasted.png', new Uint8Array(await f.arrayBuffer()))))
+    else if (f.type.startsWith('image/')) {
+      const ext = /\.(png|jpe?g|webp|gif|bmp)$/i.exec(f.name)?.[0] ?? '.png'
+      const name = !f.name || /^image\.\w+$/i.test(f.name) ? `截图${++pasteSeq}${ext}` : f.name
+      jobs.push(readOne(name, async () => window.api.agent.readPastedImage(name, new Uint8Array(await f.arrayBuffer()))))
+    }
   }
   try { await importPaths(tables) } catch (e) { message.error(errText(e)) }
   await Promise.all(jobs)

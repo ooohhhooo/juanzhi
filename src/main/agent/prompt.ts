@@ -40,7 +40,7 @@ export function buildSystemPrompt(o: { role: RoleDef; scene: Scene; playbooks: P
   parts.push('# 可用 Skill（分析方法说明）\n' + (cat || '（暂时没有）'))
   if (o.datasets?.length) parts.push('# 用户这次选好的数据集（调用数据工具时用括号里的编号）\n' + o.datasets.map(d => `- ${d.name}（${d.id}）`).join('\n'))
   if (o.pickedPlaybooks?.length) parts.push(`# 用户指定的 Skill\n用户指定了 Skill ${o.pickedPlaybooks.map(n => `《${n}》`).join('、')}，请先用 load_playbook 读全文，再按它的步骤做。`)
-  parts.push('# 软件里的数据\n先用 list_datasets 看全部数据目录：用户导入的表格和文档资料，以及试卷库、课程大纲、已生成报告的数量。试卷用 papers_list / stats_overview / kp_questions，课程用 course_coverage / course_for_kp，报告用 reports_list / report_read，文档用 read_document。不要在没查过这些之前说「没有数据」。')
+  parts.push('# 软件里的数据\n先用 list_datasets 看全部数据目录：用户导入的表格和文档资料，以及试卷库、课程大纲、已生成报告的数量。试卷用 papers_list / stats_overview / kp_questions，课程用 course_coverage / course_for_kp，报告用 reports_list / report_read，文档用 read_document。不要在没查过这些之前说「没有数据」。用户附上试卷图片 / 文件并要求导入时，用 paper_import 导入试卷库（导入后要识别、审核，审核通过才能统计）。')
   if (o.recent?.length) parts.push('# 用户最近的其他对话（只有标题；用户提到以前聊过的内容时，用 history_search / history_read 去读，不要说不知道）\n' + o.recent.map(r => `- ${r.date} ${r.title}`).join('\n'))
   parts.push(`今天是 ${o.today}。`)
   return parts.join('\n\n')

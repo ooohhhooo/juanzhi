@@ -300,7 +300,7 @@ export default function Assistant() {
   const newChat = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['agent', 'sessions'] })
     activeRef.current = null
-    clearPickedDatasets(); clearAttachments(); setSelNode(null); setSideMode('outputs'); setToolProg({}); setView('chat')
+    clearPickedDatasets(); clearAttachments(true); setSelNode(null); setSideMode('outputs'); setToolProg({}); setView('chat')
     setActive(null); setSteps([]); setBranchId('main'); setForkFrom(null); setStale(false); setLive(''); setProgress(null); setRunning(false); setApproval(null); setStatusText(''); setSessTok(0)
   }, [qc])
 
@@ -553,7 +553,7 @@ export default function Assistant() {
           {steps.map(s => {
             switch (s.kind) {
               case 'user': return <div key={s.seq} className="ewb-as-user" data-testid="assistant-user">{s.payload.text}{Array.isArray(s.payload.attachments) && s.payload.attachments.length > 0 && <span className="ewb-as-user__atts" data-testid="assistant-user-attachments">{s.payload.attachments.map((a: any, i: number) => <span key={i} className="ewb-as-user__att">{a.kind === 'image' ? <ImageIcon size={12} strokeWidth={1.9} /> : <FileText size={12} strokeWidth={1.9} />}{String(a.name)}</span>)}</span>}</div>
-              case 'assistant': return s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{s.payload.text}</div>
+              case 'assistant': return s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{/[*#|\[\n-]/.test(String(s.payload.text ?? '')) ? <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} /> : s.payload.text}</div>
               case 'plan': return keepPlan.has(s.seq) ? <PlanBox key={s.seq} items={s.payload.items} /> : null
               case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} prog={toolProg[String(s.payload.id)]} />
               case 'ask': return <AskBox key={s.seq} step={s} pending={running && lastAsk?.seq === s.seq} onPick={pick} />

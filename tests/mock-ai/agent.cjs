@@ -91,6 +91,14 @@ function next(body) {
     if (round === 1) return { content: '', toolCalls: [call('report_generate', { reader: 'parent', grade: '4' }, 1)] }
     return { content: /已生成家长版报告/.test(toolTexts.join('\n')) ? '家长版报告已经生成好了，在「报告」页。' : '报告没有生成成功。', toolCalls: [] }
   }
+  if (/分成两份导入/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('paper_import', { groups: [{ files: ['截图1.png'], title: '四年级期末卷' }, { files: ['截图2.png'] }] }, 0)] }
+    return { content: /已导入 2 份试卷/.test(toolTexts.join('\n')) ? '两份都导入了。' : '没能导入：' + toolTexts.join(' ').slice(0, 200), toolCalls: [] }
+  }
+  if (/把这份卷子导入试卷库/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('paper_import', {}, 0)] }
+    return { content: /已导入 1 份试卷/.test(toolTexts.join('\n')) ? '已经导入试卷库了，识别完请到「审核」页核对。' : '没能导入。', toolCalls: [] }
+  }
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
   if (/做一张口诀卡/.test(q)) {
     const m = { audience: 'student', kind: 'mnemonic', content: { title: "Let's 后面跟原形", lines: [{ text: "Let's 后面跟原形", highlight: '原形' }, { text: '不加 to，不加 ing' }, { text: 'go、run 直接站中间' }], examples: [{ label: '去动物园', text: "Let's go to the zoo." }, { label: '一起跑', text: "Let's run together." }] } }

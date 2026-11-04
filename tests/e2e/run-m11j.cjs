@@ -77,7 +77,7 @@ async function main() {
   const sent = JSON.stringify(req?.messages ?? [])
   check('发送', 'AI 收到了文本附件的内容', sent.includes('过去式总是写错') && sent.includes('家长反馈.txt'))
   check('发送', '手机号没有发给 AI', !sent.includes('13812345678') && sent.includes('【手机号】'))
-  check('发送', 'AI 收到了截图识别出的文字', /附件：image\.png（图片，以下是识别出的文字/.test(sent))
+  check('发送', 'AI 收到了截图识别出的文字', /附件：截图1\.png（图片，以下是识别出的文字/.test(sent))
   check('界面', '用户消息下显示两个附件名', (await ctx.page.locator('[data-testid=assistant-user-attachments] .ewb-as-user__att').count()) === 2)
   const bubble = await T('assistant-user').first().innerText()
   check('界面', '用户消息里不显示附件全文', !bubble.includes('过去式总是写错'), bubble.slice(0, 80))
@@ -89,6 +89,47 @@ async function main() {
   await ask('那该怎么跟家长回复')
   const req2 = mock.agentRequests.slice(b2).pop()
   check('追问', '追问时历史里仍带着附件内容', JSON.stringify(req2?.messages ?? []).includes('过去式总是写错'))
+
+  // ── 5b. 粘贴两张试卷截图，让助手导入试卷库：合成一份 2 页的试卷 ──
+  await T('assistant-new').first().click()
+  const b64b = fs.readFileSync(path.join(__dirname, '..', 'unit', 'fixtures', 'real-page-2.png')).toString('base64')
+  for (const [nm, data] of [['卷子第1页.png', b64], ['卷子第2页.png', b64b]]) {
+    await T('assistant-input').click()
+    await ctx.page.evaluate(([n, b]) => {
+      const bin = atob(b); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i)
+      const dt = new DataTransfer(); dt.items.add(new File([u], n, { type: 'image/png' }))
+      document.querySelector('[data-testid=assistant-input]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+    }, [nm, data])
+  }
+  await waitFor(async () => (await ctx.page.locator('[data-testid=assistant-attachchip][data-kind=image]').count()) === 2, 60000)
+  const p0 = await ctx.page.evaluate(() => window.api.papers.list().then(l => (Array.isArray(l) ? l : l.items ?? []).length))
+  await ask('把这份卷子导入试卷库，再帮我分析一下')
+  const calls = await ctx.page.locator('[data-testid=assistant-tool]').evaluateAll(els => els.map(e => e.getAttribute('data-name') + ':' + e.getAttribute('data-ok')))
+  check('导入试卷', '调用了 paper_import 且成功', calls.includes('paper_import:true'), calls.join(','))
+  const papersNow = await ctx.page.evaluate(() => window.api.papers.list().then(l => (Array.isArray(l) ? l : l.items ?? [])))
+  check('导入试卷', '两张截图合成一份试卷进了试卷库', papersNow.length === p0 + 1, `${p0} → ${papersNow.length}`)
+  const newest = papersNow.find(p => /2 页/.test(p.file_name ?? p.fileName ?? p.title ?? ''))
+  check('导入试卷', '导入的是合成的 PDF', !!newest, JSON.stringify(papersNow.map(p => p.file_name ?? p.fileName ?? p.title)))
+  const pages = await waitFor(async () => { const l = await ctx.page.evaluate(() => window.api.papers.list().then(l => (Array.isArray(l) ? l : l.items ?? []))); const x = l.find(p => /2 页/.test(p.file_name ?? p.fileName ?? p.title ?? '')); return x && (x.page_count ?? x.pageCount) === 2 }, 60000)
+  check('导入试卷', '提取出 2 页', pages)
+
+  // ── 5c. 两份不同的卷子：助手按分组导入成两份 ──
+  await T('assistant-new').first().click()
+  for (const data of [b64, b64b]) {
+    await T('assistant-input').click()
+    await ctx.page.evaluate(b => {
+      const bin = atob(b); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i)
+      const dt = new DataTransfer(); dt.items.add(new File([u], 'image.png', { type: 'image/png' }))
+      document.querySelector('[data-testid=assistant-input]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+    }, data)
+  }
+  await waitFor(async () => (await ctx.page.locator('[data-testid=assistant-attachchip][data-kind=image]').count()) === 2, 60000)
+  const chipNames = await ctx.page.locator('[data-testid=assistant-attachchip]').allInnerTexts()
+  check('导入试卷', '粘贴的截图按顺序叫「截图1、截图2」', chipNames.map(t => t.trim()).join(',') === '截图1.png,截图2.png', chipNames.join(','))
+  const q0 = await ctx.page.evaluate(() => window.api.papers.list().then(l => (Array.isArray(l) ? l : l.items ?? []).length))
+  await ask('这是两份卷子，分成两份导入')
+  const q1 = await ctx.page.evaluate(() => window.api.papers.list().then(l => (Array.isArray(l) ? l : l.items ?? []).length))
+  check('导入试卷', '按分组导入成两份试卷', q1 === q0 + 2, `${q0} → ${q1}`)
 
   // ── 6. ＋菜单有「添加图片或文档」 ──
   await T('assistant-plus').click()
