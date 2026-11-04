@@ -24,6 +24,10 @@ import type { CliFail, CliOk, ParsedArgs } from './args'
 import { assertResultFileWritable, writeFileAtomic } from './outfile'
 import { runCommand } from './commands'
 import type { CliCtx } from './commands'
+import { initAgent, resetStaleRunning } from '../agent/service'
+import { setDataDirProvider } from '../analysis/datasets/index'
+import { closeAllMcp } from '../connectors/mcp-client'
+import { errorBox } from './tui/box'
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown
 
@@ -44,8 +48,23 @@ const NULL_SENDER = { isDestroyed: () => false, send: () => undefined, once: () 
 
 const debug = (msg: string): void => { if (process.env.EWB_CLI_DEBUG === '1') { try { process.stderr.write(`[juanzhi][debug] ${msg}\n`) } catch { /* 忽略 */ } } }
 
+/**
+ * 要不要进交互界面：终端里不带参数，或明确写了 `chat`。
+ * 其余（带了命令、stdout 被管道 / 文件接走、Agent 调用）一律走原来的单行 JSON，格式不变。
+ */
+/** 输入输出都是真实终端（Windows 上的图形程序拿不到控制台，这里是 false） */
+export const canRunTui = (): boolean => !!(process.stdin.isTTY && process.stdout.isTTY)
+
+export function wantsInteractive(rawArgs: string[], tty: boolean): boolean {
+  if (rawArgs[0] === 'chat') return true
+  return rawArgs.length === 0 && tty
+}
+
 export function startCliMode(rawArgs: string[]): void {
+  const tty = canRunTui()
+  const interactive = tty && wantsInteractive(rawArgs, tty)
   redirectConsole()
+  if (interactive) { const noop = (): void => undefined; console.log = noop; console.info = noop; console.debug = noop; console.warn = noop; console.error = noop }
   // 不显示 Dock 图标 / 菜单栏；不要因为「没有窗口」就退出
   try { app.dock?.hide() } catch { /* 不是 macOS */ }
   try { (app as any).setActivationPolicy?.('accessory') } catch { /* 旧版本没有 */ }
@@ -72,7 +91,20 @@ export function startCliMode(rawArgs: string[]): void {
     }
   }
 
+  /** 交互界面的收尾：不打印 JSON；出错时在框里写明原因，退出码和命令行模式一致 */
+  const finishInteractive = (r: CliOk | CliFail): void => {
+    if (done) return
+    done = true
+    try { destroyPdfRenderer() } catch { /* 没开过 */ }
+    try { closeAllMcp() } catch { /* 没开过 */ }
+    try { closeDatabase() } catch { /* 没打开 */ }
+    try { release?.() } catch { /* 锁已经没了 */ }
+    if (!r.ok) { try { process.stdout.write(errorBox(r.message)) } catch { /* 终端没了 */ } }
+    setTimeout(() => app.exit(r.ok ? 0 : r.exit), 30)
+  }
+
   const finish = (r: CliOk | CliFail): void => {
+    if (interactive) return finishInteractive(r)
     if (done) return
     done = true
     debug(`finish ok=${r.ok}`)
@@ -98,7 +130,7 @@ export function startCliMode(rawArgs: string[]): void {
     setTimeout(exit, 3000).unref?.()   // stdout 回调一直不来（管道被占住）时也要退出
   }
 
-  const onSignal = (): void => { finish({ ok: false, code: 'internal', message: '命令被中断', exit: 1 }) }
+  const onSignal = (): void => { if (interactive) return finishInteractive(okResult({})); finish({ ok: false, code: 'internal', message: '命令被中断', exit: 1 }) }
   process.on('SIGINT', onSignal); process.on('SIGTERM', onSignal)
   process.on('uncaughtException', e => finish(failFromError(e)))
   // 队列里有不少 `void drain()` 之类的后台 Promise：多出一个未处理的 rejection 只记日志，不能让整个命令（比如导入途中）变成 internal
@@ -107,9 +139,14 @@ export function startCliMode(rawArgs: string[]): void {
   void app.whenReady().then(async () => {
     try {
       debug('ready')
-      parsed = parseArgs(rawArgs)
-      if (parsed.help || !parsed.command) return finish(okResult(helpData()))
-      const log = (m: string): void => { if (!parsed!.quiet) process.stderr.write(`[juanzhi] ${m}\n`) }
+      if (rawArgs[0] === 'chat' && !canRunTui()) {
+        throw new CliError('usage', process.platform === 'win32'
+          ? 'Windows 上的命令行没有接到终端，不能打开交互界面（卷知是图形程序，拿不到控制台输入）。请用 juanzhi <命令> 的方式，或打开卷知窗口使用助手'
+          : '交互界面需要在终端里运行（输入输出都不能被重定向）。要给程序调用，请用 juanzhi <命令>，输出是 JSON')
+      }
+      parsed = interactive ? parseArgs([]) : parseArgs(rawArgs)
+      if (!interactive && (parsed.help || !parsed.command)) return finish(okResult(helpData()))
+      const log = (m: string): void => { if (interactive) return; if (!parsed!.quiet) process.stderr.write(`[juanzhi] ${m}\n`) }
       forbidden = [app.getPath('userData')]
 
       // 运行锁：窗口 / 别的命令行在跑（锁是「持有者活着才持有」，崩溃后自动释放）
@@ -157,6 +194,24 @@ export function startCliMode(rawArgs: string[]): void {
         args: parsed, log, forbiddenDirs: forbidden,
         invoke: (ch, ...a) => call(NULL_SENDER, ch, a),
         invokeWithSender: (sender, ch, ...a) => call(sender, ch, a)
+      }
+      if (interactive) {
+        // 助手要用的接线（窗口模式在 registerAgentIpc / registerDatasetsIpc 里做）
+        initAgent(); setDataDirProvider(() => getDataDir())
+        try { resetStaleRunning() } catch { /* 表还没建好 */ }
+        const { runTui } = await import('./tui/index')
+        await runTui({
+          runCli: async (argv, tuiLog) => {
+            try {
+              const data = await runCommand({ ...ctx, args: parseArgs(argv), log: tuiLog })
+              return { ok: true as const, data }
+            } catch (e) {
+              const f = failFromError(e)
+              return { ok: false as const, code: f.code, message: f.message, data: (e as CliError)?.data }
+            }
+          }
+        })
+        return finish(okResult({}))
       }
       debug('run command')
       const data = await runCommand(ctx)
