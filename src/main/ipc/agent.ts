@@ -15,6 +15,8 @@ import { BUILTIN_PLAYBOOK_FILES } from '../agent/playbooks/index'
 import { parsePlaybook } from '../agent/playbooks/parse'
 import { deleteSession, listSessions } from '../agent/store'
 import { AGENT_MODES, APPROVAL_MODES } from '../agent/types'
+import { ATTACH_EXTENSIONS, AttachError, readAttachment, readPastedImage } from '../agent/attachments'
+import { allowPath, isPathAllowed } from '../allowedPaths'
 
 const IdSchema = z.string().min(1).max(80)
 const ModelSchema = z.string().trim().min(1).max(120)
@@ -100,9 +102,28 @@ export function registerAgentIpc(): void {
     const p = z.object({
       sessionId: IdSchema.optional(), role: z.string().min(1).max(40), text: z.string().trim().min(1).max(2000),
       mode: z.enum(AGENT_MODES as [string, ...string[]]).optional(), approval: z.enum(APPROVAL_MODES as [string, ...string[]]).optional(), model: z.string().max(120).optional(), effort: z.string().max(10).optional(),
-      branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional(), datasets: z.array(z.string().max(80)).max(20).optional(), playbooks: z.array(z.string().max(60)).max(5).optional()
+      branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional(), datasets: z.array(z.string().max(80)).max(20).optional(), playbooks: z.array(z.string().max(60)).max(5).optional(),
+      attachments: z.array(z.string().max(80)).max(10).optional()
     }).parse(raw)
     return startRun(p as Parameters<typeof startRun>[0])
+  })
+  // 附件：pick 只弹对话框；read 只读用户拖入 / 选择的文件到内存；readPasted 把粘贴的截图写到临时目录识别后删掉
+  ipcMain.handle('agent:pickAttachments', async () => {
+    const win = getMainWindow()
+    const opts: Electron.OpenDialogOptions = { title: '选择图片或文档', filters: [{ name: '图片、PDF、Word、文本', extensions: ATTACH_EXTENSIONS }], properties: ['openFile', 'multiSelections'] }
+    const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (r.canceled) return []
+    r.filePaths.forEach(allowPath)
+    return r.filePaths
+  })
+  ipcMain.handle('agent:readAttachment', async (_e, raw: unknown) => {
+    const p = z.string().min(1).max(2000).parse(raw)
+    if (!isPathAllowed(p)) throw new Error('文件未经授权：请通过「选择文件」或拖入窗口')
+    try { return await readAttachment(p) } catch (e) { throw new Error(e instanceof AttachError ? e.message : `读不了这个文件：${(e as Error).message}`) }
+  })
+  ipcMain.handle('agent:readPastedImage', async (_e, name: unknown, bytes: unknown) => {
+    if (!(bytes instanceof Uint8Array)) throw new Error('粘贴的内容不是图片')
+    try { return await readPastedImage(z.string().max(200).parse(name ?? ''), bytes) } catch (e) { throw new Error(e instanceof AttachError ? e.message : `读不了这张图片：${(e as Error).message}`) }
   })
   ipcMain.handle('agent:deleteSession', async (_e, id: unknown) => deleteSession(db(), IdSchema.parse(id)))
   ipcMain.handle('agent:saveRole', async (_e, raw: unknown) => saveRole(RoleInput.parse(raw)))

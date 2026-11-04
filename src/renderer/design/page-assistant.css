@@ -61,6 +61,11 @@
 
 /* 对话流 */
 .ewb-as-user { align-self: flex-end; max-width: 70%; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--ewb-primary); color: var(--ewb-on-primary); font-size: var(--ewb-fs-md); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ewb-as-user__atts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ewb-as-user__att { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ewb-on-primary) 18%, transparent); font-size: var(--ewb-fs-sm, 12px); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.ewb-as-tagchip .ewb-spin { animation: ewb-spin 0.9s linear infinite; }
+@keyframes ewb-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ewb-as-tagchip .ewb-spin { animation: none; } }
 .ewb-as-thought { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); line-height: 1.55; white-space: pre-wrap; }
 .ewb-as-plan { padding: 12px 14px; border: 1px solid var(--ewb-line); border-radius: 12px; background: var(--ewb-page); }
 .ewb-as-plan__t { margin: 0 0 6px; font-size: var(--ewb-fs-sm); font-weight: 700; }

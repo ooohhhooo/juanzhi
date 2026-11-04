@@ -33,6 +33,8 @@ export interface ComposerProps {
   onResetModel: () => void
   /** 标签区里额外的内容（已选数据集标签），排在选中的 Skill / 产出标签前面 */
   extra?: React.ReactNode
+  /** 附件还在读文字：先不让发送 */
+  attachBusy?: boolean
 }
 
 export default function Composer(p: ComposerProps) {
@@ -58,6 +60,7 @@ export default function Composer(p: ComposerProps) {
 
   const plusItems: MenuProps['items'] = [
     { key: 'add', disabled: !slots.dataActions?.addFiles, label: <span data-testid="assistant-plus-add">添加数据文件…{!slots.dataActions?.addFiles && <small className="ewb-lib-sub">（数据功能接入后可用）</small>}</span>, onClick: () => slots.dataActions?.addFiles?.() },
+    { key: 'attach', disabled: !slots.dataActions?.addAttachments, label: <span data-testid="assistant-plus-attach">添加图片或文档…<small className="ewb-lib-sub">　PDF、Word、文本、截图</small></span>, onClick: () => slots.dataActions?.addAttachments?.() },
     { key: 'pick', disabled: !slots.dataActions?.pickDataset, label: <span data-testid="assistant-plus-dataset">选择已有数据集</span>, onClick: () => slots.dataActions?.pickDataset?.() },
     { key: 'send', disabled: !slots.dataActions?.pickSendFile, label: <span data-testid="assistant-plus-sendfile">选择要发送的文件…</span>, onClick: () => { void slots.dataActions?.pickSendFile?.().then(f => { if (f) p.onChange((p.value ? p.value + '\n' : '') + `请把这个文件发到企业微信群：${f}`) }) } },
     { key: 'pb', label: <span data-testid="assistant-plus-playbook">使用 Skill…</span>, children: p.playbooks.map(n => ({ key: `pb:${n}`, label: <span data-testid="assistant-plus-playbook-item">{n}</span>, onClick: () => addChip({ key: `playbook:${n}`, kind: 'playbook', label: n }) })) },
@@ -100,7 +103,8 @@ export default function Composer(p: ComposerProps) {
       <div style={{ position: 'relative' }}>
         <Input.TextArea
           variant="borderless" value={p.value} autoSize={{ minRows: 2, maxRows: 8 }} data-testid="assistant-input" disabled={p.disabled}
-          placeholder="描述你要分析什么，或拖入数据文件。输入 @ 可以点名数据、Skill、群"
+          placeholder="描述你要分析什么，可以拖入或粘贴表格、图片、文档。输入 @ 可以点名数据、Skill、群"
+          onPaste={e => { const files = Array.from(e.clipboardData?.files ?? []); if (files.length && slots.dataActions?.pasteFiles) { e.preventDefault(); slots.dataActions.pasteFiles(files) } }}
           onChange={e => { p.onChange(e.target.value); if (/@[^\s@]*$/.test(e.target.value)) void loadMentions() }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) { e.preventDefault(); if (mentionItems.length && q) { const i = mentionItems[0]; addChip(i); p.onChange(p.value.replace(/@[^\s@]*$/, '')) } else p.onSend() } }}
         />
@@ -130,7 +134,7 @@ export default function Composer(p: ComposerProps) {
         <Popover content={modelPop} trigger="click" placement="topRight" open={modelOpen} onOpenChange={setModelOpen} arrow={false} rootClassName="ewb-as-dd ewb-as-pp">
           <button type="button" className="ewb-as-chiplink ewb-as-modelbtn" data-testid="assistant-model-btn" data-open={modelOpen || undefined} aria-expanded={modelOpen}><SlidersHorizontal size={13} style={{ verticalAlign: '-2px' }} /> <span className="ewb-as-modeltxt">{curModel} · {EFFORT_LABEL[p.effort]}</span></button>
         </Popover>
-        <button type="button" className="ewb-as-send" aria-label="发送" title="发送（Enter）" disabled={!p.value.trim() || p.busy || p.disabled} data-testid="assistant-send" onClick={p.onSend}><ArrowUp size={16} strokeWidth={2.2} /></button>
+        <button type="button" className="ewb-as-send" aria-label="发送" title={p.attachBusy ? '附件还在读取，稍等' : '发送（Enter）'} disabled={!p.value.trim() || p.busy || p.disabled || p.attachBusy} data-testid="assistant-send" onClick={p.onSend}><ArrowUp size={16} strokeWidth={2.2} /></button>
       </div>
     </div>
   )

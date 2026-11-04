@@ -28,6 +28,8 @@ import { BASE_TOOLS, CONNECTOR_ROLES, DATA_TOOLS as DATA_TOOL_NAMES, enabledRole
 import type { RoleDef } from './roles'
 import { CustomRoleSchema, deleteCustomRole, exportRoleText, newRoleId, parseRoleFile, readCustomRoles, saveCustomRole, toRoleDef } from './custom-roles'
 import type { CustomRole } from './custom-roles'
+import { takeAttachments } from './attachments'
+import type { AttachInfo } from './attachments'
 import { clipOrgContext, contextLimitFor, DEFAULT_CONTEXT_LIMIT, ORG_CONTEXT_MAX } from './limits'
 import { appendStep, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
 import type { StepKind } from './store'
@@ -247,6 +249,8 @@ export interface RunArgs {
   datasets?: string[]
   /** 用户在输入框里指定的 Skill 名：system 里提示先 load_playbook */
   playbooks?: string[]
+  /** 附件编号（agent:readAttachment 返回的）：文字附在问题后面发给 AI */
+  attachments?: string[]
 }
 
 /** 开始一次提问；很快返回 sessionId，过程通过 agent:event 推给界面，结束时发 done */
@@ -285,14 +289,15 @@ export function startRun(a: RunArgs): { sessionId: string; branchId: string } {
 
   const run: Run = { ctl: new AbortController(), asks: new Map(), approvals: new Map() }
   runs.set(sid, run)
-  void execute({ sid, text: a.text, role, scene, run, mode, approval, model, effort, branchId, branchFrom: a.branchFrom, playbooks: a.playbooks }).catch(e => {
+  const att = takeAttachments(a.attachments ?? [])
+  void execute({ sid, text: a.text, attach: att.infos.length ? { infos: att.infos, block: att.block } : undefined, role, scene, run, mode, approval, model, effort, branchId, branchFrom: a.branchFrom, playbooks: a.playbooks }).catch(e => {
     console.warn('[agent] 运行出错:', (e as Error).message)
     send({ sessionId: sid, type: 'done', status: 'error' })
   }).finally(() => { runs.delete(sid); notifyDataChanged('agent') })
   return { sessionId: sid, branchId }
 }
 
-interface ExecArgs { sid: string; text: string; role: RoleDef; scene: Scene; run: Run; mode: AgentMode; approval: ApprovalMode; model: string; effort: Effort; branchId: string; branchFrom?: number; playbooks?: string[] }
+interface ExecArgs { sid: string; text: string; attach?: { infos: AttachInfo[]; block: string }; role: RoleDef; scene: Scene; run: Run; mode: AgentMode; approval: ApprovalMode; model: string; effort: Effort; branchId: string; branchFrom?: number; playbooks?: string[] }
 
 async function execute(x: ExecArgs): Promise<void> {
   const { sid, text, role, scene, run, mode, branchId } = x
@@ -304,6 +309,8 @@ async function execute(x: ExecArgs): Promise<void> {
   const history: ChatMessage[] = historyMessages(path)
   const initialState = deriveState(prior.steps, path)
   let firstParent: number | null | undefined = x.branchFrom !== undefined ? x.branchFrom : undefined
+  // 附件：界面只显示文件名，文字（attachText）跟问题一起发给 AI，追问时也随历史带上
+  const attachPayload = x.attach ? { attachments: x.attach.infos.map(({ name, kind, chars, truncated }) => ({ name, kind, chars, truncated })), attachText: x.attach.block } : {}
 
   const pushStep = (s: { kind: StepKind; payload: unknown; tokens?: number; ms?: number }): number => {
     const parentId = firstParent
@@ -314,7 +321,7 @@ async function execute(x: ExecArgs): Promise<void> {
     return seq
   }
   const finishNoRun = (code: string, message: string) => {
-    pushStep({ kind: 'user', payload: { text, model: x.model, effort: x.effort, mode } })
+    pushStep({ kind: 'user', payload: { text, ...attachPayload, model: x.model, effort: x.effort, mode } })
     pushStep({ kind: 'error', payload: { code, message } })
     updateSession(db, sid, { status: 'idle' })
     send({ sessionId: sid, type: 'done', status: 'error' })
@@ -342,7 +349,7 @@ async function execute(x: ExecArgs): Promise<void> {
   }
   const extraBody = effortBody(effort, cfg.base_url, model)
 
-  pushStep({ kind: 'user', payload: { text, model, effort, mode } })
+  pushStep({ kind: 'user', payload: { text, ...attachPayload, model, effort, mode } })
   updateSession(db, sid, { status: 'running' })
   send({ sessionId: sid, type: 'status', text: '' })
 
@@ -438,7 +445,7 @@ async function execute(x: ExecArgs): Promise<void> {
       approve: req => new Promise<boolean>(resolve => { run.approvals.set(req.id, resolve) }),
       askUser: req => new Promise<string>(resolve => { run.asks.set(req.id, resolve) }),
       emit: onEvent, signal: run.ctl.signal, cite: makeCiteChecker(db)
-    }, { system, history, user: text })
+    }, { system, history, user: text + (x.attach?.block ?? '') })
     updateSession(db, sid, { status: 'idle', dataRev: currentDataRev(db), addIn: result.tokensIn, addOut: result.tokensOut })
     send({ sessionId: sid, type: 'done', status: result.stop, rounds: lastRounds || result.rounds, error: result.error ?? null })
   } finally {

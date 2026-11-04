@@ -57,6 +57,7 @@ export const READONLY_CHANNELS = new Set([
   // 助手产出：list / read 只读；export 只写用户在「另存为」里选的文件；reveal 只在文件管理器里显示（产出本身由 Agent 工具写，不走 IPC）
   'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:board', 'agent-outputs:export', 'agent-outputs:reveal', 'agent-outputs:copyImage', 'agent-outputs:saveImage',
   // 助手的读取类：角色 / 状态 / 剧本 / 历史 / 引用解析；stop / answer / approve 只改内存里正在跑的那次提问
+  'agent:pickAttachments', 'agent:readAttachment', 'agent:readPastedImage',   // 附件：只读用户选 / 拖 / 粘贴的文件到内存（粘贴的截图在临时目录识别完即删）
   'agent:roles', 'agent:status', 'agent:models', 'agent:modelInfo', 'agent:tools', 'agent:customRoles', 'agent:settings', 'agent:exportRole', 'agent:playbooks', 'agent:playbookGet', 'agent:playbookExport', 'agent:playbookOpenDir', 'agent:sessions', 'agent:session', 'agent:queryRecord', 'agent:cites', 'agent:stop', 'agent:answer', 'agent:approve',
   // 分享卡片：模板列表 / 示例预览只读；setDefault / setChildName 写 <数据目录>/share-cards.json
   'cards:templates', 'cards:preview',

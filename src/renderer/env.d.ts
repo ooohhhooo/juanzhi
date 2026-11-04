@@ -396,6 +396,8 @@ interface AgentCite { kind: 'query' | 'q' | 'lesson' | 'stu'; id: string; ok: bo
 interface AgentQueryRecord { n: number; name: string; ok: boolean; sql: string | null; args: Record<string, unknown>; summary: string; text: string; truncated: boolean }
 /** agent:event 通道推来的事件（sessionId 标明属于哪个对话） */
 type AgentMode = 'direct' | 'plan' | 'auto'
+/** 助手附件（图片 / PDF / Word / 文本）读出文字后的概况 */
+interface AgentAttachInfo { id: string; name: string; kind: 'image' | 'pdf' | 'docx' | 'text'; chars: number; truncated: boolean }
 type AgentApproval = 'ask-all' | 'ask-external'
 type AgentEffort = 'auto' | 'off' | 'low' | 'medium' | 'high'
 interface AgentModelInfo { model: string; roles: string[]; toolSupport: 'yes' | 'no' | 'unknown'; efforts: AgentEffort[]; effortSupport: 'yes' | 'no' | 'unknown'; canTurnOff: boolean }
@@ -442,7 +444,10 @@ interface ElectronAPI {
     setScene(scene: 'org' | 'school'): Promise<'org' | 'school'>
     /** 发一次很小的请求，检测当前模型支不支持工具调用（结果缓存） */
     checkTools(model?: string): Promise<AgentStatus>
-    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string; datasets?: string[]; playbooks?: string[] }): Promise<{ sessionId: string; branchId: string }>
+    run(a: { sessionId?: string; role: string; text: string; mode?: AgentMode; approval?: AgentApproval; model?: string; effort?: AgentEffort; branchFrom?: number; branchId?: string; datasets?: string[]; playbooks?: string[]; attachments?: string[] }): Promise<{ sessionId: string; branchId: string }>
+    pickAttachments(): Promise<string[]>
+    readAttachment(path: string): Promise<AgentAttachInfo>
+    readPastedImage(name: string, bytes: Uint8Array): Promise<AgentAttachInfo>
     deleteSession(id: string): Promise<boolean>
     stop(sessionId: string): Promise<boolean>
     answer(sessionId: string, askId: string, answer: string): Promise<boolean>

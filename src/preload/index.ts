@@ -171,6 +171,10 @@ const api = {
     setScene: (scene: 'org' | 'school'): Promise<'org' | 'school'> => ipcRenderer.invoke('agent:setScene', scene),
     checkTools: (model?: string): Promise<any> => ipcRenderer.invoke('agent:checkTools', model),
     run: (a: Record<string, unknown>): Promise<{ sessionId: string; branchId: string }> => ipcRenderer.invoke('agent:run', a),
+    /** 附件（图片 / PDF / Word / 文本）：选择、读文字、读粘贴的截图；返回编号，提问时放在 run 的 attachments 里 */
+    pickAttachments: (): Promise<string[]> => ipcRenderer.invoke('agent:pickAttachments'),
+    readAttachment: (path: string): Promise<any> => ipcRenderer.invoke('agent:readAttachment', path),
+    readPastedImage: (name: string, bytes: Uint8Array): Promise<any> => ipcRenderer.invoke('agent:readPastedImage', name, bytes),
     deleteSession: (id: string): Promise<boolean> => ipcRenderer.invoke('agent:deleteSession', id),
     stop: (sessionId: string): Promise<boolean> => ipcRenderer.invoke('agent:stop', sessionId),
     answer: (sessionId: string, askId: string, answer: string): Promise<boolean> => ipcRenderer.invoke('agent:answer', sessionId, askId, answer),

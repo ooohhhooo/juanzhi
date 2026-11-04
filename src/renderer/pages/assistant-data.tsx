@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 import { Checkbox, Modal, message } from 'antd'
-import { Database, X } from 'lucide-react'
+import { Database, FileText, Image as ImageIcon, LoaderCircle, X } from 'lucide-react'
 import { registerAssistantSlots } from './assistant-slots'
 import type { AssistantSlotProps, Mentionable } from './assistant-slots'
 
@@ -41,11 +41,53 @@ async function addFiles(): Promise<void> {
   try { await importPaths(await window.api.datasets.pick()) } catch (e) { message.error(errText(e)) }
 }
 
-/** 拖进助手页的文件：取路径后走同一套导入 */
+// ───────── 附件：图片 / PDF / Word / 文本，读出文字后跟问题一起发 ─────────
+export interface Attachment { key: string; name: string; kind: AgentAttachInfo['kind'] | 'loading'; id?: string; chars?: number; truncated?: boolean }
+let attachments: Attachment[] = []
+const attSubs = new Set<() => void>()
+const attEmit = () => { for (const f of attSubs) f() }
+const setAtt = (next: Attachment[]) => { attachments = next; attEmit() }
+export const getAttachmentIds = (): string[] => attachments.filter(a => a.id).map(a => a.id!)
+export const attachmentsLoading = (): boolean => attachments.some(a => a.kind === 'loading')
+export function clearAttachments(): void { if (attachments.length) setAtt([]) }
+function useAttachments(): Attachment[] {
+  return useSyncExternalStore(cb => { attSubs.add(cb); return () => { attSubs.delete(cb) } }, () => attachments)
+}
+export const useAttachmentsBusy = (): boolean => useAttachments().some(a => a.kind === 'loading')
+let attSeq = 0
+async function readOne(name: string, read: () => Promise<AgentAttachInfo>): Promise<void> {
+  const key = `att-${++attSeq}`
+  setAtt([...attachments, { key, name, kind: 'loading' }])
+  try {
+    const info = await read()
+    setAtt(attachments.map(a => (a.key === key ? { key, name: info.name, kind: info.kind, id: info.id, chars: info.chars, truncated: info.truncated } : a)))
+  } catch (e) {
+    setAtt(attachments.filter(a => a.key !== key))
+    message.error(`「${name}」${errText(e)}`)
+  }
+}
+
+const TABLE_EXT = /\.(xlsx|xlsm|xls|csv|tsv)$/i
+/** 拖入 / 粘贴的文件：表格走数据集导入；图片、PDF、Word、文本当附件；粘贴的截图没有路径，直接读内容 */
 export async function addDroppedFiles(files: File[]): Promise<void> {
-  const paths: string[] = []
-  for (const f of files) { try { const p = window.api.getPathForFile(f); if (p) paths.push(p) } catch { /* 忽略 */ } }
-  try { await importPaths(paths) } catch (e) { message.error(errText(e)) }
+  const tables: string[] = []
+  const jobs: Array<Promise<void>> = []
+  for (const f of files) {
+    let p = ''
+    try { p = window.api.getPathForFile(f) } catch { /* 没有路径：粘贴的截图 */ }
+    if (p && TABLE_EXT.test(p)) tables.push(p)
+    else if (p) jobs.push(readOne(f.name, () => window.api.agent.readAttachment(p)))
+    else if (f.type.startsWith('image/')) jobs.push(readOne(f.name || '粘贴的图片', async () => window.api.agent.readPastedImage(f.name || 'pasted.png', new Uint8Array(await f.arrayBuffer()))))
+  }
+  try { await importPaths(tables) } catch (e) { message.error(errText(e)) }
+  await Promise.all(jobs)
+}
+
+async function addAttachments(): Promise<void> {
+  try {
+    const paths = await window.api.agent.pickAttachments()
+    await Promise.all(paths.map(p => readOne(p.split(/[\\/]/).pop() ?? p, () => window.api.agent.readAttachment(p))))
+  } catch (e) { message.error(errText(e)) }
 }
 
 async function importPaths(paths: string[]): Promise<void> {
@@ -90,8 +132,16 @@ function DatasetPicker() {
 
 function DataChips(_p: AssistantSlotProps) {
   const cur = usePicked()
+  const atts = useAttachments()
   return (
     <>
+      {atts.map(a => (
+        <span key={a.key} className="ewb-as-tagchip" data-testid="assistant-attachchip" data-kind={a.kind}
+          title={a.kind === 'loading' ? '正在读取文字……' : `已读出 ${a.chars} 字${a.truncated ? '（太长，只带前一部分）' : ''}，会跟问题一起发给 AI`}>
+          {a.kind === 'loading' ? <LoaderCircle size={12} strokeWidth={1.9} className="ewb-spin" style={{ verticalAlign: '-2px' }} /> : a.kind === 'image' ? <ImageIcon size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> : <FileText size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} />} {a.name}
+          {a.kind !== 'loading' && <button type="button" aria-label="去掉这个附件" data-testid="assistant-attachchip-remove" onClick={() => setAtt(attachments.filter(x => x.key !== a.key))}><X size={12} /></button>}
+        </span>
+      ))}
       {cur.map(d => (
         <span key={d.id} className="ewb-as-tagchip" data-testid="assistant-datachip" title="这次对话用的数据集">
           <Database size={12} strokeWidth={1.9} style={{ verticalAlign: '-2px' }} /> {d.name}
@@ -113,5 +163,5 @@ async function mentionables(): Promise<Mentionable[]> {
 registerAssistantSlots({
   dataChips: DataChips,
   mentionables,
-  dataActions: { addFiles: () => { void addFiles() }, pickDataset: () => setPickerOpen(true), pickSendFile: () => window.api.connectors.pickSendFile().catch(() => null) }
+  dataActions: { addFiles: () => { void addFiles() }, pickDataset: () => setPickerOpen(true), pickSendFile: () => window.api.connectors.pickSendFile().catch(() => null), addAttachments: () => { void addAttachments() }, pasteFiles: files => { void addDroppedFiles(files) } }
 })

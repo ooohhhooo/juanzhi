@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input } from 'antd'
-import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, PanelLeftClose, PanelLeftOpen, Settings, Square, SquarePen, Trash2, Wrench, FileSpreadsheet, GitBranch } from 'lucide-react'
+import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, PanelLeftClose, PanelLeftOpen, Settings, Square, SquarePen, Trash2, Wrench, FileSpreadsheet, GitBranch, FileText, Image as ImageIcon } from 'lucide-react'
 import { Btn, UsageNote } from '../design'
 import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
@@ -14,7 +14,7 @@ import type { Chip } from './assistant-composer'
 import AiErrorExplain from '../components/AiErrorExplain'
 import { ApprovalBox, BoardPane, QueryRecordModal } from './assistant-extras'
 import type { ApprovalInfo } from './assistant-extras'
-import { addDroppedFiles, addPickedDatasets, clearPickedDatasets, getPickedDatasets } from './assistant-data'
+import { addDroppedFiles, addPickedDatasets, attachmentsLoading, clearAttachments, clearPickedDatasets, getAttachmentIds, getPickedDatasets, useAttachmentsBusy } from './assistant-data'
 import AssistantCanvas from '../assistant/canvas/AssistantCanvas'
 import AssistantSidePanel from '../assistant/side/AssistantSidePanel'
 import type { SideMode } from '../assistant/side/AssistantSidePanel'
@@ -300,7 +300,7 @@ export default function Assistant() {
   const newChat = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['agent', 'sessions'] })
     activeRef.current = null
-    clearPickedDatasets(); setSelNode(null); setSideMode('outputs'); setToolProg({}); setView('chat')
+    clearPickedDatasets(); clearAttachments(); setSelNode(null); setSideMode('outputs'); setToolProg({}); setView('chat')
     setActive(null); setSteps([]); setBranchId('main'); setForkFrom(null); setStale(false); setLive(''); setProgress(null); setRunning(false); setApproval(null); setStatusText(''); setSessTok(0)
   }, [qc])
 
@@ -338,11 +338,13 @@ export default function Assistant() {
   const send = async (q: string, fromSeq?: number) => {
     const t = q.trim()
     if (!t || running) return
+    if (attachmentsLoading()) { message.info('附件还在读取，稍等一下再发'); return }
+    const attachIds = getAttachmentIds()
     startingRef.current = true
     setRunning(true); setLive(''); setProgress(null); setApproval(null)
     try {
-      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), playbooks: chips.filter(c => c.kind === 'playbook').map(c => c.label), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
-      activeRef.current = r.sessionId; setActive(r.sessionId); setBranchId(r.branchId); setForkFrom(null); setText(''); setChips([])
+      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), ...(attachIds.length ? { attachments: attachIds } : {}), playbooks: chips.filter(c => c.kind === 'playbook').map(c => c.label), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
+      activeRef.current = r.sessionId; setActive(r.sessionId); setBranchId(r.branchId); setForkFrom(null); setText(''); setChips([]); clearAttachments()
       const used = chips.filter(c => c.kind === 'dataset'); if (used.length) addPickedDatasets(used.map(c => ({ id: c.key.slice('dataset:'.length), name: c.label })))
     } catch (e) {
       setRunning(false)
@@ -395,6 +397,7 @@ export default function Assistant() {
   const tokens = progress ? progress.tokensIn + progress.tokensOut : sessTok
 
   const slots = getAssistantSlots()
+  const attachBusy = useAttachmentsBusy()
   const importRole = async () => {
     try {
       const r = await window.api.agent.importRole()
@@ -431,7 +434,7 @@ export default function Assistant() {
     <div className="ewb-as-shell" data-testid="assistant-page" data-dropping={dropping ? '1' : undefined}
       onDragOver={e => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDropping(true) } }}
       onDragLeave={e => { if (e.currentTarget === e.target) setDropping(false) }}
-      onDrop={e => { if (e.dataTransfer?.files?.length) { e.preventDefault(); setDropping(false); void addDroppedFiles(Array.from(e.dataTransfer.files)) } }}>
+      onDrop={e => { if (e.dataTransfer?.files?.length) { e.preventDefault(); (e.nativeEvent as unknown as { __ewbHandled?: boolean }).__ewbHandled = true; setDropping(false); void addDroppedFiles(Array.from(e.dataTransfer.files)) } }}>
       <aside className={`ewb-as-side${histOpen ? '' : ' ewb-as-side--folded'}`} data-testid="assistant-history" data-folded={histOpen ? undefined : '1'}>
         {histOpen ? (
           <>
@@ -530,13 +533,13 @@ export default function Assistant() {
               <div className="ewb-as-suggest" data-testid="assistant-suggest">
                 {curRole.suggestions.slice(0, 4).map((q, i) => <button key={i} type="button" className="ewb-as-card" data-testid={`assistant-suggest-${i}`} disabled={running} onClick={() => (q.endsWith('：') ? setText(q) : send(q))}>{q}</button>)}
               </div>
-              <div className="ewb-as-drop" data-testid="assistant-drophint"><FileSpreadsheet size={16} strokeWidth={1.9} />把 Excel / CSV 拖到这里，或点输入框左下的「＋」添加数据</div>
+              <div className="ewb-as-drop" data-testid="assistant-drophint"><FileSpreadsheet size={16} strokeWidth={1.9} />把表格、图片或文档拖到这里，截图可以直接粘贴到输入框</div>
             </div>
           )}
 
           {steps.map(s => {
             switch (s.kind) {
-              case 'user': return <div key={s.seq} className="ewb-as-user" data-testid="assistant-user">{s.payload.text}</div>
+              case 'user': return <div key={s.seq} className="ewb-as-user" data-testid="assistant-user">{s.payload.text}{Array.isArray(s.payload.attachments) && s.payload.attachments.length > 0 && <span className="ewb-as-user__atts" data-testid="assistant-user-attachments">{s.payload.attachments.map((a: any, i: number) => <span key={i} className="ewb-as-user__att">{a.kind === 'image' ? <ImageIcon size={12} strokeWidth={1.9} /> : <FileText size={12} strokeWidth={1.9} />}{String(a.name)}</span>)}</span>}</div>
               case 'assistant': return s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{s.payload.text}</div>
               case 'plan': return keepPlan.has(s.seq) ? <PlanBox key={s.seq} items={s.payload.items} /> : null
               case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} prog={toolProg[String(s.payload.id)]} />
@@ -575,7 +578,7 @@ export default function Assistant() {
         )}
         {view === 'chat' && <Composer
           extra={slots.dataChips ? <div className="ewb-as-dataslot" data-testid="assistant-dataslot"><slots.dataChips sessionId={active} /></div> : undefined}
-          value={text} onChange={setText} onSend={() => send(text)} disabled={!!notReady} busy={running}
+          value={text} onChange={setText} onSend={() => send(text)} disabled={!!notReady} busy={running} attachBusy={attachBusy}
           chips={chips} onChips={setChips} playbooks={(pbs?.items ?? []).map(x => x.name)}
           mode={mode} onMode={setMode} approval={approval2} onApproval={setApproval2}
           models={models} model={model && model !== '__other__' ? model : ''} mainModel={mainModel} onModel={m => setModel(m === mainModel ? '' : m)}

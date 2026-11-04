@@ -82,7 +82,7 @@ export function historyMessages(steps: StepRow[], maxTurns = 8): ChatMessage[] {
   const turns: ChatMessage[][] = []
   let cur: ChatMessage[] | null = null
   for (const s of steps) {
-    if (s.kind === 'user') { cur = [{ role: 'user', content: String(s.payload.text ?? '') }]; turns.push(cur) }
+    if (s.kind === 'user') { cur = [{ role: 'user', content: String(s.payload.text ?? '') + String(s.payload.attachText ?? '') }]; turns.push(cur) }
     else if (s.kind === 'answer' && cur) { cur.push({ role: 'assistant', content: String(s.payload.text ?? '') }); cur = null }
   }
   // 没有回答的轮次（被中断 / 出错）：只留下问题会让两条 user 消息相邻，丢掉
