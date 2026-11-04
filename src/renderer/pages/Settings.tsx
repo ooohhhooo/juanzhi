@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { App, Descriptions, Select, Switch } from 'antd'
-import { BookOpen, CircleHelp, ScanSearch, Settings as SettingsIcon } from 'lucide-react'
+import { BookOpen, CircleHelp, ScanSearch, Settings as SettingsIcon, Monitor, Plug, Info, Cpu, Database, MessageSquareText, Terminal, ShieldCheck, ListTree, type LucideIcon } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AiSettings from './AiSettings'
@@ -15,11 +15,28 @@ import { useAdminOpen, useShowCodes } from '../hooks/useUiPrefs'
 import { Btn, Glossary, Page, Panel, StatusLabel, UsageNote, useTheme } from '../design'
 import '../design/page-report.css'
 
+type TabId = 'show' | 'kp' | 'connectors' | 'about' | 'admin' | 'ai' | 'data' | 'prompts' | 'cli'
+interface TabDef { id: TabId; label: string; desc: string; icon: LucideIcon; admin?: boolean }
+const GROUPS: Array<{ label: string; tabs: TabDef[] }> = [
+  { label: '常用', tabs: [
+    { id: 'show', label: '显示与演示', desc: '界面大小、示例数据、打开软件先进哪一页。', icon: Monitor },
+    { id: 'kp', label: '知识点', desc: 'AI 标题目、看板统计都按这棵树来；可以改名，加白话说明和例句。', icon: ListTree },
+    { id: 'connectors', label: '连接器', desc: '把结果发到企业微信群，或放进石墨文档。', icon: Plug },
+    { id: 'about', label: '关于与更新', desc: '版本、软件更新、使用说明，以及重新检查重复试卷。', icon: Info }
+  ] },
+  { label: '管理员', tabs: [
+    { id: 'admin', label: '管理员设置', desc: '技术设置默认收起。改错了可能让 AI 解析失败，不确定请联系管理员。', icon: ShieldCheck },
+    { id: 'ai', label: 'AI 服务与识别', desc: '连接 AI 服务、输出长度、并发，以及文字识别。', icon: Cpu, admin: true },
+    { id: 'data', label: '数据存储', desc: '数据位置、备份和换电脑用的数据包。', icon: Database, admin: true },
+    { id: 'prompts', label: '提示词', desc: 'AI 的写作要求。', icon: MessageSquareText, admin: true },
+    { id: 'cli', label: '命令行', desc: '给其他程序调用卷知的命令行工具。', icon: Terminal, admin: true }
+  ] }
+]
+const ALL_TABS = GROUPS.flatMap(g => g.tabs)
+
 /**
- * 设置页分两组：
- *  · 常用：示例数据、知识点（改名、加白话和例句）、使用说明、关于；
- *  · 管理员设置（默认收起）：连接 AI 服务（Base URL、密钥、输出长度、并发）、文字识别、提示词、数据位置与数据包、「显示内部代码」。
- *    运营和老师平时不用打开；它们的位置在 /settings?admin=1（各处「请联系管理员」的提示直接链到这里）。
+ * 设置页：左侧导航 + 右侧只显示选中的一项。当前项记在网址里：#/settings?tab=ai。
+ * 旧链接仍有效：?admin=1 → 展开管理员设置并进「AI 服务与识别」；?focus=about → 关于与更新（菜单「检查更新…」）。
  */
 export default function Settings() {
   const nav = useNavigate()
@@ -65,126 +82,136 @@ export default function Settings() {
   })
   const { data: startPage = null } = useQuery({ queryKey: ['settings', 'start_page'], queryFn: () => window.api.settings.get('start_page') as Promise<string | null>, staleTime: 0 })
   const { data: about } = useQuery({ queryKey: ['app', 'info'], queryFn: () => window.api.app.info(), staleTime: Infinity })
+  const [, setParams] = useSearchParams()
   useEffect(() => { if (params.get('admin') === '1' && !adminOpen) void setAdminOpen(true) }, [params, adminOpen])
-  // ?focus=about：从菜单「检查更新…」进来，滚到「关于」（软件更新那一行）
-  useEffect(() => { const f = params.get('focus'); if (f && /^[a-z]+$/.test(f)) setTimeout(() => document.getElementById(`set-${f}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100) }, [params])
+  const rawTab = params.get('tab') ?? (params.get('focus') === 'about' ? 'about' : params.get('admin') === '1' ? 'ai' : 'show')
+  const def0 = ALL_TABS.find(t => t.id === rawTab) ?? ALL_TABS[0]
+  const adminWanted = params.get('admin') === '1' || adminOpen
+  const cur = def0.admin && !adminWanted ? ALL_TABS.find(t => t.id === 'admin')! : def0
+  const go = (id: TabId) => setParams({ tab: id }, { replace: true })
 
-  return (
-    <Page>
-      <h1 className="ewb-rep-h1">设置</h1>
-      <p className="ewb-set-lead">平时用到的就是下面前三组；技术设置都收在最后的「管理员设置」里，一般不用动。</p>
-      <nav className="ewb-set-jump" aria-label="跳到">
-        {[['show', '显示与演示'], ['kp', '知识点'], ['connectors', '连接器'], ['about', '关于'], ['admin', '管理员设置']].map(([id, label]) => (
-          <button key={id} type="button" className="ewb-set-jump__btn" onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{label}</button>
-        ))}
-      </nav>
-
-      <section id="set-show" className="ewb-set-section">
-        <h2 className="ewb-set-group">显示与演示</h2>
-        <p className="ewb-set-groupdesc">界面大小，以及用内置的演示卷先试一试。</p>
+  const note = (t: string) => <p className="ewb-rep-note" style={{ marginTop: 6 }}>{t}</p>
+  const body = (() => {
+    switch (cur.id) {
+      case 'show': return <>
         <div className="ewb-set-panel">
           <Panel title="显示" data-testid="display-common">
             <div className="ewb-rep-row" style={{ gap: 8 }}>
               <label className="ewb-rep-switchlabel"><Switch data-testid="big-text-switch" checked={bigText} onChange={v => setBigText(v)} /> <span data-testid="big-text-label">投屏大字</span></label>
             </div>
-            <p className="ewb-rep-note" style={{ marginTop: 6 }}>给老板或家长投屏讲解时打开：整个界面放大到 115%，字更大更清楚。只记在这台电脑上，随时可以关掉。</p>
+            {note('投屏讲解时打开，整个界面放大到 115%。只记在这台电脑上。')}
+          </Panel>
+        </div>
+        <div className="ewb-set-panel">
+          <Panel title="启动页">
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="打开卷知时先进入">
+                <Select size="small" style={{ width: 140 }} data-testid="start-page" value={startPage === 'assistant' ? 'assistant' : 'library'}
+                  options={[{ value: 'library', label: '试卷库' }, { value: 'assistant', label: '助手' }]}
+                  onChange={async v => { await window.api.settings.set('start_page', v); qc.invalidateQueries({ queryKey: ['settings', 'start_page'] }); message.success('下次打开卷知时生效') }} />
+              </Descriptions.Item>
+            </Descriptions>
           </Panel>
         </div>
         <DataSettings part="common" />
-      </section>
-
-      <section id="set-kp" className="ewb-set-section">
-        <h2 className="ewb-set-group">知识点</h2>
-        <p className="ewb-set-groupdesc">AI 标题目、看板统计都按这棵树来；老师可以改名，加白话说明和例句。</p>
-        <TaxonomySettings />
-      </section>
-
-      <section id="set-connectors" className="ewb-set-section">
-        <h2 className="ewb-set-group">连接器</h2>
-        <p className="ewb-set-groupdesc">把结果发到企业微信群，或放进石墨文档。</p>
-        <ConnectorSettings />
-      </section>
-
-      <section id="set-about" className="ewb-set-section">
-        <h2 className="ewb-set-group">关于</h2>
-        <p className="ewb-set-groupdesc">软件版本、使用说明，以及重新检查重复的试卷。</p>
-      <div className="ewb-set-panel">
-        <Panel title="关于" data-testid="about-card">
-          <Descriptions column={1} size="small">
-            <Descriptions.Item label="打开卷知时先进入">
-              <Select size="small" style={{ width: 140 }} data-testid="start-page" value={startPage === 'assistant' ? 'assistant' : 'library'}
-                options={[{ value: 'library', label: '试卷库' }, { value: 'assistant', label: '助手' }]}
-                onChange={async v => { await window.api.settings.set('start_page', v); qc.invalidateQueries({ queryKey: ['settings', 'start_page'] }); message.success('下次打开卷知时生效') }} />
-            </Descriptions.Item>
-            <Descriptions.Item label="软件">卷知 · 小学英语试卷分析 —— 帮助教师分析试卷中的知识点分布和考频趋势（离线桌面软件，数据只存在这台电脑上，没有服务器、不用登录）</Descriptions.Item>
-            <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）<span className="ewb-lib-tag" style={{ marginLeft: 8 }} data-testid="about-beta">公测版</span></Descriptions.Item>
-            <Descriptions.Item label="遇到问题"><DiagnosticsPanel /></Descriptions.Item>
-            <Descriptions.Item label="软件更新"><UpdateSettings /></Descriptions.Item>
-            {adminOpen && <Descriptions.Item label="运行环境"><span data-testid="about-env">{about ? `${about.platform} ${about.arch} · Electron ${about.electron} · Chromium ${about.chrome} · Node ${about.node}` : '…'}</span></Descriptions.Item>}
-            {adminOpen && <Descriptions.Item label="数据目录"><code className="ewb-rep-code">{about?.dataDir}</code></Descriptions.Item>}
-            <Descriptions.Item label="检查重复试卷">
-              <span className="ewb-rep-row" style={{ gap: 8 }}>
-                <Btn tone="secondary" size="small" icon={ScanSearch} loading={scanning} data-testid="scan-similar" onClick={scanSimilar}>{scanning ? '检查中' : '检查重复试卷'}</Btn>
-                {scanning && scanProgress && scanProgress.total > 0 && <span data-testid="scan-similar-progress">{scanProgress.done}/{scanProgress.total} 份</span>}
-                {scanResult && <span data-testid="scan-similar-result">{scanResult}</span>}
-              </span>
-              <p className="ewb-rep-note" style={{ marginTop: 4 }}>把库里所有试卷重新比一遍，找出像是别的卷子一部分的。被标出来的默认不计入统计，可以到试卷库里选「确实是新卷」或删除。</p>
-            </Descriptions.Item>
-            <Descriptions.Item label="使用说明">
-              <Btn tone="quiet" size="small" icon={CircleHelp} data-testid="open-help-settings" onClick={() => nav('/help')}>查看使用说明（运营 / 辅导老师）</Btn>
-            </Descriptions.Item>
-            <Descriptions.Item label="安装指南">
-              <Btn tone="quiet" size="small" icon={BookOpen} data-testid="open-guide" onClick={() => nav('/guide')}>查看安装指南</Btn>
-            </Descriptions.Item>
-          </Descriptions>
-        </Panel>
-      </div>
-
-      </section>
-
-      <section id="set-admin" className="ewb-set-section">
-      <h2 className="ewb-set-group">管理员设置</h2>
-      <p className="ewb-set-groupdesc">连接 AI 服务、文字识别、数据位置和备份。改错了可能让 AI 解析失败，不确定请联系管理员。</p>
-      <div className="ewb-set-panel">
-        <Panel title="技术设置" data-testid="admin-settings" aside={<Btn tone={adminOpen ? 'secondary' : 'primary'} size="small" icon={SettingsIcon} data-testid="admin-toggle" onClick={() => setAdminOpen(!adminOpen)}>{adminOpen ? '收起' : '展开管理员设置'}</Btn>}>
-          <p className="ewb-rep-note">连接 AI 服务、文字识别、AI 的写作要求、数据位置和备份这类技术设置，一般不用改，请管理员处理。</p>
-        </Panel>
-      </div>
-
-      {adminOpen && (
-        <div data-testid="admin-settings-body">
-          <UsageNote kind="caution" title="下面是技术设置">改错了可能让 AI 解析失败或结果变差。不确定时先不要动，或联系管理员。</UsageNote>
-          <AiSettings />
-          <div className="ewb-set-panel">
-            <Panel title="文字识别（OCR）">
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label="状态">
-                  <span className="ewb-rep-row" style={{ gap: 8 }}>
-                    {ocr
-                      ? <span data-testid="ocr-status"><StatusLabel kind={ocr.available ? 'done' : 'failed'}>{ocr.available ? '可用' : '不可用'}</StatusLabel></span>
-                      : '检测中…'}
-                    {ocr && <span data-testid="ocr-detail">{ocr.detail}</span>}
-                    <Btn tone="quiet" size="small" loading={checkingOcr} onClick={() => recheckOcr()}>重新检测</Btn>
-                  </span>
-                </Descriptions.Item>
-              </Descriptions>
-              <p className="ewb-rep-note"><Glossary term="文字识别">文字识别</Glossary>（OCR）把卷子图片里的字读出来，让电脑能处理。</p>
-            </Panel>
-          </div>
-          <CliSettings />
-          <PromptSettings />
-          <DataSettings part="admin" />
-          <div className="ewb-set-panel">
-            <Panel title="显示选项" data-testid="display-options">
-              <div className="ewb-rep-row" style={{ gap: 8 }}>
-                <label className="ewb-rep-switchlabel"><Switch data-testid="show-codes-switch" checked={showCodes} onChange={v => setShowCodes(v)} /> <span><Glossary term="内部代码">显示内部代码</Glossary></span></label>
-              </div>
-              <p className="ewb-rep-note" style={{ marginTop: 6 }}>知识点和题型后面的英文编号（如 GR.PRON.POSS、PH_DIFF）默认不显示，排查问题时可以打开。报告里的代码一直不显示。</p>
-            </Panel>
-          </div>
+      </>
+      case 'kp': return <TaxonomySettings />
+      case 'connectors': return <ConnectorSettings />
+      case 'about': return (
+        <div className="ewb-set-panel">
+          <Panel title="关于" data-testid="about-card">
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="软件">卷知 · 小学英语试卷分析（离线桌面软件，数据只存在这台电脑上）</Descriptions.Item>
+              <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）<span className="ewb-lib-tag" style={{ marginLeft: 8 }} data-testid="about-beta">公测版</span></Descriptions.Item>
+              <Descriptions.Item label="遇到问题"><DiagnosticsPanel /></Descriptions.Item>
+              <Descriptions.Item label="软件更新"><UpdateSettings /></Descriptions.Item>
+              {adminOpen && <Descriptions.Item label="运行环境"><span data-testid="about-env">{about ? `${about.platform} ${about.arch} · Electron ${about.electron} · Chromium ${about.chrome} · Node ${about.node}` : '…'}</span></Descriptions.Item>}
+              {adminOpen && <Descriptions.Item label="数据目录"><code className="ewb-rep-code">{about?.dataDir}</code></Descriptions.Item>}
+              <Descriptions.Item label="检查重复试卷">
+                <span className="ewb-rep-row" style={{ gap: 8 }}>
+                  <Btn tone="secondary" size="small" icon={ScanSearch} loading={scanning} data-testid="scan-similar" onClick={scanSimilar}>{scanning ? '检查中' : '检查重复试卷'}</Btn>
+                  {scanning && scanProgress && scanProgress.total > 0 && <span data-testid="scan-similar-progress">{scanProgress.done}/{scanProgress.total} 份</span>}
+                  {scanResult && <span data-testid="scan-similar-result">{scanResult}</span>}
+                </span>
+                {note('把库里所有试卷重新比一遍。被标出来的默认不计入统计，可到试卷库里处理。')}
+              </Descriptions.Item>
+              <Descriptions.Item label="使用说明">
+                <Btn tone="quiet" size="small" icon={CircleHelp} data-testid="open-help-settings" onClick={() => nav('/help')}>查看使用说明（运营 / 辅导老师）</Btn>
+              </Descriptions.Item>
+              <Descriptions.Item label="安装指南">
+                <Btn tone="quiet" size="small" icon={BookOpen} data-testid="open-guide" onClick={() => nav('/guide')}>查看安装指南</Btn>
+              </Descriptions.Item>
+            </Descriptions>
+          </Panel>
         </div>
-      )}
-      </section>
+      )
+      case 'admin': return <>
+        <div className="ewb-set-panel">
+          <Panel title="技术设置" data-testid="admin-settings" aside={<Btn tone={adminOpen ? 'secondary' : 'primary'} size="small" icon={SettingsIcon} data-testid="admin-toggle" onClick={() => setAdminOpen(!adminOpen)}>{adminOpen ? '收起' : '展开管理员设置'}</Btn>}>
+            <p className="ewb-rep-note">AI 服务、文字识别、提示词、数据位置和备份。展开后左侧会出现对应的几项。</p>
+          </Panel>
+        </div>
+        {adminOpen && (
+          <div data-testid="admin-settings-body">
+            <UsageNote kind="caution" title="这些是技术设置">改错了可能让 AI 解析失败或结果变差。不确定时先不要动。</UsageNote>
+            <div className="ewb-set-panel" style={{ marginTop: 'var(--ewb-sp-3)' }}>
+              <Panel title="显示选项" data-testid="display-options">
+                <div className="ewb-rep-row" style={{ gap: 8 }}>
+                  <label className="ewb-rep-switchlabel"><Switch data-testid="show-codes-switch" checked={showCodes} onChange={v => setShowCodes(v)} /> <span><Glossary term="内部代码">显示内部代码</Glossary></span></label>
+                </div>
+                {note('知识点和题型后面的英文编号默认不显示，排查问题时可以打开。')}
+              </Panel>
+            </div>
+          </div>
+        )}
+      </>
+      case 'ai': return <>
+        <AiSettings />
+        <div className="ewb-set-panel">
+          <Panel title="文字识别（OCR）">
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="状态">
+                <span className="ewb-rep-row" style={{ gap: 8 }}>
+                  {ocr
+                    ? <span data-testid="ocr-status"><StatusLabel kind={ocr.available ? 'done' : 'failed'}>{ocr.available ? '可用' : '不可用'}</StatusLabel></span>
+                    : '检测中…'}
+                  {ocr && <span data-testid="ocr-detail">{ocr.detail}</span>}
+                  <Btn tone="quiet" size="small" loading={checkingOcr} onClick={() => recheckOcr()}>重新检测</Btn>
+                </span>
+              </Descriptions.Item>
+            </Descriptions>
+            <p className="ewb-rep-note"><Glossary term="文字识别">文字识别</Glossary>（OCR）把卷子图片里的字读出来。</p>
+          </Panel>
+        </div>
+      </>
+      case 'data': return <DataSettings part="admin" />
+      case 'prompts': return <PromptSettings />
+      case 'cli': return <CliSettings />
+    }
+  })()
+
+  return (
+    <Page>
+      <h1 className="ewb-rep-h1">设置</h1>
+      <div className="ewb-set-layout">
+        <nav className="ewb-set-nav" aria-label="设置分类" data-testid="settings-nav">
+          {GROUPS.map(g => (
+            <div key={g.label} className="ewb-set-navgroup">
+              <div className="ewb-set-navlabel">{g.label}</div>
+              {g.tabs.filter(t => !t.admin || adminOpen).map(t => (
+                <button key={t.id} type="button" className="ewb-set-navitem" aria-current={t.id === cur.id ? 'page' : undefined} data-testid={`settings-nav-${t.id}`} onClick={() => go(t.id)}>
+                  <t.icon size={16} aria-hidden />{t.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="ewb-set-pane" key={cur.id}>
+          <h2 className="ewb-set-group">{cur.label}</h2>
+          <p className="ewb-set-groupdesc">{cur.desc}</p>
+          {body}
+        </div>
+      </div>
     </Page>
   )
 }

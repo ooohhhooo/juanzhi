@@ -32,7 +32,7 @@ export default function AppLayout() {
   const upd = updateNavView(useUpdateState())
   const goUpdate = () => {
     if (upd?.download) void window.api.update.download()
-    navigate('/settings?focus=about')
+    navigate('/settings?tab=about')
   }
   const updateEntry = upd && (
     <li key="sider-update">

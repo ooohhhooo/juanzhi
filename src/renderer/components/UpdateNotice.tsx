@@ -23,7 +23,7 @@ export default function UpdateNotice(): null {
           <a style={{ display: 'inline-block', margin: '0 0 8px', fontSize: 13 }} data-testid="update-notice-more" onClick={() => void window.api.update.openReleasePage()}>查看完整更新说明</a>
           <p style={{ margin: '0 0 8px', fontSize: 13 }}>更新不会动你的数据；由你点了才会安装。</p>
           <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
-            <Btn tone="primary" size="small" data-testid="update-notice-go" onClick={() => { notification.destroy(key); nav('/settings#about'); setTimeout(() => document.getElementById('set-about')?.scrollIntoView({ block: 'start' }), 200); void window.api.update.download() }}>更新</Btn>
+            <Btn tone="primary" size="small" data-testid="update-notice-go" onClick={() => { notification.destroy(key); nav('/settings?tab=about'); void window.api.update.download() }}>更新</Btn>
             <Btn tone="quiet" size="small" data-testid="update-notice-later" onClick={() => notification.destroy(key)}>以后再说</Btn>
             <Btn tone="quiet" size="small" data-testid="update-notice-skip" onClick={() => { notification.destroy(key); void window.api.update.skip(v) }}>跳过这个版本</Btn>
           </span>

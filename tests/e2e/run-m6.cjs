@@ -71,15 +71,15 @@ async function main() {
     const help = await txt('help-body')
     check('使用说明', '「使用说明」页面向两个角色：写明运营 / 辅导老师各自的步骤、家长版要「我已核对」、AI 失败点「重试」、管理员设置在哪；没有里程碑字样', /我是运营/.test(help) && /我是辅导老师/.test(help) && /我已核对/.test(help) && /重试/.test(help) && /管理员设置/.test(help) && !/\bM[1-6]\b|里程碑/.test(help))
     // 设置页：管理员设置默认收起，技术设置不在老师眼前
-    await goto('#/settings'); await T('admin-settings').waitFor()
-    check('管理员设置', '设置页默认只有「示例数据 / 知识点 / 关于」；AI 服务、提示词、文字识别、数据包都在收起的「管理员设置」里', (await T('admin-settings-body').count()) === 0 && (await T('ai-settings').count()) === 0 && (await T('data-pack').count()) === 0 && (await T('prompt-settings').count()) === 0 && (await T('data-sample').count()) === 1 && (await T('taxonomy-settings').count()) === 1)
+    await goto('#/settings'); await T('data-sample').waitFor()
+    check('管理员设置', '设置页默认只有「示例数据 / 知识点 / 关于」；AI 服务、提示词、文字识别、数据包都在收起的「管理员设置」里', (await T('admin-settings-body').count()) === 0 && (await T('ai-settings').count()) === 0 && (await T('data-pack').count()) === 0 && (await T('prompt-settings').count()) === 0 && (await T('data-sample').count()) === 1 && (await T('settings-nav-ai').count()) === 0)
     check('管理员设置', '设置页上没有 Base URL / token / 输出长度这类技术词（默认状态）', !/Base URL|token|输出长度|API Key|提示词/.test((await page.locator('body').innerText())))
-    await T('admin-toggle').click()
-    check('管理员设置', '点「展开管理员设置」后技术设置出现（AI 服务、数据包、提示词、文字识别），「显示内部代码」默认关', await waitFor(async () => (await T('admin-settings-body').count()) === 1, 5000) && (await T('ai-settings').count()) === 1 && (await T('data-pack').count()) === 1 && (await T('prompt-settings').count()) === 1
+    await T('settings-nav-admin').click(); await T('admin-toggle').click()
+    check('管理员设置', '点「展开管理员设置」后技术设置出现（AI 服务、数据包、提示词、文字识别），「显示内部代码」默认关', await waitFor(async () => (await T('admin-settings-body').count()) === 1, 5000) && (await T('settings-nav-ai').count()) === 1 && (await T('settings-nav-data').count()) === 1 && (await T('settings-nav-prompts').count()) === 1
       && (await T('show-codes-switch').getAttribute('aria-checked')) === 'false')
     // /settings?admin=1 直接展开（「请联系管理员」的提示都链到这里）
     await T('admin-toggle').click()
-    await page.evaluate(() => { location.hash = '#/settings?admin=1' }); await page.reload(); await T('admin-settings').waitFor()
+    await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=admin' }); await page.reload(); await T('admin-settings').waitFor()
     check('管理员设置', '链接 #/settings?admin=1 直接展开管理员设置（各处「请联系管理员」的提示链到这里）', await waitFor(async () => (await T('admin-settings-body').count()) === 1, 8000))
     // 迁移 v10：新库的版本和内置白话
     check('迁移 v10', '全新库（v10 的内容在 v11 里仍然齐全）：知识点表有白话 / 例句 / 例词四列，145 个内置节点全部有内容；reports 有 reader / confirmed_at / verify_json；有 ai_drafts 表', withDb(udFirst, d => {
@@ -417,17 +417,18 @@ const teacherCards = await waitFor(async () => (await T('report-body').locator('
     check('B6 重难点白话', '重难点表：每个知识点带「重点 / 难点 / 又重又难 / 个例 / 一般」标签；列名是「考了几份卷子 / 占总分多少 / 容易错 / 难易程度」；不再有「综合得分」列', (await page.locator('[data-testid^=hot-label-]').count()) >= 5 && /考了几份卷子/.test(hotTxt) && /占总分多少/.test(hotTxt) && !/综合得分|出现率|易错率|平均难度/.test(hotTxt), hotTxt.slice(0, 120))
     check('B6 公式折叠', '排序公式折叠在「怎么算的」里，默认看不到', /怎么算的/.test(await txt('hot-how')) && !(await T('hot-formula').isVisible()))
     // 显示内部代码：默认关；打开后知识点树里出现代码
-    await goto('#/settings'); await T('admin-settings').waitFor()
+    await goto('#/settings?tab=kp'); await T('taxonomy-settings').waitFor()
     await T('taxonomy-settings').waitFor()
     await T('kp-search').locator('input').fill('物主')
     await T('kp-node-GR.PRON.POSS').click({ trial: false }).catch(() => undefined)
     const tx0 = await txt('taxonomy-settings')
     check('B6 隐藏代码', '默认不显示知识点的内部代码（GR.PRON.POSS）；树上改为显示例词（my / your / his）', !/GR\.PRON\.POSS/.test(tx0) && /my \/ your/.test(tx0), tx0.slice(0, 160))
     check('B7 白话释义', '知识点编辑器里选中「物主代词」：显示白话「表示“谁的”」和例句 This is my book. 这是我的书。', /表示“谁的”/.test(await txt('kp-selected-plain').catch(() => '')) && /This is my book\./.test(await txt('kp-selected-example').catch(() => '')), await txt('kp-selected').catch(() => ''))
-    await T('show-codes-switch').click()
+    await goto('#/settings?admin=1&tab=admin'); await T('show-codes-switch').click(); await goto('#/settings?tab=kp'); await T('taxonomy-settings').waitFor()
+    await T('kp-search').locator('input').fill('物主')
     await waitFor(async () => /GR\.PRON\.POSS/.test(await txt('taxonomy-settings')), 8000)
     check('B6 显示内部代码', '管理员设置里打开「显示内部代码」后，代码出现', /GR\.PRON\.POSS/.test(await txt('taxonomy-settings')))
-    await T('show-codes-switch').click()
+    await goto('#/settings?admin=1&tab=admin'); await T('show-codes-switch').click()
     // 自建节点：填白话 / 例句，保存后能读回
     await api(() => window.api.taxonomy.save([{ op: 'add', parent_code: 'GR.PRON', name: 'E2E 自建代词', plain: '测试用的一句话', example_en: 'This is **mine**.', example_zh: '这是我的。', hint_words: 'mine / yours' }]))
     const tree = await api(() => window.api.taxonomy.tree())

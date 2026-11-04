@@ -25,7 +25,7 @@ async function phaseTaxonomy() {
   const st0 = await api(sc => window.api.ai.compareAnalysis(sc), scope)
   const reports0 = await api(() => window.api.report.list())
   check('知识点树 缓存', '编辑前：P2 同比分析（四年级）生成并缓存，状态「已缓存」；从数据包带来的 2 份 P3 报告都是「最新」', g.ok && st0.status === 'fresh' && reports0.length === 2 && reports0.every(r => r.status === 'fresh'), `${st0.status} / ${reports0.map(r => r.status)}`)
-  await goto('#/settings')
+  await goto('#/settings?tab=kp')
   await T('taxonomy-settings').waitFor()
   // ── 改名（内置节点）──
   const r0 = rev()
@@ -47,7 +47,7 @@ async function phaseTaxonomy() {
   await setFilter({ grade: '4' }, '#/dashboard')
   await T('dist-papers').waitFor()
   check('知识点树 看板', '看板（分布页）立刻用新名字：考频里"名词复数（教研组改名）"，旧名字不再出现', await waitFor(async () => /名词复数（教研组改名）/.test(await ctx.page.locator('[data-testid=freq-GR\\.NOUN\\.PLURAL]').innerText().catch(() => '')), 8000) && !/(^|[^（])名词复数(?!（教研组改名）)/.test(await ctx.page.locator('[data-testid=freq-GR\\.NOUN\\.PLURAL]').innerText()))
-  await goto('#/settings'); await T('taxonomy-settings').waitFor()
+  await goto('#/settings?tab=kp'); await T('taxonomy-settings').waitFor()
 
   // ── 内置节点的保护 ──
   await pickNode('GR.TENSE.FUT')
@@ -84,7 +84,7 @@ async function phaseTaxonomy() {
   check('知识点树 看板', '把 2 道题改标到新节点后：新节点出现 2 份卷子 / 2 题；规则复数、名词复数、名词的数字都 = 逐条循环重算（规则复数少了这 2 题）', nodeOf(nodes, 'GR.NOUN.U1')?.[2] === 2 && nodeOf(nodes, 'GR.NOUN.U1')?.[3] === 2 && ['GR.NOUN.U1', 'GR.NOUN.PLURAL.REG', 'GR.NOUN.PLURAL', 'GR.NOUN'].every(eq), JSON.stringify(['GR.NOUN.U1', 'GR.NOUN.PLURAL.REG', 'GR.NOUN.PLURAL', 'GR.NOUN'].map(c => nodeOf(nodes, c))))
   const r1 = rev()
   // 界面合并：新节点 → 名词复数（内置，二级）
-  await goto('#/settings'); await T('taxonomy-settings').waitFor()
+  await goto('#/settings?tab=kp'); await T('taxonomy-settings').waitFor()
   await pickNode('GR.NOUN.U1')
   await T('kp-merge').click()
   await T('kp-modal-target').click()
@@ -110,7 +110,7 @@ async function phaseTaxonomy() {
   const uiPapers = await waitFor(async () => Number(await ctx.page.locator('[data-testid=freq-GR\\.NOUN\\.PLURAL]').getAttribute('data-papers').catch(() => -1)), 8000)
   check('知识点树 看板', '看板考频柱里"名词复数（教研组改名）"的出现份数 = 接口返回值；新节点不在考频里', uiPapers === nodeOf(nodes, 'GR.NOUN.PLURAL')[2] && (await ctx.page.locator('[data-testid=freq-GR\\.NOUN\\.U1]').count()) === 0)
   // ── 停用 / 启用内置节点：不再提供给选择器和 AI，但统计照常 ──
-  await goto('#/settings'); await T('taxonomy-settings').waitFor()
+  await goto('#/settings?tab=kp'); await T('taxonomy-settings').waitFor()
   await pickNode('GR.TENSE.FUT')
   await T('kp-deprecate').click()
   await popOk()
@@ -170,7 +170,7 @@ async function phaseMisc() {
   const nRev = withDb(ctx.ud, d => d.prepare("SELECT COUNT(*) c FROM papers WHERE status = 'reviewing'").get().c)
   check('审核徽标（M2 缺口）', '侧栏"审核"旁的徽标数字 = 待审核卷子数', badge && Number((await page.locator('[data-testid=badge-review]').innerText()).trim()) === nRev && nRev >= 2, `${nRev}`)
   // 关于页 / 安装指南入口
-  await goto('#/settings')
+  await goto('#/settings?tab=about')
   await T('about-card').waitFor()
   await waitFor(async () => (await txt('about-version')).includes(require('../../package.json').version), 8000)
   const ver = await txt('about-card')
@@ -185,9 +185,11 @@ async function phaseMisc() {
   check('设置 安装指南入口', '「查看安装指南」→ 安装指南页显示完整正文：和 docs/安装指南.md 的每个二级标题、几个关键句一一对上（不再是占位）', guideOpened && heads.length >= 9 && heads.every(h => guideText.includes(h)) && /仍要运行/.test(guideText) && /仍要打开/.test(guideText) && /光学字符识别/.test(guideText) && /DeepSeek/.test(guideText) && !/M5/.test(guideText) && !/\*\*|```/.test(guideText), `${heads.length} 个标题；${guideText.length} 字`)
   await shot('20b-guide')
   // 设置页各卡片都在
-  await goto('#/settings')
-  await T('about-card').waitFor()
-  const cards = await Promise.all(['data-storage', 'data-pack', 'data-sample', 'ai-settings', 'taxonomy-settings', 'about-card'].map(async id => (await T(id).count()) === 1))
+  const cards = []
+  for (const [tab, ids] of [['data', ['data-storage', 'data-pack']], ['show', ['data-sample']], ['ai', ['ai-settings']], ['kp', ['taxonomy-settings']], ['about', ['about-card']]]) {
+    await goto('#/settings?admin=1&tab=' + tab); await T(ids[0]).waitFor()
+    for (const id of ids) cards.push((await T(id).count()) === 1)
+  }
   check('设置页', '设置页六块都在：数据存储、数据包、示例数据、AI 服务、知识点树、关于', cards.every(Boolean), JSON.stringify(cards))
   // P2：重复点击生成（M3 缺口）——同一范围正在生成时再发起被拒绝
   const scope = { filter: { grade: '5' }, target: 2025, base: 'before', level: 2, align: true }

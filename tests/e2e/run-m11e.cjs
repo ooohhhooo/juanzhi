@@ -39,7 +39,7 @@ async function main() {
   await open(ud, { extraEnv: { EWB_TEST_HOOKS: '1' } })
 
   // ── 1. 添加企业微信连接器；校验非法地址 ──
-  await goto('#/settings'); await T('connectors-panel').waitFor({ timeout: 20000 })
+  await goto('#/settings?tab=connectors'); await T('connectors-panel').waitFor({ timeout: 20000 })
   check('添加', '设置页有「连接器」，开始时没有连接', (await T('connector-empty').count()) === 1)
   await T('connector-add').click(); await T('connector-form').waitFor()
   await T('connector-form-name').fill('三年级辅导群')

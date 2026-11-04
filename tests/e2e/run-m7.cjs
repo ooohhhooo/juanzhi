@@ -330,7 +330,7 @@ async function main() {
     const udI = path.join(work, 'install')
     await open(udI, { extraEnv: { HOME: home, USERPROFILE: home, EWB_CLI_INSTALL_DEV: '1' } })
     const { page } = ctx
-    await page.evaluate(() => { location.hash = '#/settings?admin=1' })
+    await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=cli' })
     await page.locator('[data-testid=cli-settings]').waitFor({ timeout: 15000 })
     check('M7 安装按钮', '设置 → 管理员设置里有「命令行工具」：显示状态、「安装命令行工具」按钮（开发版里是禁用的，打包版可点）', (await page.locator('[data-testid=cli-install]').count()) === 1 && /还没安装/.test(await page.locator('[data-testid=cli-status]').innerText()))
     const st0 = await page.evaluate(() => window.api.cli.status())
@@ -343,7 +343,7 @@ async function main() {
       check('M7 安装命令行工具', 'Windows：写 juanzhi.cmd（start /wait + 结果文件回读），并把目录加进用户 PATH', r.ok === true && fs.existsSync(r.path) && fs.readFileSync(r.path, 'utf8').includes('start "" /wait'), JSON.stringify(r).slice(0, 300))
     }
     await page.reload(); await page.waitForSelector('[data-testid=cli-settings]', { timeout: 15000 }).catch(() => {})
-    await page.evaluate(() => { location.hash = '#/settings?admin=1' })
+    await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=cli' })
     await page.locator('[data-testid=cli-status]').waitFor({ timeout: 10000 })
     check('M7 安装后状态', '安装后设置页显示「已安装」', await waitFor(async () => /已安装/.test(await page.locator('[data-testid=cli-status]').innerText()), 8000))
     await closeApp()

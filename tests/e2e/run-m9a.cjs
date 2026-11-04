@@ -60,7 +60,7 @@ async function main() {
   await saveCfg(cfgFor(mock, { auto_parse: false }), SECRET)
   await page().reload()   // 界面里缓存着启动时读到的默认配置：刷新后设置页才是刚保存的这份
   await T('dropzone').waitFor({ timeout: 30000 })
-  await goto('#/settings')
+  await goto('#/settings?admin=1&tab=ai')
   await T('ai-settings').waitFor()
   const maxAttr = await T('ai-concurrency').getAttribute('aria-valuemax')
   check('设置', '「同时解析的试卷数」上限提到 16', maxAttr === '16', `aria-valuemax=${maxAttr}`)
@@ -394,7 +394,7 @@ const nameA = 'g4-2025-page1-期末A.png'
     // 建议换模型：最近 10 批里 ≥ 3 批写不完 → 设置页出现建议条；只提示、不改配置；可以「以后不再提示」
     writeDb(d => { for (let i = 0; i < 10; i++) d.prepare("INSERT INTO parse_batches (paper_id, seq, mode, model, attempts, truncated, escalated, ms, ok) SELECT id, ?, 'text', ?, 2, ?, ?, 95000, 1 FROM papers LIMIT 1").run(100 + i, PARSE_M, i < 4 ? 1 : 0, i < 4 ? 1 : 0) })
     const cfgBefore = JSON.stringify(await api(() => window.api.ai.getConfig()))
-    await goto('#/settings'); await T('ai-settings').waitFor()
+    await goto('#/settings?admin=1&tab=ai'); await T('ai-settings').waitFor()
     await T('model-hint').waitFor({ timeout: 15000 })
     const h = clean(await txt('model-hint'))
     check('建议换模型', '设置页出现建议条：写明模型名、最近几批里几批被重试、建议换成更快的拆题模型；程序不会自己换', new RegExp(PARSE_M).test(h) && /换成更快/.test(h) && /不会自己换/.test(h), h.slice(0, 200))
@@ -403,7 +403,7 @@ const nameA = 'g4-2025-page1-期末A.png'
     await goto('#/queue'); await T('queue-model-hint').waitFor({ timeout: 15000 })
     check('建议换模型', '处理队列页顶部也有同样的建议条（去设置 / 以后不再提示）', /mock-reasoning-parse/.test(await txt('queue-model-hint')) && /不会自己换模型/.test(await txt('queue-model-hint')))
     await shot9('queue-model-hint-light', 'queue-model-hint')
-    await goto('#/settings'); await T('model-hint').waitFor({ timeout: 15000 })
+    await goto('#/settings?admin=1&tab=ai'); await T('model-hint').waitFor({ timeout: 15000 })
     await T('model-hint-dismiss').click()
     check('建议换模型', '点「以后不再提示」后建议条消失，刷新页面也不再出现', await waitFor(async () => (await T('model-hint').count()) === 0, 8000) && (await (async () => { await page().reload(); await T('ai-settings').waitFor(); await sleep(800); return (await T('model-hint').count()) === 0 })()))
     // 9 批不触发
@@ -414,12 +414,12 @@ const nameA = 'g4-2025-page1-期末A.png'
   {
     // 推理型拆题模型：设置页保存前就给预防性提示（深度思考型，较慢）
     await saveCfg(cfgFor(mock, { auto_parse: false, model: 'deepseek-v4-pro', parse_model: '', vision_model: 'mock-vision-model' }), SECRET, null)
-    await goto('#/settings'); await page().reload(); await T('ai-settings').waitFor()
+    await goto('#/settings?admin=1&tab=ai'); await page().reload(); await T('ai-settings').waitFor()
     await T('parse-model-slow-tip').waitFor({ timeout: 15000 })
     const tag = clean(await T('model-speed-tag').first().innerText())
     check('建议换模型', '拆题用的是深度思考型模型时，设置页写明「深度思考型（较慢）」并预先建议换快速的', /深度思考型/.test(tag) && /换成快速的/.test(await txt('parse-model-slow-tip')), tag)
     await shot9('settings-split-light', 'parse-model-hint')
-    await setTheme('dark'); await goto('#/settings'); await T('ai-settings').waitFor(); await sleep(600)
+    await setTheme('dark'); await goto('#/settings?admin=1&tab=ai'); await T('ai-settings').waitFor(); await sleep(600)
     await shot9('settings-split-dark', 'parse-model-hint')
     await setTheme('light')
   }

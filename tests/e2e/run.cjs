@@ -240,7 +240,7 @@ async function main() {
   check('路径授权', '页面脚本直接传入从未登记的路径 → 被拒绝，且没有入库', /未经授权/.test(authRes[0]?.error || '') && unregRows === 0, authRes[0]?.error)
 
   // 设置页：OCR 状态
-  await page.evaluate(() => { location.hash = '#/settings' })
+  await page.evaluate(() => { location.hash = '#/settings?admin=1&tab=ai' })
   await page.waitForSelector('[data-testid=ocr-status]')
   const ocrOn = await page.locator('[data-testid=ocr-status]').innerText()
   const ocrDetail = await page.locator('[data-testid=ocr-detail]').innerText()
@@ -467,7 +467,7 @@ async function main() {
   const failedShown = await r4.page.locator('[data-testid=ocr-failed]').innerText().catch(() => '')
   await r4.page.screenshot({ path: path.join(shots, 'fix-08-ocr-failed.png') })
   check('OCR 失败原因', '详情页把失败原因直接展示给用户', /找不到 OCR 组件/.test(failedShown) && (await r4.page.locator('[data-testid=paper-warning]').count()) === 1, failedShown.slice(0, 80))
-  await r4.page.evaluate(() => { location.hash = '#/settings' })
+  await r4.page.evaluate(() => { location.hash = '#/settings?admin=1&tab=ai' })
   await r4.page.waitForSelector('[data-testid=ocr-status]')
   const st4 = await r4.page.locator('[data-testid=ocr-status]').innerText()
   const dt4 = await r4.page.locator('[data-testid=ocr-detail]').innerText()

@@ -398,7 +398,7 @@ async function main() {
 
   // ───────────────────────── 8. 数据包 ─────────────────────────
   {
-    await goto('#/settings'); await T('data-pack').waitFor()
+    await goto('#/settings?admin=1&tab=data'); await T('data-pack').waitFor()
     await T('data-pack').scrollIntoViewIfNeeded()
     const withZip = path.join(work, 'with-course.ewb.zip'), noZip = path.join(work, 'no-course.ewb.zip')
     await stubSave(withZip)
