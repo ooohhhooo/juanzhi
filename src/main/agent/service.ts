@@ -32,6 +32,8 @@ import { takeAttachments } from './attachments'
 import type { AttachInfo } from './attachments'
 import { clipOrgContext, contextLimitFor, DEFAULT_CONTEXT_LIMIT, ORG_CONTEXT_MAX } from './limits'
 import { scrubPII } from '../analysis/scrub'
+import { mapLimit } from '../course/map-limit'
+import type { SubResult, SubTask } from './types'
 import { appendStep, listSessions, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
 import type { StepKind } from './store'
 import { createRegistry } from './tools'
@@ -366,7 +368,7 @@ async function execute(x: ExecArgs): Promise<void> {
   const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
   const { registry, dynamic } = buildRegistry()
   // 老角色文件（自建 / 导入）里没有后来加的查询：翻以前的对话所有角色都有；能查数据集的也能读文档；能看试卷统计的也能看试卷清单、课程覆盖、报告
-  const extraTools = ['history_search', 'history_read', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read', 'report_generate', 'paper_import'] : [])]
+  const extraTools = ['history_search', 'history_read', 'delegate_tasks', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read', 'report_generate', 'paper_import'] : [])]
   const toolNames = [...new Set([...role.tools, ...extraTools, ...(CONNECTOR_ROLES.includes(role.id) ? dynamic : [])])]
   const prices = getPriceMap()
   const lim = effectiveMaxTokens(cfg, model)
@@ -442,12 +444,41 @@ async function execute(x: ExecArgs): Promise<void> {
     }
   }
 
+  // ───── 子 Agent：几件独立的事同时做，每个子助手一份新对话，只给查询类 / 草稿类工具 ─────
+  let subIn = 0, subOut = 0
+  const SUB_BLOCK = new Set(['delegate_tasks', 'ask_user', 'update_plan', 'history_search', 'history_read', 'paper_import', 'report_generate'])
+  // 子助手只查、不产出：看板 / 汇报 / 名单 / 卡片由主助手统一做，免得几个子助手同时改同一份产出
+  const subTools = toolNames.filter(n => { const t = registry.get(n); return !!t && !SUB_BLOCK.has(n) && t.level === 'read' && !/^(board_|doc_create|doc_write_section|table_save|card_make|output_export)/.test(n) })
+  const subSystem = system + '\n\n# 你现在是子助手\n主助手把一件具体的事交给你。只做这一件事：自己查数据，查完用中文写一段结论（600 字以内），每个数字后面用括号写明它来自哪个查询 / 哪张表 / 哪个范围。不要写 [[query:…]] 这类引用标记。你不能向用户提问、不能对外发送；遇到要用户拿主意的地方，按最常见的理解做，并在结论里说明你的假设。'
+  const spawn = async (tasks: SubTask[], onDone: (d: number, t: number) => void): Promise<SubResult[]> => {
+    let done = 0
+    onDone(0, tasks.length)
+    return mapLimit(tasks, 3, async t => {
+      try {
+        const r = await runAgent({
+          callModel, registry, toolNames: subTools, mode: 'auto', approvalMode: x.approval,
+          budget: { maxRounds: 12, maxTokens: 150_000, maxMs: 5 * 60_000 },
+          compact: { limitTokens: ctxLimit, summarize },
+          ctx: { db, scene, roleId: role.id, sessionId: sid, dataDir: getDataDir(), playbook: name => { const p = playbooks.find(y => y.name === name); return p ? { name: p.name, description: p.description, body: p.body } : null }, playbookNames: () => playbooks.map(p => p.name) },
+          approve: async () => false,
+          askUser: async () => '你自己按最常见的理解做，并在结论里说明假设',
+          emit: () => { /* 子助手的过程不进对话记录，只把结论交回主助手 */ },
+          signal: run.ctl.signal, cite: makeCiteChecker(db)
+        }, { system: subSystem, history: [], user: `【${t.title}】\n${t.instructions}` })
+        subIn += r.tokensIn; subOut += r.tokensOut
+        return { title: t.title, ok: r.stop === 'answered', text: r.answer.replace(/\[\[query:\d+\]\]/g, ''), stop: r.stop }
+      } catch (e) {
+        return { title: t.title, ok: false, text: `没有做完：${(e as Error).message}`, stop: 'error' as const }
+      } finally { onDone(++done, tasks.length) }
+    })
+  }
+
   try {
     const result = await runAgent({
       callModel, registry, toolNames, mode, approvalMode: x.approval, initialState,
       compact: { limitTokens: ctxLimit, summarize },
       ctx: {
-        db, scene, roleId: role.id, sessionId: sid, dataDir: getDataDir(),
+        db, scene, roleId: role.id, sessionId: sid, dataDir: getDataDir(), spawn,
         playbook: name => { const p = playbooks.find(y => y.name === name); return p ? { name: p.name, description: p.description, body: p.body } : null },
         playbookNames: () => playbooks.map(p => p.name)
       },
@@ -455,7 +486,7 @@ async function execute(x: ExecArgs): Promise<void> {
       askUser: req => new Promise<string>(resolve => { run.asks.set(req.id, resolve) }),
       emit: onEvent, signal: run.ctl.signal, cite: makeCiteChecker(db)
     }, { system, history, user: text + (x.attach?.block ?? '') })
-    updateSession(db, sid, { status: 'idle', dataRev: currentDataRev(db), addIn: result.tokensIn, addOut: result.tokensOut })
+    updateSession(db, sid, { status: 'idle', dataRev: currentDataRev(db), addIn: result.tokensIn + subIn, addOut: result.tokensOut + subOut })
     send({ sessionId: sid, type: 'done', status: result.stop, rounds: lastRounds || result.rounds, error: result.error ?? null })
   } finally {
     run.asks.clear(); run.approvals.clear()

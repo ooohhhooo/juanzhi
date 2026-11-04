@@ -83,6 +83,20 @@ async function main() {
   await ctx.page.locator('.ant-popconfirm .ant-btn-primary, .ant-popover .ant-btn-primary').last().click()
   check('数据页', '删除后少一份', await waitFor(async () => (await count('document-card')) === 1, 8000))
 
+  // ── 4b. 子 Agent：两件事同时交给子助手，各自查完把结论交回来 ──
+  await goto('#/assistant'); await T('assistant-page').waitFor()
+  await T('assistant-new').first().click()
+  const b4 = mock.agentRequests.length
+  await ask('四年级和五年级分头查一下')
+  const c4 = await toolCalls()
+  check('子Agent', '主助手调用了 delegate_tasks 且成功（子助手的过程不显示在对话里）', c4.join(',') === 'delegate_tasks:true', c4.join(','))
+  const subReqs = mock.agentRequests.slice(b4).filter(r => /你现在是子助手/.test(JSON.stringify(r.messages?.[0] ?? '')))
+  check('子Agent', '两个子助手各自调用了模型', new Set(subReqs.map(r => (JSON.stringify(r.messages).match(/【(四年级|五年级)】/) ?? [])[1])).size === 2, String(subReqs.length))
+  check('子Agent', '子助手拿不到 delegate_tasks / ask_user / 对外发送类工具', subReqs.every(r => !r.toolNames.includes('delegate_tasks') && !r.toolNames.includes('ask_user') && !r.toolNames.includes('wecom_send')), JSON.stringify(subReqs[0]?.toolNames))
+  check('子Agent', '子助手能查数据', subReqs.some(r => r.toolNames.includes('stats_overview')))
+  const ans4 = await T('assistant-answer').last().innerText().catch(() => '')
+  check('子Agent', '主助手汇总了两个子助手的结论', /两个年级都查完了/.test(ans4), ans4.slice(0, 60))
+
   // ── 5. 助手里生成报告：和报告页同一套流程，生成后报告页能看到 ──
   await closeApp()
   seed(ud, { bboxes: {}, pageImage: pageImg, pageSize: { width: 1224, height: 1584 } })

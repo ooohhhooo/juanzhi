@@ -47,7 +47,12 @@ export interface ToolCtx {
   dataDir: string
   /** 长任务的进度（比如文字归类 done/total）；界面显示在这一步的工具条目里 */
   progress: (done: number, total: number) => void
+  /** 子 Agent：几件独立的事同时交给子助手做（只能查询和写草稿，不能问用户、不能对外发送），返回各自的结论；没给就表示不支持 */
+  spawn?: (tasks: SubTask[], onDone: (done: number, total: number) => void) => Promise<SubResult[]>
 }
+
+export interface SubTask { title: string; instructions: string }
+export interface SubResult { title: string; ok: boolean; text: string; stop: StopReason }
 
 /** 需要用户同意的对外发送：发到哪里 + 完整内容；含个人信息时 privacyWarning 非空，界面要醒目显示 */
 export interface ToolPreviewInfo { target: string; content: string; privacyWarning?: string }

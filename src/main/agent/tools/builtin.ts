@@ -125,4 +125,23 @@ export const historyRead: ToolDef = {
   }
 }
 
-export const BUILTIN_TOOLS: ToolDef[] = [updatePlan, askUser, loadPlaybook, sessionState, historySearch, historyRead]
+// ───────── 子 Agent ─────────
+export const delegateTasks: ToolDef = {
+  name: 'delegate_tasks', label: '分头去查',
+  level: 'read',
+  description: '把几件互相独立的事同时交给子助手去做（2–4 件），每个子助手自己查数据、写一段结论，全部做完后一起返回给你，你再汇总。适合：几个年级 / 班级 / 数据集分别分析、续费和退费分开查、几份报告分别读。不适合：一步接一步、后一步要用前一步结果的事（那就自己按顺序做）。子助手只能查询和写草稿，不能问用户、不能对外发送；每件事的说明要写完整（它看不到这次对话），写清要查什么、用哪个数据集 / 范围、要什么结论。',
+  schema: z.object({
+    tasks: z.array(z.object({
+      title: z.string().min(1).max(30).describe('这件事的短名，比如「四年级」「退费原因」'),
+      instructions: z.string().min(1).max(1500).describe('完整说明：查什么、用哪个数据集 / 范围、要什么结论')
+    })).min(2).max(4)
+  }),
+  run: async (args, ctx) => {
+    if (!ctx.spawn) return { text: '这里暂时不能分头去查，请自己按顺序做。', count: 0 }
+    const res = await ctx.spawn(args.tasks, (d, t) => ctx.progress(d, t))
+    const body = res.map((r, i) => `## ${i + 1}. ${r.title}${r.ok ? '' : '（没有做完）'}\n${r.text.trim() || '（没有结论）'}`).join('\n\n')
+    return { text: `${res.filter(r => r.ok).length}/${res.length} 件做完了。下面是各子助手的结论（数字来自它们各自的查询，需要引用时请自己再查一次或照实转述）：\n\n${body}`, count: res.length }
+  }
+}
+
+export const BUILTIN_TOOLS: ToolDef[] = [updatePlan, askUser, loadPlaybook, sessionState, historySearch, historyRead, delegateTasks]

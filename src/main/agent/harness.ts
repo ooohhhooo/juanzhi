@@ -20,7 +20,7 @@ export interface RunDeps {
   registry: ToolRegistry
   /** 这个角色能用的工具名单 */
   toolNames: string[]
-  ctx: Pick<ToolCtx, 'db' | 'scene' | 'roleId' | 'sessionId' | 'playbook' | 'playbookNames'> & { dataDir?: string }
+  ctx: Pick<ToolCtx, 'db' | 'scene' | 'roleId' | 'sessionId' | 'playbook' | 'playbookNames'> & { dataDir?: string; spawn?: ToolCtx['spawn'] }
   /** 以前几轮留在会话记录里的状态（计划、查询记录、选择）：接着追问时查询编号接着往下排 */
   initialState?: SessionState
   /** 自动整理：对话估算超过 limitTokens × ratio（默认 70%）时，把较早的内容换成摘要；summarize 失败 / 没给就用程序生成的摘要 */

@@ -123,6 +123,15 @@ function next(body) {
     if (round === 0) return { content: '', toolCalls: [call('paper_import', { groups: [{ files: ['截图1.png'], title: '四年级期末卷' }, { files: ['截图2.png'] }] }, 0)] }
     return { content: /已导入 2 份试卷/.test(toolTexts.join('\n')) ? '两份都导入了。' : '没能导入：' + toolTexts.join(' ').slice(0, 200), toolCalls: [] }
   }
+  if (/分头查一下/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('delegate_tasks', { tasks: [{ title: '四年级', instructions: '子任务：看四年级试卷的整体情况，写结论' }, { title: '五年级', instructions: '子任务：看五年级试卷的整体情况，写结论' }] }, 0)] }
+    const t = toolTexts.join('\n')
+    return { content: /2\/2 件做完了/.test(t) ? '两个年级都查完了，汇总如下。' : '子任务没做完：' + t.slice(0, 200), toolCalls: [] }
+  }
+  if (/^【[^】]+】\n子任务：/.test(q)) {
+    if (round === 0) return { content: '', toolCalls: [call('stats_overview', {}, 0)] }
+    return { content: '子助手结论：整体情况已查看（模拟）。', toolCalls: [] }
+  }
   if (/把这份卷子导入试卷库/.test(q)) {
     if (round === 0) return { content: '', toolCalls: [call('paper_import', {}, 0)] }
     return { content: /已导入 1 份试卷/.test(toolTexts.join('\n')) ? '已经导入试卷库了，识别完请到「审核」页核对。' : '没能导入。', toolCalls: [] }
