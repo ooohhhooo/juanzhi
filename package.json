@@ -5,6 +5,7 @@
   "description": "卷知 · 小学英语试卷分析",
   "main": "./out/main/index.js",
   "scripts": {
+    "docs:shots": "electron-vite build && node tests/e2e/readme-shots.cjs",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",

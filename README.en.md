@@ -10,7 +10,7 @@ Turn a stack of primary-school English exam papers into a "dictionary of exam po
 
 > **Note:** The app's interface, its AI prompts and the reports it generates are in Chinese only. It is built for Chinese primary-school English teaching (PEP-style textbooks, Chinese school years and semesters). This English README only explains how to install and use it.
 
-![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v13-overview.png)
+![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v14-overview.png)
 
 > **This is the 1.4.0 public beta (公测版).** New: a built-in assistant (ask about your data in Chinese, make dashboards, drafts and share cards; it remembers earlier conversations), a Data page that takes spreadsheets, images, PDF and Word files, connectors for WeCom and common MCP tools, and an interactive terminal interface. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
 
@@ -81,11 +81,15 @@ Below is a real generated parent version. It was generated with DeepSeek from th
 
 | Question-by-question review | Analysis dashboard | AI report |
 |---|---|---|
-| ![Review page](docs/screenshots/readme-v13-review.png) | ![Analysis dashboard](docs/screenshots/readme-v13-dashboard.png) | ![Report page](docs/screenshots/readme-v13-report.png) |
+| ![Review page](docs/screenshots/readme-v14-review.png) | ![Analysis dashboard](docs/screenshots/readme-v14-dashboard.png) | ![Report page](docs/screenshots/readme-v14-report.png) |
 
-| Uploading a course outline and checking the result | Course mapping: which lesson covers each error-prone point |
+| Course mapping: which lesson covers each error-prone point | Assistant: analyse data by asking questions |
 |---|---|
-| ![Upload a course outline](docs/screenshots/readme-course-upload.png) | ![Course mapping](docs/screenshots/readme-course-mapping.png) |
+| ![Course mapping](docs/screenshots/readme-v14-course.png) | ![Assistant](docs/screenshots/readme-v14-assistant.png) |
+
+| Share cards | Data | Settings |
+|---|---|---|
+| ![Share cards](docs/screenshots/readme-v14-cards.png) | ![Data](docs/screenshots/readme-v14-data.png) | ![Settings](docs/screenshots/readme-v14-settings.png) |
 
 ---
 
