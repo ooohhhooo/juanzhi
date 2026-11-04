@@ -281,6 +281,8 @@ const api = {
     test: (id: string): Promise<any> => ipcRenderer.invoke('connectors:test', id),
     setAllowed: (id: string, names: string[]): Promise<any> => ipcRenderer.invoke('connectors:setAllowed', id, names),
     openShimo: (): Promise<boolean> => ipcRenderer.invoke('connectors:openShimo'),
+    /** 用浏览器打开某个预设的文档页（只认预设编号，不接受任意网址） */
+    openDocs: (presetId: string): Promise<boolean> => ipcRenderer.invoke('connectors:openDocs', presetId),
     /** 弹系统文件框选一个要发出的文件（选中即记一次性发送许可），返回路径；取消返回 null */
     pickSendFile: (): Promise<string | null> => ipcRenderer.invoke('connectors:pickSendFile'),
   },

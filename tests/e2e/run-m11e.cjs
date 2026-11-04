@@ -41,7 +41,7 @@ async function main() {
   // ── 1. 添加企业微信连接器；校验非法地址 ──
   await goto('#/settings?tab=connectors'); await T('connectors-panel').waitFor({ timeout: 20000 })
   check('添加', '设置页有「连接器」，开始时没有连接', (await T('connector-empty').count()) === 1)
-  await T('connector-add').click(); await T('connector-form').waitFor()
+  await T('connector-add').click(); await T('connector-pick-wecom').click(); await T('connector-form').waitFor()
   await T('connector-form-name').fill('三年级辅导群')
   await T('connector-form-webhook').fill('https://evil.example.com/cgi-bin/webhook/send?key=abcdefgh1234')
   await T('connector-save').click()
@@ -101,9 +101,7 @@ async function main() {
 
   // ── 6. MCP：设置页添加 → 列出工具 → 勾选 ──
   const fake = path.resolve(__dirname, '../fixtures/fake-mcp-server.cjs')
-  await T('connector-add').click(); await T('connector-form').waitFor()
-  await T('connector-type').click()
-  await ctx.page.locator('.ant-select-item-option', { hasText: 'MCP 服务器' }).click()
+  await T('connector-add').click(); await T('connector-pick-custom').click(); await T('connector-form').waitFor()
   await T('connector-form-name').fill('测试笔记')
   await T('connector-form-command').fill(process.execPath)
   await T('connector-form-args').fill(fake)
@@ -122,7 +120,10 @@ async function main() {
   check('MCP', '环境变量值不明文落盘', !JSON.stringify(rows2).includes('envsecret77'))
 
   // ── 7. 删除 + 无残留进程 + 石墨 ──
-  check('石墨', '设置页有石墨文档按钮和「支持导入 Word、Markdown」说明', (await T('shimo-open').count()) === 1 && /支持导入 Word、Markdown/.test(await T('shimo-panel').innerText()))
+  await T('connector-add').click(); await T('connector-picker').waitFor()
+  check('石墨', '添加连接的目录里有「导出后导入」的石墨文档按钮和「支持导入 Word、Markdown」说明', (await T('shimo-open').count()) === 1 && /支持导入 Word、Markdown/.test(await T('shimo-panel').innerText()))
+  await ctx.page.keyboard.press('Escape')
+  await T('connector-picker').waitFor({ state: 'detached' })
   await T('connector-三年级辅导群').locator('[data-testid=connector-remove]').click()
   await ctx.page.locator('.ant-modal-confirm-btns button.ant-btn-dangerous, .ant-modal-confirm-btns .ant-btn-primary').first().click()
   check('删除', '删除后这条连接消失，工具里不再有 wecom 目标', await waitFor(async () => (await T('connector-三年级辅导群').count()) === 0, 8000))

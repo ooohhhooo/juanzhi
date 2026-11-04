@@ -18,10 +18,16 @@ export interface StoredEntry {
   pub: Record<string, unknown>
   tools?: McpTool[]
   allowed?: string[]
+  /** 最近一次「测试连接」的结果（message 已去掉密钥） */
+  lastTest?: LastTest
 }
+export interface LastTest { ok: boolean; message: string; at: number }
 export interface EntryView {
   id: string; type: string; name: string; summary: string; secretSet: boolean
   tools?: McpTool[]; allowed?: string[]
+  /** MCP：本地命令 / 网址；来自哪个预设 */
+  transport?: 'stdio' | 'http'; preset?: string
+  lastTest?: LastTest
 }
 
 let memorySecrets: Record<string, Record<string, unknown>> | null = null
@@ -77,8 +83,15 @@ export function viewOf(e: StoredEntry): EntryView {
   if (e.type === 'mcp') {
     const keys = Object.keys((secrets.env as Record<string, string>) ?? {})
     if (keys.length) summary += `（环境变量：${keys.join('、')}，值已隐藏）`
+    const hk = Object.keys((secrets.headers as Record<string, string>) ?? {})
+    if (hk.length) summary += `（请求头：${hk.join('、')}，值已隐藏）`
   }
-  return { id: e.id, type: e.type, name: e.name, summary, secretSet: c ? c.secretFields.every(f => secrets[f] !== undefined) : false, tools: e.tools, allowed: e.allowed }
+  return {
+    id: e.id, type: e.type, name: e.name, summary,
+    secretSet: e.type === 'mcp' ? true : c ? c.secretFields.every(f => secrets[f] !== undefined) : false,
+    tools: e.tools, allowed: e.allowed, lastTest: e.lastTest,
+    ...(e.type === 'mcp' ? { transport: (full.transport as 'stdio' | 'http' | undefined) ?? 'stdio', preset: full.preset as string | undefined } : {})
+  }
 }
 export const listViews = (): EntryView[] => listEntries().map(viewOf)
 
@@ -104,8 +117,10 @@ export function saveEntry(input: { id?: string; type: string; name: string; conf
   const sec: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(cfg)) (c.secretFields.includes(k) ? sec : pub)[k] = v
   const id = input.id ?? randomUUID()
-  const entry: StoredEntry = { id, type: input.type, name, pub, tools: old?.entry.tools, allowed: old?.entry.allowed }
-  if (old && input.type === 'mcp' && JSON.stringify(old.entry.pub) !== JSON.stringify(pub)) { entry.tools = undefined; entry.allowed = [] }
+  const entry: StoredEntry = { id, type: input.type, name, pub, tools: old?.entry.tools, allowed: old?.entry.allowed, lastTest: old?.entry.lastTest }
+  // 连接目标变了（命令 / 参数 / 网址）：旧的工具列表和勾选作废，要重新测试
+  const target = (x: any): string => JSON.stringify([x?.transport ?? 'stdio', x?.command, x?.args, x?.secretArgs, x?.url])
+  if (old && input.type === 'mcp' && target(old.config) !== target(cfg)) { entry.tools = undefined; entry.allowed = []; entry.lastTest = undefined }
   saveEntries(old ? list.map(e => (e.id === id ? entry : e)) : [...list, entry])
   saveSecrets({ ...loadSecrets(), [id]: sec })
   return viewOf(entry)
@@ -124,6 +139,14 @@ export function setTools(id: string, tools: McpTool[]): EntryView {
   if (!e) throw new Error('找不到这个连接')
   e.tools = tools
   e.allowed = (e.allowed ?? []).filter(n => tools.some(t => t.name === n))
+  saveEntries(list)
+  return viewOf(e)
+}
+export function setLastTest(id: string, r: { ok: boolean; message: string }): EntryView {
+  const list = listEntries()
+  const e = list.find(x => x.id === id)
+  if (!e) throw new Error('找不到这个连接')
+  e.lastTest = { ok: r.ok, message: r.message.slice(0, 300), at: Date.now() }
   saveEntries(list)
   return viewOf(e)
 }

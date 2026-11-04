@@ -225,6 +225,7 @@ interface ElectronAPI {
     test(id: string): Promise<{ ok: boolean; message: string; connectors: ConnectorView[] }>
     setAllowed(id: string, names: string[]): Promise<ConnectorView>
     openShimo(): Promise<boolean>
+    openDocs(presetId: string): Promise<boolean>
     /** 选一个要发出去的文件（系统对话框）；选中的文件记一次性发送许可 */
     pickSendFile(): Promise<string | null>
   }
@@ -950,4 +951,4 @@ declare module '*?raw' {
   export default content
 }
 
-interface ConnectorView { id: string; type: string; name: string; summary: string; secretSet: boolean; tools?: Array<{ name: string; description: string }>; allowed?: string[] }
+interface ConnectorView { id: string; type: string; name: string; summary: string; secretSet: boolean; tools?: Array<{ name: string; description: string; readOnly?: boolean }>; allowed?: string[]; transport?: 'stdio' | 'http'; preset?: string; lastTest?: { ok: boolean; message: string; at: number } }

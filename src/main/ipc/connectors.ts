@@ -1,10 +1,11 @@
 import { dialog, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import { CONNECTORS, getConnector } from '../connectors/registry'
-import { fullConfig, listViews, removeEntry, saveEntry, setAllowed, setTools } from '../connectors/store'
+import { fullConfig, listViews, removeEntry, saveEntry, setAllowed, setLastTest, setTools } from '../connectors/store'
 import { withMcp } from '../connectors/mcp-client'
 import { getConnectorTools } from '../connectors/tools'
 import { redactKey } from '../connectors/wecom-core'
+import { getPreset } from '../../shared/connector-presets'
 import { log } from '../log'
 import { getMainWindow } from '../window'
 import { allowSendOnce } from '../connectors/send-guard'
@@ -16,16 +17,29 @@ const SaveSchema = z.object({
   config: z.record(z.unknown())
 })
 
-/** MCP 配置等于「让卷知在本机运行一条命令」：保存 / 测试前必须让用户在原生对话框里看到完整命令、参数和环境变量名并确认。EWB_TEST_HOOKS=1 时自动通过 */
+/** MCP 配置等于「让卷知在本机运行一条命令」或「连到一个网址」：保存 / 测试前必须让用户在原生对话框里看到命令、参数（或网址域名）和密钥项名称并确认，密钥值不显示。EWB_TEST_HOOKS=1 时自动通过 */
 async function confirmMcpRun(cfg: Record<string, unknown>, what: '保存' | '测试'): Promise<boolean> {
   if (process.env.EWB_TEST_HOOKS === '1') return true
-  const command = String(cfg.command ?? '')
-  const args = Array.isArray(cfg.args) ? cfg.args.map(String) : []
   const envNames = Object.keys((cfg.env as Record<string, unknown>) ?? {})
-  const detail = [`命令：${command}`, `参数：${args.length ? args.map(a => JSON.stringify(a)).join(' ') : '（无）'}`, `环境变量（只列名称）：${envNames.length ? envNames.join('、') : '（无）'}`].join('\n')
+  const headerNames = Object.keys((cfg.headers as Record<string, unknown>) ?? {})
+  const remote = cfg.transport === 'http'
+  let detail: string
+  if (remote) {
+    let host = ''
+    try { host = new URL(String(cfg.url ?? '')).origin } catch { /* 无效网址 */ }
+    detail = [`服务器：${host || '（无效网址）'}（路径和参数已隐藏）`, `请求头（只列名称）：${headerNames.length ? headerNames.join('、') : '（无）'}`].join('\n')
+  } else {
+    const args = Array.isArray(cfg.args) ? cfg.args.map(String) : []
+    const hidden = Array.isArray(cfg.secretArgs) ? cfg.secretArgs.length : 0
+    detail = [`命令：${String(cfg.command ?? '')}`, `参数：${args.length ? args.map(a => JSON.stringify(a)).join(' ') : '（无）'}${hidden ? `（另有 ${hidden} 个参数已隐藏）` : ''}`, `环境变量（只列名称）：${envNames.length ? envNames.join('、') : '（无）'}`].join('\n')
+  }
   const opts: Electron.MessageBoxOptions = {
     type: 'warning', buttons: [`确认${what}`, '取消'], defaultId: 1, cancelId: 1, noLink: true,
-    title: '确认 MCP 命令', message: what === '测试' ? '测试会在本机运行下面这条命令。只在你信任它时继续。' : '保存后，卷知会在本机运行下面这条命令。只在你信任它时继续。', detail
+    title: remote ? '确认 MCP 网址' : '确认 MCP 命令',
+    message: remote
+      ? (what === '测试' ? '测试会连到下面这个服务器。只在你信任它时继续。' : '保存后，助手可以连到下面这个服务器，并在你确认后把内容发给它。只在你信任它时继续。')
+      : (what === '测试' ? '测试会在本机运行下面这条命令。只在你信任它时继续。' : '保存后，卷知会在本机运行下面这条命令。只在你信任它时继续。'),
+    detail
   }
   const win = getMainWindow()
   const r = win ? await dialog.showMessageBox(win, opts) : await dialog.showMessageBox(opts)
@@ -43,7 +57,7 @@ export function registerConnectorsIpc(): void {
     if (req.type === 'mcp') {
       const old = req.id ? fullConfig(req.id) : null
       const merged: Record<string, unknown> = { ...(old?.config ?? {}) }
-      for (const [k, v] of Object.entries(req.config)) { if (k === 'env' && (v == null || (typeof v === 'object' && !Object.keys(v as object).length)) && old) continue; merged[k] = v }
+      for (const [k, v] of Object.entries(req.config)) { if ((k === 'env' || k === 'headers') && (v == null || (typeof v === 'object' && !Object.keys(v as object).length)) && old) continue; merged[k] = v }
       if (!(await confirmMcpRun(merged, '保存'))) throw new Error('已取消：没有保存这个 MCP 配置')
     }
     return saveEntry(req)
@@ -68,7 +82,9 @@ export function registerConnectorsIpc(): void {
       } else result = await c.test(f.config)
     } catch (e) { result = { ok: false, message: redactKey((e as Error).message) } }
     log.info('connectors', `测试 ${c.id}：${result.ok ? '成功' : '失败'}`)
-    return { ...result, message: redactKey(result.message), connectors: listViews() }
+    const message = redactKey(result.message)
+    if (!message.startsWith('已取消')) setLastTest(id, { ok: result.ok, message })
+    return { ...result, message, connectors: listViews() }
   })
 
   /** 选一个要发出去的文件：弹系统文件对话框，选中的文件记一次性发送许可（只有这样选的文件才能被「发文件」动作发出去） */
@@ -79,6 +95,13 @@ export function registerConnectorsIpc(): void {
     if (r.canceled || !r.filePaths[0]) return null
     allowSendOnce(r.filePaths[0])
     return r.filePaths[0]
+  })
+
+  ipcMain.handle('connectors:openDocs', async (_e, id: unknown) => {
+    const p = getPreset(z.string().max(40).parse(id))
+    if (!p) throw new Error('没有这个预设')
+    await shell.openExternal(p.docs)
+    return true
   })
 
   // 石墨：只打开官网（支持导入 Word、Markdown 文件），不写具体私有地址
