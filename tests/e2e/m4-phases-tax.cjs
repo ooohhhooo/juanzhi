@@ -174,7 +174,7 @@ async function phaseMisc() {
   await T('about-card').waitFor()
   await waitFor(async () => (await txt('about-version')).includes(require('../../package.json').version), 8000)
   const ver = await txt('about-card')
-  check('设置 关于', '关于卡片：版本号读自 package.json、数据库版本 v11、运行环境（系统 / Electron / Chromium / Node）、数据目录', new RegExp('版本\\s*' + require('../../package.json').version.replace(/\./g, '\\.')).test(ver) && /数据库版本 v11/.test(ver) && !/M[1-5]|里程碑/.test(ver) && /Electron 45/.test(await txt('about-env')) && /darwin|win32|linux/.test(await txt('about-env')))
+  check('设置 关于', '关于卡片：版本号读自 package.json、数据库版本 v12、运行环境（系统 / Electron / Chromium / Node）、数据目录', new RegExp('版本\\s*' + require('../../package.json').version.replace(/\./g, '\\.')).test(ver) && /数据库版本 v12/.test(ver) && !/M[1-5]|里程碑/.test(ver) && /Electron 45/.test(await txt('about-env')) && /darwin|win32|linux/.test(await txt('about-env')))
   await shot('20-settings-about')
   await T('open-guide').click()
   // M5：安装指南页换成完整正文（和 docs/安装指南.md 是同一份文件，构建时内联）
