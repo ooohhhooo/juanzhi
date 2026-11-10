@@ -11,7 +11,7 @@
  * tests/unit/ipc-guard-audit 会列出 ipcMain.handle 的全部通道，要求每个通道要么在 WRITE_CHANNELS，要么在 READONLY_CHANNELS 里。
  */
 export const WRITE_CHANNELS = new Set([
-  'papers:import', 'papers:update', 'papers:remove', 'papers:batchUpdate', 'papers:batchRemove', 'papers:reprocess', 'papers:acceptSimilar', 'papers:scanSimilar',
+  'papers:import', 'files:importAuto', 'papers:resolveSubject', 'papers:setSubject', 'papers:update', 'papers:remove', 'papers:batchUpdate', 'papers:batchRemove', 'papers:reprocess', 'papers:acceptSimilar', 'papers:scanSimilar',
   'parse:start', 'parse:batchStart', 'queue:resume',
   'questions:update', 'questions:remove', 'questions:split', 'questions:merge', 'questions:confirmPaper', 'questions:reopen',
   'taxonomy:save', 'taxonomy:approveSuggestion', 'taxonomy:rejectSuggestion',
@@ -24,7 +24,7 @@ export const WRITE_CHANNELS = new Set([
   'course:setActive', 'course:rename', 'course:confirmDraft', 'course:remove', 'course:suggest', 'course:save', 'course:jobStart', 'course:match', 'course:mapEdit', 'course:adviceGenerate', 'course:adviceConfirm',
   // 数据集（分析 Agent 的数据底座）：导入 / 删除 / 改标记 / 改名 / 备注都写 <数据目录>/datasets/
   'cards:setDefault', 'cards:setChildName',
-  'datasets:import', 'datasets:remove', 'datasets:removeDocument', 'datasets:setSensitive', 'datasets:rename', 'datasets:setNote',
+  'datasets:import', 'datasets:remove', 'datasets:removeDocument', 'datasets:setSensitive', 'datasets:rename', 'datasets:setNote', 'datasets:setDocumentSubject', 'datasets:setDatasetSubject',
   // 连接器：写设置表；connectors:test 会往外部发测试消息或启动 MCP 子进程并刷新工具缓存
   'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test',
   // 助手：agent:run / agent:checkTools 会调用 AI 并写 ai_usage、会话记录；setScene 写设置；deleteSession 删记录
@@ -32,7 +32,7 @@ export const WRITE_CHANNELS = new Set([
   'agent:playbookSave', 'agent:playbookDelete', 'agent:playbookImport', 'agent:run', 'agent:checkTools', 'agent:checkEffort', 'agent:setScene', 'agent:deleteSession', 'agent:saveRole', 'agent:roleDraft', 'agent:roleDraftCancel', 'agent:deleteRole', 'agent:importRole', 'agent:saveSettings'
 ])
 /** 导出数据包期间不能让试卷文件被改写的请求（会重新提取 / 重新解析 / 新导入试卷） */
-export const EXPORT_BLOCKED = new Set(['papers:import', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
+export const EXPORT_BLOCKED = new Set(['papers:import', 'files:importAuto', 'papers:setSubject', 'papers:resolveSubject', 'papers:reprocess', 'papers:remove', 'papers:batchRemove', 'parse:start', 'parse:batchStart', 'queue:resume', 'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir'])
 
 
 /** 只读 / 只改内存状态 / 纯界面动作的通道：重启待定时不拦 */

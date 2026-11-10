@@ -14,6 +14,7 @@ import { log, shortId } from '../log'
 import { parsePaper, ParseError } from './run'
 import type { FromStage } from './run'
 import type { JobProgress } from '../types'
+import { checkSubjectAfterExtract, hasSubjectHint } from './subject-check'
 
 interface Job {
   paperId: string
@@ -57,6 +58,8 @@ export function parseQueueState(): ParseQueueState {
 /** 加入解析队列；调用方负责检查 AI 已配置、试卷状态合适 */
 export function enqueueParse(paperId: string, fromStage?: FromStage): void {
   if (isParseActive(paperId)) return
+  // 还在等用户确认学科的卷子不解析（先放到哪个学科要用户定）
+  if (hasSubjectHint(getDb(), paperId)) return
   waiting.push({ paperId, fromStage, ctl: new AbortController() })
   notifyDataChanged('queue')
   refreshPower()
@@ -137,6 +140,10 @@ onResume(() => { pump(); notifyDataChanged('queue') })
 
 /** 提取完成后的自动解析：已配置且打开了自动解析（或这份是用户要求「从头重试」的） */
 export function maybeAutoParse(paperId: string, force: boolean): void {
+  // 先按卷面判断学科：很有把握但和当前学科不同 → 记建议学科、不解析，等用户在试卷库里确认
+  try {
+    if (checkSubjectAfterExtract(getDb(), paperId).action === 'hint') { notifyDataChanged('papers'); return }
+  } catch (e) { console.warn(`[parse] 学科核对失败，按当前学科继续: ${(e as Error).message}`) }
   if (!isAiReady()) return
   if (!force && !loadConfig().auto_parse) return
   const row = getDb().prepare('SELECT status FROM papers WHERE id = ?').get(paperId) as { status: string } | undefined

@@ -23,6 +23,8 @@ export interface ContextDeps {
   sessionId: string
   dataDir: string
   signal?: AbortSignal
+  /** 会话学科：数据集 / 文档只给该学科 + 通用的 */
+  subject?: string
   /** 测试注入；缺省用主进程注册的默认仓库 */
   store?: unknown
   classifyAi: AgentToolContext['classifyAi']
@@ -38,6 +40,7 @@ export function createAnalysisContext(d: ContextDeps): AgentToolContext {
     sessionId: d.sessionId,
     dataDir: d.dataDir,
     signal: d.signal,
+    subject: d.subject,
     store: d.store,
     classifyAi: d.classifyAi,
     classifyPrompts: d.classifyPrompts,
@@ -86,7 +89,7 @@ const failure = (e: unknown): { ok: false; error: string } => ({ ok: false, erro
 function datasetTools(): AgentTool[] {
   return DATASET_TOOLS.map(t => ({
     name: t.name, description: t.description, params: t.params as z.ZodType<any>, level: 'read' as const,
-    run: (args, ctx) => t.run(args, { store: ctx.store, signal: ctx.signal })
+    run: (args, ctx) => t.run(args, { store: ctx.store, signal: ctx.signal, subject: ctx.subject })
   }))
 }
 

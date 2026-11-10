@@ -8,7 +8,7 @@ import { runtimeClassifyAi, runtimeClassifyPrompts } from './stats/classify-runt
 import { createAnalysisContext } from './tools-adapter'
 import { restoreDeep } from '../agent/names'
 
-export function createRuntimeToolContext(o: { sessionId: string; dataDir: string; signal?: AbortSignal; onProgress?: (done: number, total: number) => void }): AgentToolContext {
+export function createRuntimeToolContext(o: { sessionId: string; dataDir: string; signal?: AbortSignal; subject?: string; onProgress?: (done: number, total: number) => void }): AgentToolContext {
   return createAnalysisContext({
     ...o,
     classifyAi: runtimeClassifyAi,

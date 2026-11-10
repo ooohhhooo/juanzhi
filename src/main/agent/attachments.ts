@@ -18,7 +18,9 @@ import { scrubPII } from '../analysis/scrub'
 export type AttachKind = 'image' | 'pdf' | 'docx' | 'text'
 export interface AttachInfo { id: string; name: string; kind: AttachKind; chars: number; truncated: boolean }
 /** 主进程内部用：附件的原文件（拖入的文件路径，或粘贴截图另存的副本），助手导入试卷时用 */
-export interface AttachSource { name: string; kind: AttachKind; path: string }
+export interface AttachSource { name: string; kind: AttachKind; path: string
+  /** 读出的文字（截取前一部分），助手导入试卷时按它判断学科 */
+  text?: string }
 
 /** 一个附件最多带给 AI 的字数；一次提问所有附件合计的上限 */
 export const ATTACH_MAX_CHARS = 20_000
@@ -86,7 +88,7 @@ async function pdfText(file: string, dir: string): Promise<string> {
   return out.join('\n\n')
 }
 
-async function wordText(file: string): Promise<string> {
+export async function wordText(file: string): Promise<string> {
   const m: any = await import('mammoth')
   const mammoth = m.default ?? m
   try {
@@ -160,7 +162,7 @@ export function takeAttachments(ids: string[], sessionId?: string): { infos: Att
     const cut = a.info.truncated || body.length < a.text.length
     left -= body.length
     infos.push({ ...a.info, chars: body.length, truncated: cut })
-    if (sessionId && a.source) bySession.set(sessionId, [...sessionAttachSources(sessionId), { name: a.info.name, kind: a.info.kind, path: a.source }])
+    if (sessionId && a.source) bySession.set(sessionId, [...sessionAttachSources(sessionId), { name: a.info.name, kind: a.info.kind, path: a.source, text: a.text }])
     parts.push(`【附件：${a.info.name}（${KIND_LABEL[a.info.kind]}${a.info.kind === 'image' ? '，以下是识别出的文字' : ''}${cut ? '，内容太长，只附了前一部分' : ''}）】\n${body}\n【附件结束】`)
   }
   return { infos, block: parts.length ? `\n\n下面是我附上的文件内容：\n\n${parts.join('\n\n')}` : '' }

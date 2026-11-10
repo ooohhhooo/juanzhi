@@ -687,6 +687,14 @@ export const MIGRATIONS: Array<(db: any) => void> = [
       for (const [code, v] of Object.entries(sd.plain)) updPlain.run(v.plain, v.example_en, v.example_zh, v.hint_words, code)
     }
     if (revBefore !== undefined) db.prepare('UPDATE data_rev SET rev = ? WHERE id = 1').run(revBefore)
+  },
+  // v13 → v14：导入自动认学科。papers 加 subject_hint（提取后发现内容像别的学科、等用户确认的建议学科；空 = 没有待确认）。只加列
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    addCol('papers', 'subject_hint', 'TEXT')
   }
 ]
 

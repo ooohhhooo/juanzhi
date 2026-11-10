@@ -36,7 +36,7 @@ import { clipOrgContext, contextLimitFor, DEFAULT_CONTEXT_LIMIT, ORG_CONTEXT_MAX
 import { scrubPII } from '../analysis/scrub'
 import { mapLimit } from '../course/map-limit'
 import type { SubResult, SubTask } from './types'
-import { appendStep, listSessions, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
+import { appendStep, listSessions, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, sessionSubject, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
 import type { StepKind } from './store'
 import { createRegistry } from './tools'
 import { adaptAgentTools } from './tools/bridge'
@@ -88,7 +88,7 @@ export function initAgent(): void {
 export function buildRegistry(): { registry: ToolRegistry; dynamic: string[] } {
   const list = allTools()
   const adapted = adaptAgentTools(list, {
-    makeCtx: ctx => createRuntimeToolContext({ sessionId: ctx.sessionId, dataDir: ctx.dataDir || getDataDir(), signal: ctx.signal, onProgress: ctx.progress }),
+    makeCtx: ctx => createRuntimeToolContext({ sessionId: ctx.sessionId, dataDir: ctx.dataDir || getDataDir(), signal: ctx.signal, subject: sessionSubject(getDb(), ctx.sessionId), onProgress: ctx.progress }),
     restore: (sid, v) => restoreDeep(sid, v),
     noteArgs
   })

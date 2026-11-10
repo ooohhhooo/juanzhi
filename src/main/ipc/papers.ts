@@ -14,8 +14,20 @@ import { allowPath, isPathAllowed } from '../allowedPaths'
 import { walkFolder, FOLDER_MAX_FILES, FOLDER_MAX_SKIPPED } from '../pipeline/folder-walk'
 import type { SkippedFile } from '../pipeline/folder-walk'
 import { getMainWindow } from '../window'
+import { SUBJECT_IDS, asSubject } from '../../shared/subject'
+import type { SubjectId } from '../../shared/subject'
+import { changePaperSubject, resolvePaperSubject } from '../parse/subject-check'
+import { enqueueParse, maybeAutoParse } from '../parse/queue'
+import { isAiReady } from '../ai/config'
+import { planRoute, needsPeek, extOf } from '../pipeline/auto-route'
+import { peekText } from '../pipeline/peek-text'
+import { getStore, DatasetError } from '../analysis/datasets/index'
+import { AttachError } from '../agent/attachments'
+import { importDocumentFile } from './datasets'
+import type { ContentSubject } from '../../shared/classify'
 
 const UuidSchema = z.string().uuid()
+const SubjectSchema = z.enum(SUBJECT_IDS)
 const PathsSchema = z.array(z.string().min(1)).min(1).max(100)
 /** 展开路径：一次最多 100 个入口（文件或文件夹） */
 const ExpandSchema = z.array(z.string().min(1).max(4096)).min(1).max(100)
@@ -111,6 +123,83 @@ export function registerPaperIpc(): void {
 
   ipcMain.handle('papers:import', async (_event, rawPaths: unknown, rawOpts?: unknown) => {
     return registerImports(PathsSchema.parse(rawPaths), ImportOptionsSchema.parse(rawOpts))
+  })
+
+  /** 提醒里「放到X / 保持X」：设学科、清建议，然后照常进入解析（尊重「自动解析」设置） */
+  ipcMain.handle('papers:resolveSubject', async (_event, rawId: unknown, rawSubject: unknown) => {
+    const id = UuidSchema.parse(rawId)
+    const subject = SubjectSchema.parse(rawSubject)
+    resolvePaperSubject(getDb(), id, subject)
+    notifyDataChanged('papers')
+    maybeAutoParse(id, false)
+    return true
+  })
+
+  /** 改学科：删旧题目、按新学科重新识别。已审核的先返回 needConfirm；处理中的拒绝 */
+  ipcMain.handle('papers:setSubject', async (_event, rawId: unknown, rawSubject: unknown, rawOpts?: unknown) => {
+    const id = UuidSchema.parse(rawId)
+    const subject = SubjectSchema.parse(rawSubject)
+    const opts = z.object({ confirmLoseReview: z.boolean().optional() }).optional().parse(rawOpts)
+    const r = changePaperSubject(getDb(), id, subject, { confirmLoseReview: opts?.confirmLoseReview, busy: isQueued(id) || isParseActive(id) })
+    if (!r.ok) return { needConfirm: true as const, reviewed: r.reviewed }
+    notifyDataChanged('papers', 'questions', 'materials', 'stats')
+    if (r.reparse && isAiReady()) enqueueParse(id)
+    return { needConfirm: false as const, changed: r.changed, reparse: r.reparse && isAiReady() }
+  })
+
+  /**
+   * 统一导入入口（拖进窗口时用）：表格进数据；图片进试卷库；pdf / docx 看文字——像试卷进试卷库，不像进文档资料（按文字认学科）。
+   * 进试卷库的按 currentSubject 登记，提取完成后再按卷面核对学科（见 maybeAutoParse）。
+   * 重复的试卷返回 code='duplicate'，界面确认后调 papers:import（带 allowDuplicates 和 subject）重新导入。
+   */
+  ipcMain.handle('files:importAuto', async (e, rawPaths: unknown, rawSubject?: unknown) => {
+    const paths = PathsSchema.parse(rawPaths)
+    const current: SubjectId = asSubject(rawSubject)
+    const base = (p: string) => path.basename(p)
+    const out = {
+      papers: [] as Array<{ file: string; path: string; paperId?: string; subject: SubjectId; hinted?: SubjectId; error?: string; code?: string; duplicateOf?: { id: string; title: string; parseFailed?: boolean } }>,
+      datasets: [] as Array<{ file: string; id?: string; error?: string }>,
+      documents: [] as Array<{ file: string; id?: string; subject: ContentSubject; error?: string }>,
+      notes: [] as string[]
+    }
+    const paperPaths: string[] = []
+    const progress = (pr: unknown) => { if (!e.sender.isDestroyed()) e.sender.send('datasets:progress', pr) }
+    for (const p of paths) {
+      const file = base(p)
+      if (!isPathAllowed(p)) {
+        const msg = '文件未经授权：请通过“选择文件”或拖入窗口'
+        out.papers.push({ file, path: p, subject: current, error: msg })
+        continue
+      }
+      const plan = planRoute(p, needsPeek(p) ? await peekText(p) : null)
+      if (plan.note) out.notes.push(plan.note)
+      if (plan.route === 'paper') { paperPaths.push(p); continue }
+      if (plan.route === 'table') {
+        try {
+          const meta = await getStore().importFile(p, { onProgress: progress })
+          out.datasets.push({ file, id: meta.id })
+        } catch (err) {
+          out.datasets.push({ file, error: err instanceof DatasetError ? err.message : '导入失败：' + (err instanceof Error ? err.message : String(err)) })
+        }
+        continue
+      }
+      if (plan.route === 'document') {
+        try {
+          const d = await importDocumentFile(p, file, plan.subject)
+          out.documents.push({ file, id: d.id, subject: d.subject })
+        } catch (err) {
+          out.documents.push({ file, subject: plan.subject ?? 'general', error: err instanceof AttachError ? err.message : '读取失败：' + (err instanceof Error ? err.message : String(err)) })
+        }
+        continue
+      }
+      out.papers.push({ file, path: p, subject: current, error: `不支持的文件类型: ${extOf(p) || '(无扩展名)'}` })
+    }
+    if (paperPaths.length) {
+      const res = await registerImports(paperPaths, { subject: current })
+      for (const r of res) out.papers.push({ file: r.fileName, path: r.path, paperId: r.paperId, subject: current, error: r.error, code: r.code, duplicateOf: r.duplicateOf })
+    }
+    if (out.datasets.some(d => d.id) || out.documents.some(d => d.id)) notifyDataChanged('datasets')
+    return out
   })
 
   /**

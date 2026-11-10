@@ -42,7 +42,7 @@ async function phaseSetup() {
   const s = seed(ud, { bboxes: { C2Q1: ctx.bbox }, pageImage: pageImg, pageSize: ctx.pageSize })
   ctx.ids = s.ids; ctx.qids = s.qids
   await open(ud)
-  check('夹具', `直接往库里造了 ${SPEC.length} 份卷子（含待审核 / 失败 / 刚导入），迁移后库版本 = v13`, withDb(ctx.ud, d => d.prepare('SELECT COUNT(*) c FROM papers').get().c === SPEC.length && d.prepare('PRAGMA user_version').get().user_version === 13))
+  check('夹具', `直接往库里造了 ${SPEC.length} 份卷子（含待审核 / 失败 / 刚导入），迁移后库版本 = v14`, withDb(ctx.ud, d => d.prepare('SELECT COUNT(*) c FROM papers').get().c === SPEC.length && d.prepare('PRAGMA user_version').get().user_version === 14))
   withDb(ctx.ud, d => { ctx.tree = naive.makeTree(d.prepare('SELECT code, parent_code, level, name FROM kps').all()) })
 }
 
