@@ -1,0 +1,224 @@
+[
+  {
+    "feature": "示例数据",
+    "name": "加载示例数据：28 份（英语 12 + 数学 8 + 语文 8）",
+    "pass": true,
+    "detail": "{\"papers\":28,\"questions\":261,\"alreadyLoaded\":false}"
+  },
+  {
+    "feature": "示例数据",
+    "name": "库里三个学科的 subject 写对",
+    "pass": true,
+    "detail": "chinese:8,english:12,math:8"
+  },
+  {
+    "feature": "英语",
+    "name": "示例数据：12 份卷子，知识点是英语的",
+    "pass": true,
+    "detail": "12 RD.DETAIL,GR.TENSE.PAST,GR.ADJ.COMPARE,GR.NOUN.PLURAL,RD.INFER,VO.TOPIC,FN.SHOP,GR.TENSE.PRES,GR.VERB.FORM,PH.STRESS"
+  },
+  {
+    "feature": "英语",
+    "name": "看板里有英语的大类「语法」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "总览：筛选停在示例数据，只有 8 份数学示例卷",
+    "pass": true,
+    "detail": "8 份 80 题"
+  },
+  {
+    "feature": "数学",
+    "name": "总览：常考知识点全是 MA 开头",
+    "pass": true,
+    "detail": "MA.CALC.DEC,MA.CALC.MUL,MA.GEO.SHAPE,MA.PROB.MODEL,MA.CALC.FRAC,MA.CALC.MIX,MA.GEO.AREA,MA.NUM.DEC,MA.NUM.FRAC,MA.PROB.BASIC"
+  },
+  {
+    "feature": "数学",
+    "name": "总览：出现数学的大类，没有英语的「语音 / 语法」",
+    "pass": true,
+    "detail": "数的认识、运算、图形与几何"
+  },
+  {
+    "feature": "数学",
+    "name": "看板：知识点全是数学的，没有英语的「语音 / 语法」",
+    "pass": true,
+    "detail": "MA.CALC.DEC,MA.CALC.MUL,MA.GEO.SHAPE,MA.PROB.MODEL,MA.CALC.FRAC,MA.CALC.MIX"
+  },
+  {
+    "feature": "数学",
+    "name": "看板：有数学的大类",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "语文",
+    "name": "总览：筛选停在示例数据，只有 8 份语文示例卷",
+    "pass": true,
+    "detail": "8 份 79 题"
+  },
+  {
+    "feature": "语文",
+    "name": "总览：常考知识点全是 CN 开头",
+    "pass": true,
+    "detail": "CN.CHAR.WRITE,CN.READ.SKILL,CN.WORD.IDIOM,CN.CHAR.SOUND,CN.ACCU.POEM,CN.CHAR.FORM,CN.SENT.FORM,CN.CHAR.DICT,CN.SENT.FIX,CN.WORD.MEAN"
+  },
+  {
+    "feature": "语文",
+    "name": "总览：出现语文的大类，没有英语的「语音 / 语法」",
+    "pass": true,
+    "detail": "拼音识字、词语、古诗文积累"
+  },
+  {
+    "feature": "语文",
+    "name": "看板：知识点全是语文的，没有英语的「语音 / 语法」",
+    "pass": true,
+    "detail": "CN.CHAR.WRITE,CN.READ.SKILL,CN.WORD.IDIOM,CN.CHAR.SOUND,CN.ACCU.POEM,CN.CHAR.FORM"
+  },
+  {
+    "feature": "语文",
+    "name": "看板：有语文的大类",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "英语",
+    "name": "切回英语：总览数据和之前完全一样",
+    "pass": true,
+    "detail": "12/102/31"
+  },
+  {
+    "feature": "英语",
+    "name": "切回英语：看板数据和之前完全一样",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学导入",
+    "name": "导入处写着「导入到：数学」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学导入",
+    "name": "模拟 AI 解析完成，进入待审核",
+    "pass": true,
+    "detail": "reviewing "
+  },
+  {
+    "feature": "数学导入",
+    "name": "库里这份卷子 subject = math",
+    "pass": true,
+    "detail": "{\"id\":\"44f840aa-4fa2-4d8c-9e06-f9be18ddb767\",\"subject\":\"math\"}"
+  },
+  {
+    "feature": "数学导入",
+    "name": "题目有内容，知识点都是 MA. 开头，题型都是 MA_ 开头",
+    "pass": true,
+    "detail": "[{\"qtype\":\"MA_FILL\",\"kp_code\":\"MA.MEAS.UNIT.AREA\"},{\"qtype\":\"MA_ORAL\",\"kp_code\":\"MA.CALC.DEC.MUL\"},{\"qtype\":\"MA_ORAL\",\"kp_code\":\"MA.CALC.FRAC.ADDSUB_SAME\"}]"
+  },
+  {
+    "feature": "数学导入",
+    "name": "没有写成别的学科",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学审核",
+    "name": "题型下拉的分组是「计算 / 概念与基础 / 图形与操作 / 解决问题」",
+    "pass": true,
+    "detail": "计算｜概念与基础｜图形与操作｜解决问题"
+  },
+  {
+    "feature": "数学报告",
+    "name": "报告范围是数学的示例卷（8 份）",
+    "pass": true,
+    "detail": "共 8 份卷子、80 道题"
+  },
+  {
+    "feature": "数学报告",
+    "name": "模拟 AI 生成了一份报告，在数学下",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学报告",
+    "name": "接口：数学 1 份，英语、语文 0 份",
+    "pass": true,
+    "detail": "1/0/0"
+  },
+  {
+    "feature": "数学报告",
+    "name": "库里这份报告 subject = math",
+    "pass": true,
+    "detail": "math"
+  },
+  {
+    "feature": "数学报告",
+    "name": "报告页：数学下的历史里有 1 份",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学报告",
+    "name": "切到英语：报告历史里没有这份",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学报告",
+    "name": "切到语文：报告历史里也没有这份",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "助手",
+    "name": "接口：数学 1 个会话，英语、语文 0 个",
+    "pass": true,
+    "detail": "1/0/0"
+  },
+  {
+    "feature": "助手",
+    "name": "库里会话 subject = math",
+    "pass": true,
+    "detail": "math"
+  },
+  {
+    "feature": "助手",
+    "name": "数学下会话列表里有 1 个",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "助手",
+    "name": "切到英语：会话列表里没有数学的会话",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "助手",
+    "name": "切回数学：会话还在",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "示例数据",
+    "name": "清除示例数据：28 份一起清掉，导入的数学卷还在",
+    "pass": true,
+    "detail": "{\"papers\":28,\"reports\":1}"
+  },
+  {
+    "feature": "示例数据",
+    "name": "基于示例数据生成的数学报告也一起清掉",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "运行",
+    "name": "页面没有控制台错误",
+    "pass": true,
+    "detail": ""
+  }
+]

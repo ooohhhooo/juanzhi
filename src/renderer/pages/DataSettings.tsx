@@ -155,7 +155,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
       </Panel></div>}
 
       {part !== 'admin' && <div className="ewb-set-panel"><Panel title="示例数据" data-testid="data-sample">
-        <div data-testid="sample-status">{sample?.loaded ? `已加载：${sample.papers} 份合成示例卷、${sample.questions} 道题。` : '还没有加载。'}内置 12 份合成的小学英语试卷（四、五年级 × 3 个学年），带知识点标注，加载后看板里就有内容。</div>
+        <div data-testid="sample-status">{sample?.loaded ? `已加载：${sample.papers} 份合成示例卷、${sample.questions} 道题。` : '还没有加载。'}内置 28 份合成的小学试卷：英语 12 份、数学 8 份、语文 8 份，覆盖 3–6 年级、上下学期和期中期末，带知识点标注；加载后留在当前学科，看板里就有该学科的示例内容，切换学科即可看另外两科。</div>
         <p className="ewb-rep-note" style={{ margin: '4px 0 12px' }}>示例数据和你的真实数据分开统计、互不混淆：看板里要切到「示例数据」才看得到；导出数据包时也不会带上它。随时可以一键清除。</p>
         <Space>
           <Btn tone="secondary" data-testid="sample-load" loading={sampleBusy} disabled={sample?.loaded} onClick={loadSample}>加载示例数据</Btn>

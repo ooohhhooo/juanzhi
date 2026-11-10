@@ -26,7 +26,7 @@ export default function Onboarding() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const { set } = useStatsFilter()
-  const { subject, def, setSubject } = useSubject()
+  const { subject, def } = useSubject()
   const tbKey = defaultTextbookKey(subject)
   const [skippedAi, setSkippedAi] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -64,7 +64,7 @@ export default function Onboarding() {
     setLoading(true)
     try {
       const r = await window.api.data.loadSample()
-      if (subject !== 'english') setSubject('english')   // 内置的示例卷只有英语，切过去才看得到
+      // 英语、语文、数学都有示例卷：加载后留在当前学科，看板按当前学科显示它的示例数据
       qc.setQueryData(['data', 'sample'], { loaded: true, papers: r.papers, questions: r.questions })   // 先更新缓存，再切筛选：看板那边据此判断"还有没有示例数据"
       set({ sample: true })   // 看板切到示例数据，加载完立刻有内容；真实数据的统计不受影响
       qc.invalidateQueries({ queryKey: ['data'] }); qc.invalidateQueries({ queryKey: ['papers'] })
@@ -114,7 +114,7 @@ export default function Onboarding() {
       </ol>
       <div className="ewb-lib-guide__foot">
         <span>想先看看效果？</span>
-        <Btn tone="quiet" size="small" data-testid="onb-load-sample" loading={loading} onClick={loadSample}>{sample?.loaded ? '示例数据已加载，去看看' : '加载示例数据试一试（英语）'}</Btn>
+        <Btn tone="quiet" size="small" data-testid="onb-load-sample" loading={loading} onClick={loadSample}>{sample?.loaded ? '示例数据已加载，去看看' : '加载示例数据试一试'}</Btn>
         <span className="ewb-lib-sub">（内置的合成演示卷，不会混进你的真实数据，随时可在「设置 → 示例数据」一键清除）</span>
       </div>
     </section>

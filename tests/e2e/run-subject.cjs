@@ -1,4 +1,4 @@
-// 学科切换 E2E：侧栏顶部的学科切换。英语有示例卷 → 切到数学：试卷库为空、看板为空、导入处写着「导入到：数学」→ 切回英语数据还在 →
+// 学科切换 E2E：侧栏顶部的学科切换。加载示例数据（英语 12、数学 8、语文 8）→ 切到数学：试卷库只有 8 份数学卷、看板为空、导入处写着「导入到：数学」→ 切回英语数据还在 →
 // 切到语文后重启，仍然记得当前学科。用法：node tests/e2e/run-subject.cjs   （先 npm run build；沙箱外运行）
 // 注意：「看板为空」依赖主进程的统计按学科过滤（统计筛选的 subject）；主进程未合并时那条断言会失败。
 const M = require('./m4-lib.cjs')
@@ -16,7 +16,7 @@ async function main() {
   const ud = path.join(work, 'userSubject')
   await open(ud)
 
-  // 先放进示例卷（英语）
+  // 先放进示例卷（三个学科一起加载）
   await ctx.page.evaluate(() => window.api.data.loadSample())
   await ctx.page.reload()
   await T('dropzone').waitFor({ timeout: 30000 })
@@ -38,11 +38,12 @@ async function main() {
   await pick('math')
   check('数学', '当前学科存进设置 current_subject', (await subjectOf()) === 'math')
   check('数学', '导入处写着「导入到：数学」', /导入到：\s*数学/.test(await T('import-target').innerText()))
-  const emptyLib = await waitFor(async () => (await libCount()) === '', 8000)
-  check('数学', '试卷库是空的（没有英语的卷子）', !!emptyLib, await libCount())
+  // 示例数据三个学科都有：数学的试卷库只有 8 份数学示例卷，没有英语的 12 份
+  const mathLib = await waitFor(async () => /共 8 份/.test(await libCount()), 8000)
+  check('数学', '试卷库里只有 8 份数学示例卷（没有英语的卷子）', !!mathLib, await libCount())
   check('数学', '没配看图模型：试卷库给出数学卷的看图提示和 AI 设置链接', (await T('math-vision-hint').count()) === 1 && (await T('math-vision-link').count()) === 1)
   await goto('#/review'); await ctx.page.waitForTimeout(600)
-  check('数学', '审核页没有英语的待审核卷', (await T('review-empty').count()) > 0 || (await ctx.page.locator('[data-testid^=review-row-]').count()) === 0)
+  check('数学', '审核页没有待审核卷（示例卷都是已确认状态）', (await T('review-empty').count()) > 0 || (await ctx.page.locator('[data-testid^=review-row-]').count()) === 0)
   await goto('#/overview')
   const ovZero = await waitFor(async () => (await T('card-papers').count()) > 0 && (await T('card-papers').innerText()).trim() === '0', 10000)
   check('数学', '总览（看板）里没有英语的统计', !!ovZero)
@@ -62,6 +63,7 @@ async function main() {
   // 切到语文并重启
   await pick('chinese')
   check('语文', '导入处写着「导入到：语文」', /导入到：\s*语文/.test(await T('import-target').innerText()))
+  check('语文', '试卷库里只有 8 份语文示例卷', !!(await waitFor(async () => /共 8 份/.test(await libCount()), 8000)), await libCount())
   await ctx.page.waitForTimeout(500)
   await closeApp()
   await open(ud)
