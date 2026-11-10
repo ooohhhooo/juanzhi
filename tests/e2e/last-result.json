@@ -1,9 +1,9 @@
 [
   {
     "feature": "迁移",
-    "name": "旧库(user_version=0)启动后升级到最新版本 v13（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11、助手新增 v12、学科新增 v13）",
+    "name": "旧库(user_version=0)启动后升级到最新版本 v14（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11、助手新增 v12、学科新增 v13）",
     "pass": true,
-    "detail": "user_version=13"
+    "detail": "user_version=14"
   },
   {
     "feature": "迁移",
@@ -27,7 +27,7 @@
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wAbmsz/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-Nhhlwx/userData/workbench-data"
   },
   {
     "feature": "CSP",
@@ -97,15 +97,15 @@
   },
   {
     "feature": "导航拦截",
-    "name": "在详情页拖入文件：窗口仍在应用入口页，被当作导入处理并跳到试卷库",
+    "name": "在详情页拖入文件：窗口仍在应用入口页，被当作导入处理（原地提示，不跳页）",
     "pass": true,
-    "detail": "入口页未变 hash=#/"
+    "detail": "入口页未变 hash=#/paper/3baf250a-2b39-4c34-9612-665321277c71 toast=old-format.doc：不支持的文件类型: .doc"
   },
   {
     "feature": "导航拦截",
     "name": "页面脚本直接跳转到任意 file:// 被 will-navigate 拦截",
     "pass": true,
-    "detail": "file:///Volumes/Elements/Claude/english-exam-workbench/out/renderer/index.html#/"
+    "detail": "file:///Volumes/Elements/Claude/english-exam-workbench/out/renderer/index.html#/paper/3baf250a-2b39-4c34-9612-665321277c71"
   },
   {
     "feature": "协议安全",
@@ -147,7 +147,7 @@
     "feature": "重复导入",
     "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
     "pass": true,
-    "detail": "duplicate_of=1dc669d3"
+    "detail": "duplicate_of=3baf250a"
   },
   {
     "feature": "失败处理",
@@ -291,7 +291,7 @@
     "feature": "OCR 失败原因",
     "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
     "pass": true,
-    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wAbmsz/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-Nhhlwx/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
   },
   {
     "feature": "OCR 失败原因",
