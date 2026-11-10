@@ -2,7 +2,8 @@ interface CardTemplateInfo { id: string; name: string; scene: string; accent: st
 interface ElectronAPI {
   getPathForFile(file: File): string
   papers: {
-    import(paths: string[], opts?: { allowDuplicates?: string[] }): Promise<ImportResult[]>
+    /** subject：导入到哪个学科（不写 = 英语） */
+    import(paths: string[], opts?: { allowDuplicates?: string[]; subject?: import('../shared/subject').SubjectId }): Promise<ImportResult[]>
     expandPaths(paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }>
     assets(paperId: string): Promise<PaperAsset[]>
     reprocess(id: string): Promise<boolean>
@@ -79,7 +80,8 @@ interface ElectronAPI {
     exportTable(columns: Array<{ key: string; label: string; format?: 'text' | 'percent' | 'number' | 'score' }>, rows: Array<Record<string, string | number | null>>, sheetName?: string): Promise<{ saved: boolean; path?: string; bytes?: number }>
   }
   report: {
-    list(): Promise<ReportItem[]>
+    /** 只列这个学科的报告（不写 = 英语） */
+    list(subject?: import('../shared/subject').SubjectId): Promise<ReportItem[]>
     get(id: string): Promise<ReportDetail | null>
     preview(filter?: StatsFilter, reader?: ReportReader): Promise<ReportPreview>
     generate(filter: StatsFilter | undefined, requestId: string, reader?: ReportReader, options?: ReportOptions): Promise<AnalysisResult & { reportId?: string }>
@@ -143,7 +145,8 @@ interface ElectronAPI {
   }
   /** 课程对照（设置 → 课程大纲；看板「课程对照」页签） */
   course: {
-    list(): Promise<CourseOutlineCard[]>
+    /** 只列这个学科的课程体系（不写 = 英语） */
+    list(subject?: import('../shared/subject').SubjectId): Promise<CourseOutlineCard[]>
     get(id: string): Promise<CourseOutlineDetail | null>
     maps(id: string): Promise<CourseMapRow[]>
     search(outlineIds: string[], q: string): Promise<CourseLessonRow[]>
@@ -213,7 +216,8 @@ interface ElectronAPI {
     reopen(paperId: string): Promise<boolean>
   }
   taxonomy: {
-    tree(opts?: { includeDeprecated?: boolean }): Promise<{ kps: KpNode[]; qtypes: QtypeRow[] }>
+    /** subject：只取这个学科的知识点树和题型（不写 = 英语） */
+    tree(opts?: { includeDeprecated?: boolean; subject?: import('../shared/subject').SubjectId }): Promise<{ kps: KpNode[]; qtypes: QtypeRow[] }>
     save(ops: TaxonomyOpInput[]): Promise<{ ops: number; touched: string[] }>
     approveSuggestion(questionId: string, body: { parent_code: string | null; name: string }): Promise<string>
     rejectSuggestion(questionId: string): Promise<boolean>
@@ -449,7 +453,8 @@ interface ElectronAPI {
     playbookImport(kind: 'file' | 'folder'): Promise<{ picked: false } | { picked: true; ok: true; name: string; warnings: string[]; note?: string } | { picked: true; ok: false; error: string }>
     playbookExport(name: string): Promise<{ saved: boolean; path?: string }>
     playbookOpenDir(): Promise<string>
-    sessions(): Promise<AgentSessionView[]>
+    /** 只列这个学科的会话（不写 = 英语）；新会话的学科放在 run 的参数 subject 里 */
+    sessions(subject?: import('../shared/subject').SubjectId): Promise<AgentSessionView[]>
     session(id: string): Promise<{ session: AgentSessionView; steps: AgentStepRow[]; running: boolean } | null>
     cites(refs: Array<{ kind: string; id: string }>): Promise<AgentCite[]>
     queryRecord(sessionId: string, n: number): Promise<AgentQueryRecord | null>

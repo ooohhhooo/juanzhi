@@ -10,7 +10,7 @@ const api = {
     return p
   },
   papers: {
-    import: (paths: string[], opts?: { allowDuplicates?: string[] }): Promise<any[]> =>
+    import: (paths: string[], opts?: { allowDuplicates?: string[]; subject?: string }): Promise<any[]> =>
       ipcRenderer.invoke('papers:import', paths, opts),
     /** 把拖入 / 选择的路径展开：文件夹递归找出里面支持的试卷文件（跳过隐藏文件），返回要导入的文件和被跳过的 */
     expandPaths: (paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }> =>
@@ -104,7 +104,7 @@ const api = {
     exportTable: (columns: unknown[], rows: unknown[], sheetName?: string): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('analysisReport:exportTable', columns, rows, sheetName)
   },
   report: {
-    list: (): Promise<any[]> => ipcRenderer.invoke('report:list'),
+    list: (subject?: string): Promise<any[]> => ipcRenderer.invoke('report:list', subject),
     get: (id: string): Promise<any> => ipcRenderer.invoke('report:get', id),
     preview: (filter?: Record<string, unknown>, reader?: string): Promise<any> => ipcRenderer.invoke('report:preview', filter, reader),
     // 流式增量走 ai:chunk（只发给发起请求的窗口）；取消用 ai.cancel(requestId)。reader：boss / parent / teacher / full（默认 full）
@@ -167,7 +167,7 @@ const api = {
     playbookImport: (kind: 'file' | 'folder'): Promise<any> => ipcRenderer.invoke('agent:playbookImport', kind),
     playbookExport: (name: string): Promise<any> => ipcRenderer.invoke('agent:playbookExport', name),
     playbookOpenDir: (): Promise<string> => ipcRenderer.invoke('agent:playbookOpenDir'),
-    sessions: (): Promise<any[]> => ipcRenderer.invoke('agent:sessions'),
+    sessions: (subject?: string): Promise<any[]> => ipcRenderer.invoke('agent:sessions', subject),
     session: (id: string): Promise<any> => ipcRenderer.invoke('agent:session', id),
     cites: (refs: Array<{ kind: string; id: string }>): Promise<any[]> => ipcRenderer.invoke('agent:cites', refs),
     queryRecord: (sessionId: string, n: number): Promise<any> => ipcRenderer.invoke('agent:queryRecord', sessionId, n),
@@ -206,7 +206,7 @@ const api = {
   },
   /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
   course: {
-    list: (): Promise<any[]> => ipcRenderer.invoke('course:list'),
+    list: (subject?: string): Promise<any[]> => ipcRenderer.invoke('course:list', subject),
     get: (id: string): Promise<any> => ipcRenderer.invoke('course:get', id),
     maps: (id: string): Promise<any[]> => ipcRenderer.invoke('course:maps', id),
     search: (outlineIds: string[], q: string): Promise<any[]> => ipcRenderer.invoke('course:search', outlineIds, q),
@@ -267,7 +267,7 @@ const api = {
     reopen: (paperId: string): Promise<boolean> => ipcRenderer.invoke('questions:reopen', paperId),
   },
   taxonomy: {
-    tree: (opts?: { includeDeprecated?: boolean }): Promise<any> => (opts ? ipcRenderer.invoke('taxonomy:tree', opts) : ipcRenderer.invoke('taxonomy:tree')),
+    tree: (opts?: { includeDeprecated?: boolean; subject?: string }): Promise<any> => (opts ? ipcRenderer.invoke('taxonomy:tree', opts) : ipcRenderer.invoke('taxonomy:tree')),
     save: (ops: Array<Record<string, unknown>>): Promise<{ ops: number; touched: string[] }> => ipcRenderer.invoke('taxonomy:save', ops),
     approveSuggestion: (questionId: string, body: { parent_code: string | null; name: string }): Promise<string> =>
       ipcRenderer.invoke('taxonomy:approveSuggestion', questionId, body),
