@@ -18,6 +18,8 @@ import { buildProfile, profileLine, tableProfileText } from './profile.ts'
 import { Codebook, detectSensitive } from './sensitive.ts'
 import { QUERY_LIMITS, checkSql, runReadOnly } from './query.ts'
 import { scrubPII } from '../scrub.ts'
+import { asContentSubject, subjectColumnNote } from '../../../shared/classify.ts'
+import type { ContentSubject } from '../../../shared/classify.ts'
 
 export const IMPORT_LIMITS = { rows: 500_000, bytes: 200 * 1024 * 1024, cols: 200, sheets: 30 }   // 单测会临时调小
 const BATCH = 2000
@@ -51,7 +53,7 @@ export class DatasetStore {
     if (this.cache) return this.cache
     try {
       const raw = JSON.parse(fs.readFileSync(this.catalogFile(), 'utf8'))
-      this.cache = Array.isArray(raw?.datasets) ? raw.datasets : []
+      this.cache = Array.isArray(raw?.datasets) ? raw.datasets.map((d: DatasetMeta) => ({ ...d, subject: asContentSubject(d.subject) })) : []
     } catch { this.cache = [] }
     return this.cache!
   }
@@ -103,6 +105,8 @@ export class DatasetStore {
     this.save()
   }
   setNote(id: string, note: string): void { this.get(id).note = note.slice(0, 2000); this.save() }
+  /** 改学科（general = 通用） */
+  setSubject(id: string, subject: ContentSubject): void { this.get(id).subject = asContentSubject(subject); this.save() }
 
   setSensitive(id: string, table: string, column: string, sensitive: boolean, kind?: SensitiveKind): void {
     const c = this.columnOf(this.tableOf(this.get(id), table), column)
@@ -172,8 +176,11 @@ export class DatasetStore {
     }
     const meta: DatasetMeta = {
       id, name: (opts.name ?? fileName.replace(/\.[^.]+$/, '')).trim().slice(0, 60) || '数据集', sourceFile: fileName, importedAt: new Date().toISOString(),
-      note: '', sizeBytes: fs.statSync(finalFile).size, tables
+      note: '', sizeBytes: fs.statSync(finalFile).size, tables, subject: 'general'
     }
+    // 表里有「科目 / 学科」列：在说明里写清楚，让助手按列区分，不自动拆
+    const subjNote = subjectColumnNote(tables.flatMap(t => t.columns.map(c => c.label)))
+    if (subjNote) meta.note = subjNote
     this.load().push(meta)
     this.save()
     if (tr.warnings.length) for (const t of tables) t.notes.push(...tr.warnings.filter(w => w.includes(t.sheet)).slice(0, 2))

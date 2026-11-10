@@ -7,6 +7,10 @@ interface ElectronAPI {
     expandPaths(paths: string[]): Promise<{ files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }>
     assets(paperId: string): Promise<PaperAsset[]>
     reprocess(id: string): Promise<boolean>
+    /** 提醒里选了学科（放到X / 保持X）：设学科、清 subject_hint，然后照常解析（尊重「自动解析」设置） */
+    resolveSubject(id: string, subject: import('../shared/subject').SubjectId): Promise<boolean>
+    /** 改学科：删旧题目、按新学科重新识别。已审核的先返回 needConfirm，带 confirmLoseReview:true 再调一次才真改；处理中的会抛错 */
+    setSubject(id: string, subject: import('../shared/subject').SubjectId, opts?: { confirmLoseReview?: boolean }): Promise<{ needConfirm: true; reviewed: number } | { needConfirm: false; changed: boolean; reparse: boolean }>
     /** 疑似重复的卷子，老师选「确实是新卷，计入统计」 */
     acceptSimilar(id: string): Promise<boolean>
     /** 整库重新检查疑似重复卷（老卷也扫一遍） */
@@ -127,13 +131,19 @@ interface ElectronAPI {
     clearSample(): Promise<{ papers: number; reports: number }>
   }
   /** 数据集（数据页）：Excel / CSV 导入成本机的 SQLite，供分析 Agent 查询。类型定义见 src/main/analysis/types.ts */
+  files: {
+    /** 统一导入入口：表格进数据；图片进试卷库；pdf / docx 看文字，像试卷进试卷库、不像进文档资料（认学科）。试卷按 currentSubject 登记，提取后再核对学科（写 subject_hint） */
+    importAuto(paths: string[], currentSubject: import('../shared/subject').SubjectId): Promise<ImportAutoResult>
+  }
   datasets: {
     pick(): Promise<string[]>
     import(paths: string[]): Promise<Array<{ file: string; ok: boolean; id?: string; error?: string; kind?: 'dataset' | 'document' }>>
     list(): Promise<DatasetMetaView[]>
-    documents(): Promise<Array<{ id: string; name: string; kind: 'image' | 'pdf' | 'docx' | 'text'; chars: number; importedAt: string; note: string }>>
+    documents(): Promise<Array<{ id: string; name: string; kind: 'image' | 'pdf' | 'docx' | 'text'; chars: number; importedAt: string; note: string; subject: ContentSubject }>>
     documentText(id: string): Promise<string>
     removeDocument(id: string): Promise<boolean>
+    setDocumentSubject(id: string, subject: ContentSubject): Promise<boolean>
+    setDatasetSubject(id: string, subject: ContentSubject): Promise<boolean>
     sources(): Promise<{ papers: number; outlines: number; reports: number }>
     profile(id: string): Promise<DatasetMetaView>
     profileText(id: string, table?: string): Promise<string>
@@ -290,11 +300,23 @@ interface ElectronAPI {
   on(channel: string, callback: (...args: any[]) => void): () => void
 }
 
+/** 文档 / 数据集的学科：三个学科之一，或 general（通用） */
+type ContentSubject = import('../shared/subject').SubjectId | 'general'
+interface ImportAutoResult {
+  /** hinted 在登记时还不知道（提取完才判断学科）；界面以 papers.list 里的 subject_hint 为准。重复的 code='duplicate'，带 path/duplicateOf，可用 papers.import(allowDuplicates) 重导 */
+  papers: Array<{ file: string; path: string; paperId?: string; subject: import('../shared/subject').SubjectId; hinted?: import('../shared/subject').SubjectId; error?: string; code?: string; duplicateOf?: { id: string; title: string; parseFailed?: boolean } }>
+  datasets: Array<{ file: string; id?: string; error?: string }>
+  documents: Array<{ file: string; id?: string; subject: ContentSubject; error?: string }>
+  notes: string[]
+}
+
 interface Paper {
   id: string
   title: string
   /** 学科：english / chinese / math */
   subject?: string
+  /** 提取后发现内容像别的学科、等用户确认的建议学科；有值时先不解析 */
+  subject_hint?: string | null
   grade: string | null
   semester: string | null
   school_year_start: number | null
@@ -401,6 +423,8 @@ interface DatasetColumnView {
 }
 interface DatasetMetaView {
   id: string; name: string; sourceFile: string; importedAt: string; note: string; sizeBytes: number
+  /** 学科或 general（通用），缺省 general */
+  subject?: ContentSubject
   tables: Array<{ name: string; sheet: string; rows: number; notes: string[]; views: Array<{ column: string; view: string }>; columns: DatasetColumnView[] }>
 }
 

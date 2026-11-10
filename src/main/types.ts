@@ -47,6 +47,8 @@ export interface Paper {
   id: string
   title: string
   subject?: string
+  /** 提取后发现内容像别的学科、等用户确认的建议学科 */
+  subject_hint?: string | null
   grade: string | null
   semester: string | null
   school_year_start: number | null

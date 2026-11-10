@@ -15,6 +15,9 @@ import { imagesToPdf } from '../pipeline/images-to-pdf'
 import { sessionAttachSources } from './attachments'
 import type { AttachSource } from './attachments'
 import type { AgentTool } from './tool-types'
+import { SUBJECT_IDS } from '../../shared/subject'
+import type { SubjectId } from '../../shared/subject'
+import { foreignSubjectNotes, pickGroupSubject } from './paper-subject'
 
 const IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.heic', '.webp', '.bmp']
 const PAPER_EXT = ['.pdf', '.docx', ...IMAGE_EXT]
@@ -23,7 +26,8 @@ const isImage = (p: string) => IMAGE_EXT.includes(path.extname(p).toLowerCase())
 const Params = z.object({
   groups: z.array(z.object({
     files: z.array(z.string().max(160)).min(1).max(30).describe('这份卷子的附件文件名，按页码顺序'),
-    title: z.string().max(60).optional().describe('卷名（识别出来的，可选）')
+    title: z.string().max(60).optional().describe('卷名（识别出来的，可选）'),
+    subject: z.enum(SUBJECT_IDS).optional().describe('这份卷子的学科（english / chinese / math）。不写 = 软件按附件文字自动判断，拿不准按当前对话的学科；只有你很确定时才写')
   })).min(1).max(20).optional().describe('怎么分成几份卷子：每组是一份卷子，组里的图片按顺序合成一份（PDF / Word 文件各自单独一份，不要和图片放一组）。不写 = 所有图片合成一份'),
 })
 type Args = z.infer<typeof Params>
@@ -36,6 +40,7 @@ export const paperImport: AgentTool<Args> = {
     '把用户在这次对话里附上的试卷（截图、图片、PDF、Word）导入试卷库，导入后自动开始 AI 识别（拆题、标知识点），和用户自己拖进试卷库一样。只有用户明确要导入时才用。',
     '多张截图时先判断是一份还是几份卷子：看每张图识别出的文字——卷名 / 学校 / 年级是否相同、有没有「第 x 页 共 y 页」、题号是接着上一张（一、二 → 三、四）还是重新从「一」开始。',
     '把同一份卷子的图片按页码顺序放进同一组（groups），不同卷子分开。判断不了、或只有一张图却明显缺页时，先用 ask_user 把你的分组说给用户确认（例如「截图1–3 是《四年级期末卷》，截图4–5 是另一份，对吗？」），确认后再导入。',
+    '每组卷子软件会按内容判断学科，分别导入对应学科的试卷库；不是当前对话学科的，要告诉用户切换到那个学科去看。',
     '识别要几分钟，完成后老师要在「审核」页核对，审核通过的试卷才会计入统计和分析。'
   ].join(''),
   params: Params,
@@ -47,16 +52,16 @@ export const paperImport: AgentTool<Args> = {
     // 名字可能重复（用户贴了两次同名文件）：按出现顺序一个个用掉
     const left = [...all]
     const take = (name: string): AttachSource | undefined => { const i = left.findIndex(x => x.name === name); return i >= 0 ? left.splice(i, 1)[0] : undefined }
-    const groups: Array<{ items: AttachSource[]; title?: string }> = []
+    const groups: Array<{ items: AttachSource[]; title?: string; subject?: SubjectId }> = []
     const missing: string[] = []
     if (a.groups?.length) {
       for (const g of a.groups) {
         const items: AttachSource[] = []
         for (const n of g.files) { const x = take(n); if (x) items.push(x); else missing.push(n) }
         // PDF / Word 不能和图片合并：各自单独一份
-        for (const d of items.filter(x => !isImage(x.path))) groups.push({ items: [d] })
+        for (const d of items.filter(x => !isImage(x.path))) groups.push({ items: [d], subject: g.subject })
         const imgs = items.filter(x => isImage(x.path))
-        if (imgs.length) groups.push({ items: imgs, title: g.title })
+        if (imgs.length) groups.push({ items: imgs, title: g.title, subject: g.subject })
       }
     } else {
       for (const d of all.filter(x => !isImage(x.path))) groups.push({ items: [d] })
@@ -67,19 +72,29 @@ export const paperImport: AgentTool<Args> = {
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-paper-'))
     const paths: string[] = []
+    const session = sessionSubject(getDb(), ctx.sessionId)
+    const subjectOfPath = new Map<string, SubjectId>()
     let merged = 0
     for (const [i, g] of groups.entries()) {
       const one = g.items[0]
-      if (g.items.length === 1 && !isImage(one.path)) { paths.push(one.path); continue }
-      if (g.items.length === 1 && ['.jpg', '.jpeg', '.png', '.heic'].includes(path.extname(one.path).toLowerCase()) && !g.title) { paths.push(one.path); continue }
+      const gs = pickGroupSubject(g.items.map(x => x.text ?? ''), g.title ?? one.name.replace(/\.[^.]+$/, ''), g.subject, session).subject
+      const add = (p: string) => { paths.push(p); subjectOfPath.set(p, gs) }
+      if (g.items.length === 1 && !isImage(one.path)) { add(one.path); continue }
+      if (g.items.length === 1 && ['.jpg', '.jpeg', '.png', '.heic'].includes(path.extname(one.path).toLowerCase()) && !g.title) { add(one.path); continue }
       const safe = (g.title ?? '').replace(/[\\/:*?"<>|]/g, '').trim()
       const out = path.join(dir, `${safe || `对话里的试卷${groups.length > 1 ? i + 1 : ''}`}（${g.items.length} 页）.pdf`)
       await imagesToPdf(g.items.map(x => x.path), out)
-      paths.push(out)
+      add(out)
       if (g.items.length > 1) merged++
     }
     paths.forEach(allowPath)
-    const res = await registerImports(paths, { parseAfter: true, subject: sessionSubject(getDb(), ctx.sessionId) })
+    // 按学科分批登记：每批用各自的学科
+    const res: Awaited<ReturnType<typeof registerImports>> = []
+    const subjectOfResult = new Map<string, SubjectId>()
+    for (const sub of new Set(subjectOfPath.values())) {
+      const batch = paths.filter(p => subjectOfPath.get(p) === sub)
+      for (const r of await registerImports(batch, { parseAfter: true, subject: sub })) { res.push(r); subjectOfResult.set(r.path, sub) }
+    }
     const ok = res.filter(r => r.paperId)
     const dup = res.filter(r => r.code === 'duplicate')
     const bad = res.filter(r => r.error && r.code !== 'duplicate')
@@ -88,6 +103,7 @@ export const paperImport: AgentTool<Args> = {
       ...dup.map(r => `「${r.fileName}」和已有试卷内容相同，没有重复导入（${r.error}）。`),
       ...bad.map(r => `「${r.fileName}」没能导入：${r.error}`),
       ...(missing.length ? [`这些附件名没找到，跳过了：${missing.join('、')}`] : []),
+      ...foreignSubjectNotes(ok.map(r => ({ fileName: r.fileName, subject: subjectOfResult.get(r.path) ?? session })), session),
       ...(left.length && a.groups?.length ? [`这些附件没有放进任何一组，没有导入：${left.map(x => x.name).join('、')}`] : [])
     ]
     return { ok: ok.length > 0 || dup.length > 0, message: lines.join('\n'), data: { paperIds: ok.map(r => r.paperId) } }

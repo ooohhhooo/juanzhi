@@ -86,6 +86,8 @@ export interface DatasetMeta {
   note: string
   sizeBytes: number
   tables: TableInfo[]
+  /** 学科：三个学科之一或 general（通用）；缺省 = 通用 */
+  subject?: 'english' | 'chinese' | 'math' | 'general'
 }
 
 /** 导入进度事件 */
@@ -122,6 +124,8 @@ export interface QueryResult {
 export interface ToolContext {
   store?: unknown
   signal?: AbortSignal
+  /** 会话学科：只给「该学科 + 通用」的数据集和文档；不写 = 不过滤 */
+  subject?: string
 }
 
 /** Agent 内核注册用的工具形状（level 'read' = 只读，不改任何数据） */

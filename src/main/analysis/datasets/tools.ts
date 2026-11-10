@@ -7,6 +7,7 @@ import type { ToolContext, ToolDef } from '../types.ts'
 import { storeOf } from './index.ts'
 import { DatasetError } from './store.ts'
 import { documentsForModel, readDocument } from '../documents.ts'
+import { visibleInSubject } from '../../../shared/classify.ts'
 
 const plain = (e: unknown) => (e instanceof DatasetError ? e.message : e instanceof Error ? e.message : String(e))
 
@@ -24,11 +25,12 @@ export const listDatasets: ToolDef<Record<string, never>> = {
   async run(_args, ctx) {
     const s = storeOf(ctx)
     return {
-      datasets: s.list().map(d => ({
-        id: d.id, name: mask(ctx, d.id, d.name), sourceFile: mask(ctx, d.id, d.sourceFile), importedAt: d.importedAt, note: mask(ctx, d.id, d.note),
+      // 只给「会话学科 + 通用」的数据集和文档；表里若有「科目 / 学科」列，由助手按列区分
+      datasets: s.list().filter(d => visibleInSubject(d.subject, ctx?.subject)).map(d => ({
+        id: d.id, subject: d.subject ?? 'general', name: mask(ctx, d.id, d.name), sourceFile: mask(ctx, d.id, d.sourceFile), importedAt: d.importedAt, note: mask(ctx, d.id, d.note),
         tables: d.tables.map(t => ({ name: mask(ctx, d.id, t.name), sheet: mask(ctx, d.id, t.sheet), rows: t.rows, columns: t.columns.length, multiSelectViews: t.views.map(v => mask(ctx, d.id, v.view)) }))
       })),
-      documents: documentsForModel(ctx as { documents?: unknown })
+      documents: documentsForModel(ctx as { documents?: unknown; subject?: string })
     }
   }
 }

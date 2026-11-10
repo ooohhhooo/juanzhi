@@ -24,6 +24,8 @@ export interface AgentToolContext {
   /** 数据目录（看板草稿、用户剧本都放在这下面） */
   dataDir: string
   signal?: AbortSignal
+  /** 会话学科：数据集 / 文档只给该学科 + 通用的；不写 = 不过滤 */
+  subject?: string
   /** 测试注入：数据集仓库；缺省用主进程注册的默认仓库 */
   store?: unknown
   /** 给统计 / 归类取明细行：行数上限比 run_query 的 500 行高得多，结果已代号化 */

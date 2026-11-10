@@ -32,10 +32,10 @@ const en = await import('../../src/main/seed/taxonomy.ts')
   assert.ok(Object.keys(cn.CN_KP_PLAIN).length === cn.CN_KP_SEEDS_V1.length && Object.values(cn.CN_KP_PLAIN).every(v => v.plain), '语文每个节点都有白话')
 }
 
-// ───── 新装：直接建到 v13 ─────
+// ───── 新装：直接建到 v14 ─────
 {
   const { db, version } = newDb()
-  assert.equal(version, 13)
+  assert.equal(version, 14)
   const c = (sql, ...a) => db.prepare(sql).get(...a).c
   assert.equal(c("SELECT COUNT(*) c FROM kps WHERE subject = 'math'"), ma.MA_KP_SEEDS_V1.length)
   assert.equal(c("SELECT COUNT(*) c FROM kps WHERE subject = 'chinese'"), cn.CN_KP_SEEDS_V1.length)

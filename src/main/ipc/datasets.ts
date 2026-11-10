@@ -8,9 +8,21 @@ import { log } from '../log'
 import { DatasetError, getStore, setDataDirProvider } from '../analysis/datasets/index'
 import { getDocumentStore, setDocumentsDirProvider } from '../analysis/documents'
 import { ATTACH_EXTENSIONS, AttachError, attachKindOf, extractText } from '../agent/attachments'
+import { CONTENT_SUBJECTS, detectDocSubject } from '../../shared/classify'
+import type { ContentSubject } from '../../shared/classify'
 
 const IdSchema = z.string().uuid()
 const NameSchema = z.string().min(1).max(200)
+const ContentSubjectSchema = z.enum(CONTENT_SUBJECTS as unknown as [ContentSubject, ...ContentSubject[]])
+
+/** 读出一个文件的文字存成文档资料，并按文字认学科（判断不出 = 通用）。数据页导入和「导入自动分流」共用 */
+export async function importDocumentFile(p: string, file: string, subject?: ContentSubject): Promise<{ id: string; subject: ContentSubject; kind: string; chars: number }> {
+  const { kind, text } = await extractText(p)
+  const sub = subject ?? detectDocSubject(text, file.replace(/\.[^.]+$/, ''))
+  const d = getDocumentStore().add(file, kind, text, sub)
+  log.info('datasets', '导入文档资料', { kind, chars: d.chars, subject: sub })
+  return { id: d.id, subject: sub, kind, chars: d.chars }
+}
 
 /** 数据集：导入 / 列表 / 概况 / 预览 / 删除 / 敏感列 / 改名 / 备注。数据只存本机的 <数据目录>/datasets/。 */
 export function registerDatasetsIpc(): void {
@@ -38,9 +50,7 @@ export function registerDatasetsIpc(): void {
       if (attachKindOf(p) && !/\.txt$/i.test(p)) {
         try {
           if (!e.sender.isDestroyed()) e.sender.send('datasets:progress', { fileName: file, phase: 'read', message: '正在读取文字…', done: 0, total: 1 })
-          const { kind, text } = await extractText(p)
-          const d = getDocumentStore().add(file, kind, text)
-          log.info('datasets', '导入文档资料', { kind, chars: d.chars })
+          const d = await importDocumentFile(p, file)
           results.push({ file, ok: true, id: d.id, kind: 'document' })
         } catch (err) { results.push({ file, ok: false, error: err instanceof AttachError ? err.message : '读取失败：' + (err instanceof Error ? err.message : String(err)) }) }
         continue
@@ -61,6 +71,12 @@ export function registerDatasetsIpc(): void {
   // 文档资料：列表 / 读文字（界面预览）/ 删除；卷知里其他数据的数量（数据页顶部的说明）
   ipcMain.handle('datasets:documents', async () => getDocumentStore().list())
   ipcMain.handle('datasets:documentText', async (_e, id: unknown) => getDocumentStore().text(z.string().max(80).parse(id)).slice(0, 200_000))
+  ipcMain.handle('datasets:setDocumentSubject', async (_e, id: unknown, subject: unknown) => {
+    try { getDocumentStore().setSubject(z.string().max(80).parse(id), ContentSubjectSchema.parse(subject)); notifyDataChanged('datasets'); return true } catch (err) { return fail(err) }
+  })
+  ipcMain.handle('datasets:setDatasetSubject', async (_e, id: unknown, subject: unknown) => {
+    try { getStore().setSubject(IdSchema.parse(id), ContentSubjectSchema.parse(subject)); notifyDataChanged('datasets'); return true } catch (err) { return fail(err) }
+  })
   ipcMain.handle('datasets:removeDocument', async (_e, id: unknown) => { const ok = getDocumentStore().remove(z.string().max(80).parse(id)); if (ok) notifyDataChanged('datasets'); return ok })
   ipcMain.handle('datasets:sources', async () => {
     const db = getDb()

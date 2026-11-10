@@ -19,6 +19,12 @@ const api = {
       ipcRenderer.invoke('papers:assets', paperId),
     reprocess: (id: string): Promise<boolean> =>
       ipcRenderer.invoke('papers:reprocess', id),
+    /** 提醒里选了学科（放到X / 保持X）：设学科、清建议，然后照常解析 */
+    resolveSubject: (id: string, subject: string): Promise<boolean> =>
+      ipcRenderer.invoke('papers:resolveSubject', id, subject),
+    /** 改学科：删旧题目、按新学科重新识别；已审核的先返回 { needConfirm: true, reviewed }，带 confirmLoseReview 再调一次才真改 */
+    setSubject: (id: string, subject: string, opts?: { confirmLoseReview?: boolean }): Promise<{ needConfirm: true; reviewed: number } | { needConfirm: false; changed: boolean; reparse: boolean }> =>
+      ipcRenderer.invoke('papers:setSubject', id, subject, opts),
     acceptSimilar: (id: string): Promise<boolean> =>
       ipcRenderer.invoke('papers:acceptSimilar', id),
     /** 「检查重复试卷」：后台扫描，结束时才 resolve（按钮据此显示「检查中」）；进度见事件 `similar:progress`（{ running, done, total, suspects? }） */
@@ -183,6 +189,10 @@ const api = {
     answer: (sessionId: string, askId: string, answer: string): Promise<boolean> => ipcRenderer.invoke('agent:answer', sessionId, askId, answer),
     approve: (sessionId: string, id: string, ok: boolean): Promise<boolean> => ipcRenderer.invoke('agent:approve', sessionId, id, ok),
   },
+  files: {
+    /** 统一导入入口：表格进数据，图片进试卷库，pdf / docx 按内容分流；路径必须来自对话框或 getPathForFile */
+    importAuto: (paths: string[], currentSubject: string): Promise<any> => ipcRenderer.invoke('files:importAuto', paths, currentSubject)
+  },
   datasets: {
     /** 弹对话框选 Excel / CSV，返回路径（已登记） */
     pick: (): Promise<string[]> => ipcRenderer.invoke('datasets:pick'),
@@ -193,6 +203,8 @@ const api = {
     documents: (): Promise<any[]> => ipcRenderer.invoke('datasets:documents'),
     documentText: (id: string): Promise<string> => ipcRenderer.invoke('datasets:documentText', id),
     removeDocument: (id: string): Promise<boolean> => ipcRenderer.invoke('datasets:removeDocument', id),
+    setDocumentSubject: (id: string, subject: string): Promise<boolean> => ipcRenderer.invoke('datasets:setDocumentSubject', id, subject),
+    setDatasetSubject: (id: string, subject: string): Promise<boolean> => ipcRenderer.invoke('datasets:setDatasetSubject', id, subject),
     /** 卷知里其他数据的数量：试卷、课程大纲、报告 */
     sources: (): Promise<{ papers: number; outlines: number; reports: number }> => ipcRenderer.invoke('datasets:sources'),
     profile: (id: string): Promise<any> => ipcRenderer.invoke('datasets:profile', id),

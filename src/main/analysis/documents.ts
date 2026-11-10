@@ -9,9 +9,13 @@ import path from 'node:path'
 import { z } from 'zod'
 import { scrubPII } from './scrub.ts'
 import type { ToolDef } from './types.ts'
+import { asContentSubject, visibleInSubject } from '../../shared/classify.ts'
+import type { ContentSubject } from '../../shared/classify.ts'
 
 export type DocKind = 'image' | 'pdf' | 'docx' | 'text'
-export interface DocEntry { id: string; name: string; kind: DocKind; chars: number; importedAt: string; note: string }
+export interface DocEntry { id: string; name: string; kind: DocKind; chars: number; importedAt: string; note: string
+  /** 学科：三个学科之一或 general（通用）；旧条目没有这个字段，读出来都当通用 */
+  subject: ContentSubject }
 
 /** 一份文档最多存多少字；read_document 一次最多返回多少字 */
 export const DOC_MAX_CHARS = 500_000
@@ -23,7 +27,7 @@ export class DocumentStore {
   private catalogFile() { return path.join(this.dir, 'catalog.json') }
   private textFile(id: string) { return path.join(this.dir, `${id}.txt`) }
   list(): DocEntry[] {
-    try { const j = JSON.parse(fs.readFileSync(this.catalogFile(), 'utf8')); return Array.isArray(j.items) ? j.items : [] } catch { return [] }
+    try { const j = JSON.parse(fs.readFileSync(this.catalogFile(), 'utf8')); return Array.isArray(j.items) ? j.items.map((d: DocEntry) => ({ ...d, subject: asContentSubject(d.subject) })) : [] } catch { return [] }
   }
   private save(items: DocEntry[]): void {
     fs.mkdirSync(this.dir, { recursive: true })
@@ -31,9 +35,9 @@ export class DocumentStore {
     fs.writeFileSync(tmp, JSON.stringify({ version: 1, items }, null, 2))
     fs.renameSync(tmp, this.catalogFile())
   }
-  add(name: string, kind: DocKind, text: string): DocEntry {
+  add(name: string, kind: DocKind, text: string, subject: ContentSubject = 'general'): DocEntry {
     const body = text.slice(0, DOC_MAX_CHARS)
-    const e: DocEntry = { id: 'doc-' + crypto.randomUUID().slice(0, 12), name: name.slice(0, 160), kind, chars: body.length, importedAt: new Date().toISOString(), note: text.length > DOC_MAX_CHARS ? `文字太长，只保存了前 ${DOC_MAX_CHARS / 10000} 万字` : '' }
+    const e: DocEntry = { id: 'doc-' + crypto.randomUUID().slice(0, 12), name: name.slice(0, 160), kind, chars: body.length, importedAt: new Date().toISOString(), subject: asContentSubject(subject), note: text.length > DOC_MAX_CHARS ? `文字太长，只保存了前 ${DOC_MAX_CHARS / 10000} 万字` : '' }
     fs.mkdirSync(this.dir, { recursive: true })
     fs.writeFileSync(this.textFile(e.id), body)
     this.save([...this.list(), e])
@@ -50,6 +54,12 @@ export class DocumentStore {
     this.save(items.filter(d => d.id !== id))
     fs.rmSync(this.textFile(id), { force: true })
     return true
+  }
+  /** 改学科（general = 通用） */
+  setSubject(id: string, subject: ContentSubject): void {
+    if (!this.get(id)) throw new Error('找不到这份文档')
+    const sub = asContentSubject(subject)
+    this.save(this.list().map(d => (d.id === id ? { ...d, subject: sub } : d)))
   }
   rename(id: string, name: string): void {
     const n = name.trim().slice(0, 160)
@@ -70,8 +80,8 @@ export function getDocumentStore(): DocumentStore {
 const storeOf = (ctx?: { documents?: unknown }): DocumentStore => (ctx?.documents as DocumentStore | undefined) ?? getDocumentStore()
 
 /** list_datasets 里附带的文档清单（名称过一遍去个人信息） */
-export function documentsForModel(ctx?: { documents?: unknown }): Array<{ id: string; name: string; kind: DocKind; chars: number; importedAt: string }> {
-  try { return storeOf(ctx).list().map(d => ({ id: d.id, name: scrubPII(d.name), kind: d.kind, chars: d.chars, importedAt: d.importedAt })) } catch { return [] }
+export function documentsForModel(ctx?: { documents?: unknown; subject?: string }): Array<{ id: string; name: string; kind: DocKind; chars: number; importedAt: string; subject: ContentSubject }> {
+  try { return storeOf(ctx).list().filter(d => visibleInSubject(d.subject, ctx?.subject)).map(d => ({ id: d.id, name: scrubPII(d.name), kind: d.kind, chars: d.chars, importedAt: d.importedAt, subject: d.subject })) } catch { return [] }
 }
 
 const KIND_LABEL: Record<DocKind, string> = { image: '图片（识别出的文字）', pdf: 'PDF', docx: 'Word', text: '文本' }
@@ -85,7 +95,8 @@ export const readDocument: ToolDef<{ documentId: string; from?: number; maxChars
     try {
       const s = storeOf(ctx as { documents?: unknown })
       const d = s.get(args.documentId)
-      if (!d) return { error: '找不到这份文档，请先用 list_datasets 看有哪些' }
+      // 别的学科专属的文档，这个对话看不到
+      if (!d || !visibleInSubject(d.subject, (ctx as { subject?: string } | undefined)?.subject)) return { error: '找不到这份文档，请先用 list_datasets 看有哪些' }
       const all = s.text(d.id)
       const from = Math.min(args.from ?? 0, all.length)
       const end = Math.min(all.length, from + (args.maxChars ?? DOC_READ_MAX))

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getDb } from '../db'
 import { isAiReady } from '../ai/config'
 import { loadConfig } from '../ai/config'
+import { hasSubjectHint } from '../parse/subject-check'
 import { enqueueParse, cancelParse, parseQueueState, isParseActive, throttleState } from '../parse/queue'
 import { isPowerBlocking } from '../power'
 import { reprocessPaper, extractQueueState } from '../pipeline/queue'
@@ -25,6 +26,7 @@ function startOne(id: string, stage: z.infer<typeof StageSchema>, batch = false)
   if (stage === 'ai' && !isAiReady()) throw new Error('尚未配置 AI 服务：请先到「设置 → AI 服务」填写 Base URL、模型和 API Key')
 
   if (stage === 'extract') { reprocessPaper(id, true); return }
+  if (hasSubjectHint(db, id)) throw new Error('请先确认学科')
   const pageCount = (db.prepare('SELECT COUNT(*) c FROM pages WHERE paper_id = ?').get(id) as { c: number }).c
   if (pageCount === 0) throw new Error(batch ? '这份还没提取出页面，请单独打开它重试' : '这份试卷还没有提取出页面，请选择「从头重试（重新提取）」')
   enqueueParse(id, stage === 'locate' ? 'locate' : undefined)
