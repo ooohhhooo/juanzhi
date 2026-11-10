@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { POOL, SAMPLE_PAPERS, sampleTitle, sampleUuid } from './data.ts'
 import type { SamplePaper } from './data.ts'
+import { SUBJECTS } from '../../shared/subject.ts'
 
 export interface RenderedSamplePage { png: Buffer; width: number; height: number; text: string }
 export interface RenderedSamplePaper {
@@ -33,7 +34,7 @@ export function sampleStatus(db: any): { loaded: boolean; papers: number; questi
 function renderInput(p: SamplePaper): SampleRenderInput {
   return {
     key: p.key, title: sampleTitle(p),
-    header: `${p.year}-${p.year + 1}学年  ${p.grade}年级英语  ${p.exam}  满分 ${p.qs.reduce((n, id) => n + POOL[id].score, 0)} 分    （合成的示例卷）`,
+    header: `${p.year}-${p.year + 1}学年  ${p.grade}年级${SUBJECTS[p.subject].name}  ${p.exam}  满分 ${p.qs.reduce((n, id) => n + POOL[id].score, 0)} 分    （合成的示例卷）`,
     questions: p.qs.map((id, i) => {
       const x = POOL[id]
       return { no: String(i + 1), lines: [x.stem, ...(x.options?.length ? [x.options.join('     ')] : [])] }
@@ -57,12 +58,13 @@ export async function loadSample(db: any, filesDir: string, render: SampleRender
       rendered[pi].pages.forEach((pg, k) => fs.writeFileSync(path.join(dir, `page-${k + 1}.png`), pg.png))
     })
     const insP = db.prepare(`INSERT INTO papers (id, title, grade, semester, school_year_start, exam_type, textbook, region, school, total_score, file_name, file_hash, status, page_count, ai_model, extracted_at, parsed_at, is_sample, created_at, subject)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, '示例学校', ?, ?, ?, 'done', ?, '示例数据', ?, ?, 1, ?, 'english')`)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, '示例学校', ?, ?, ?, 'done', ?, '示例数据', ?, ?, 1, ?, ?)`)
     const insQ = db.prepare(`INSERT INTO questions (id, paper_id, ord, no_label, no, section, section_title, qtype, stem, options, answer, score, difficulty, error_prone, error_reason, page_idx, bbox_json, bbox_source, confidence, reviewed, flags_json)
-      VALUES (?, ?, ?, ?, ?, '一', '示例题', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 1, 1, '[]')`)
+      VALUES (?, ?, ?, ?, ?, '一', '示例题', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 1, 1, ?)`)
     const insK = db.prepare('INSERT INTO question_kps (question_id, kp_code, is_primary) VALUES (?, ?, ?)')
     const insPg = db.prepare(`INSERT INTO pages (paper_id, idx, image_rel, width, height, text_source, lines_json, text) VALUES (?, ?, ?, ?, ?, 'pdf-text', '[]', ?)`)
-    const known = new Set((db.prepare("SELECT code FROM kps WHERE subject = 'english'").all() as any[]).map(r => r.code))
+    // 三个学科的知识点代码全局唯一，一次取全；每道题再核对它的代码确实属于本卷的学科
+    const known = new Map<string, string>((db.prepare('SELECT code, subject FROM kps').all() as any[]).map(r => [r.code as string, r.subject as string]))
     let nq = 0
     db.exec('BEGIN')
     try {
@@ -72,14 +74,14 @@ export async function loadSample(db: any, filesDir: string, render: SampleRender
         const created = new Date(now.getTime() - (SAMPLE_PAPERS.length - pi) * 1000)
         const ts = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')} ${String(created.getHours()).padStart(2, '0')}:${String(created.getMinutes()).padStart(2, '0')}:${String(created.getSeconds()).padStart(2, '0')}`
         const total = p.qs.reduce((n, qid) => n + POOL[qid].score, 0)
-        insP.run(id, sampleTitle(p), p.grade, p.semester, p.year, p.exam, p.textbook, p.region, total, `示例-${p.key}.pdf`, `sample-${p.key}`, r.pages.length, ts, ts, ts)
+        insP.run(id, sampleTitle(p), p.grade, p.semester, p.year, p.exam, p.textbook, p.region, total, `示例-${p.key}.pdf`, `sample-${p.key}`, r.pages.length, ts, ts, ts, p.subject)
         r.pages.forEach((pg, k) => insPg.run(id, k + 1, `page-${k + 1}.png`, pg.width, pg.height, pg.text))
         p.qs.forEach((qid, i) => {
           const x = POOL[qid]
           const box = r.boxes[i]
           const qId = sampleQuestionId(p.key, i)
-          insQ.run(qId, id, i + 1, String(i + 1), i + 1, x.qtype, x.stem, JSON.stringify(x.options ?? []), x.answer ?? '', x.score, x.diff, x.err ? 1 : 0, x.err ?? '', box?.page ?? 1, box ? JSON.stringify(box.bbox) : null)
-          if (!known.has(x.kp)) throw new Error(`示例题用了树里不存在的知识点：${x.kp}`)
+          insQ.run(qId, id, i + 1, String(i + 1), i + 1, x.qtype, x.stem, JSON.stringify(x.options ?? []), x.answer ?? '', x.score, x.diff, x.err ? 1 : 0, x.err ?? '', box?.page ?? 1, box ? JSON.stringify(box.bbox) : null, JSON.stringify(x.flags ?? []))
+          if (known.get(x.kp) !== p.subject) throw new Error(`示例题用了树里不存在的知识点：${x.kp}`)
           insK.run(qId, x.kp, 1)
           for (const s of x.sec ?? []) insK.run(qId, s, 0)
           nq++

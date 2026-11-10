@@ -69,13 +69,13 @@ export function StatsFilterProvider({ children }: { children: React.ReactNode })
     return () => { alive = false }
   }, [])
 
-  // 切换学科：教材、地区、选中的试卷只对原来的学科有效，一并清掉；示例数据只有英语，离开英语就切回真实数据
+  // 切换学科：教材、地区、选中的试卷只对原来的学科有效，一并清掉；示例数据三个学科都有，「示例 / 真实」的选择跟着带过去（选中的试卷除外）
   const prevSubject = useRef(subject)
   useEffect(() => {
     if (prevSubject.current === subject) return
     prevSubject.current = subject
     const { paperIds: _a, textbook: _b, region: _c, sample: _d, ...rest } = latest.current
-    const next = sanitizeFilter(subject === 'english' ? { ...rest, sample: latest.current.sample && !latest.current.paperIds } : rest)
+    const next = sanitizeFilter({ ...rest, sample: latest.current.sample && !latest.current.paperIds })
     stash.current = {}
     window.api.settings.set(STASH_KEY, {}).catch(() => { /* 存不上不影响本次使用 */ })
     latest.current = next; setFilter(next)

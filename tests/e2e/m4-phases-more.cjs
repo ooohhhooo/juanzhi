@@ -145,8 +145,8 @@ async function phaseSample() {
   await T('sample-load').click()
   const loaded = await waitFor(async () => (await api(() => window.api.data.sampleStatus())).loaded, 60000)
   const st = await api(() => window.api.data.sampleStatus())
-  check('示例数据', '点"加载示例数据"：12 份合成示例卷、≥96 道题进了库；设置页状态更新；按钮互换（加载灰、清除可点）', loaded && st.papers === 12 && st.questions >= 96 && /已加载：12 份/.test(await txt('sample-status')) && (await T('sample-load').isDisabled()) && !(await T('sample-clear').isDisabled()), JSON.stringify(st))
-  const ps = withDb(ctx.ud, d => d.prepare('SELECT grade, school_year_start y, status, title, page_count, is_sample FROM papers WHERE is_sample = 1').all())
+  check('示例数据', '点"加载示例数据"：28 份合成示例卷（英语 12 + 数学 8 + 语文 8）、≥224 道题进了库；设置页状态更新；按钮互换（加载灰、清除可点）', loaded && st.papers === 28 && st.questions >= 224 && /已加载：28 份/.test(await txt('sample-status')) && (await T('sample-load').isDisabled()) && !(await T('sample-clear').isDisabled()), JSON.stringify(st))
+  const ps = withDb(ctx.ud, d => d.prepare('SELECT grade, school_year_start y, status, title, page_count, is_sample FROM papers WHERE is_sample = 1 AND subject = \'english\'').all())
   check('示例数据', '示例卷覆盖 ≥3 个学年（2023/2024/2025）和 2 个年级，都是"已完成"状态，标题带【示例】，每份有页面图', new Set(ps.map(p => p.y)).size === 3 && new Set(ps.map(p => p.grade)).size === 2 && ps.every(p => p.status === 'done' && p.title.startsWith('【示例】') && p.page_count >= 1 && p.is_sample === 1))
   // 不混进真实数据的统计
   const realAfter = await api(async () => JSON.stringify([await window.api.stats.overview({}), await window.api.stats.distribution({}), await window.api.stats.hot({}, 2), await window.api.stats.matrix({}, 1), await window.api.stats.compare({ grade: '4' }, 2025, 'before', 2)]))

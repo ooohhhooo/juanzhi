@@ -1,9 +1,15 @@
 /**
- * 内置示例数据：合成的小学英语试卷（题目是编写的演示题，不是任何真实学校的试卷）。
- * 12 份卷子 = 四、五年级 × 3 个学年（2023 / 2024 / 2025）× 期中 + 期末，每份 8–9 道题，带知识点标注、题型、分值、难度、易错标记，
+ * 内置示例数据：合成的小学试卷（题目是编写的演示题，不是任何真实学校的试卷）。英语 12 份 + 数学 8 份 + 语文 8 份，共 28 份。
+ * 数学、语文的题库在 data-math.ts / data-chinese.ts，这里合并成同一个 POOL / SAMPLE_PAPERS，题目 id 全局唯一（数学 ma 开头，语文 cn 开头）。
+ * 英语：12 份卷子 = 四、五年级 × 3 个学年（2023 / 2024 / 2025）× 期中 + 期末，每份 8–9 道题，带知识点标注、题型、分值、难度、易错标记，
  * 所以加载后总览、分布、同比、重难点都有内容，且 2025 学年相对更早的学年有「新增 / 消失 / 上升 / 下降」可看。
  * 纯数据模块（没有 electron / 数据库依赖），单测直接加载。题目文字写进渲染出来的「原卷页面」里，题目的定位框由渲染得到。
  */
+import { SUBJECTS } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
+import { MATH_POOL, MATH_PAPERS } from './data-math.ts'
+import { CHINESE_POOL, CHINESE_PAPERS } from './data-chinese.ts'
+
 export interface SampleQ {
   qtype: string
   kp: string
@@ -11,6 +17,8 @@ export interface SampleQ {
   score: number
   diff: number
   err?: string
+  /** 题目标记，如 needs_image（题干里的 [图] 表示原卷有插图） */
+  flags?: string[]
   stem: string
   options?: string[]
   answer?: string
@@ -18,7 +26,8 @@ export interface SampleQ {
 
 export interface SamplePaper {
   key: string
-  grade: '4' | '5'
+  subject: SubjectId
+  grade: '3' | '4' | '5' | '6'
   semester: '上' | '下'
   year: number
   exam: '期中' | '期末'
@@ -30,7 +39,7 @@ export interface SamplePaper {
 
 const q = (qtype: string, kp: string, score: number, diff: number, stem: string, options: string[] = [], answer = '', err = '', sec: string[] = []): SampleQ => ({ qtype, kp, score, diff, stem, options, answer, err: err || undefined, sec })
 
-export const POOL: Record<string, SampleQ> = {
+const ENGLISH_POOL: Record<string, SampleQ> = {
   phCombo: q('PH_DIFF', 'PH.PHONICS.COMBO', 2, 3, 'Choose the word with a different sound at the underlined part: ship, fish, chair, wish.', ['A. ship', 'B. fish', 'C. chair', 'D. wish'], 'C'),
   phStress: q('PH_DIFF', 'PH.STRESS', 2, 4, 'Which word has a different stress? ', ['A. banana', 'B. potato', 'C. window', 'D. tomato'], 'C', '重音位置容易凭感觉选'),
   classify: q('VO_CLASS', 'VO.FORM.CLASSIFY', 2, 2, 'Which word is different from the others?', ['A. apple', 'B. banana', 'C. pencil', 'D. orange'], 'C'),
@@ -64,11 +73,13 @@ export const POOL: Record<string, SampleQ> = {
   write: q('WRITE', 'WR.EXPR.PAST', 8, 4, 'Write five sentences about what you did last weekend.', [], '', '时态容易混用')
 }
 
+export const POOL: Record<string, SampleQ> = { ...ENGLISH_POOL, ...MATH_POOL, ...CHINESE_POOL }
+
 const P = (grade: '4' | '5', semester: '上' | '下', year: number, exam: '期中' | '期末', textbook: string, region: string, qs: string[]): SamplePaper =>
-  ({ key: `${year}-g${grade}-${exam === '期中' ? 'mid' : 'fin'}`, grade, semester, year, exam, textbook, region, qs })
+  ({ subject: 'english', key: `${year}-g${grade}-${exam === '期中' ? 'mid' : 'fin'}`, grade, semester, year, exam, textbook, region, qs })
 
 /** 12 份示例卷。设计要点（四年级）：2023 学年考语音和规则复数；2024 起加比较级、一般过去时；2025 学年新增 be going to 与购物价格，语音字母组合发音不再出现。 */
-export const SAMPLE_PAPERS: SamplePaper[] = [
+const ENGLISH_PAPERS: SamplePaper[] = [
   P('4', '上', 2023, '期中', '人教PEP', '示例市', ['phCombo', 'classify', 'food', 'plReg', 'possAdj', 'prepPlace', 'thereBe', 'rdFact']),
   P('4', '下', 2023, '期末', '人教PEP', '示例市', ['phCombo', 'weather', 'plReg', 'plIrr', 'prepPlace', 'presCont', 'dir', 'rdFact', 'rdTf']),
   P('4', '上', 2024, '期中', '人教PEP', '示例市', ['classify', 'weather', 'plReg', 'cmpReg', 'thereBe', 'yesNo', 'shop', 'rdFact']),
@@ -83,8 +94,13 @@ export const SAMPLE_PAPERS: SamplePaper[] = [
   P('5', '下', 2025, '期末', '外研版', '示例市', ['phStress', 'pastReg', 'pastIrr', 'futGoing', 'futWill', 'suggest', 'rdFact', 'rdInfer', 'write'])
 ]
 
+/** 28 份示例卷：英语 12 + 数学 8 + 语文 8（先英语，保持原有顺序） */
+export const SAMPLE_PAPERS: SamplePaper[] = [...ENGLISH_PAPERS, ...MATH_PAPERS, ...CHINESE_PAPERS]
+
 const GRADE_CN = ['', '一', '二', '三', '四', '五', '六']
-export const sampleTitle = (p: SamplePaper): string => `【示例】${p.year}-${p.year + 1}学年${GRADE_CN[Number(p.grade)]}年级${p.semester}学期${p.exam}卷（合成）`
+/** 英语的标题保持原样；数学、语文在年级后写学科名，如「四年级数学上学期期中卷」 */
+export const sampleTitle = (p: SamplePaper): string =>
+  `【示例】${p.year}-${p.year + 1}学年${GRADE_CN[Number(p.grade)]}年级${p.subject === 'english' ? '' : SUBJECTS[p.subject].name}${p.semester}学期${p.exam}卷（合成）`
 
 /** 稳定的 UUID：同一个 key 永远得到同一个 id，所以「加载示例数据」重复点也不会重复 */
 export function sampleUuid(seed: string, hash: (s: string) => string): string {
