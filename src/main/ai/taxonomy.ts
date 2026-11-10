@@ -1,6 +1,7 @@
 import { safeKpName } from '../../shared/code-guard'
 import { getDb } from '../db'
 import { flatKpText } from '../pack/kp-rules.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 
 export interface KpRecord {
   code: string
@@ -18,6 +19,7 @@ export interface KpRecord {
   example_en: string | null
   example_zh: string | null
   hint_words: string | null
+  subject: string
 }
 
 export interface QtypeRecord {
@@ -28,14 +30,16 @@ export interface QtypeRecord {
   sort: number
 }
 
-export function listKps(includeDeprecated = false): KpRecord[] {
+/** subject 不写 = 三个学科全部（只按代码查名字的地方用）；要给模型、界面看一棵树时必须传学科 */
+export function listKps(includeDeprecated = false, subject?: SubjectId): KpRecord[] {
+  const where = [includeDeprecated ? '' : 'deprecated = 0', subject ? 'subject = ?' : ''].filter(Boolean)
   return getDb().prepare(
-    `SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words FROM kps ${includeDeprecated ? '' : 'WHERE deprecated = 0'} ORDER BY sort, code`
-  ).all().map((k: any) => ({ ...k, name: safeKpName(k.name) })) as unknown as KpRecord[]
+    `SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words, subject FROM kps ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY sort, code`
+  ).all(...(subject ? [subject] : [])).map((k: any) => ({ ...k, name: safeKpName(k.name) })) as unknown as KpRecord[]
 }
 
-export function listQtypes(): QtypeRecord[] {
-  return getDb().prepare(`SELECT code, name, "group", note, sort FROM qtypes ORDER BY sort, code`).all() as unknown as QtypeRecord[]
+export function listQtypes(subject?: SubjectId): QtypeRecord[] {
+  return getDb().prepare(`SELECT code, name, "group", note, sort FROM qtypes ${subject ? 'WHERE subject = ?' : ''} ORDER BY sort, code`).all(...(subject ? [subject] : [])) as unknown as QtypeRecord[]
 }
 
 export interface TaxonomyContext {
@@ -48,8 +52,8 @@ export interface TaxonomyContext {
 }
 
 /** 运行时把当前的知识点树与题型表（含用户改过的）渲染成提示词里的文本；顺序固定，利于前缀缓存 */
-export function loadTaxonomy(): TaxonomyContext {
-  const kps = listKps()
+export function loadTaxonomy(subject: SubjectId = 'english'): TaxonomyContext {
+  const kps = listKps(false, subject)
   const byCode = new Map(kps.map(k => [k.code, k]))
   // 一行一个节点：名称 / 说明里的换行、竖线（旧版本允许输入、或来自旧数据）折成空格，不能把一行拆成几行
   const flat = flatKpText
@@ -60,7 +64,7 @@ export function loadTaxonomy(): TaxonomyContext {
     return names.join('/')
   }
   const treeText = kps.map(k => `${k.code} | ${pathName(k)} | ${k.intro_grade ?? '-'} | ${flat(k.note ?? '')} | ${flat(k.plain ?? '') || '—'}`).join('\n')
-  const qts = listQtypes()
+  const qts = listQtypes(subject)
   const qtypeText = qts.map(q => `${q.code} | ${q.name} | ${q.note ?? ''}`).join('\n')
   return { kps: new Set(kps.map(k => k.code)), qtypes: new Set(qts.map(q => q.code)), treeText, qtypeText }
 }

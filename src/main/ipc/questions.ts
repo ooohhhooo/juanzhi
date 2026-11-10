@@ -1,3 +1,4 @@
+import { asSubject, SUBJECT_IDS } from '../../shared/subject.ts'
 import { ipcMain } from 'electron'
 import crypto from 'node:crypto'
 import { z } from 'zod'
@@ -304,8 +305,9 @@ export function registerQuestionIpc(): void {
 
   // includeDeprecated：设置页的编辑器要看到停用的节点；审核页的选择器默认不含（停用的节点不再提供给 AI 和选择器，已有标注不受影响）
   ipcMain.handle('taxonomy:tree', async (_e, rawOpts?: unknown) => {
-    const opts = z.object({ includeDeprecated: z.boolean().optional() }).strict().optional().parse(rawOpts)
-    return { kps: listKps(!!opts?.includeDeprecated), qtypes: listQtypes() }
+    const opts = z.object({ includeDeprecated: z.boolean().optional(), subject: z.enum(SUBJECT_IDS).optional() }).strict().optional().parse(rawOpts)
+    const subject = asSubject(opts?.subject)
+    return { kps: listKps(!!opts?.includeDeprecated, subject), qtypes: listQtypes(subject) }
   })
 
   /**
