@@ -9,8 +9,11 @@
  *    includeDuplicates=true 时才把每一份都算（会重复计数）。
  */
 import { z } from 'zod'
+import { SUBJECT_IDS } from '../../shared/subject.ts'
 
 export const StatsFilterSchema = z.object({
+  /** 学科；不写 = 英语（老版本存下的筛选条件、报告与缓存键都不带它） */
+  subject: z.enum(SUBJECT_IDS).optional(),
   grade: z.enum(['1', '2', '3', '4', '5', '6']).optional(),
   semester: z.enum(['上', '下']).optional(),
   school_year_start: z.number().int().min(2000).max(2100).optional(),
@@ -57,6 +60,8 @@ export function paperScope(f: StatsFilter, year?: YearSpec | 'ignore', statuses?
     const params: Array<string | number> = []
     // 示例数据与真实数据分开统计：默认只看真实数据，f.sample 时只看示例（0/1 是固定常量，直接写进 SQL）
     parts.push(`${a}.is_sample = ${f.sample ? 1 : 0}`)
+    // 学科：不同学科的卷子永远不混在一起统计
+    parts.push(`${a}.subject = ?`); params.push(f.subject ?? 'english')
     if (statuses) {
       // 内部固定的状态名（不来自用户输入），直接拼进 SQL
       parts.push(`${a}.status IN (${statuses.map(s => `'${s.replace(/'/g, '')}'`).join(',')})`)

@@ -34,7 +34,7 @@ const zip = await packOf(A, 'p')
   const k = d.prepare("SELECT plain, example_en, example_zh, hint_words FROM kps WHERE code = 'GR.TENSE.U1'").get()
   assert.deepEqual({ ...k }, { plain: '一句话说清楚', example_en: 'I **played** football.', example_zh: '我踢了足球。', hint_words: 'played / went' })
   assert.equal(d.prepare("SELECT plain p FROM kps WHERE code = 'GR.TENSE.U2'").get().p, '第一行 第二行｜竖线 后面', '换行、竖线折成空格（全角竖线是普通字符，保留）')
-  assert.equal(d.prepare("SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL").get().c, 145, '内置节点的白话也在包里')
+  assert.equal(d.prepare("SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND subject = 'english'").get().c, 145, '内置节点的白话也在包里')
   d.close()
 }
 // 合并进另一台电脑：自建节点连同白话 / 例句一起进来；本机的内置节点以本机为准（不被包里的覆盖）
@@ -53,7 +53,7 @@ const zip = await packOf(A, 'p')
   const st = await stage(zip, C, 'c')
   applyOverwrite(C.deps, st.staged)
   assert.equal(C.db.prepare("SELECT example_zh z FROM kps WHERE code = 'GR.TENSE.U1'").get().z, '我踢了足球。')
-  assert.equal(count(C.db, 'SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL'), 145)
+  assert.equal(count(C.db, 'SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND subject = \'english\''), 145)
 }
 // 旧版本（v9）的包：升级后新列为空；内置节点由迁移补上白话，包里的自建节点没有白话也照常导入
 {
@@ -75,6 +75,6 @@ const zip = await packOf(A, 'p')
   assert.ok(rep.kpsAdded >= 1)
   assert.equal(dest.db.prepare("SELECT plain p FROM kps WHERE code = 'GR.TENSE.U9'").get().p, null)
   assert.equal(count(dest.db, 'SELECT COUNT(*) c FROM papers WHERE id = ?', pid), 1)
-  assert.equal(count(dest.db, "SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL"), 145)
+  assert.equal(count(dest.db, "SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND subject = 'english'"), 145)
 }
 console.log('pack-plain.test ✓')

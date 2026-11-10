@@ -192,7 +192,7 @@ export const KP_SEEDS_V1: KpSeed[] = [
 ]
 
 /** [代码, 名称, 分组, 说明]；必须含 OTHER 兜底项（P1 提示词的要求） */
-export type QtypeSeed = [code: string, name: string, group: 'listening' | 'written', note: string]
+export type QtypeSeed = [code: string, name: string, group: string, note: string]
 
 /** 同上，v5 迁移写入的题型种子，冻结 */
 export const QTYPE_SEEDS_V1: QtypeSeed[] = [

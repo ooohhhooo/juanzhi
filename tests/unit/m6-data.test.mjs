@@ -32,13 +32,13 @@ import JSZip from 'jszip'
 // ── 迁移 v10 ──
 {
   const { db, version } = newDb()
-  assert.equal(version, 12)
+  assert.equal(version, 13)
   const cols = t => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name)
   for (const c of ['plain', 'example_en', 'example_zh', 'hint_words']) assert.ok(cols('kps').includes(c), `kps.${c}`)
   for (const c of ['error_detail', 'similar_to', 'similar_ratio', 'similar_state']) assert.ok(cols('papers').includes(c), `papers.${c}`)
   for (const c of ['reader', 'confirmed_at', 'verify_json']) assert.ok(cols('reports').includes(c), `reports.${c}`)
   assert.ok(cols('ai_analyses').includes('verify_json')); assert.deepEqual(cols('ai_drafts'), ['key', 'kind', 'markdown', 'refs_json', 'message', 'detail', 'model', 'created_at'])
-  assert.equal(db.prepare("SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND example_en IS NOT NULL AND example_zh IS NOT NULL AND hint_words IS NOT NULL").get().c, 145, '全部内置节点都有白话 / 例句 / 例词')
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND example_en IS NOT NULL AND example_zh IS NOT NULL AND hint_words IS NOT NULL AND subject = 'english'").get().c, 145, '全部内置节点都有白话 / 例句 / 例词')
   assert.equal(db.prepare("SELECT plain p FROM kps WHERE code = 'GR.PRON.POSS'").get()?.p ?? '表示“谁的”', db.prepare("SELECT plain p FROM kps WHERE code = 'GR.PRON.POSS'").get()?.p ?? '表示“谁的”')
   db.prepare("INSERT INTO reports (id, kind, markdown) VALUES ('r1', 'report', 'x')").run()
   assert.equal(db.prepare("SELECT reader r FROM reports WHERE id = 'r1'").get().r, 'full', '旧报告读者默认 full（完整数据版）')
@@ -73,7 +73,7 @@ import JSZip from 'jszip'
   const b = id => JSON.parse(db.prepare('SELECT bbox_json b FROM questions WHERE id = ?').get(id).b)
   assert.ok(Math.abs(b('q16')[0] + b('q16')[2] - 0.404) < 0.0011, '第 16 题右边缩回到第 17 题前面'); assert.deepEqual(b('q17'), [0.412, 0.677, 0.274, 0.026]); assert.deepEqual(b('qm'), [0.05, 0.677, 0.4, 0.026], '手工框不动')
   assert.equal(db.prepare("SELECT bbox_json b FROM questions WHERE id = 'qbad'").get().b, '不是json', '坏数据原样保留')
-  assert.equal(db.prepare("SELECT markdown m, reader r FROM reports WHERE id = 'old'").get().r, 'full'); assert.equal(db.prepare('PRAGMA user_version').get().user_version, 12)
+  assert.equal(db.prepare("SELECT markdown m, reader r FROM reports WHERE id = 'old'").get().r, 'full'); assert.equal(db.prepare('PRAGMA user_version').get().user_version, 13)
 }
 
 // ── 知识点编辑器：白话 / 例句 / 例词可填可清，字符规则同名称和说明 ──

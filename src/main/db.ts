@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import { app } from 'electron'
 import { buildKpRows, QTYPE_SEEDS_V1 } from './seed/taxonomy'
 import { KP_PLAIN } from './seed/kp-plain'
+import { MA_KP_SEEDS_V1, MA_QTYPE_SEEDS_V1, MA_KP_PLAIN } from './seed/taxonomy-math.ts'
+import { CN_KP_SEEDS_V1, CN_QTYPE_SEEDS_V1, CN_KP_PLAIN } from './seed/taxonomy-chinese.ts'
 import { backupBeforeUpgrade, dbHasData, restoreBackup } from './db-backup'
 import { repairKpNames } from './db-repair'
 import { configuredDataDir, defaultDataDir } from './datadir'
@@ -642,6 +644,46 @@ export const MIGRATIONS: Array<(db: any) => void> = [
         PRIMARY KEY (session_id, seq)
       );
     `)
+  },
+
+  // v12 → v13（语文、数学）：加「学科」维度，只加列、加索引、写新学科种子，旧数据全部归英语。
+  //  - papers / reports / course_outlines / agent_sessions / ai_analyses / course_advice / kps / qtypes 加 subject（缺省 'english'）；
+  //  - 知识点、题型代码仍全局唯一（语文 CN. / CN_，数学 MA. / MA_），所以 question_kps、course_kp_* 等按代码关联的表不用动；
+  //  - 写入语文、数学知识点树 v1、题型表 v1 和白话（INSERT OR IGNORE，重复执行无害）；
+  //  - papers 的修订号触发器把 subject 也列进去（改了卷子的学科，看板缓存要过期）。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    for (const t of ['papers', 'reports', 'course_outlines', 'agent_sessions', 'ai_analyses', 'course_advice', 'kps', 'qtypes']) {
+      addCol(t, 'subject', "TEXT NOT NULL DEFAULT 'english'")
+    }
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_papers_subject ON papers(subject, status, school_year_start);
+      CREATE INDEX IF NOT EXISTS idx_reports_subject ON reports(subject, created_at);
+      CREATE INDEX IF NOT EXISTS idx_kps_subject ON kps(subject);
+      CREATE INDEX IF NOT EXISTS idx_agent_sessions_subject ON agent_sessions(subject, updated_at DESC);
+      DROP TRIGGER IF EXISTS trg_rev_papers_u;
+      CREATE TRIGGER trg_rev_papers_u AFTER UPDATE OF status, grade, semester, school_year_start, exam_type, textbook, region, file_hash, created_at, title, is_sample, similar_state, subject ON papers
+        WHEN OLD.status IN ('done','reviewing') OR NEW.status IN ('done','reviewing') BEGIN UPDATE data_rev SET rev = rev + 1 WHERE id = 1; END;
+    `)
+    const insKp = db.prepare(`
+      INSERT OR IGNORE INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, subject)
+      VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 1, ?)
+    `)
+    const insQt = db.prepare(`INSERT OR IGNORE INTO qtypes (code, name, "group", note, sort, builtin, subject) VALUES (?, ?, ?, ?, ?, 1, ?)`)
+    const updPlain = db.prepare('UPDATE kps SET plain = ?, example_en = ?, example_zh = ?, hint_words = ? WHERE code = ? AND plain IS NULL')
+    // sort 加一个基数：三个学科的节点不会在「按 sort 排序」的全表查询里互相穿插
+    const seeds = [
+      { subject: 'math', kps: MA_KP_SEEDS_V1, qts: MA_QTYPE_SEEDS_V1, plain: MA_KP_PLAIN, sortBase: 100000 },
+      { subject: 'chinese', kps: CN_KP_SEEDS_V1, qts: CN_QTYPE_SEEDS_V1, plain: CN_KP_PLAIN, sortBase: 200000 }
+    ]
+    for (const sd of seeds) {
+      for (const r of buildKpRows(sd.kps)) insKp.run(r.code, r.parent_code, r.name, r.level, r.intro_grade, sd.sortBase + r.sort, r.note, sd.subject)
+      sd.qts.forEach(([code, name, group, note], i) => insQt.run(code, name, group, note, sd.sortBase + (i + 1) * 10, sd.subject))
+      for (const [code, v] of Object.entries(sd.plain)) updPlain.run(v.plain, v.example_en, v.example_zh, v.hint_words, code)
+    }
   }
 ]
 

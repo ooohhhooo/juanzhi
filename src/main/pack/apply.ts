@@ -9,6 +9,7 @@
  * 覆盖导入另有 journal（journal.ts）保护「改了目录、还没提交就崩溃」。
  * 纯函数模块（不依赖 electron），单测直接加载。
  */
+import { asSubject, subjectOfCode } from '../../shared/subject.ts'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -107,7 +108,7 @@ function mergeKps(db: any): { map: Map<string, string>; added: number; remapped:
   const taken = new Set<string>([...dst.keys(), ...src.map(k => k.code)])
   const map = new Map<string, string>()
   const resolved = (c: string | null) => (c == null || c === '' ? null : map.get(c) ?? c)
-  const ins = db.prepare(`INSERT INTO main.kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  const ins = db.prepare(`INSERT INTO main.kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words, subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
   const placed = new Set<string>(dst.keys())
   let added = 0, remapped = 0
   const pending: Array<{ k: any; code: string }> = []
@@ -146,7 +147,8 @@ function mergeKps(db: any): { map: Map<string, string>; added: number; remapped:
     if (level > 3) throw new PackError('bad_content', `数据包里的知识点「${k.name}」合并之后会超过 3 层，已拒绝导入`)
     ins.run(code, parent, k.name, level, k.intro_grade ?? null, k.sort ?? 0,
       k.deprecated ? 1 : 0, mergedInto && (placed.has(mergedInto) || pending.some(p => p.code === mergedInto)) ? mergedInto : null, k.note ?? null, 0,
-      k.plain ?? null, k.example_en ?? null, k.example_zh ?? null, k.hint_words ?? null)   // 包里新出现的节点一律当自建（builtin = 0）：不信任包里的内置标志，否则一个节点被标成内置就删不掉、移不动了
+      k.plain ?? null, k.example_en ?? null, k.example_zh ?? null, k.hint_words ?? null,
+      asSubject(k.subject ?? subjectOfCode(code)))   // 旧版本的包没有 subject 列：按代码前缀认，认不出就是英语   // 包里新出现的节点一律当自建（builtin = 0）：不信任包里的内置标志，否则一个节点被标成内置就删不掉、移不动了
     placed.add(code)
     levelOf.set(code, level)
     added++

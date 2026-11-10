@@ -1,3 +1,4 @@
+import { SUBJECT_IDS } from '../shared/subject.ts'
 import { z } from 'zod'
 
 export const GradeEnum = z.enum(['1', '2', '3', '4', '5', '6'])
@@ -22,6 +23,7 @@ export const PaperMetaSchema = z.object({
 })
 
 export const PaperFilterSchema = z.object({
+  subject: z.enum(SUBJECT_IDS).optional(),
   grade: GradeEnum.optional(),
   semester: SemesterEnum.optional(),
   school_year_start: z.number().int().optional(),
@@ -95,7 +97,9 @@ export interface OcrLine {
 }
 
 export const ImportOptionsSchema = z.object({
-  allowDuplicates: z.array(z.string()).max(100).optional()
+  allowDuplicates: z.array(z.string()).max(100).optional(),
+  /** 导入到哪个学科；不写 = 英语 */
+  subject: z.enum(SUBJECT_IDS).optional()
 }).optional()
 
 export interface ImportResult {

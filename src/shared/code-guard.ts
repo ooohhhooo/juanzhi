@@ -4,9 +4,11 @@
  * 纯函数，不依赖 electron，单测直接加载。
  */
 
+import { ALL_KP_ROOTS } from './subject.ts'
+
 /** 一个知识点代码（至少两段，用点连）或题型代码（至少两段，用下划线连） */
 // 知识点代码必须以已知的一级前缀开头（内置树的 GR / FN / LS / MC / PH / RD / VO / WR），这样「A.M」「P.M」「P.E」「T.V」「U.S」这类正常缩写不会被当成代码
-const KP_CODE = /(?:GR|FN|LS|MC|PH|RD|VO|WR)(?:\.[A-Z][A-Z0-9_]*)+/
+const KP_CODE = new RegExp(`(?:${ALL_KP_ROOTS.join('|')})(?:\\.[A-Z][A-Z0-9_]*)+`)
 const QTYPE_CODE = /[A-Z]{2,}(?:_[A-Z0-9]+)+/
 const WHOLE = new RegExp(`^(?:${KP_CODE.source}|${QTYPE_CODE.source})$`)
 const ANYWHERE = new RegExp(`(?<![A-Za-z0-9_.])(?:${KP_CODE.source}|${QTYPE_CODE.source})(?![A-Za-z0-9_])`, 'g')

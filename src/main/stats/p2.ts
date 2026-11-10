@@ -188,6 +188,7 @@ export function normalizeFilter(f: StatsFilter): Record<string, unknown> {
   for (const k of Object.keys(f).sort()) {
     const v = (f as Record<string, unknown>)[k]
     if (v === undefined || v === false) continue
+    if (k === 'subject' && v === 'english') continue   // 英语是缺省学科：不写进去，升级前的缓存键、报告筛选保持不变
     o[k] = Array.isArray(v) ? [...v].sort() : v   // 选中的 id 与点选先后无关
   }
   return o

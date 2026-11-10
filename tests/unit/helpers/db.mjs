@@ -9,6 +9,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const seed = await import(pathToFileURL(path.join(root, 'src/main/seed/taxonomy.ts')).href)
 const plainSeed = await import(pathToFileURL(path.join(root, 'src/main/seed/kp-plain.ts')).href)
+const maSeed = await import(pathToFileURL(path.join(root, 'src/main/seed/taxonomy-math.ts')).href)
+const cnSeed = await import(pathToFileURL(path.join(root, 'src/main/seed/taxonomy-chinese.ts')).href)
 
 function loadMigrations() {
   const src = fs.readFileSync(path.join(root, 'src/main/db.ts'), 'utf8')
@@ -18,7 +20,9 @@ function loadMigrations() {
   const fm = /function repairNeighborEdgesV10[\s\S]*?\n}\n/.exec(src)
   if (!fm) throw new Error('db.ts 里找不到 repairNeighborEdgesV10')
   const js = module.stripTypeScriptTypes(`${fm[0]}\nconst MIGRATIONS = ${m[1]}`)
-  return new Function('buildKpRows', 'QTYPE_SEEDS_V1', 'KP_PLAIN', `${js}\nreturn MIGRATIONS`)(seed.buildKpRows, seed.QTYPE_SEEDS_V1, plainSeed.KP_PLAIN)
+  return new Function('buildKpRows', 'QTYPE_SEEDS_V1', 'KP_PLAIN', 'MA_KP_SEEDS_V1', 'MA_QTYPE_SEEDS_V1', 'MA_KP_PLAIN', 'CN_KP_SEEDS_V1', 'CN_QTYPE_SEEDS_V1', 'CN_KP_PLAIN', `${js}\nreturn MIGRATIONS`)(
+    seed.buildKpRows, seed.QTYPE_SEEDS_V1, plainSeed.KP_PLAIN,
+    maSeed.MA_KP_SEEDS_V1, maSeed.MA_QTYPE_SEEDS_V1, maSeed.MA_KP_PLAIN, cnSeed.CN_KP_SEEDS_V1, cnSeed.CN_QTYPE_SEEDS_V1, cnSeed.CN_KP_PLAIN)
 }
 
 /** 取出真实的迁移数组（v1–最新），数据包导入 / 升级的单测用它当 migrate */
