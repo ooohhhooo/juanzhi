@@ -10,6 +10,7 @@ import { withSpend } from '../ipc/cost'
 import { READER_LABEL } from '../../shared/report-post'
 import type { ReportReader } from '../../shared/report-post'
 import type { AgentTool } from './tool-types'
+import { sessionSubject } from './store'
 
 const Params = z.object({
   reader: z.enum(['parent', 'teacher', 'boss', 'full']).describe('版本：parent 家长版、teacher 老师版、boss 老板版、full 完整数据版'),
@@ -31,10 +32,11 @@ export const reportGenerate: AgentTool<Args> = {
   level: 'write',
   preview: a => `生成一份${READER_LABEL[a.reader as ReportReader]}报告（范围：${scopeText(a)}），会调用 AI，保存在「报告」页`,
   async run(a, ctx) {
-    const filter: Record<string, unknown> = {}
+    const subject = sessionSubject(getDb(), ctx.sessionId)
+    const filter: Record<string, unknown> = { subject }   // 报告的学科跟会话走
     for (const k of ['grade', 'semester', 'school_year_start', 'exam_type', 'paperIds'] as const) if (a[k] !== undefined) filter[k] = a[k]
     let outlineIds: string[] = []
-    if (a.withCourse !== false) { try { outlineIds = (getDb().prepare("SELECT id FROM course_outlines WHERE active = 1 AND status = 'active'").all() as any[]).map(r => String(r.id)) } catch { /* 没有课程表 */ } }
+    if (a.withCourse !== false) { try { outlineIds = (getDb().prepare("SELECT id FROM course_outlines WHERE active = 1 AND status = 'active' AND subject = ?").all(subject) as any[]).map(r => String(r.id)) } catch { /* 没有课程表 */ } }
     const r = await withSpend('report', () => generateReport(filter as any, a.reader as ReportReader, crypto.randomUUID(), () => { /* 进度不推给助手界面 */ },
       cb => { if (ctx.signal?.aborted) { cb(); return () => {} } ctx.signal?.addEventListener('abort', cb, { once: true }); return () => ctx.signal?.removeEventListener('abort', cb) },
       outlineIds.length ? { course: { outlineIds } } : {}))

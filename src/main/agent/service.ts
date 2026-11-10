@@ -17,6 +17,8 @@ import { getPriceMap } from '../ipc/cost'
 import { notifyDataChanged } from '../events'
 import { getMainWindow } from '../window'
 import { runAgent } from './harness'
+import { asSubject } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 import { playbooksForRole } from './playbooks'
 import type { Playbook } from './playbooks'
 import { allPlaybooks as loadAllPlaybooks } from './playbooks/index'
@@ -59,10 +61,12 @@ const writeSetting = (key: string, v: unknown) => { getDb().prepare('INSERT OR R
 
 // ───────── 场景（培训机构 / 学校）─────────
 /** 沿用课程大纲里的「场景」：没有单独设置过，就看已启用的课程大纲里有没有学校；都没有按培训机构 */
-export function getScene(): Scene {
+export function getScene(subject?: SubjectId): Scene {
   const v = readSetting(SCENE_KEY)
   if (v === 'org' || v === 'school') return v
-  const rows = getDb().prepare("SELECT DISTINCT scene FROM course_outlines WHERE active = 1 AND status = 'active'").all() as Array<{ scene: string }>
+  const rows = (subject
+    ? getDb().prepare("SELECT DISTINCT scene FROM course_outlines WHERE active = 1 AND status = 'active' AND subject = ?").all(subject)
+    : getDb().prepare("SELECT DISTINCT scene FROM course_outlines WHERE active = 1 AND status = 'active'").all()) as Array<{ scene: string }>
   return rows.length > 0 && rows.every(r => r.scene === 'school') ? 'school' : 'org'
 }
 export function setScene(s: Scene): Scene { writeSetting(SCENE_KEY, s); return s }
@@ -249,6 +253,8 @@ function send(payload: Record<string, unknown>): void {
 
 export interface RunArgs {
   sessionId?: string; role: string; text: string
+  /** 新会话的学科（写进会话，之后不变）；接着已有会话追问时忽略，用会话自己的学科。不写 = 英语 */
+  subject?: SubjectId
   mode?: AgentMode; approval?: string; model?: string; effort?: string
   /** 在已有对话里从某一步「从这里追问」：新问题挂在这一步（seq）下面，形成新分支 */
   branchFrom?: number
@@ -267,13 +273,14 @@ export function startRun(a: RunArgs): { sessionId: string; branchId: string } {
   const role = findRole(a.role)
   if (!role || !role.enabled) throw new Error('这个角色暂时还不能用')
   const db = getDb()
-  const scene = getScene()
   let sessionId = a.sessionId
   let branchId = a.branchId || 'main'
+  let subject: SubjectId = asSubject(a.subject)
   if (sessionId) {
     if (runs.has(sessionId)) throw new Error('这个对话正在进行中，请先等它结束或点停止')
     const ex = getSession(db, sessionId)
     if (!ex) throw new Error('找不到这个对话')
+    subject = ex.session.subject   // 老会话用它自己的学科
     if (a.branchFrom !== undefined) {
       if (!ex.steps.some(s => s.seq === a.branchFrom)) throw new Error('找不到要追问的那一步')
       branchId = newBranchId()
@@ -281,8 +288,9 @@ export function startRun(a: RunArgs): { sessionId: string; branchId: string } {
   } else {
     sessionId = crypto.randomUUID()
     branchId = 'main'
-    createSession(db, { id: sessionId, role: role.id, scene, title: a.text.replace(/\s+/g, ' ').trim() })
+    createSession(db, { id: sessionId, role: role.id, scene: getScene(subject), subject, title: a.text.replace(/\s+/g, ' ').trim() })
   }
+  const scene = getScene(subject)
   const sid = sessionId
   if (a.datasets?.length) noteDatasets(sid, a.datasets.slice(0, 20))
   // 第一次选运营 / 辅导老师来用助手：下次打开卷知默认进入助手（没手动选过启动页才生效；本次不跳转）
@@ -369,7 +377,7 @@ async function execute(x: ExecArgs): Promise<void> {
   // 老角色文件（自建 / 导入）里没有后来加的查询：翻以前的对话所有角色都有；能查数据集的也能读文档；能看试卷统计的也能看试卷清单、课程覆盖、报告
   const extraTools = ['history_search', 'history_read', 'delegate_tasks', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.some(t => t === 'doc_create' || t === 'list_datasets' || t === 'stats_overview') ? ['card_templates', 'card_make'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read', 'report_generate', 'paper_import'] : [])]
   const toolNames = [...new Set([...role.tools, ...extraTools, ...(CONNECTOR_ROLES.includes(role.id) ? dynamic : [])])]
-  const system = buildSystemPrompt({ role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), laterTools: mode === 'plan' ? toolNames.filter(n => registry.get(n) && !registry.get(n)!.planSafe).map(n => ({ name: n, label: registry.get(n)!.label ?? n })) : undefined, pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
+  const system = buildSystemPrompt({ subject: prior.session.subject, role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9, prior.session.subject).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), laterTools: mode === 'plan' ? toolNames.filter(n => registry.get(n) && !registry.get(n)!.planSafe).map(n => ({ name: n, label: registry.get(n)!.label ?? n })) : undefined, pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
   const prices = getPriceMap()
   const lim = effectiveMaxTokens(cfg, model)
   const st = readSetting(SETTINGS_KEY) ?? {}

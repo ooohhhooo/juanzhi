@@ -8,6 +8,7 @@ import type { CitationRef } from '../../shared/citation.ts'
 import type { CompareItem, CompareResult, HotResult, QuestionCard } from './core.ts'
 import type { StatsFilter } from './filter.ts'
 import { yearLabel } from './filter.ts'
+import { subjectName } from '../../shared/subject.ts'
 
 export const P2_PLACEHOLDERS = ['FILTER_DESC', 'TARGET_YEAR', 'TARGET_PAPERS', 'BASE_YEARS', 'BASE_PAPERS', 'TARGET_TEXTBOOKS', 'BASE_TEXTBOOKS', 'SAMPLE_WARNING', 'ADDED', 'REMOVED', 'CHANGED', 'HOT', 'EVIDENCE'] as const
 
@@ -18,6 +19,8 @@ const GRADE = ['', '一', '二', '三', '四', '五', '六']
 /** 筛选条件的白话描述（{{FILTER_DESC}}） */
 export function describeFilter(f: StatsFilter, level: number, cmp?: CompareResult, grades?: string[], sel?: { selected: number; counted: number }): string {
   const parts: string[] = []
+  // 英语沿用原描述（缓存键、提示词不变），其他学科写上学科名
+  if (f.subject && f.subject !== 'english') parts.push(subjectName(f.subject))
   if (f.sample) parts.push('示例数据（合成的演示卷，不是真实考情）')
   // 没选年级时按范围里实际有的年级写（只有四年级的卷子就写「四年级」），不再一概写「全部年级」；真是六个年级都有才写「全部年级」
   const gs = [...new Set(grades ?? [])].filter(g => /^[1-6]$/.test(g)).sort()

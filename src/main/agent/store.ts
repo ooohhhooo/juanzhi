@@ -3,6 +3,8 @@
  * 一次提问的每一步都落库：用户问题、模型的话、工具调用、工具结果、计划、提问、最终回答、出错。
  * 回看历史 = 把这些步骤按顺序重放；接着追问 = 把以前的「问题 + 最终回答」作为历史发给模型。
  */
+import { asSubject } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 import type { ChatMessage } from '../ai/client.ts'
 import type { CiteChecker } from './citations.ts'
 import type { AgentEvent, PlanItem, QueryRec, SessionState } from './types.ts'
@@ -12,21 +14,21 @@ type Db = any
 export type StepKind = 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'plan' | 'ask' | 'answer' | 'error'
 
 export interface SessionRow {
-  id: string; role: string; title: string; scene: string; status: string
+  id: string; role: string; title: string; scene: string; status: string; subject: SubjectId
   dataRev: number | null; tokensIn: number; tokensOut: number; createdAt: string; updatedAt: string
 }
 export interface SessionView extends SessionRow { stale: boolean }
 export interface StepRow { sessionId: string; seq: number; parentId: number | null; branchId: string; kind: StepKind; payload: any; tokens: number; ms: number; createdAt: string }
 
 const toSession = (r: any): SessionRow => ({
-  id: r.id, role: r.role, title: r.title, scene: r.scene, status: r.status, dataRev: r.data_rev ?? null,
+  id: r.id, role: r.role, title: r.title, scene: r.scene, status: r.status, subject: asSubject(r.subject), dataRev: r.data_rev ?? null,
   tokensIn: r.tokens_in, tokensOut: r.tokens_out, createdAt: r.created_at, updatedAt: r.updated_at
 })
 
 export const currentDataRev = (db: Db): number => (db.prepare('SELECT rev FROM data_rev WHERE id = 1').get() as any)?.rev ?? 0
 
-export function createSession(db: Db, o: { id: string; role: string; scene: string; title: string }): string {
-  db.prepare('INSERT INTO agent_sessions (id, role, title, scene, data_rev) VALUES (?, ?, ?, ?, ?)').run(o.id, o.role, o.title.slice(0, 60), o.scene, currentDataRev(db))
+export function createSession(db: Db, o: { id: string; role: string; scene: string; title: string; subject?: SubjectId }): string {
+  db.prepare('INSERT INTO agent_sessions (id, role, title, scene, data_rev, subject) VALUES (?, ?, ?, ?, ?, ?)').run(o.id, o.role, o.title.slice(0, 60), o.scene, currentDataRev(db), asSubject(o.subject))
   return o.id
 }
 
@@ -67,9 +69,18 @@ export function getSession(db: Db, id: string): { session: SessionView; steps: S
   return { session: { ...s, stale: s.dataRev !== null && s.dataRev !== currentDataRev(db) }, steps }
 }
 
-export function listSessions(db: Db, limit = 60): SessionView[] {
+/** 会话所属学科（会话建立时定下，之后不变）；查不到、旧库没有这一列都当英语。助手的数据工具靠它把查询限定在本学科 */
+export function sessionSubject(db: Db, sessionId: string): SubjectId {
+  try { return asSubject((db.prepare('SELECT subject FROM agent_sessions WHERE id = ?').get(sessionId) as any)?.subject) } catch { return 'english' }
+}
+
+/** @param subject 只列这个学科的会话；不写 = 全部学科（命令行的终端界面用） */
+export function listSessions(db: Db, limit = 60, subject?: SubjectId): SessionView[] {
   const rev = currentDataRev(db)
-  return (db.prepare('SELECT * FROM agent_sessions ORDER BY updated_at DESC, rowid DESC LIMIT ?').all(limit) as any[]).map(r => {
+  const rows = (subject
+    ? db.prepare('SELECT * FROM agent_sessions WHERE subject = ? ORDER BY updated_at DESC, rowid DESC LIMIT ?').all(subject, limit)
+    : db.prepare('SELECT * FROM agent_sessions ORDER BY updated_at DESC, rowid DESC LIMIT ?').all(limit)) as any[]
+  return rows.map(r => {
     const s = toSession(r)
     return { ...s, stale: s.dataRev !== null && s.dataRev !== rev }
   })

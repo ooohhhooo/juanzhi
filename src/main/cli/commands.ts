@@ -20,7 +20,9 @@ import { createOutline, getOutline, listOutlines } from '../course/store'
 import { MATCH_CONFIRM_TOKENS, estimateMatch, previewOutline, readSourceFile, runMatch, suggestMappings } from '../course/service'
 import { SCENES } from '../course/store'
 import type { Scene } from '../course/store'
-import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags } from './args'
+import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags, subjectFromFlags } from './args'
+import { asSubject, subjectName } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 import type { ParsedArgs } from './args'
 
 export type Invoke = (channel: string, ...args: unknown[]) => Promise<any>
@@ -45,10 +47,21 @@ function requireAi(): void {
   if (!isAiReady()) throw new CliError('ai_not_configured', AI_HINT)
 }
 
+/** 本次命令用的学科：--subject 优先，其次设置里界面上选的学科，最后英语 */
+function subjectOf(ctx: CliCtx): SubjectId {
+  const explicit = subjectFromFlags(ctx.args.flags)
+  if (explicit) return explicit
+  try {
+    const row = getDb().prepare("SELECT value_json FROM settings WHERE key = 'current_subject'").get() as { value_json: string } | undefined
+    return row ? asSubject(JSON.parse(row.value_json)) : 'english'
+  } catch { return 'english' }
+}
+
 // ───────────────────────── status ─────────────────────────
 
 async function status(ctx: CliCtx) {
-  const rows = getDb().prepare('SELECT status, COUNT(*) c FROM papers WHERE is_sample = 0 GROUP BY status').all() as Array<{ status: string; c: number }>
+  const subject = subjectOf(ctx)
+  const rows = getDb().prepare('SELECT status, COUNT(*) c FROM papers WHERE is_sample = 0 AND subject = ? GROUP BY status').all(subject) as Array<{ status: string; c: number }>
   const byStatus: Record<string, number> = {}
   let total = 0
   for (const r of rows) { byStatus[r.status] = r.c; total += r.c }
@@ -57,6 +70,7 @@ async function status(ctx: CliCtx) {
   return {
     version: app.getVersion(), platform: process.platform, arch: process.arch, schema: LATEST_SCHEMA,
     dataDir: getDataDir(),
+    subject, subjectName: subjectName(subject),
     papers: { total, byStatus },
     // 只说有没有配，不输出密钥、不输出服务地址
     ai: { configured: isAiReady(), model: cfg.model || null },
@@ -82,8 +96,8 @@ async function importCmd(ctx: CliCtx) {
   requireAi()
   const files = ctx.args.positionals.map(p => path.resolve(p))
   for (const f of files) allowPath(f)   // 路径是使用者在命令行里明确给出的：等同于在「导入试卷」对话框里选了它
-  ctx.log(`导入 ${files.length} 份文件……`)
-  const results = await registerImports(files, { parseAfter: true })
+  ctx.log(`导入 ${files.length} 份${subjectName(subjectOf(ctx))}试卷……`)
+  const results = await registerImports(files, { parseAfter: true, subject: subjectOf(ctx) })
   const out: PaperOut[] = results.map(r => r.paperId
     ? { file: r.path, paperId: r.paperId, status: 'imported' }
     : r.code === 'duplicate'
@@ -135,14 +149,14 @@ async function importCmd(ctx: CliCtx) {
 
 function paperRow(p: any) {
   return {
-    id: p.id, title: p.title, fileName: p.file_name, status: p.status, grade: p.grade, semester: p.semester, schoolYearStart: p.school_year_start,
+    id: p.id, title: p.title, subject: p.subject ?? 'english', fileName: p.file_name, status: p.status, grade: p.grade, semester: p.semester, schoolYearStart: p.school_year_start,
     examType: p.exam_type, textbook: p.textbook, region: p.region, pageCount: p.page_count, createdAt: p.created_at,
     similarState: p.similar_state ?? null, error: p.error ?? null
   }
 }
 
 async function papersList(ctx: CliCtx) {
-  const rows = await ctx.invoke('papers:list', paperFilterFromFlags(ctx.args.flags))
+  const rows = await ctx.invoke('papers:list', paperFilterFromFlags(ctx.args.flags, subjectOf(ctx)))
   const counts = new Map((getDb().prepare('SELECT paper_id, COUNT(*) c FROM questions GROUP BY paper_id').all() as any[]).map(r => [r.paper_id as string, r.c as number]))
   return { papers: (rows as any[]).filter(p => !p.is_sample).map(p => ({ ...paperRow(p), questions: counts.get(p.id) ?? 0 })) }
 }
@@ -187,10 +201,10 @@ async function papersConfirm(ctx: CliCtx) {
 // ───────────────────────── stats ─────────────────────────
 
 async function statsOverview(ctx: CliCtx) {
-  return ctx.invoke('stats:overview', statsFilterFromFlags(ctx.args.flags))
+  return ctx.invoke('stats:overview', statsFilterFromFlags(ctx.args.flags, subjectOf(ctx)))
 }
 async function statsHot(ctx: CliCtx) {
-  return ctx.invoke('stats:hot', statsFilterFromFlags(ctx.args.flags), levelFromFlags(ctx.args.flags, 2))
+  return ctx.invoke('stats:hot', statsFilterFromFlags(ctx.args.flags, subjectOf(ctx)), levelFromFlags(ctx.args.flags, 2))
 }
 async function statsCompare(ctx: CliCtx) {
   const f = ctx.args.flags
@@ -203,7 +217,7 @@ async function statsCompare(ctx: CliCtx) {
     else if (f.base !== true && Number.isInteger(Number(f.base)) && Number(f.base) >= 2000 && Number(f.base) <= 2100) base = Number(f.base)
     else throw new CliError('usage', '--base 要是 before（目标学年之前的全部学年）或一个学年起始年')
   }
-  const filter = statsFilterFromFlags(f)
+  const filter = statsFilterFromFlags(f, subjectOf(ctx))
   delete filter.school_year_start   // 同比自己决定学年，筛选里的学年不生效（和界面一致）
   return ctx.invoke('stats:compare', filter, target, base, levelFromFlags(f, 2), f['no-align'] !== true)
 }
@@ -246,7 +260,7 @@ async function reportGenerate(ctx: CliCtx) {
   requireAi()
   let courseIds = courseIdsFromFlags(ctx.args.flags)
   if (courseIds.length && reader === 'boss') { ctx.log('老板版不加课程对照，已忽略 --with-course'); courseIds = [] }
-  const filter = statsFilterFromFlags(ctx.args.flags)
+  const filter = statsFilterFromFlags(ctx.args.flags, subjectOf(ctx))
   const requestId = crypto.randomUUID()
   let chars = 0, lastLog = 0
   const sender = {
@@ -338,7 +352,7 @@ async function courseMatch(ctx: CliCtx) {
 }
 
 async function reportList(ctx: CliCtx) {
-  const items = (await ctx.invoke('report:list')) as any[]
+  const items = (await ctx.invoke('report:list', subjectOf(ctx))) as any[]
   return { reports: items.map(r => ({ id: r.id, title: r.title, reader: r.reader, readerLabel: r.readerLabel, createdAt: r.createdAt, status: r.status, chars: r.chars, unverifiedCount: r.unverifiedCount, confirmedAt: r.confirmedAt, draft: !r.confirmedAt, blockReason: r.blockReason })) }
 }
 

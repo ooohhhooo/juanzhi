@@ -2,6 +2,7 @@ import { ipcMain, dialog, clipboard, ClipboardItem, shell } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
+import { SUBJECT_IDS } from '../../shared/subject'
 import { getMainWindow } from '../window'
 import { withSpend } from './cost'
 import { StatsFilterSchema } from '../stats/filter'
@@ -29,7 +30,7 @@ const stamp = () => { const d = new Date(); const p = (n: number) => String(n).p
 const exported = new Set<string>()
 
 export function registerReportIpc(): void {
-  ipcMain.handle('report:list', async () => listReports())
+  ipcMain.handle('report:list', async (_e, rawSubject?: unknown) => listReports(z.enum(SUBJECT_IDS).optional().parse(rawSubject ?? undefined)))
   ipcMain.handle('report:get', async (_e, rawId: unknown) => getReport(IdSchema.parse(rawId)))
   ipcMain.handle('report:preview', async (_e, rawFilter?: unknown, rawReader?: unknown) => previewReport(FilterArg.parse(rawFilter ?? {}), ReaderSchema.parse(rawReader ?? undefined) as any))
   ipcMain.handle('report:delete', async (_e, rawId: unknown) => deleteReport(IdSchema.parse(rawId)))

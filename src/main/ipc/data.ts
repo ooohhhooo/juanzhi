@@ -96,7 +96,7 @@ export function registerDataIpc(): void {
     if (busy) throw new Error(busy)
     const win = getMainWindow()
     const opts: Electron.SaveDialogOptions = {
-      title: '导出数据包', defaultPath: `英语校考数据包-${stamp()}.ewb.zip`, filters: [{ name: '数据包（.ewb.zip）', extensions: ['zip'] }]
+      title: '导出数据包', defaultPath: `卷知数据包-${stamp()}.ewb.zip`, filters: [{ name: '数据包（.ewb.zip）', extensions: ['zip'] }]
     }
     const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
     if (r.canceled || !r.filePath) return { saved: false }

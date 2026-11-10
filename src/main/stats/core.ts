@@ -179,7 +179,7 @@ export function distribution(db: Db, f: StatsFilter): Distribution {
   const qtypes = qrows.map(r => {
     const info = qinfo.get(r.qtype)
     return {
-      code: r.qtype as string, name: (info?.name ?? r.qtype) as string, group: (info?.grp ?? 'written') as string,
+      code: r.qtype as string, name: (info?.name ?? r.qtype) as string, group: (info?.grp ?? '') as string,
       questions: r.n as number, scored: (r.scored ?? 0) as number, score: (r.score ?? 0) as number,
       scoreShare: pct(r.score ?? 0, c.totalScore), questionShare: pct(r.n, c.questions), papers: r.papers as number,
       avgDifficulty: r.diff == null ? null : Math.round(r.diff * 100) / 100
@@ -227,7 +227,7 @@ export interface ScopeNotes {
 /** 选中的 id 里现在还在库里的份数（已删掉的不算；示例 / 真实按筛选的 sample 分开）；没有选中范围时返回 null */
 export function selectedCount(db: Db, f: StatsFilter): number | null {
   if (!f.paperIds) return null
-  return (db.prepare('SELECT COUNT(*) c FROM papers WHERE is_sample = ? AND id IN (SELECT value FROM json_each(?))').get(f.sample ? 1 : 0, JSON.stringify(f.paperIds)) as any).c as number
+  return (db.prepare('SELECT COUNT(*) c FROM papers WHERE is_sample = ? AND subject = ? AND id IN (SELECT value FROM json_each(?))').get(f.sample ? 1 : 0, f.subject ?? 'english', JSON.stringify(f.paperIds)) as any).c as number
 }
 
 /** 轻量的「范围说明」：每个页面都显示，只做几次计数，不做任何知识点聚合 */
@@ -298,7 +298,7 @@ export function matrix(db: Db, f: StatsFilter, level: number): MatrixResult {
     FROM papers p CROSS JOIN questions q ON q.paper_id = p.id WHERE ${scope.where} GROUP BY 1`).all(...scope.params) as any[]).map(r => [r.qtype as string, r]))
   const colList = [...new Set([...colAgg.keys(), ...allQ.keys()])].map(code => {
     const q = qinfo.get(code)
-    return { code, name: (q?.name ?? code) as string, group: (q?.grp ?? 'written') as string, questions: colAgg.get(code)?.questions ?? 0, score: colAgg.get(code)?.score ?? 0,
+    return { code, name: (q?.name ?? code) as string, group: (q?.grp ?? '') as string, questions: colAgg.get(code)?.questions ?? 0, score: colAgg.get(code)?.score ?? 0,
       allQuestions: allQ.get(code)?.n ?? 0, allScore: allQ.get(code)?.score ?? 0, allScored: allQ.get(code)?.scored ?? 0, sort: (q?.sort ?? 9999) as number }
   }).sort((a, b) => a.sort - b.sort || (a.code < b.code ? -1 : 1)).map(({ sort: _s, ...r }) => r)
   return { level, papers: c.papers, rows: rowList, cols: colList, cells, coverage: { scored: c.scored, questions: c.questions, tagged: c.tagged }, totalScore: c.totalScore }
@@ -712,7 +712,9 @@ export function overview(db: Db, f: StatsFilter): OverviewResult {
 export function filterOptions(db: Db, f?: StatsFilter): { years: number[]; textbooks: string[]; regions: string[] } {
   // 候选值只来自「会被计入统计」的状态：没打开「含待审核」时，只在待审核卷子里才有的教材/地区/学年不出现，免得选了就是空结果
   const st = f?.includeReviewing ? "('done','reviewing')" : "('done')"
+  const subj = f?.subject ?? 'english'   // 学科只取白名单里的值，直接拼进 SQL 安全（zod 已校验，这里再兜一次）
+  if (!/^[a-z]+$/.test(subj)) throw new Error('学科不合法')
   const smp = f?.sample ? 1 : 0   // 示例数据与真实数据的候选值分开
-  const col = (c: string) => (db.prepare(`SELECT DISTINCT ${c} v FROM papers WHERE status IN ${st} AND is_sample = ${smp} AND ${c} IS NOT NULL AND ${c} <> '' ORDER BY ${c}`).all() as any[]).map(r => r.v)
+  const col = (c: string) => (db.prepare(`SELECT DISTINCT ${c} v FROM papers WHERE status IN ${st} AND is_sample = ${smp} AND subject = '${subj}' AND ${c} IS NOT NULL AND ${c} <> '' ORDER BY ${c}`).all() as any[]).map(r => r.v)
   return { years: f ? availableYears(db, f) : col('school_year_start') as number[], textbooks: col('textbook') as string[], regions: col('region') as string[] }
 }

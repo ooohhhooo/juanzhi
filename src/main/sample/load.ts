@@ -56,13 +56,13 @@ export async function loadSample(db: any, filesDir: string, render: SampleRender
       written.push(dir)
       rendered[pi].pages.forEach((pg, k) => fs.writeFileSync(path.join(dir, `page-${k + 1}.png`), pg.png))
     })
-    const insP = db.prepare(`INSERT INTO papers (id, title, grade, semester, school_year_start, exam_type, textbook, region, school, total_score, file_name, file_hash, status, page_count, ai_model, extracted_at, parsed_at, is_sample, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, '示例学校', ?, ?, ?, 'done', ?, '示例数据', ?, ?, 1, ?)`)
+    const insP = db.prepare(`INSERT INTO papers (id, title, grade, semester, school_year_start, exam_type, textbook, region, school, total_score, file_name, file_hash, status, page_count, ai_model, extracted_at, parsed_at, is_sample, created_at, subject)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, '示例学校', ?, ?, ?, 'done', ?, '示例数据', ?, ?, 1, ?, 'english')`)
     const insQ = db.prepare(`INSERT INTO questions (id, paper_id, ord, no_label, no, section, section_title, qtype, stem, options, answer, score, difficulty, error_prone, error_reason, page_idx, bbox_json, bbox_source, confidence, reviewed, flags_json)
       VALUES (?, ?, ?, ?, ?, '一', '示例题', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', 1, 1, '[]')`)
     const insK = db.prepare('INSERT INTO question_kps (question_id, kp_code, is_primary) VALUES (?, ?, ?)')
     const insPg = db.prepare(`INSERT INTO pages (paper_id, idx, image_rel, width, height, text_source, lines_json, text) VALUES (?, ?, ?, ?, ?, 'pdf-text', '[]', ?)`)
-    const known = new Set((db.prepare('SELECT code FROM kps').all() as any[]).map(r => r.code))
+    const known = new Set((db.prepare("SELECT code FROM kps WHERE subject = 'english'").all() as any[]).map(r => r.code))
     let nq = 0
     db.exec('BEGIN')
     try {

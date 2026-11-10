@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { getDb } from '../db'
+import { SUBJECT_IDS } from '../../shared/subject'
 import { lessonName } from '../course/map'
 import { getMainWindow } from '../window'
 import {
@@ -60,7 +61,8 @@ export function registerAgentIpc(): void {
     return { saved: true, path: pick.filePath }
   })
   ipcMain.handle('agent:playbookOpenDir', async () => { const d = userPlaybookDir(); fs.mkdirSync(d, { recursive: true }); await shell.openPath(d); return d })
-  ipcMain.handle('agent:sessions', async () => listSessions(db()))
+  // 按学科列会话；不传 = 英语（和其他列表接口一致）
+  ipcMain.handle('agent:sessions', async (_e, subject?: unknown) => listSessions(db(), 60, z.enum(SUBJECT_IDS).optional().parse(subject ?? undefined) ?? 'english'))
   ipcMain.handle('agent:session', async (_e, id: unknown) => {
     return sessionView(IdSchema.parse(id))
   })
@@ -103,7 +105,7 @@ export function registerAgentIpc(): void {
       sessionId: IdSchema.optional(), role: z.string().min(1).max(40), text: z.string().trim().min(1).max(2000),
       mode: z.enum(AGENT_MODES as [string, ...string[]]).optional(), approval: z.enum(APPROVAL_MODES as [string, ...string[]]).optional(), model: z.string().max(120).optional(), effort: z.string().max(10).optional(),
       branchFrom: z.number().int().min(1).optional(), branchId: z.string().max(40).optional(), datasets: z.array(z.string().max(80)).max(20).optional(), playbooks: z.array(z.string().max(60)).max(5).optional(),
-      attachments: z.array(z.string().max(80)).max(10).optional()
+      attachments: z.array(z.string().max(80)).max(10).optional(), subject: z.enum(SUBJECT_IDS).optional()
     }).parse(raw)
     return startRun(p as Parameters<typeof startRun>[0])
   })

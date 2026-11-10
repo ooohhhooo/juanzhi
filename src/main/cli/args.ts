@@ -2,6 +2,8 @@
  * 命令行接口（M7）的参数解析、命令表、退出码和输出格式。纯函数，不依赖 electron，单测直接加载。
  * 设计见 docs/M7-命令行接口设计.md。
  */
+import { SUBJECT_IDS } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 
 /** 错误码 → 退出码（文档里的表；改这里要同步 docs/命令行.md 和 skills/juanzhi/SKILL.md，单测会核对） */
 export const EXIT_CODES = {
@@ -72,12 +74,12 @@ export interface CommandSpec {
   summary: string
 }
 
-const FILTER_FLAGS = ['grade', 'semester', 'year', 'exam-type', 'textbook', 'region', 'include-reviewing', 'include-duplicates']
+const FILTER_FLAGS = ['subject', 'grade', 'semester', 'year', 'exam-type', 'textbook', 'region', 'include-reviewing', 'include-duplicates']
 
 export const COMMANDS: Record<string, CommandSpec> = {
-  status: { args: { min: 0, max: 0, name: '' }, flags: [], summary: '版本、数据目录、卷子数、AI 是否已配置、OCR 是否可用' },
-  import: { args: { min: 1, max: Infinity, name: '<文件…>' }, flags: ['wait'], summary: '导入试卷并自动提取、AI 解析' },
-  'papers list': { args: { min: 0, max: 0, name: '' }, flags: ['grade', 'semester', 'year', 'exam-type', 'textbook', 'region', 'status'], summary: '试卷列表' },
+  status: { args: { min: 0, max: 0, name: '' }, flags: ['subject'], summary: '版本、数据目录、卷子数、AI 是否已配置、OCR 是否可用' },
+  import: { args: { min: 1, max: Infinity, name: '<文件…>' }, flags: ['wait', 'subject'], summary: '导入试卷并自动提取、AI 解析' },
+  'papers list': { args: { min: 0, max: 0, name: '' }, flags: ['subject', 'grade', 'semester', 'year', 'exam-type', 'textbook', 'region', 'status'], summary: '试卷列表' },
   'papers show': { args: { min: 1, max: 1, name: '<id>' }, flags: [], summary: '一份试卷的信息和题目' },
   'papers confirm': { args: { min: 1, max: 1, name: '<id>' }, flags: ['i-reviewed'], summary: '跳过人工审核，直接确认整份试卷（必须带 --i-reviewed）' },
   'stats overview': { args: { min: 0, max: 0, name: '' }, flags: FILTER_FLAGS, summary: '总览' },
@@ -87,7 +89,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
   'course import': { args: { min: 1, max: 1, name: '<文件>' }, flags: ['name', 'scene', 'i-reviewed'], summary: '导入课程表（Excel、CSV、Word、PDF 或图片）并整理；不带 --i-reviewed 时保存为草稿，要在窗口里确认后才参与对照' },
   'course match': { args: { min: 1, max: 1, name: '<id>' }, flags: ['only-new', 'estimate-only', 'yes'], summary: '把知识点匹配到课程体系的课次（会调用 AI，输出里报用量）；--estimate-only 只估算不调用；预计用量很大时要加 --yes 才执行' },
   'report generate': { args: { min: 0, max: 0, name: '' }, flags: [...FILTER_FLAGS, 'reader', 'with-course'], summary: '生成报告；--with-course <id[,id]> 加入课程对照（体系要先匹配）' },
-  'report list': { args: { min: 0, max: 0, name: '' }, flags: [], summary: '报告列表' },
+  'report list': { args: { min: 0, max: 0, name: '' }, flags: ['subject'], summary: '报告列表' },
   'report show': { args: { min: 1, max: 1, name: '<id>' }, flags: [], summary: '一份报告的详情' },
   'report export': { args: { min: 1, max: 1, name: '<id>' }, flags: ['format', 'out', 'overwrite'], summary: '导出报告文件（md / docx / pdf）；目标文件已存在时要加 --overwrite 才覆盖' },
   diagnostics: { args: { min: 0, max: 0, name: '' }, flags: ['out', 'overwrite'], summary: '导出诊断信息（zip，不含学生数据和密钥）；--out 指定 zip 路径，已存在时要加 --overwrite' }
@@ -228,10 +230,16 @@ function text(flag: string, v: string | true | undefined): string | undefined {
   return v.trim()
 }
 
+/** `--subject english|chinese|math`；不写返回 undefined（调用方再取设置里的当前学科，最后兜底英语） */
+export function subjectFromFlags(flags: Record<string, string | true>): SubjectId | undefined {
+  return oneOf('subject', flags.subject, SUBJECT_IDS as unknown as string[]) as SubjectId | undefined
+}
+
 /** 统计 / 报告用的筛选（和界面的 StatsFilter 一致）；没有任何筛选参数返回 {} */
-export function statsFilterFromFlags(flags: Record<string, string | true>): Record<string, unknown> {
+export function statsFilterFromFlags(flags: Record<string, string | true>, fallbackSubject?: SubjectId): Record<string, unknown> {
   const f: Record<string, unknown> = {}
   const set = (k: string, v: unknown) => { if (v !== undefined) f[k] = v }
+  set('subject', subjectFromFlags(flags) ?? fallbackSubject)
   set('grade', oneOf('grade', flags.grade, GRADES))
   set('semester', oneOf('semester', flags.semester, SEMESTERS))
   set('school_year_start', intIn('year', flags.year, 2000, 2100))
@@ -244,9 +252,10 @@ export function statsFilterFromFlags(flags: Record<string, string | true>): Reco
 }
 
 /** 试卷列表用的筛选（PaperFilter） */
-export function paperFilterFromFlags(flags: Record<string, string | true>): Record<string, unknown> {
+export function paperFilterFromFlags(flags: Record<string, string | true>, fallbackSubject?: SubjectId): Record<string, unknown> {
   const f: Record<string, unknown> = {}
   const set = (k: string, v: unknown) => { if (v !== undefined) f[k] = v }
+  set('subject', subjectFromFlags(flags) ?? fallbackSubject)
   set('grade', oneOf('grade', flags.grade, GRADES))
   set('semester', oneOf('semester', flags.semester, SEMESTERS))
   set('school_year_start', intIn('year', flags.year, 2000, 2100))

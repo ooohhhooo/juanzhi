@@ -11,6 +11,8 @@ import { refreshPower, registerBusySource } from '../power'
 import { log, shortId } from '../log'
 import { isParseActive, maybeAutoParse, recoverInterruptedParsing } from '../parse/queue'
 import type { ImportResult } from '../types'
+import { asSubject, subjectName } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 
 const SUPPORTED_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.heic', '.docx']
 // PDF 整本以 base64 塞进 executeJavaScript 字符串，V8 字符串有上限，所以不能放太大的文件
@@ -107,14 +109,14 @@ function hashFile(filePath: string): Promise<string> {
   })
 }
 
-async function registerOne(filePath: string, allowDup: boolean): Promise<ImportResult> {
+async function registerOne(filePath: string, allowDup: boolean, subject: SubjectId = 'english'): Promise<ImportResult> {
   const db = getDb()
   const fileName = path.basename(filePath)
   try {
     const ext = await checkImportable(filePath)
     const hash = await hashFile(filePath)
 
-    const same = db.prepare('SELECT id, title, file_name, status, error_stage FROM papers WHERE file_hash = ?').all(hash) as any[]
+    const same = db.prepare('SELECT id, title, file_name, status, error_stage, subject FROM papers WHERE file_hash = ?').all(hash) as any[]
     // 上次「提取」失败的同一文件：清掉旧记录，允许直接重新导入。
     // 「AI 解析」失败的不能清：它有完整的页面数据，可能还有已审核的题目；它按重复处理，让用户去处理队列里重试。
     const extractFailed = (r: any) => r.status === 'failed' && r.error_stage !== 'parse'
@@ -126,7 +128,7 @@ async function registerOne(filePath: string, allowDup: boolean): Promise<ImportR
     if (live && !allowDup) {
       return {
         path: filePath, fileName, code: 'duplicate',
-        error: `内容与已有试卷「${live.title || live.file_name}」完全相同${live.status === 'failed' ? '（那份 AI 解析失败了，请到「处理队列」重试，不必重新导入）' : ''}`,
+        error: `内容与已有${live.subject && live.subject !== subject ? subjectName(live.subject) : ''}试卷「${live.title || live.file_name}」完全相同${live.status === 'failed' ? '（那份 AI 解析失败了，请到「处理队列」重试，不必重新导入）' : ''}`,
         duplicateOf: { id: live.id, title: live.title || live.file_name, parseFailed: live.status === 'failed' }
       }
     }
@@ -136,8 +138,8 @@ async function registerOne(filePath: string, allowDup: boolean): Promise<ImportR
     await fsp.mkdir(paperDir, { recursive: true })
     try {
       await fsp.copyFile(filePath, path.join(paperDir, `original${ext}`))
-      db.prepare(`INSERT INTO papers (id, title, file_name, file_hash, status, duplicate_of) VALUES (?, ?, ?, ?, 'imported', ?)`)
-        .run(paperId, fileName.replace(/\.[^.]+$/, ''), fileName, hash, live ? live.id : null)
+      db.prepare(`INSERT INTO papers (id, title, file_name, file_hash, status, duplicate_of, subject) VALUES (?, ?, ?, ?, 'imported', ?, ?)`)
+        .run(paperId, fileName.replace(/\.[^.]+$/, ''), fileName, hash, live ? live.id : null, subject)
     } catch (e) {
       removePaperFiles(paperId)
       throw e
@@ -154,11 +156,11 @@ async function registerOne(filePath: string, allowDup: boolean): Promise<ImportR
  * 登记一批文件：复制原件、写入 imported 行并入队，登记完就返回；真正的提取在后台串行执行。
  * 内容相同的文件默认不导入，返回 code='duplicate'，由界面确认后用 allowDuplicates 重新调用。
  */
-export function registerImports(paths: string[], opts?: { allowDuplicates?: string[]; parseAfter?: boolean }): Promise<ImportResult[]> {
+export function registerImports(paths: string[], opts?: { allowDuplicates?: string[]; parseAfter?: boolean; subject?: SubjectId }): Promise<ImportResult[]> {
   const allow = new Set(opts?.allowDuplicates ?? [])
   const job = importChain.then(async () => {
     const results: ImportResult[] = []
-    for (const p of paths) results.push(await registerOne(p, allow.has(p)))
+    for (const p of paths) results.push(await registerOne(p, allow.has(p), asSubject(opts?.subject)))
     // 命令行导入：不管设置里有没有开「自动解析」，提取完都接着 AI 解析
     if (opts?.parseAfter) for (const r of results) if (r.paperId) parseAfterExtract.add(r.paperId)
     notifyDataChanged('papers')

@@ -12,13 +12,15 @@
  * 所有操作在一个事务里，一步失败整批回滚。修订号（data_rev）由 kps / question_kps 上的触发器自动推高，看板和 AI 缓存据此失效。
  */
 
+import { asSubject, customRootPrefix, subjectName } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 import { kpNameProblem, kpTextProblem, stripInvisible, KP_NAME_MAX, KP_NOTE_MAX, KP_PLAIN_MAX, KP_EXAMPLE_EN_MAX, KP_EXAMPLE_ZH_MAX, KP_HINT_MAX } from '../pack/kp-rules.ts'
 
 /** 白话释义 / 例句 / 例词（B7）：可选填，空着就不显示 */
 export interface KpPlainFields { plain?: string | null; example_en?: string | null; example_zh?: string | null; hint_words?: string | null }
 
 export type TaxonomyOp =
-  | ({ op: 'add'; parent_code: string | null; name: string; note?: string; intro_grade?: number | null } & KpPlainFields)
+  | ({ op: 'add'; parent_code: string | null; name: string; /** 新根节点属于哪个学科（缺省 = 英语；有父节点时随父节点） */ subject?: SubjectId; note?: string; intro_grade?: number | null } & KpPlainFields)
   | ({ op: 'update'; code: string; name?: string; note?: string | null; intro_grade?: number | null } & KpPlainFields)
   | { op: 'move'; code: string; parent_code: string | null }
   | { op: 'merge'; code: string; into: string }
@@ -36,6 +38,7 @@ export interface KpRow {
   merged_into: string | null
   note: string | null
   builtin: number
+  subject?: string
   plain?: string | null
   example_en?: string | null
   example_zh?: string | null
@@ -48,7 +51,7 @@ const MAX_LEVEL = 3
 const bad = (msg: string): never => { throw new TaxonomyError(msg) }
 
 function load(db: any): Map<string, KpRow> {
-  return new Map((db.prepare('SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words FROM kps').all() as KpRow[]).map(k => [k.code, k]))
+  return new Map((db.prepare('SELECT code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, subject, plain, example_en, example_zh, hint_words FROM kps').all() as KpRow[]).map(k => [k.code, k]))
 }
 
 function childrenOf(all: Map<string, KpRow>, code: string): KpRow[] {
@@ -114,8 +117,8 @@ function sameNameSibling(all: Map<string, KpRow>, parent: string | null, name: s
   return [...all.values()].find(k => k.code !== except && (k.parent_code ?? null) === parent && k.deprecated === 0 && k.name === name)
 }
 
-function newCode(all: Map<string, KpRow>, parent: string | null): string {
-  const prefix = parent ?? 'U'
+function newCode(all: Map<string, KpRow>, parent: string | null, subject: SubjectId = 'english'): string {
+  const prefix = parent ?? customRootPrefix(subject)
   let n = 1
   while (all.has(`${prefix}.U${n}`)) n++
   return `${prefix}.U${n}`
@@ -138,13 +141,16 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
       const level = (parent?.level ?? 0) + 1
       if (level > MAX_LEVEL) bad(`知识点树最多 ${MAX_LEVEL} 层，不能再往「${parent!.name}」下新增了`)
       if (sameNameSibling(all, parent?.code ?? null, name)) bad(`同一级下已经有叫「${name}」的知识点`)
-      const code = newCode(all, parent?.code ?? null)
+      // 学科：有父节点就跟父节点；根节点用 op.subject。给了 subject 又和父节点不一致就拒绝
+      const subject = asSubject(parent ? parent.subject : op.subject)
+      if (parent && op.subject && asSubject(op.subject) !== subject) bad(`不能在${subjectName(parent.subject)}的知识点下新增${subjectName(op.subject)}的知识点`)
+      const code = newCode(all, parent?.code ?? null, subject)
       const sibs = [...all.values()].filter(k => (k.parent_code ?? null) === (parent?.code ?? null))
       const sort = (sibs.length ? Math.max(...sibs.map(s => s.sort)) : (parent?.sort ?? 0)) + 1
-      const row: KpRow = { code, parent_code: parent?.code ?? null, name, level, intro_grade: op.intro_grade ?? null, sort, deprecated: 0, merged_into: null, note: cleanNote(op.note), builtin: 0,
+      const row: KpRow = { code, parent_code: parent?.code ?? null, name, level, intro_grade: op.intro_grade ?? null, sort, deprecated: 0, merged_into: null, note: cleanNote(op.note), builtin: 0, subject,
         plain: cleanPlainField('plain', op.plain), example_en: cleanPlainField('example_en', op.example_en), example_zh: cleanPlainField('example_zh', op.example_zh), hint_words: cleanPlainField('hint_words', op.hint_words) }
-      db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, plain, example_en, example_zh, hint_words) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 0, ?, ?, ?, ?)`)
-        .run(code, row.parent_code, name, level, row.intro_grade, sort, row.note, row.plain ?? null, row.example_en ?? null, row.example_zh ?? null, row.hint_words ?? null)
+      db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, merged_into, note, builtin, subject, plain, example_en, example_zh, hint_words) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, 0, ?, ?, ?, ?, ?)`)
+        .run(code, row.parent_code, name, level, row.intro_grade, sort, row.note, subject, row.plain ?? null, row.example_en ?? null, row.example_zh ?? null, row.hint_words ?? null)
       all.set(code, row)
       return
     }
@@ -177,6 +183,7 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
       if ((n.parent_code ?? null) === (parent?.code ?? null)) return
       if (parent && subtree(all, n.code).some(k => k.code === parent.code)) bad('不能把节点移到它自己或它的子节点下面')
       if (parent && parent.deprecated) bad('不能移到已停用的节点下')
+      if (parent && asSubject(parent.subject) !== asSubject(n.subject)) bad('不能把知识点移到别的学科下面')
       const newLevel = (parent?.level ?? 0) + 1
       if (newLevel - 1 + height(all, n.code) > MAX_LEVEL) bad(`移动后知识点树会超过 ${MAX_LEVEL} 层`)
       if (sameNameSibling(all, parent?.code ?? null, n.name, n.code)) bad(`目标位置下已经有叫「${n.name}」的知识点`)
@@ -191,6 +198,7 @@ function applyOne(db: any, all: Map<string, KpRow>, op: TaxonomyOp): void {
       if (s.code === t.code) bad('不能把知识点合并到它自己')
       if (s.merged_into) bad(`「${s.name}」已经合并到别的知识点了`)
       if (s.builtin) bad(`「${s.name}」是内置知识点，只能改名，不能合并掉（合并会让它消失）。可以把别的知识点合并进它，或者停用它`)
+      if (asSubject(s.subject) !== asSubject(t.subject)) bad('不能把知识点合并到别的学科')
       if (t.deprecated) bad('合并的目标已停用，请选择一个正在使用的知识点')
       if (subtree(all, s.code).some(k => k.code === t.code)) bad('不能把节点合并到它自己的子节点里')
       // 子节点挂到目标下面，层数不能超
