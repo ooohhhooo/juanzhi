@@ -195,7 +195,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     setSaving(true)
     try {
       const r = await window.api.course.save({
-        sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, ...(edited ? { levels: ls } : {}), warnings: parsed.warnings.slice(0, 300), mappings: payloadMappings(), aiModel, confirmLockedLoss
+        sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, ...(edited ? { levels: ls } : {}), warnings: parsed.warnings.slice(0, 300), mappings: payloadMappings(), aiModel, confirmLockedLoss, subject: job?.subject ?? subject
       })
       if (job) void window.api.course.jobRemove(job.id).catch(() => undefined)
       message.success(replaceId ? `已替换：新增 ${r.added} 课、修改 ${r.changed} 课、删除 ${r.removed} 课` : '已保存课程体系')

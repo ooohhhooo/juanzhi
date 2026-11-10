@@ -710,7 +710,7 @@ type CourseLevelDraft = import('../main/course/map').ParsedLevel
 type CourseDashboard = import('../main/course/stats').CourseDashboard
 type CourseRow = import('../main/course/stats').CourseRow
 type CourseLessonRef = import('../main/course/stats').LessonRef
-interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual'; progress?: { done: number; total: number; unit: string } | null }
+interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual'; /** 学科（整理任务开始时锁定） */ subject?: import('../shared/subject').SubjectId; progress?: { done: number; total: number; unit: string } | null }
 type CourseSource = import('../main/course/service').SourceInfo
 type CourseSuggestItem = import('../main/course/service').SuggestItem
 type CourseMatchProgress = import('../main/course/service').MatchProgress
@@ -720,6 +720,8 @@ interface CourseAdviceScope { kind: 'course_advice'; filter: StatsFilter; outlin
 interface CourseMapRow { kp: string; kpName: string; lessonId: number; confidence: string; reason: string; quote: string; source: string; state: string; locked: boolean }
 interface CourseSaveRequest {
   sessionId?: string
+  /** 学科（新建时；整理会话里已锁定的优先） */
+  subject?: import('../shared/subject').SubjectId
   name: string
   scene: 'org' | 'school' | 'family' | 'other'
   termNote?: string

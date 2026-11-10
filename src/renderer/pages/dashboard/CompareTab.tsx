@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Segmented, Select, Spin, Switch } from 'antd'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { keepSameSubject } from '../../subject/placeholder'
 import KpDrawer from './KpDrawer'
 import AnalysisPanel from '../../stats/AnalysisPanel'
 import PageViewer from '../../stats/PageViewer'
@@ -69,7 +70,7 @@ export default function CompareTab() {
   useEffect(() => { if (target !== null && base !== 'before' && base >= target) setBase('before') }, [target, base])
 
   const scope: CompareScope | null = target === null ? null : { filter, target, base, level, align }
-  const { data: cmp, isLoading } = useQuery({ queryKey: ['stats', 'compare', scope], enabled: !!scope, queryFn: () => window.api.stats.compare(filter, target!, base, level, align), placeholderData: keepPreviousData })
+  const { data: cmp, isLoading } = useQuery({ queryKey: ['stats', 'compare', scope], enabled: !!scope, queryFn: () => window.api.stats.compare(filter, target!, base, level, align), placeholderData: keepSameSubject(filter.subject ?? 'english') })
   // 抽屉只记知识点代码，数字每次从最新的结果里取（抽屉开着时数据变了，上方的数字也跟着变）
   const open = useMemo(() => (cmp && openCode ? [...cmp.added, ...cmp.removed, ...cmp.up, ...cmp.down].find(i => i.code === openCode) ?? null : null), [cmp, openCode])
   const earlier = useMemo(() => years.filter(y => target !== null && y < target), [years, target])

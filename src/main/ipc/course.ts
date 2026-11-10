@@ -223,7 +223,7 @@ export function registerCourseIpc(): void {
       notifyDataChanged('course')
       return { id: p.replaceId, replaced: true, ...r }
     }
-    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(p.subject) })
+    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(src?.subject ?? p.subject) })   // 学科以整理会话里锁定的为准，其次才是界面传来的
     log.info('course', '保存课程体系', { levels: levels.length, lessons: levels.reduce((n, l) => n + l.lessons.length, 0) })
     notifyDataChanged('course')
     return { id, replaced: false }

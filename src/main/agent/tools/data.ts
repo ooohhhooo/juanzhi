@@ -8,7 +8,7 @@ import { CLOSURE_CTE, paperScope } from '../../stats/filter.ts'
 import type { StatsFilter } from '../../stats/filter.ts'
 import { loadKps, nodeStats, questionsOfKp, scopeCounts } from '../../stats/core.ts'
 import { collectEvidence } from '../../stats/evidence.ts'
-import { checkRules } from '../../../shared/factcheck.ts'
+import { checkRules, checkRulesFor } from '../../../shared/factcheck.ts'
 import { isMainMap } from '../../course/match.ts'
 import { lessonName } from '../../course/map.ts'
 import type { ToolDef, ToolCtx } from '../types.ts'
@@ -175,9 +175,13 @@ export const factCheck: ToolDef = {
   description: '把一段讲解文字（尤其是语法规则的说法）拿去和已审核的题目解释、知识点释义核对。找出「与题目解释矛盾」和「查不到依据」的句子。通过只表示和软件里审核过的资料一致，不代表一定正确。',
   schema: z.object({ text: z.string().min(1).max(4000).describe('要核对的文字') }),
   run: (a, ctx) => {
-    const ev = collectEvidence(ctx.db, paperScope({ subject: subjectOf(ctx) }), {})
-    const found = checkRules(a.text, ev.statements)
-    if (found.length === 0) return { text: '没有发现和软件里审核过的资料矛盾的规则句（也可能这段话里没有规则句）。', count: 0 }
+    const subject = subjectOf(ctx)
+    const ev = collectEvidence(ctx.db, paperScope({ subject }), {})
+    const found = checkRulesFor(subject, a.text, ev.statements)
+    if (found.length === 0) {
+      // 语文、数学只能判「查不到依据」，判不了「矛盾」：措辞不能让人以为说法已被证明正确
+      return { text: subject === 'english' ? '没有发现和软件里审核过的资料矛盾的规则句（也可能这段话里没有规则句）。' : '没有发现查不到依据的规则句（语文、数学只核对「有没有依据」，不判断说法对不对）。', count: 0 }
+    }
     const kind = { conflict: '与题目解释矛盾', unverified: '查不到依据' } as const
     return { text: found.map((f, i) => `${i + 1}. 【${kind[f.kind]}】${f.sentence}（${f.reason}）`).join('\n'), count: found.length }
   }

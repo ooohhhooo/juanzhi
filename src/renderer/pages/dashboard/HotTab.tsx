@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Collapse, Segmented, Spin, Table } from 'antd'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { keepSameSubject } from '../../subject/placeholder'
 import QuestionCardView from '../../stats/QuestionCardView'
 import PageViewer from '../../stats/PageViewer'
 import type { ViewTarget } from '../../stats/PageViewer'
@@ -27,7 +28,7 @@ export default function HotTab() {
   const [level, setLevel] = useState(2)
   const [view, setView] = useState<ViewTarget | null>(null)
   const [openCode, setOpenCode] = useState<string | null>(null)
-  const { data: h, isLoading } = useQuery({ queryKey: ['stats', 'hot', filter, level], queryFn: () => window.api.stats.hot(filter, level), placeholderData: keepPreviousData })
+  const { data: h, isLoading } = useQuery({ queryKey: ['stats', 'hot', filter, level], queryFn: () => window.api.stats.hot(filter, level), placeholderData: keepSameSubject(filter.subject ?? 'english') })
   useScopeGuide(h?.rows[0]?.name, h && h.rows.length > 1 ? h.rows[h.rows.length - 1].name : undefined)
   if (isLoading || !h) return <Spin style={{ margin: 40 }} />
   if (h.papers === 0) return <EmptyStats />

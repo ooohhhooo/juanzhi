@@ -125,8 +125,15 @@ export function fixBackticks(md: string): string {
 /** 只拦统计词和百分比；「难点」「重点」这类家长也看得懂的话不拦（以前拦了，整份被删空） */
 const PARENT_BANNED = /\d+(?:\.\d+)?\s*%|百分点|出现率|分值|占比|基线|样本|AI\s*估计|平均难度|综合得分|同比|统计|置信|份卷|知识点分布/
 
-/** 家长版：含统计词或百分比的句子整句删掉。返回删了几句 */
-export function sanitizeParent(md: string): { text: string; removed: number } {
+/**
+ * 数学家长版：百分数、统计图本身就是要讲的知识点（「把 25% 化成小数」「统计图要先看清每格代表多少」），
+ * 只拦「占 N%」「N% 的题」这类讲统计结果的说法和「统计显示 / 数据统计」这类字眼
+ */
+const PARENT_BANNED_MATH = /占\s*\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?\s*%\s*的(?:题|卷|孩子|学生|家长)|百分点|出现率|分值|占比|基线|样本|AI\s*估计|平均难度|综合得分|同比|统计显示|统计结果|数据统计|从统计|置信|份卷|知识点分布/
+
+/** 家长版：含统计词或百分比的句子整句删掉。返回删了几句。subject = math 时用更窄的禁用表 */
+export function sanitizeParent(md: string, subject?: string): { text: string; removed: number } {
+  const banned = subject === 'math' ? PARENT_BANNED_MATH : PARENT_BANNED
   let removed = 0
   const out: string[] = []
   for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
@@ -134,7 +141,7 @@ export function sanitizeParent(md: string): { text: string; removed: number } {
     const lead = /^(\s*(?:[-*+]|\d+[.、)])\s*)/.exec(line)?.[1] ?? ''
     const body = line.slice(lead.length)
     const pieces = body.split(/(?<=[。！？!?])/)
-    const keep = pieces.filter(p => { const bad = PARENT_BANNED.test(p.replace(/\*\*/g, '')); if (bad) removed++; return !bad })
+    const keep = pieces.filter(p => { const bad = banned.test(p.replace(/\*\*/g, '')); if (bad) removed++; return !bad })
     const kept = keep.join('')
     if (keep.length === 0) continue
     out.push(lead + kept)

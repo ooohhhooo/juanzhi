@@ -359,9 +359,9 @@ export function ruleTalk(subject?: unknown): string {
   return s === 'chinese' ? '讲语文规则' : s === 'math' ? '讲数学规则' : '讲英语规则'
 }
 
-const CUE_CN = /读\s*[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]|念\s*[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]|读作|读成|读音|注音|声调|调号|标在|标调|笔顺|笔画|部首|偏旁|多音字|组词|近义词|反义词|意思是|是指|比喻|拟人|排比|夸张|设问|反问|修辞|句式|改成|换成|变成|变为|应该|应当|必须|一定|不能|不可|不要|规则|口诀|区别|区分|用法|搭配|固定|作者|朝代|出自|写于|属于|先[^，。；]{1,10}再|要先|相当于|等于|表示|用于|用在|要用|常用|通常|一般|都要|都是|就是|才能|只能|不用|不加|后面|前面/
-const CUE_MA = /公式|法则|口诀|规律|规则|性质|定律|运算律|特征|运算顺序|先[^，。；]{1,10}再|要先|必须|一定|不能|不可|应该|应当|等于|相当于|变成|变为|乘以|除以|通分|约分|进位|退位|进率|换算|单位|小数点|移动|分子|分母|[A-Za-z]\s*[=＝]|[=＝×÷＋+]|不变|都是|都要|就是|才能|只能|用[^，。；]{0,6}(?:算|求|乘|除|加|减)|要用|可以用|通常|一般/
-const DATA_TALK = /份卷|占比|出现率|百分点|分值|样本|题数|%/
+const CUE_CN = /读\s*[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]|念\s*[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]|读作|读成|读音|注音|声调|调号|标在|标调|笔顺|笔画|部首|偏旁|多音字|组词|近义词|反义词|意思是|是指|比喻|拟人|排比|夸张|设问|反问|修辞|句式|改成|换成|变成|变为|应该|应当|必须|一定|不能|不可|不要|规则|口诀|区别|区分|用法|搭配|固定|作者|朝代|出自|写于|属于|先[^，。；]{1,10}再|要先|相当于|等于|要用|都要|才能|只能|不用|不加/
+const CUE_MA = /公式|法则|口诀|规律|规则|性质|定律|运算律|特征|运算顺序|先[^，。；]{1,10}再|要先|必须|一定|不能|不可|应该|应当|等于|相当于|变成|变为|乘以|除以|通分|约分|进位|退位|进率|换算|单位|小数点|移动|分子|分母|化成|化为|改写成|写成|[A-Za-z]\s*[=＝]|[=＝×÷＋+]|不变|都要|才能|只能|用[^，。；]{0,6}(?:算|求|乘|除|加|减)|要用|可以用/
+const DATA_TALK = /份卷|占比|出现率|百分点|分值|样本|题数|占\s*\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?\s*%\s*的(?:题|卷|孩子|学生)/
 
 /** 语文 / 数学下，这句话是不是「规则句」（带规则口气）；纯数据句（份数、占比）不算 */
 export function isRuleSentenceFor(subject: unknown, s: string): boolean {
@@ -374,8 +374,8 @@ export function isRuleSentenceFor(subject: unknown, s: string): boolean {
   return true
 }
 
-const GEN_CUT_RE = /[的了是在和与及或要会把就也都很这那个些其它可以容易孩子学生题目考点知识点一定必须应该应当]/
-const GEN_NOISE = new RegExp(`${CUE_CN.source}|${CUE_MA.source}`, 'g')
+const GEN_CUT_RE = /知识点|孩子|学生|题目|考点|一定|必须|应该|应当|可以|容易|其它|这些|那些|[的了是在与及或要把就也都很这那]/
+const GEN_NOISE = /应该|应当|必须|一定|不能|不可|不要|要先|都要|才能|只能|不用|不加|要用|可以用|先(?=[^，。；]{1,10}再)/g
 
 /** 句子里「有分量的片段」：去掉口气词和虚词后的汉字双字组 + 英文串 / 数字串（小写）。证据覆盖就拿它们去比 */
 export function contentTerms(s: string): { bigrams: string[]; tokens: string[] } {
@@ -386,12 +386,22 @@ export function contentTerms(s: string): { bigrams: string[]; tokens: string[] }
       for (let i = 0; i + 1 < piece.length; i++) bigrams.push(piece.slice(i, i + 2))
     }
   }
-  const tokens = [...(s.toLowerCase().match(/[a-zπāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü][a-zπāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü0-9²³]*|\d+(?:[./]\d+)?/g) ?? [])]
+  // 数字只核对规则 / 公式里的：题号、份数、分值、年级这类统计数字不算
+  const t2 = s.replace(/第\s*\d+\s*[题道小大页单]|\d+\s*(?:份|分|道|题|年级|处|次|条|个小题|位同学|人)/g, ' ')
+  const tokens = [...(t2.toLowerCase().match(/[a-zπāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü][a-zπāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü0-9²³]*|\d+(?:[./]\d+)?/g) ?? [])]
   return { bigrams: [...new Set(bigrams)], tokens: [...new Set(tokens)] }
 }
 
 /** 一条证据（按句切开）覆盖句子里多少比例的片段，以及英文 / 数字串是否都在整份证据里出现过 */
 const GEN_COVER = 0.6
+
+/** 学科术语：句子里出现了，证据里就必须也有（覆盖率再高，缺了「通分」这类关键词也不算有依据） */
+const TERM_MA = /通分|约分|进位|退位|进率|运算律|交换律|结合律|分配律|小数点|公因数|公倍数|最大公因数|最小公倍数|质数|合数|因数|倍数|奇数|偶数|周长|表面积|体积|容积|面积|直径|半径|圆周率|垂直|平行|对称轴|平移|旋转|余数|商|积|和|差|单价|总价|速度|路程|工作效率|比例|正比例|反比例|百分数|折扣|利息|平均数|可能性/g
+const TERM_CN = /多音字|声调|轻声|整体认读|音节|声母|韵母|部首|偏旁|笔顺|笔画|结构|拟人|比喻|排比|夸张|设问|反问|对偶|反复|借代|把字句|被字句|陈述句|反问句|转述句|关联词|近义词|反义词|成语|歇后语|谚语|标点|冒号|引号|分号|顿号|破折号|省略号|总分总|中心句|过渡句|作者|朝代/g
+/** 数学里的「关系 / 运算」字眼：句子说「加」、证据只说「乘」，就算别的词都对上也不能放行（「底加高」≠「底乘高」） */
+const REL_MA = /加|减|乘|除|不变|相同|相等|大于|小于|扩大|缩小|增加|减少|翻倍|一半|进一|去尾|四舍五入/g
+
+const hasNumber = (text: string, n: string): boolean => new RegExp(`(?<![\\d.])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d])`).test(text)
 
 /**
  * 语文 / 数学的规则句核对：规则句里的汉字片段要有一条证据子句覆盖 ≥ 60%，英文 / 数字串要在证据里出现过；否则标「未核实」。
@@ -409,7 +419,7 @@ export function checkRulesGeneric(subject: unknown, markdown: string, evidence: 
     seen.add(s0)
     if (!isRuleSentenceFor(subject, s0)) continue
     const { bigrams, tokens } = contentTerms(s0)
-    const missingTok = tokens.filter(t => !allText.includes(t))
+    const missingTok = tokens.filter(t => (/^\d/.test(t) ? !hasNumber(allText, t) : !allText.includes(t)))
     if (missingTok.length > 0) {
       findings.push({ sentence: s0, kind: 'unverified', reason: `审核过的题目解释里没有出现「${missingTok.slice(0, 3).join('、')}」，找不到依据` })
       continue
@@ -420,8 +430,24 @@ export function checkRulesGeneric(subject: unknown, markdown: string, evidence: 
       findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里找不到对应的说法' })
       continue
     }
-    const best = Math.max(0, ...clauseTerms.map(ct => bigrams.filter(b => ct.has(b)).length / bigrams.length))
-    if (best < GEN_COVER) findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里找不到对应的说法' })
+    const sub = asSubject(subject)
+    const terms = [...new Set(s0.match(sub === 'math' ? TERM_MA : TERM_CN) ?? [])].filter(t => t.length >= 2)
+    // 引号里的字词（「重新」「通分」）是这句话的要害：证据里必须原样出现
+    const quoted = [...s0.matchAll(/[「“『"]([^」”』"]{1,12})[」”』"]/g)].map(m => m[1].trim()).filter(Boolean)
+    const missingTerm = [...terms, ...quoted].filter(t => !allText.includes(t.toLowerCase()))
+    if (missingTerm.length > 0) {
+      findings.push({ sentence: s0, kind: 'unverified', reason: `审核过的题目解释里没有提到「${missingTerm.slice(0, 3).join('、')}」，找不到依据` })
+      continue
+    }
+    const scores = clauseTerms.map(ct => bigrams.filter(b => ct.has(b)).length / bigrams.length)
+    const best = Math.max(0, ...scores)
+    if (best < GEN_COVER) { findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里找不到对应的说法' }); continue }
+    if (sub === 'math') {
+      // 关系字眼要和覆盖得最好的那条证据对得上
+      const rels = [...new Set(s0.match(REL_MA) ?? [])]
+      const okClause = clauses.some((c, i) => scores[i] >= GEN_COVER && rels.every(r => c.includes(r)))
+      if (rels.length && !okClause) findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里的算法和这句说的不一样，请核对' })
+    }
   }
   return findings
 }

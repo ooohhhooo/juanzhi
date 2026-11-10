@@ -659,6 +659,8 @@ export const MIGRATIONS: Array<(db: any) => void> = [
     for (const t of ['papers', 'reports', 'course_outlines', 'agent_sessions', 'ai_analyses', 'course_advice', 'kps', 'qtypes']) {
       addCol(t, 'subject', "TEXT NOT NULL DEFAULT 'english'")
     }
+    // 写种子会让 kps / qtypes 的修订号触发器每行 +1；种子不改变任何已有数据，迁移结束时把修订号还原（旧会话不会都提示「数据已更新」）
+    const revBefore = (db.prepare('SELECT rev FROM data_rev WHERE id = 1').get() as { rev: number } | undefined)?.rev
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_papers_subject ON papers(subject, status, school_year_start);
       CREATE INDEX IF NOT EXISTS idx_reports_subject ON reports(subject, created_at);
@@ -684,6 +686,7 @@ export const MIGRATIONS: Array<(db: any) => void> = [
       sd.qts.forEach(([code, name, group, note], i) => insQt.run(code, name, group, note, sd.sortBase + (i + 1) * 10, sd.subject))
       for (const [code, v] of Object.entries(sd.plain)) updPlain.run(v.plain, v.example_en, v.example_zh, v.hint_words, code)
     }
+    if (revBefore !== undefined) db.prepare('UPDATE data_rev SET rev = ? WHERE id = 1').run(revBefore)
   }
 ]
 

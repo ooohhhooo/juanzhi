@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { App, Drawer, Spin } from 'antd'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepSameSubject } from '../../subject/placeholder'
 import { useNavigate } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import QuestionCardView from '../../stats/QuestionCardView'
@@ -31,7 +32,7 @@ export default function CourseTab() {
   const usable = useMemo(() => (cards ?? []).filter(c => c.status === 'active' && c.active), [cards])
   const [picked, setPicked] = useState<string[] | null>(null)   // null = 全部启用的
   const ids = useMemo(() => (picked ?? usable.map(c => c.id)).filter(id => usable.some(c => c.id === id)), [picked, usable])
-  const { data: d } = useQuery({ queryKey: ['course', 'dashboard', filter, [...ids].sort()], queryFn: () => window.api.course.dashboard({ filter, outlineIds: ids }), enabled: ids.length > 0, placeholderData: keepPreviousData })
+  const { data: d } = useQuery({ queryKey: ['course', 'dashboard', filter, [...ids].sort()], queryFn: () => window.api.course.dashboard({ filter, outlineIds: ids }), enabled: ids.length > 0, placeholderData: keepSameSubject(filter.subject ?? 'english') })
   const [open, setOpen] = useState<{ row: CourseRow; ref: CourseLessonRef } | null>(null)
   const [view, setView] = useState<ViewTarget | null>(null)
   const [pick, setPick] = useState<{ code: string; name: string } | null>(null)

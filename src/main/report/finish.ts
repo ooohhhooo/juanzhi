@@ -64,7 +64,7 @@ export function finishReport(o: {
       if (left === 0) warnings.push(`有 ${conflicts.length} 句${talk}的话和审核过的题目解释矛盾，已从家长版里删掉`)
       else warnings.push(`有 ${conflicts.length} 句${talk}的话和审核过的题目解释矛盾，其中 ${left} 句没能自动删掉，已在正文里标出「与题目解释矛盾」；这份家长版不能核对通过，请重新生成`)
     }
-    const clean = sanitizeParent(body)
+    const clean = sanitizeParent(body, subject)
     body = clean.text
     if (clean.removed) warnings.push(`家长版里有 ${clean.removed} 句含统计词或百分比，已删掉`)
     // 例句和要点对得上、没有家长看不懂的写法、开头问候、条与条空一行、字数按「复制到微信」的口径 ≤ 300

@@ -9,7 +9,7 @@
  * 覆盖导入另有 journal（journal.ts）保护「改了目录、还没提交就崩溃」。
  * 纯函数模块（不依赖 electron），单测直接加载。
  */
-import { asSubject, subjectOfCode } from '../../shared/subject.ts'
+import { asSubject, customRootPrefix, subjectOfCode } from '../../shared/subject.ts'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -120,7 +120,7 @@ function mergeKps(db: any): { map: Map<string, string>; added: number; remapped:
       const same = d.builtin === 1 || (d.name === k.name && (d.parent_code ?? null) === (parent ?? null))
       if (same) continue
       // 同一个代码、含义不同（两台电脑各自新建了节点，编号撞了）：给包里的这个换一个新代码，题目标注也跟着换
-      const prefix = parent ?? 'U'
+      const prefix = parent ?? customRootPrefix(asSubject(k.subject ?? subjectOfCode(k.code)))   // 自建根节点按学科：英语 U、语文 CN.U、数学 MA.U
       let n = 1
       while (taken.has(`${prefix}.U${n}`)) n++
       const code = `${prefix}.U${n}`

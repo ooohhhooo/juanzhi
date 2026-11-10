@@ -166,8 +166,8 @@ export async function generateKpAnalysis(scope: KpScope, requestId: string, send
     const unverified: UnverifiedItem[] = findings.map(f => ({ sentence: f.sentence, kind: f.kind, reason: f.reason }))
     const used = p.refs.filter(x => text.includes(x.token))
     getDb().prepare(`INSERT OR REPLACE INTO ai_analyses (scope_key, kind, cache_key, prompt_version, fingerprint, scope_json, markdown, refs_json, warnings_json, model, usage_json,
-        template_sig, checked_rev, checked_sig, checked_json, verify_json) VALUES (?, 'p2_kp', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?)`)
-      .run(p.scopeKey, p.cacheKey, p.promptVersion, crypto.createHash('sha256').update(p.user).digest('hex'), JSON.stringify(scopeObject(scope)), text, JSON.stringify(used), JSON.stringify(warnings), r.model, JSON.stringify(r.usage), p.templateSig, JSON.stringify(unverified))
+        template_sig, checked_rev, checked_sig, checked_json, verify_json, subject) VALUES (?, 'p2_kp', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)`)
+      .run(p.scopeKey, p.cacheKey, p.promptVersion, crypto.createHash('sha256').update(p.user).digest('hex'), JSON.stringify(scopeObject(scope)), text, JSON.stringify(used), JSON.stringify(warnings), r.model, JSON.stringify(r.usage), p.templateSig, JSON.stringify(unverified), scope.filter.subject ?? 'english')
     clearDraft(p.scopeKey)
     notifyDataChanged('analysis')
     send({ id: requestId, type: 'done', markdown: text, refs: used, warnings, unverified })

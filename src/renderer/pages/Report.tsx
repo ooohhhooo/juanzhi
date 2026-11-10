@@ -3,7 +3,8 @@ import { subjectName, type SubjectId } from '../../shared/subject'
 import { useSubject } from '../subject/SubjectContext'
 import { App, Checkbox, Collapse, Modal, Popconfirm, Tooltip } from 'antd'
 import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, Mail, MessageSquare, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepSameSubject } from '../subject/placeholder'
 import { useNavigate } from 'react-router-dom'
 import MarkdownView from '../stats/MarkdownView'
 import PageViewer from '../stats/PageViewer'
@@ -117,7 +118,8 @@ export default function Report() {
   const { filter, ready } = useStatsFilter()
   const { subject } = useSubject()
   const sName = subjectName(subject)
-  const jobs = useReportJobs()
+  // 报告任务是全局的（切学科不打断生成）：这一页只看当前学科发起的
+  const jobs = useReportJobs().filter(j => (j.filter.subject ?? 'english') === subject)
   const [watchId, setWatchId] = useState<string | null>(null)
   // 正在看的那份任务（下面的实时文字 / 失败提示都跟着它）：默认最新开始的一份
   const entry = jobs.find(j => j.requestId === watchId) ?? jobs[jobs.length - 1] ?? null
@@ -147,8 +149,8 @@ export default function Report() {
     else if (r.result === 'queued') message.info('已加入排队')
   }
 
-  const { data: list = [], isLoading } = useQuery({ queryKey: ['reports', 'list', subject], queryFn: () => window.api.report.list(subject), placeholderData: keepPreviousData })
-  const { data: preview } = useQuery({ queryKey: ['reports', 'preview', filter, reader], queryFn: () => window.api.report.preview(filter, reader), enabled: ready, placeholderData: keepPreviousData })
+  const { data: list = [], isLoading } = useQuery({ queryKey: ['reports', 'list', subject], queryFn: () => window.api.report.list(subject), placeholderData: keepSameSubject(subject) })
+  const { data: preview } = useQuery({ queryKey: ['reports', 'preview', filter, reader], queryFn: () => window.api.report.preview(filter, reader), enabled: ready, placeholderData: keepSameSubject(subject) })
   const current = selected && list.some(r => r.id === selected) ? selected : (list[0]?.id ?? null)
   const { data: detail } = useQuery({ queryKey: ['reports', 'detail', current], queryFn: () => window.api.report.get(current!), enabled: !!current })
   // 书眉：当前这份报告的第一个和最后一个小节

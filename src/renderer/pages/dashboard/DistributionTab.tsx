@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react'
 import { useCategories } from '../../subject/useCategories'
 import { App, Segmented, Spin } from 'antd'
 import { Download } from 'lucide-react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { keepSameSubject } from '../../subject/placeholder'
 import Treemap from '../../stats/Treemap'
 import type { TreeCell } from '../../stats/Treemap'
 import { CoverageNote, Est, EmptyStats, NotCounted } from '../../stats/Parts'
@@ -18,7 +19,7 @@ export default function DistributionTab() {
   const { filter } = useStatsFilter()
   const { list: CATEGORIES, byKey: CATEGORY_BY_KEY, ofCode: categoryOfCode } = useCategories()
   const { message } = App.useApp()
-  const { data: d, isLoading } = useQuery({ queryKey: ['stats', 'distribution', filter], queryFn: () => window.api.stats.distribution(filter), placeholderData: keepPreviousData })
+  const { data: d, isLoading } = useQuery({ queryKey: ['stats', 'distribution', filter], queryFn: () => window.api.stats.distribution(filter), placeholderData: keepSameSubject(filter.subject ?? 'english') })
   const [path, setPath] = useState<string[]>([])
   const [metric, setMetric] = useState<'score' | 'count'>('score')
   const [freqLevel, setFreqLevel] = useState(2)
@@ -26,7 +27,7 @@ export default function DistributionTab() {
   const [cat, setCat] = useState<CategoryKey | null>(null)
   const [order, setOrder] = useState(0)
   const [openCode, setOpenCode] = useState<string | null>(null)
-  const { data: mx } = useQuery({ queryKey: ['stats', 'matrix', filter, mxLevel], queryFn: () => window.api.stats.matrix(filter, mxLevel), placeholderData: keepPreviousData })
+  const { data: mx } = useQuery({ queryKey: ['stats', 'matrix', filter, mxLevel], queryFn: () => window.api.stats.matrix(filter, mxLevel), placeholderData: keepSameSubject(filter.subject ?? 'english') })
 
   const nodes = d?.nodes ?? []
   const byCode = useMemo(() => new Map(nodes.map(n => [n.code, n])), [nodes])

@@ -259,10 +259,10 @@ export async function generateAnalysis(scope: AnalysisScope, requestId: string, 
 
     // 修订号用「开始生成时」的：生成期间数据又变了，下次读状态会重新核对，不会把过期结果误报成新鲜
     getDb().prepare(`INSERT OR REPLACE INTO ai_analyses (scope_key, kind, cache_key, prompt_version, fingerprint, scope_json, markdown, refs_json, warnings_json, model, usage_json,
-        template_sig, checked_rev, checked_sig, checked_json, verify_json)
-      VALUES (?, 'p2_yoy', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.scopeKey, p.cacheKey, p.promptVersion, p.input.fingerprint, JSON.stringify(scopeObject(scope)),
+        template_sig, checked_rev, checked_sig, checked_json, verify_json, subject)
+      VALUES (?, 'p2_yoy', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(p.scopeKey, p.cacheKey, p.promptVersion, p.input.fingerprint, JSON.stringify(scopeObject(scope)),
       text, JSON.stringify(used), JSON.stringify(warnings), r.model, JSON.stringify(r.usage),
-      p.templateSig, p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), JSON.stringify(unverified))
+      p.templateSig, p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), JSON.stringify(unverified), scope.filter.subject ?? 'english')
     clearDraft(p.scopeKey)
     notifyDataChanged('analysis')   // 另一个页面（比如生成中被刷新过的）也能看到新结果
     send({ id: requestId, type: 'done', markdown: text, refs: used, warnings, unverified })

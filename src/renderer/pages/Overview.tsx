@@ -3,7 +3,8 @@ import { useSubject } from '../subject/SubjectContext'
 import { useCategories } from '../subject/useCategories'
 import { kpExamples } from '../subject/examples'
 import { Collapse, Tooltip } from 'antd'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { keepSameSubject } from '../subject/placeholder'
 import { useNavigate } from 'react-router-dom'
 import { CoverageNote, EmptyStats, NotCounted } from '../stats/Parts'
 import { pct, yearText } from '../stats/format'
@@ -47,11 +48,11 @@ export default function Overview() {
   const [order, setOrder] = useState(0)
   const [view, setView] = useState<ViewTarget | null>(null)
   const [openCode, setOpenCode] = useState<string | null>(null)
-  const { data: o, isLoading } = useQuery({ queryKey: ['stats', 'overview', filter], queryFn: () => window.api.stats.overview(filter), enabled: ready, placeholderData: keepPreviousData })
+  const { data: o, isLoading } = useQuery({ queryKey: ['stats', 'overview', filter], queryFn: () => window.api.stats.overview(filter), enabled: ready, placeholderData: keepSameSubject(filter.subject ?? 'english') })
   // 知识点的白话释义、例句、例词（和审核页、看板抽屉同一份）；易错信息取自「重难点」的二级排名（同一个缓存键）
   const { data: tax } = useQuery({ queryKey: ['taxonomy', subject], queryFn: () => window.api.taxonomy.tree({ subject }), staleTime: 60_000 })
   const hasPapers = (o?.cards.papers ?? 0) > 0
-  const { data: hot } = useQuery({ queryKey: ['stats', 'hot', filter, 2], queryFn: () => window.api.stats.hot(filter, 2), enabled: ready && hasPapers, placeholderData: keepPreviousData })
+  const { data: hot } = useQuery({ queryKey: ['stats', 'hot', filter, 2], queryFn: () => window.api.stats.hot(filter, 2), enabled: ready && hasPapers, placeholderData: keepSameSubject(filter.subject ?? 'english') })
   const nodes = useMemo(() => new Map((tax?.kps ?? []).map(k => [k.code, k])), [tax])
   const hotBy = useMemo(() => new Map((hot?.rows ?? []).map(r => [r.code, r])), [hot])
 

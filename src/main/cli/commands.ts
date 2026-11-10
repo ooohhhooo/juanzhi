@@ -17,7 +17,7 @@ import { getReport } from '../report/service'
 import { assertExportTarget } from './outfile'
 import { collectDiagnostics, writeDiagnosticsZip } from '../diagnostics'
 import { createOutline, getOutline, listOutlines } from '../course/store'
-import { MATCH_CONFIRM_TOKENS, estimateMatch, previewOutline, readSourceFile, runMatch, suggestMappings } from '../course/service'
+import { MATCH_CONFIRM_TOKENS, estimateMatch, previewOutline, readSourceFile, runMatch, setSessionSubject, suggestMappings } from '../course/service'
 import { SCENES } from '../course/store'
 import type { Scene } from '../course/store'
 import { CliError, exportFormatFromFlags, helpData, levelFromFlags, paperFilterFromFlags, readerFromFlags, statsFilterFromFlags, subjectFromFlags } from './args'
@@ -302,6 +302,8 @@ async function courseImport(ctx: CliCtx) {
   if (nameFlag === true) throw new CliError('usage', '--name 需要一个名字')
   let src
   try { src = await readSourceFile(file) } catch (e) { throw new CliError('invalid_state', (e as Error).message) }
+  const subject = subjectOf(ctx)
+  setSessionSubject(src.sessionId, subject)   // 认列用该学科的提示词和列名
   const mode = isAiReady() ? 'ai' : 'guess'
   ctx.log(mode === 'ai' ? '让 AI 认列（课程表里的内容会发给你配置的 AI 服务）……' : '没有配置 AI 服务，按表头文字猜列……')
   const sug = await suggestMappings(src.sessionId, mode).catch(e => { throw new CliError('ai_failed', (e as Error).message) })
@@ -313,7 +315,7 @@ async function courseImport(ctx: CliCtx) {
   const id = createOutline(getDb(), {
     name: typeof nameFlag === 'string' && nameFlag.trim() ? nameFlag.trim().slice(0, 60) : src.name.slice(0, 60) || '课程体系',
     scene: (typeof sceneFlag === 'string' ? sceneFlag : 'other') as Scene, termNote: '', sourceName: src.name, sourceHash: src.hash, mapping: mappings, warnings: parsed.warnings,
-    aiModel: mode === 'ai' ? sug.model : '', status: reviewed ? 'active' : 'draft', levels: parsed.levels
+    aiModel: mode === 'ai' ? sug.model : '', status: reviewed ? 'active' : 'draft', levels: parsed.levels, subject
   })
   const d = getOutline(getDb(), id)!
   return {

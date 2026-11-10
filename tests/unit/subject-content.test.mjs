@@ -228,4 +228,34 @@ assert.equal(quoteTouchesKp('认读重量', { name: '多音字', hintWords: '重
   }
 }
 
+// ───── 审核返工：语文 / 数学规则句核对的边界（漏判与误标） ─────
+{
+  const fc = await import('../../src/shared/factcheck.ts')
+  const rp = await import('../../src/shared/report-post.ts')
+  const ph = await import('../../src/renderer/subject/placeholder.ts')
+  const ev = ['分数加减法：分母相同，分子相加减，分母不变', '平行四边形面积等于底乘高', '多音字「重」在「重量」里读 zhòng']
+  const flag = (s, t) => fc.checkRulesFor(s, t, ev).length > 0
+  assert.ok(flag('math', '异分母分数相加要先通分，再把分子相加'), '证据里没有「通分」：未核实')
+  assert.ok(flag('math', '平行四边形的面积等于底加高'), '「加」对不上证据里的「乘」：未核实')
+  assert.ok(flag('math', '把 25% 化成小数是 0.25'), '百分数换算是规则句，数字查不到：未核实')
+  assert.ok(flag('chinese', '多音字「重」在「重新」里读 zhòng'), '引号里的「重新」证据里没有：未核实')
+  assert.ok(!flag('math', '第 3 题考查分数加减法，孩子一般容易错'), '题号不当规则数字')
+  assert.ok(!flag('math', '这次期末卷中应用题一般占 40 分，孩子要重点练'), '分值不当规则数字')
+  assert.ok(!flag('math', '同分母分数相加，分母不变，分子相加'), '和证据一致的说法放行')
+  assert.ok(!flag('math', '平行四边形的面积等于底乘高'))
+  assert.ok(!flag('chinese', '孩子在拼音方面一般比较容易错'), '泛泛的描述不当规则句')
+  assert.ok(!flag('chinese', '多音字「重」在「重量」里读 zhòng'))
+  // 数学家长版：百分数、统计图是知识点本身，不能整句删
+  assert.equal(rp.sanitizeParent('1. 把 25% 化成小数时，小数点向左移两位。', 'math').removed, 0)
+  assert.equal(rp.sanitizeParent('1. 统计图要先看清每格代表多少。', 'math').removed, 0)
+  assert.equal(rp.sanitizeParent('1. 这类题占 30% 左右。', 'math').removed, 1)
+  assert.equal(rp.sanitizeParent('1. 统计图要先看清每格代表多少。').removed, 1, '英语家长版照旧')
+  // 切学科时不留上一学科的占位数据
+  const keep = ph.keepSameSubject('math')
+  assert.equal(keep('旧', { queryKey: ['stats', 'overview', { subject: 'english', grade: '3' }] }), undefined, '上一份是英语，切到数学不留')
+  assert.equal(keep('旧', { queryKey: ['stats', 'overview', { subject: 'math', grade: '3' }] }), '旧')
+  assert.equal(keep('旧', { queryKey: ['reports', 'list', 'english'] }), undefined)
+  assert.equal(keep('旧', { queryKey: ['stats', 'compare', { filter: { subject: 'math' }, target: 2025 }] }), '旧')
+}
+
 console.log(`subject-content.test ✓（60 个语文 / 数学提示词合格；示例代码都在种子里；规则句核对、问候语、课程按学科、数学符号校正）`)
