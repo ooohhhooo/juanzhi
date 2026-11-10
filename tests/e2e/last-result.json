@@ -1,9 +1,9 @@
 [
   {
     "feature": "迁移",
-    "name": "旧库(user_version=0)启动后升级到最新版本 v11（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11）",
+    "name": "旧库(user_version=0)启动后升级到最新版本 v13（M2 新增 v5、M3 新增 v6、v7、v8、M4 新增 v9、M6 新增 v10、M9 新增 v11、助手新增 v12、学科新增 v13）",
     "pass": true,
-    "detail": "user_version=11"
+    "detail": "user_version=13"
   },
   {
     "feature": "迁移",
@@ -27,7 +27,7 @@
     "feature": "数据目录",
     "name": "数据目录 = EWB_USER_DATA_DIR/workbench-data",
     "pass": true,
-    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wCuqzw/userData/workbench-data"
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wAbmsz/userData/workbench-data"
   },
   {
     "feature": "CSP",
@@ -45,7 +45,7 @@
     "feature": "拖拽导入",
     "name": "无效文件有明确提示（AppleDouble、.doc）",
     "pass": true,
-    "detail": "已加入处理队列：3 份 / ._junk.pdf：已跳过 AppleDouble 临时文件 / old-format.doc：不支持 .doc 格式，请先用 Word 另存为 .docx"
+    "detail": "已加入处理队列：3 份（英语） / ._junk.pdf：已跳过 AppleDouble 临时文件 / old-format.doc：不支持 .doc 格式，请先用 Word 另存为 .docx"
   },
   {
     "feature": "拖拽导入",
@@ -147,7 +147,7 @@
     "feature": "重复导入",
     "name": "选「仍然导入」后多出一份，duplicate_of 指向原件，且没有 UNIQUE 约束拦截",
     "pass": true,
-    "detail": "duplicate_of=ef5199b8"
+    "detail": "duplicate_of=1dc669d3"
   },
   {
     "feature": "失败处理",
@@ -183,7 +183,7 @@
     "feature": "PDF 字体/CMap",
     "name": "未内嵌中文字体（GBK-EUC-H）的 PDF 能读出文字「测试」",
     "pass": true,
-    "detail": "{\"text\":\"测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测 toast=已加入处理队列：1 份"
+    "detail": "{\"text\":\"测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测试测试测试测试测试测试测试\\n测试测 toast=已加入处理队列：1 份（英语）"
   },
   {
     "feature": "HEIC",
@@ -291,7 +291,7 @@
     "feature": "OCR 失败原因",
     "name": "OCR 组件缺失：页面标 ocr_failed，保存具体原因，试卷警告里带上它（而不是「没识别出文字」）",
     "pass": true,
-    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wCuqzw/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
+    "detail": "ocr_failed | 找不到 OCR 组件：/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-e2e-wAbmsz/app-no-ocr/native/macos/bin/ewb-ocr（安装包可能不完整）"
   },
   {
     "feature": "OCR 失败原因",
