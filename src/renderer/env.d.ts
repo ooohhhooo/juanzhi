@@ -293,6 +293,8 @@ interface ElectronAPI {
 interface Paper {
   id: string
   title: string
+  /** 学科：english / chinese / math */
+  subject?: string
   grade: string | null
   semester: string | null
   school_year_start: number | null

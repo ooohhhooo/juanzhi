@@ -24,9 +24,9 @@ export default function AppLayout() {
   const { subject } = useSubject()
 
   // 处理队列显示全部学科的卷子（每份标着学科）；审核的角标只数当前学科
-  const { data: papers = [] } = useQuery({ queryKey: ['papers', 'list', 'all'], queryFn: () => window.api.papers.list() })
+  const { data: papers = [] } = useQuery({ queryKey: ['papers', 'list', 'all'], queryFn: () => window.api.papers.list({ allSubjects: true }) })
   const active = papers.filter(p => ['imported', 'extracting', 'parsing'].includes(p.status)).length
-  const reviewing = papers.filter(p => p.status === 'reviewing' && asSubject((p as { subject?: string }).subject) === subject).length
+  const reviewing = papers.filter(p => p.status === 'reviewing' && asSubject(p.subject) === subject).length
 
   const { data: courseJobs = [] } = useQuery({
     queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),

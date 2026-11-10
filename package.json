@@ -2,7 +2,7 @@
   "name": "english-exam-workbench",
   "productName": "卷知",
   "version": "1.4.0-beta.6",
-  "description": "卷知 · 小学英语试卷分析",
+  "description": "卷知 · 小学试卷分析（语文、数学、英语）",
   "main": "./out/main/index.js",
   "scripts": {
     "docs:shots": "electron-vite build && node tests/e2e/readme-shots.cjs",

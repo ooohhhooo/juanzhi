@@ -24,6 +24,8 @@ export const PaperMetaSchema = z.object({
 
 export const PaperFilterSchema = z.object({
   subject: z.enum(SUBJECT_IDS).optional(),
+  /** true = 三个学科的卷子都列（处理队列、侧栏角标用）；此时忽略 subject */
+  allSubjects: z.boolean().optional(),
   grade: GradeEnum.optional(),
   semester: SemesterEnum.optional(),
   school_year_start: z.number().int().optional(),
@@ -44,6 +46,7 @@ export type PaperFilter = z.infer<typeof PaperFilterSchema>
 export interface Paper {
   id: string
   title: string
+  subject?: string
   grade: string | null
   semester: string | null
   school_year_start: number | null

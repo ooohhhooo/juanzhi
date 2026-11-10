@@ -169,8 +169,8 @@ export function registerPaperIpc(): void {
       FROM papers WHERE 1=1`
     const params: any[] = []
     // 学科：不写就是英语（旧调用方、旧版本界面都不带）
-    const subject = filter ? PaperFilterSchema.parse(filter).subject ?? 'english' : 'english'
-    sql += ' AND subject = ?'; params.push(subject)
+    const pf = filter ? PaperFilterSchema.parse(filter) : null
+    if (!pf?.allSubjects) { sql += ' AND subject = ?'; params.push(pf?.subject ?? 'english') }
 
     if (filter) {
       const f = PaperFilterSchema.parse(filter)

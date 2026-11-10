@@ -44,7 +44,7 @@ export default function ReviewPage() {
   const { data: pages = [] } = useQuery({ queryKey: ['pages', paperId], queryFn: () => window.api.papers.pages(paperId!), enabled: !!paperId })
   const { data: list, isLoading } = useQuery({ queryKey: ['questions', paperId], queryFn: () => window.api.questions.list(paperId!), enabled: !!paperId, staleTime: 5_000 })
   // 知识点树按这份卷子自己的学科取（不是侧栏当前选的学科）
-  const paperSubject = asSubject((paper as { subject?: string } | undefined)?.subject)
+  const paperSubject = asSubject(paper?.subject)
   const { data: tax } = useQuery({ queryKey: ['taxonomy', paperSubject], queryFn: () => window.api.taxonomy.tree({ subject: paperSubject }), staleTime: 60_000, enabled: !!paper })
 
   const [overlay, setOverlay] = useState<Record<string, QuestionPatch>>({})
