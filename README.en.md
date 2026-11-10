@@ -1,14 +1,15 @@
-# Juanzhi (卷知) · Primary-School English Exam Analysis
+# Juanzhi (卷知) · Primary-School Exam Analysis (Chinese · Math · English)
 
 [简体中文](README.md) | **English**
 
-Turn a stack of primary-school English exam papers into a "dictionary of exam points". You can see at a glance what was tested this year, where students make the most mistakes, and what changed compared with earlier years. Then generate analysis reports for different readers: a **boss version, a teacher version and a parent version**.
+Turn a stack of primary-school Chinese, math and English exam papers into a "dictionary of exam points". You can see at a glance what was tested this year, where students make the most mistakes, and what changed compared with earlier years. Then generate analysis reports for different readers: a **boss version, a teacher version and a parent version**.
 
 - Free and open source. Installers for both Mac and Windows.
 - No sign-up, no login. Your papers and results stay on your own computer. Paper text is sent to an AI service of your own choice only when you ask the AI to split questions or write a report (see [section 10](#10-data-and-privacy)).
-- You do not need to know grammar terms. Every exam point comes with a plain-language explanation and an example sentence.
+- Three subjects kept apart. Switch between Chinese (语文), Math (数学) and English (英语) at the top of the sidebar. Each subject has its own knowledge-point tree, question types and reports, and their data is never mixed.
+- You do not need to know subject jargon. Every exam point comes with a plain-language explanation.
 
-> **Note:** The app's interface, its AI prompts and the reports it generates are in Chinese only. It is built for Chinese primary-school English teaching (PEP-style textbooks, Chinese school years and semesters). This English README only explains how to install and use it.
+> **Note:** The app's interface, its AI prompts and the reports it generates are in Chinese only. It is built for Chinese primary schools (Chinese, math and English as taught in mainland China, with Chinese school years and semesters). This English README only explains how to install and use it.
 
 ![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v14-overview.png)
 
@@ -37,12 +38,22 @@ Turn a stack of primary-school English exam papers into a "dictionary of exam po
 
 ## 1. What Juanzhi is
 
-Juanzhi is a program you install on your computer. It is made for **primary-school English tutoring teachers, teaching-research staff and operations staff**. You drag in your school's English midterm and final papers (PDF, Word, or photos taken with a phone). Then it does four things:
+Juanzhi is a program you install on your computer. It is made for **primary-school Chinese, math and English tutoring teachers, teaching-research staff and operations staff**. First pick a subject at the top of the sidebar, then drag in your school's midterm and final papers (PDF, Word, or photos taken with a phone). Then it does four things:
 
 1. **Splits and labels the questions.** The AI separates every question and labels which knowledge point it tests, how hard it is, and how easy it is to get wrong. Teachers can check and edit each question on the Review page (「审核」).
-2. **Counts the exam points.** The Overview page turns the exam points into a "dictionary". Each exam point is one entry with a plain-language explanation, English example sentences, how many papers tested it, and screenshots from the original papers. The Analysis dashboard (「分析看板」) shows the distribution, compares with earlier years, and finds key and difficult points.
+2. **Counts the exam points.** The Overview page turns the exam points into a "dictionary". Each exam point is one entry with a plain-language explanation, an example, how many papers tested it, and screenshots from the original papers. The Analysis dashboard (「分析看板」) shows the distribution, compares with earlier years, and finds key and difficult points.
 3. **Writes reports for each reader.** The same data is written up in different versions for different people.
 4. **Maps exam points to your courses.** Upload your own course table (Excel, CSV, Word, PDF or an image; non-spreadsheet files are turned into a table by the AI for you to check before saving) on the 「课程大纲」(Course outlines) page in the sidebar, and the AI maps exam points to lessons. The 「课程对照」(Course mapping) tab on the dashboard shows which lesson covers each error-prone point and which frequently tested points no lesson covers. Tick 「加入课程对照」(Include course mapping) when generating a report to add it to the report too.
+
+**Three subjects (new in 1.5):**
+
+| Subject | Knowledge points | Question types | Notes |
+|---|---|---|---|
+| Chinese (语文) | 110 (pinyin, characters, words, sentences, classical poems and memorisation, reading, speaking, writing) | 27 | Based on the national unified textbook (统编版), including the 5-4 system edition |
+| Math (数学) | 147 (numbers, calculation, quantitative relations, measures, geometry, statistics and probability, word problems, mathematical thinking) | 21 | Works across textbook editions (人教, 北师大, 苏教, 青岛 6-3 / 5-4, 冀教, 西师, 北京, 沪教). Topics removed from the new textbooks but common in older papers (such as equations) are kept and marked 【旧教材】 (old textbook) |
+| English (英语) | 145 | 22 | Same as before |
+
+The trees follow the 2022 national curriculum standards and the new textbook editions; the research notes (in Chinese) are in [docs/学科调研](docs/学科调研/). You can edit each subject's tree in Settings → 知识点树 (Knowledge-point tree). In math, a whole section of mental arithmetic, column calculation or step-by-step calculation counts as one question.
 
 5. **Built-in assistant (new in 1.4).** Ask questions in Chinese in the 「助手」(Assistant) page, such as "which classes' attendance dropped most" or "write a message to a parent about renewing". It looks up papers, courses, reports and the data you imported, and makes dashboards, write-ups, lists and share cards. See [section 7](#7-built-in-assistant-ask-about-your-data-in-chinese-make-dashboards-drafts-and-cards).
 
@@ -114,6 +125,8 @@ To split questions and write reports, Juanzhi uses a large-model AI service. Dee
 - **Personal use:** Follow [section 6](#6-first-use-three-steps). Register on the DeepSeek Open Platform, top up a small amount, and create an API Key.
 
 Without an API Key you can still install the app and look at the "sample data". You just cannot analyse new papers.
+
+**Math papers need a model that can read images.** The computer's built-in text recognition cannot reliably read fractions, column calculations or geometry figures, so math papers are sent to the image-reading model (「读图模型」) by default. Fill one in under AI service (for example a Qwen vision model). Without it you can still import math papers, but recognition will be much worse, and the paper library shows a reminder.
 
 ### 3. Company computers
 
@@ -218,10 +231,10 @@ For more detail (changing computers, uninstalling, where the data is stored, and
 2. **Set up the AI once.** (Usually done by an administrator, once per computer.)
    - Go to the [DeepSeek Open Platform](https://platform.deepseek.com), register, and top up a small amount. Under "API Keys", create a key and copy it (it is shown only once).
    - In Juanzhi, open 「设置」(Settings), click 「展开管理员设置」(Show admin settings; this is a settings group inside the app, not an administrator account on the computer), then 「AI 服务」(AI service). Choose DeepSeek as the provider, paste the key, click 「保存」(Save), then 「测试连接」(Test connection). When you see 「连接成功」(Connection successful), you are done.
-3. **Import papers → review → make a report.** Drag the paper files into the window. In 「审核」(Review), go through the labels on each question. Then open 「AI 报告」(AI report), choose who the report is for (boss / teacher / parent / full data), and click generate.
+3. **Pick a subject → import papers → review → make a report.** Pick the subject at the top of the sidebar (the import area says 「导入到：数学」, "import into: Math"), then drag the paper files into the window. In 「审核」(Review), go through the labels on each question. Then open 「AI 报告」(AI report), choose who the report is for (boss / teacher / parent / full data), and click generate.
 4. **(Optional) Upload a course outline.** In the sidebar, open 「课程大纲」→「添加课程大纲」(Add course outline), upload your course table, check what the AI organised, save, then open the 「课程对照」 tab on the dashboard.
 
-If you want to see how it works first without touching real data, go to 「设置」→「示例数据」→「加载示例数据」 (Settings → Sample data → Load sample data). This adds 12 mock papers, and you can clear them with one click at any time.
+If you want to see how it works first without touching real data, go to 「设置」→「示例数据」→「加载示例数据」 (Settings → Sample data → Load sample data). This adds mock papers for all three subjects, and you can clear them with one click at any time.
 
 ---
 
@@ -280,7 +293,7 @@ The assistant needs nothing else: just paste each block exactly as it is. The pr
 ### Copy this to your AI assistant: Mac installation
 
 ```text
-Please install 「卷知」 (an open-source primary-school English exam analysis app) on this Mac. Follow the steps below, and tell me the result after each step:
+Please install 「卷知」 (an open-source primary-school exam analysis app) on this Mac. Follow the steps below, and tell me the result after each step:
 1. Check the system version and chip (sw_vers, uname -m). If macOS is older than 13, tell me "This Mac's system is too old to install it" and stop.
 2. Download only from this address: https://github.com/ooohhhooo/juanzhi/releases/latest . For an Apple chip (arm64), download the .dmg whose file name contains mac-arm64. For an Intel chip (x86_64), download the .dmg whose file name contains mac-x64. Save it to the Downloads folder.
 3. Mount this dmg with hdiutil attach -nobrowse -readonly, and use ls /Volumes to find the volume whose name starts with 「卷知」.
@@ -293,7 +306,7 @@ Requirements: if any step fails, stop and tell me why. Do not use any other down
 ### Copy this to your AI assistant: Windows installation
 
 ```text
-Please install 「卷知」 (an open-source primary-school English exam analysis app) on this Windows computer. Follow the steps below, and tell me the result after each step:
+Please install 「卷知」 (an open-source primary-school exam analysis app) on this Windows computer. Follow the steps below, and tell me the result after each step:
 1. First check the system: it must be 64-bit Windows 10 (version 1809 or later) or Windows 11, and it must not have an ARM chip (you can check with PowerShell: (Get-CimInstance Win32_Processor).Architecture. A result of 12 means ARM). If it does not meet this, tell me "This computer cannot install it, or it has not been tested" and stop.
 2. Download only from this address: https://github.com/ooohhhooo/juanzhi/releases/latest . Download the installer whose file name contains win-x64-setup.exe and save it to the Downloads folder.
 3. Open this installer so that the setup wizard shows up. I will click the buttons in the wizard myself (for "who to install for", choose "Only for me" (仅为我), and keep everything else at the default). If you can see the screen, tell me where to click when I get stuck. If the blue "Windows protected your PC" window appears, tell me to click "More info" and then "Run anyway".
@@ -366,6 +379,8 @@ Windows (write the paths like this in PowerShell, and do not use `~`):
 ```powershell
 juanzhi import "$env:USERPROFILE\Downloads\grade4-final-A.pdf" "$env:USERPROFILE\Downloads\grade4-final-B.jpg" --wait
 ```
+
+**Subject:** without `--subject`, commands use the subject currently selected in the Juanzhi sidebar. To choose one, add `--subject chinese`, `--subject math` or `--subject english`. `status`, `papers list`, `stats …`, `report …` and `course list` all accept it and only look at that subject's data.
 
 Supported formats are pdf, jpg, png, heic and docx. The command waits until every paper has been analysed (about 2–3 minutes per paper). Do not close the terminal in the middle.
 
@@ -451,7 +466,7 @@ For all 14 exit codes, the full options of every command, and how to call the ex
 After the short command is installed and you have **quit Juanzhi**, send the whole block below to Codex, Claude Code, WorkBuddy or another assistant that can run commands:
 
 ```text
-I have installed 「卷知」 (a primary-school English exam analysis app) on my computer. It has a command line called juanzhi. Please read this guide before you do anything:
+I have installed 「卷知」 (a primary-school exam analysis app) on my computer. It has a command line called juanzhi. Please read this guide before you do anything:
 https://raw.githubusercontent.com/ooohhhooo/juanzhi/main/skills/juanzhi/SKILL.md
 Then help me: first run juanzhi status to check the status; then import these exam papers from my Downloads folder and wait for the analysis to finish; when it is done, remind me to review them by hand in the 卷知 window, and wait until I have finished reviewing, quit 卷知 and tell you "done" before you continue; then generate a boss-version report and export it as Word to my Desktop.
 Do not ask me for my API Key. If there is an error, tell me the message exactly as it is.
@@ -505,6 +520,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 - Reading text from photos / scans on Windows: in 1.1.0, a **PNG image with a transparent background** could not be read at all (not a single line). This was fixed in 1.2.0, and it was tested on cloud Windows (with the Chinese OCR language pack installed): the sample paper was recognised as 45 lines. JPG photos taken with a phone have no transparent background, so they are not affected by this problem. We have not yet tested how well photos are recognised on a real person's Windows computer. Feedback is welcome.
 - Calling the command line from WorkBuddy and similar assistants: 1.2.0 fails with "Cannot find module …/cli" or "bad option" (these assistants run commands with `ELECTRON_RUN_AS_NODE=1` set). This is fixed in 1.2.1; please upgrade. If you cannot upgrade yet, see the troubleshooting section 「排错」 in [docs/命令行.md](docs/命令行.md#排错) (in Chinese).
 - The exported Word files have not yet been opened one by one in Word / WPS to check them. If the layout has problems, please report it.
+- Chinese and math are new in 1.5. Their knowledge-point trees and prompts have not yet been tested on many real papers. Please report wrong recognition or tagging (attaching the paper helps). Math papers without an image-reading model will misread fractions, column calculations and figures.
 - "Difficulty" and "error-prone" are estimated by the AI from the question itself. They are not students' real scores. When there are few papers, conclusions are only a rough direction.
 
 ---
