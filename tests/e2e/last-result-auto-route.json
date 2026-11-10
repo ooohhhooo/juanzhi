@@ -1,0 +1,140 @@
+[
+  {
+    "feature": "全局拖放",
+    "name": "弹出一条导入汇总提示",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "全局拖放",
+    "name": "汇总里写了进试卷库的卷子数量和学科",
+    "pass": true,
+    "detail": "2 份英语卷进了试卷库；1 张表、1 份文档进了数据\n读出卷面文字后会再核对学科，对不上的会在试卷库提醒你确认"
+  },
+  {
+    "feature": "全局拖放",
+    "name": "汇总里写了进数据的表",
+    "pass": true,
+    "detail": "2 份英语卷进了试卷库；1 张表、1 份文档进了数据\n读出卷面文字后会再核对学科，对不上的会在试卷库提醒你确认"
+  },
+  {
+    "feature": "全局拖放",
+    "name": "拖放不再把页面跳到试卷库",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "全局拖放",
+    "name": "（卷子留在当前学科等确认时没有切换按钮）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "试卷库顶部出现「这份看起来是数学卷」提醒",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "提醒有【放到数学】和【保持英语】两个按钮",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "有多份时出现批量按钮",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "带建议的卷子不能手动解析（先确认学科）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "处理队列页也有同样的提醒",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "点【放到数学】后这条提醒消失",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "点【保持英语】后提醒消失",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "确认之后卷子上不再有 subject_hint",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "学科建议",
+    "name": "「保持英语」之后从头重新处理，不会再提醒",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "改学科",
+    "name": "弹出改学科窗口，当前学科不可选",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "改学科",
+    "name": "示例卷的题都是已审核的：弹出二次确认「已审核的 n 道题会丢失」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "改学科",
+    "name": "确认后这份卷子离开英语试卷库",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据页",
+    "name": "顶部没有「试卷 / 课程 / 报告」来源入口",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据页",
+    "name": "数据集和文档都有学科标签",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据页",
+    "name": "有「当前学科和通用 / 全部」筛选，默认前者",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据页",
+    "name": "文档改成数学后，英语学科的默认筛选里不显示它",
+    "pass": true,
+    "detail": "2 → 1"
+  },
+  {
+    "feature": "数据页",
+    "name": "切到「全部」后又能看到，标签是数学",
+    "pass": true,
+    "detail": "math,general"
+  },
+  {
+    "feature": "运行",
+    "name": "页面没有控制台错误",
+    "pass": true,
+    "detail": ""
+  }
+]

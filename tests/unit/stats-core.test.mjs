@@ -622,7 +622,7 @@ function cmpDb() {
   const m = /AFTER UPDATE OF ([^\n]+?) ON papers/.exec(trg)
   assert.ok(m, '找得到 papers 更新触发器的列清单')
   const watched = m[1].split(',').map(x => x.trim())
-  const NOT_STATS = ['id', 'school', 'total_score', 'file_name', 'error', 'page_count', 'ai_model', 'extracted_at', 'warning', 'duplicate_of', 'prompt_version', 'ai_meta_json', 'parse_stage', 'error_stage', 'parsed_at', 'error_detail', 'similar_to', 'similar_ratio', 'diag_json', 'subject_hint']   // similar_state 影响统计（已在 v10 触发器里）；其余只是说明性的列
+  const NOT_STATS = ['id', 'school', 'total_score', 'file_name', 'error', 'page_count', 'ai_model', 'extracted_at', 'warning', 'duplicate_of', 'prompt_version', 'ai_meta_json', 'parse_stage', 'error_stage', 'parsed_at', 'error_detail', 'similar_to', 'similar_ratio', 'diag_json', 'subject_hint', 'subject_confirmed']   // similar_state 影响统计（已在 v10 触发器里）；其余只是说明性的列
   const unlisted = cols.filter(c => !watched.includes(c) && !NOT_STATS.includes(c))
   assert.deepEqual(unlisted, [], `papers 新增了列 ${unlisted.join('、')}：它影响统计吗？影响 → 加进 v8 触发器 trg_rev_papers_u 的 UPDATE OF 列清单（新迁移里重建）；不影响 → 登记到本测试的 NOT_STATS`)
   const ghost = watched.filter(c => !cols.includes(c))

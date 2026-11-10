@@ -695,6 +695,8 @@ export const MIGRATIONS: Array<(db: any) => void> = [
       if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
     }
     addCol('papers', 'subject_hint', 'TEXT')
+    // subject_confirmed = 1：用户已经明确选过学科（在提醒里选了「放到…」「保持…」，或手动改过学科），之后不再自动核对、不再提醒
+    addCol('papers', 'subject_confirmed', 'INTEGER NOT NULL DEFAULT 0')
   }
 ]
 

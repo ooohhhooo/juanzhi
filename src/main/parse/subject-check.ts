@@ -26,8 +26,9 @@ export interface SubjectCheck {
 
 /** 提取完成后调用：决定能不能直接进入解析 */
 export function checkSubjectAfterExtract(db: any, paperId: string): SubjectCheck {
-  const p = db.prepare('SELECT subject, title, subject_hint FROM papers WHERE id = ?').get(paperId) as { subject: string; title: string; subject_hint: string | null } | undefined
+  const p = db.prepare('SELECT subject, title, subject_hint, subject_confirmed FROM papers WHERE id = ?').get(paperId) as { subject: string; title: string; subject_hint: string | null; subject_confirmed: number } | undefined
   if (!p) return { action: 'parse' }
+  if (p.subject_confirmed) return { action: 'parse' }   // 用户已经选过学科：尊重用户，不再提醒
   const cur = asSubject(p.subject)
   const r = detectSubject(paperText(db, paperId), p.title ?? '')
   if (r.sure && r.subject && r.subject !== cur) {
@@ -49,7 +50,7 @@ export function resolvePaperSubject(db: any, paperId: string, subject: SubjectId
   if (!isSubjectId(subject)) throw new Error('不认识的学科')
   const p = db.prepare('SELECT subject FROM papers WHERE id = ?').get(paperId) as { subject: string } | undefined
   if (!p) throw new Error('试卷不存在')
-  db.prepare('UPDATE papers SET subject = ?, subject_hint = NULL WHERE id = ?').run(subject, paperId)
+  db.prepare('UPDATE papers SET subject = ?, subject_hint = NULL, subject_confirmed = 1 WHERE id = ?').run(subject, paperId)
   return asSubject(p.subject) !== subject
 }
 
@@ -67,7 +68,7 @@ export function changePaperSubject(db: any, paperId: string, subject: SubjectId,
   if (!p) throw new Error('试卷不存在')
   if (opts.busy || ['imported', 'extracting', 'parsing'].includes(p.status)) throw new Error('试卷正在处理中，请稍候再改学科')
   if (asSubject(p.subject) === subject) {
-    if (p.subject_hint) db.prepare('UPDATE papers SET subject_hint = NULL WHERE id = ?').run(paperId)
+    db.prepare('UPDATE papers SET subject_hint = NULL, subject_confirmed = 1 WHERE id = ?').run(paperId)
     return { ok: true, changed: false, reparse: false }
   }
   // 已审核：整份确认过（done），或者有逐题标记「已审核」的题
@@ -82,7 +83,7 @@ export function changePaperSubject(db: any, paperId: string, subject: SubjectId,
     db.prepare('DELETE FROM questions WHERE paper_id = ?').run(paperId)
     db.prepare('DELETE FROM materials WHERE paper_id = ?').run(paperId)
     db.prepare("UPDATE parse_runs SET result_json = NULL, status = CASE WHEN status IN ('done','ai_done','running') THEN 'superseded' ELSE status END WHERE paper_id = ?").run(paperId)
-    db.prepare('UPDATE papers SET subject = ?, subject_hint = NULL WHERE id = ?').run(subject, paperId)
+    db.prepare('UPDATE papers SET subject = ?, subject_hint = NULL, subject_confirmed = 1 WHERE id = ?').run(subject, paperId)
     if (pages > 0) {
       db.prepare("UPDATE papers SET status = 'extracted', error = NULL, error_detail = NULL, error_stage = NULL, parse_stage = NULL, warning = NULL, parsed_at = NULL, prompt_version = NULL WHERE id = ?").run(paperId)
     }

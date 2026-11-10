@@ -66,7 +66,8 @@ async function main() {
 
   // ── 2) 学科建议提醒条 ──
   await goto('#/'); await T('dropzone').waitFor({ timeout: 10000 })
-  const seen = await waitFor(async () => (await hintCount()) >= 1, 60000)
+  // 拖进了两份数学卷：两份都提取完、都出现提醒再往下走（否则第二份的提醒会在中途冒出来）
+  const seen = await waitFor(async () => (await hintCount()) >= 2, 60000)
   check('学科建议', '试卷库顶部出现「这份看起来是数学卷」提醒', !!seen && /这份看起来是数学卷/.test(await T('subject-hint').first().innerText()))
   check('学科建议', '提醒有【放到数学】和【保持英语】两个按钮', (await T('hint-accept').first().innerText()).includes('放到数学') && (await T('hint-keep').first().innerText()).includes('保持英语'))
   check('学科建议', '有多份时出现批量按钮', (await hintCount()) < 2 || (await T('hint-accept-all').count()) === 1)
@@ -84,14 +85,23 @@ async function main() {
   }
   const left = await ctx.page.evaluate(() => window.api.papers.list({ allSubjects: true }))
   check('学科建议', '确认之后卷子上不再有 subject_hint', left.filter(p => p.subject_hint).length === 0)
+  // 「保持英语」之后再从头处理一遍，也不会再提醒（用户选过的学科要被尊重）
+  const kept = left.find(p => p.subject === 'english' && p.file_name === '数学卷二.docx') || left.find(p => p.subject === 'english' && /数学卷/.test(p.file_name))
+  if (kept) {
+    await ctx.page.evaluate(id => window.api.parse.start(id, 'extract'), kept.id).catch(() => {})
+    await new Promise(r => setTimeout(r, 4000))
+    const again = await ctx.page.evaluate(() => window.api.papers.list({ allSubjects: true }))
+    check('学科建议', '「保持英语」之后从头重新处理，不会再提醒', !again.some(p => p.id === kept.id && p.subject_hint))
+  }
 
   // ── 3) 改学科：已审核的二次确认 ──
   await goto('#/'); await waitFor(async () => /共 \d+ 份/.test(await T('lib-count').innerText()), 15000)
-  const row = ctx.page.locator('tr', { has: ctx.page.locator('[data-testid=more-menu]') }).first()
+  // 选一份示例卷（题目都已审核）；刚拖进来的数学卷没审核过，不会出二次确认
+  const row = ctx.page.locator('tr', { has: ctx.page.locator('[data-testid=more-menu]'), hasText: '示例' }).first()
   await row.locator('[data-testid=more-menu]').click()
   await T('change-subject').click()
   await T('subject-change-modal').waitFor({ timeout: 5000 })
-  check('改学科', '弹出改学科窗口，当前学科不可选', await T('subject-change-english').locator('input').isDisabled())
+  check('改学科', '弹出改学科窗口，当前学科不可选', await T('subject-change-english').first().evaluate(e => !!((e.tagName === 'INPUT' ? e : e.querySelector('input'))?.disabled)))
   await T('subject-change-math').click()
   await T('subject-change-ok').click()
   const lose = await waitFor(async () => (await T('subject-lose-review').count()) > 0, 10000)
@@ -109,13 +119,18 @@ async function main() {
   check('数据页', '数据集和文档都有学科标签', (await T('data-subject-tag').count()) >= 2)
   check('数据页', '有「当前学科和通用 / 全部」筛选，默认前者', /当前学科和通用/.test(await T('datasets-scope').innerText()) && (await ctx.page.locator('[data-testid=datasets-scope] .ant-segmented-item-selected').innerText()).includes('当前学科和通用'))
   // 把文档改成数学：英语学科下默认筛选看不到它，切到「全部」能看到
+  // 拖放那一步也可能已经把「教案」放进了文档资料：按「少了一份」判断，不假设只有一份
+  const docsBefore = await T('document-card').count()
+  const allBefore = await ctx.page.evaluate(() => window.api.datasets.documents())
   const docTag = T('documents-list').locator('[data-testid=data-subject-tag]').first()
   await docTag.click()
-  await ctx.page.locator('.ant-select-item-option', { hasText: '数学' }).click()
-  const hidden = await waitFor(async () => (await T('document-card').count()) === 0, 10000)
-  check('数据页', '文档改成数学后，英语学科的默认筛选里不显示它', !!hidden && (await T('datasets-hidden').count()) === 1)
+  await ctx.page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: '数学' }).click()
+  const hidden = await waitFor(async () => (await T('document-card').count()) === docsBefore - 1, 10000)
+  check('数据页', '文档改成数学后，英语学科的默认筛选里不显示它', !!hidden && (await T('datasets-hidden').count()) === 1, `${docsBefore} → ${await T('document-card').count()}`)
   await ctx.page.locator('[data-testid=datasets-scope] .ant-segmented-item', { hasText: '全部' }).click()
-  check('数据页', '切到「全部」后又能看到，标签是数学', !!(await waitFor(async () => (await T('document-card').count()) === 1, 10000)) && (await T('document-card').locator('[data-testid=data-subject-tag]').getAttribute('data-subject')) === 'math')
+  const shownAll = await waitFor(async () => (await T('document-card').count()) === allBefore.length, 10000)
+  const tags = await T('document-card').locator('[data-testid=data-subject-tag]').evaluateAll(els => els.map(e => e.getAttribute('data-subject')))
+  check('数据页', '切到「全部」后又能看到，标签是数学', !!shownAll && tags.includes('math'), tags.join(','))
   await ctx.page.screenshot({ path: path.join(shots, 'auto-route-datasets.png') })
 
   check('运行', '页面没有控制台错误', ctx.consoleErrors.length === 0, ctx.consoleErrors.join(' | ').slice(0, 300))
