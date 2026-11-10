@@ -1,6 +1,6 @@
 /**
  * 导入自动分流 / 自动认学科：界面用到的主进程接口。
- * 后端的签名会写进 env.d.ts；在那之前这里用最小的本地类型 + `as` 绕过，合并后把 autoApi() 换成 window.api 即可。
+ * 接口签名以 env.d.ts 为准；这里只放汇总、提示用的纯函数和类型。
  * 纯函数、不依赖 React，单测直接加载（import 带 .ts 后缀）。
  */
 import { SUBJECT_IDS, asSubject, isSubjectId, subjectName, type SubjectId } from '../../shared/subject.ts'
@@ -11,7 +11,7 @@ export const DATA_SUBJECTS: DataSubject[] = [...SUBJECT_IDS, 'general']
 export const dataSubjectName = (s: unknown): string => (isSubjectId(s) ? subjectName(s) : '通用')
 export const asDataSubject = (v: unknown): DataSubject => (isSubjectId(v) ? v : 'general')
 
-export interface AutoPaperResult { file: string; paperId?: string; subject: SubjectId; hinted?: SubjectId; error?: string; code?: string }
+export interface AutoPaperResult { file: string; /** 完整路径（重复导入时拿它重导） */ path?: string; paperId?: string; subject: SubjectId; hinted?: SubjectId; error?: string; code?: string }
 export interface AutoImportResult {
   papers: AutoPaperResult[]
   datasets: Array<{ file: string; id?: string; error?: string }>
@@ -19,21 +19,6 @@ export interface AutoImportResult {
   notes: string[]
 }
 export type SetSubjectResult = { needConfirm: true; reviewed: number } | { needConfirm?: false } | void
-
-/** 本地补的接口签名（待并入 env.d.ts） */
-export interface AutoApi {
-  papers: {
-    resolveSubject(id: string, subject: SubjectId): Promise<unknown>
-    setSubject(id: string, subject: SubjectId, opts?: { confirmLoseReview?: boolean }): Promise<SetSubjectResult>
-  }
-  files: { importAuto(paths: string[], currentSubject: SubjectId): Promise<AutoImportResult> }
-  datasets: {
-    setDocumentSubject(id: string, subject: DataSubject): Promise<unknown>
-    setDatasetSubject(id: string, subject: DataSubject): Promise<unknown>
-  }
-}
-/** 所有新接口的调用点都经过这一处 */
-export const autoApi = (): AutoApi => (window as unknown as { api: AutoApi }).api
 
 /** 卷子上的学科建议（papers.list 返回的 subject_hint）；没有或不认识返回 null */
 export function hintOf(p: object): SubjectId | null {
@@ -87,7 +72,7 @@ export function summarizeAuto(r: AutoImportResult, current: SubjectId): AutoSumm
     text: parts.join('；'),
     others: order.filter(s => s !== current && bySubject.has(s)).map(s => ({ subject: s, count: bySubject.get(s)! })),
     hinted,
-    duplicates: papers.filter(p => p.code === 'duplicate').map(p => p.file),
+    duplicates: papers.filter(p => p.code === 'duplicate').map(p => p.path ?? p.file),
     errors,
     notes: r.notes ?? [],
     empty: parts.length === 0

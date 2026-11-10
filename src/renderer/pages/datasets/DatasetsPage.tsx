@@ -7,7 +7,7 @@ import '../../design/page-report.css'
 import '../../design/page-library.css'
 import '../../design/page-course.css'
 import { useSubject } from '../../subject/SubjectContext'
-import { autoApi, asDataSubject, dataSubjectName, DATA_SUBJECTS, type DataSubject } from '../../subject/autoRoute'
+import { asDataSubject, dataSubjectName, DATA_SUBJECTS, type DataSubject } from '../../subject/autoRoute'
 
 type Scope = 'current' | 'all'
 
@@ -71,8 +71,8 @@ export default function DatasetsPage() {
   }
   const changeSubj = async (kind: 'doc' | 'set', id: string, s: DataSubject) => {
     try {
-      if (kind === 'doc') await autoApi().datasets.setDocumentSubject(id, s)
-      else await autoApi().datasets.setDatasetSubject(id, s)
+      if (kind === 'doc') await window.api.datasets.setDocumentSubject(id, s)
+      else await window.api.datasets.setDatasetSubject(id, s)
       message.success(`已改为${dataSubjectName(s)}`)
     } catch (e) { message.error(clean(e)) }
     refresh()

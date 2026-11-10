@@ -4,7 +4,7 @@ import { Btn } from '../design'
 import { useQueryClient } from '@tanstack/react-query'
 import { subjectName } from '../../shared/subject'
 import { useSubject } from '../subject/SubjectContext'
-import { autoApi, summarizeAuto } from '../subject/autoRoute'
+import { summarizeAuto } from '../subject/autoRoute'
 
 /** 导入流程：提示结果；内容相同的文件弹窗让用户选「仍然导入」 */
 export function useImportFlow() {
@@ -97,13 +97,14 @@ export function useImportFlow() {
    */
   async function importAuto(paths: string[]): Promise<void> {
     try {
-      const res = await autoApi().files.importAuto(paths, subject)
+      const res = await window.api.files.importAuto(paths, subject)
       const sum = summarizeAuto(res, subject)
       queryClient.invalidateQueries({ queryKey: ['papers'] })
       queryClient.invalidateQueries({ queryKey: ['datasets'] })
       if (!sum.empty) {
         const lines = [sum.text]
         if (sum.hinted > 0) lines.push(`${sum.hinted} 份内容像别的学科，请到试卷库确认学科后再解析`)
+        else if (res.papers.some(p => p.paperId)) lines.push('读出卷面文字后会再核对学科，对不上的会在试卷库提醒你确认')
         for (const o of sum.others) lines.push(`${o.count} 份${subjectName(o.subject)}卷已放到${subjectName(o.subject)}`)
         notification.success({
           key: 'import-auto', message: '导入完成', duration: sum.others.length ? 10 : 5, placement: 'bottomRight',

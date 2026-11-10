@@ -3,7 +3,7 @@ import { App, Modal, Radio } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { SUBJECT_LIST, asSubject, subjectName, type SubjectId } from '../../shared/subject'
 import { UsageNote, Btn } from '../design'
-import { autoApi, hintOf } from '../subject/autoRoute'
+import { hintOf } from '../subject/autoRoute'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
@@ -33,7 +33,7 @@ export function SubjectHintBar({ papers }: { papers: P[] }) {
     setBusy(true)
     let fail = 0
     for (const p of list) {
-      try { await autoApi().papers.resolveSubject(p.id, pick(p)) } catch (e) { fail++; message.error(`${p.title || p.file_name}：${clean(e)}`) }
+      try { await window.api.papers.resolveSubject(p.id, pick(p)) } catch (e) { fail++; message.error(`${p.title || p.file_name}：${clean(e)}`) }
     }
     setBusy(false)
     if (fail < list.length) message.success(ok)
@@ -90,7 +90,7 @@ export function useChangeSubject() {
     if (!paper) return
     setBusy(true)
     try {
-      const r = await autoApi().papers.setSubject(paper.id, target, confirmLoseReview ? { confirmLoseReview: true } : undefined)
+      const r = await window.api.papers.setSubject(paper.id, target, confirmLoseReview ? { confirmLoseReview: true } : undefined)
       if (r && (r as { needConfirm?: boolean }).needConfirm) {
         const n = (r as { reviewed: number }).reviewed
         const name = subjectName(target)
@@ -102,7 +102,7 @@ export function useChangeSubject() {
           okButtonProps: { danger: true, 'data-testid': 'subject-lose-ok' } as never,
           onOk: async () => {
             try {
-              await autoApi().papers.setSubject(p.id, target, { confirmLoseReview: true })
+              await window.api.papers.setSubject(p.id, target, { confirmLoseReview: true })
               message.success(`已改为${name}，正在重新识别`)
               close()
             } catch (e) { message.error(clean(e)) }
