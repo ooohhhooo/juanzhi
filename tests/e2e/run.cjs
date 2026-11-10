@@ -206,17 +206,19 @@ async function main() {
 
   // 全局拖放：在非试卷库页面（详情页的任意位置）拖入文件，窗口不能被导航成该文件
   const entryBefore = page.url().split('#')[0]
+  const hashBefore = await page.evaluate(() => location.hash)
   await dropFiles(page, [path.join(fx, 'old-format.doc')], { x: 700, y: 450 })
   await sleep(700)
   const hashAfter = await page.evaluate(() => location.hash)
-  const navToast = (await page.locator('.ant-message-notice').allInnerTexts()).join(' ')
-  check('导航拦截', '在详情页拖入文件：窗口仍在应用入口页，被当作导入处理并跳到试卷库',
-    page.url().split('#')[0] === entryBefore && hashAfter === '#/' && /\.doc/.test(navToast) && (await page.locator('[data-testid=dropzone]').count()) === 1,
-    `${page.url().split('#')[0] === entryBefore ? '入口页未变' : '页面被导航走了: ' + page.url()} hash=${hashAfter}`)
+  const navToast = (await page.locator('.ant-message-notice, .ant-notification-notice').allInnerTexts()).join(' ')
+  // 1.5 起：非试卷库页面的拖放交给「自动分流」，原地给提示、不再跳页（.doc 是旧格式，提示不支持）
+  check('导航拦截', '在详情页拖入文件：窗口仍在应用入口页，被当作导入处理（原地提示，不跳页）',
+    page.url().split('#')[0] === entryBefore && hashAfter === hashBefore && /\.doc/.test(navToast),
+    `${page.url().split('#')[0] === entryBefore ? '入口页未变' : '页面被导航走了: ' + page.url()} hash=${hashAfter} toast=${navToast.slice(0, 120)}`)
   await page.evaluate(() => { location.href = 'file:///etc/hosts' })
   await sleep(1200)
   check('导航拦截', '页面脚本直接跳转到任意 file:// 被 will-navigate 拦截',
-    page.url().split('#')[0] === entryBefore && (await page.locator('[data-testid=dropzone]').count()) === 1, page.url())
+    page.url().split('#')[0] === entryBefore && (await page.locator('.ewb-sider').count()) === 1, page.url())
 
   // 协议安全
   const pid = pdfPaper.id
