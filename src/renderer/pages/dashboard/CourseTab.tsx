@@ -27,7 +27,7 @@ export default function CourseTab() {
   const { message, modal } = App.useApp()
   const nav = useNavigate()
   const qc = useQueryClient()
-  const { data: cards, isLoading } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
+  const { data: cards, isLoading } = useQuery({ queryKey: ['course', 'list', filter.subject ?? 'english'], queryFn: () => window.api.course.list(filter.subject) })
   const usable = useMemo(() => (cards ?? []).filter(c => c.status === 'active' && c.active), [cards])
   const [picked, setPicked] = useState<string[] | null>(null)   // null = 全部启用的
   const ids = useMemo(() => (picked ?? usable.map(c => c.id)).filter(id => usable.some(c => c.id === id)), [picked, usable])

@@ -41,7 +41,7 @@ function withMarks(text: string): React.ReactNode {
     const [i, mark] = hits[0] as [number, string]
     if (i > 0) out.push(rest.slice(0, i))
     const conflict = mark === MARK_CONFLICT
-    out.push(<Tooltip key={k++} title={conflict ? '这句英语规则和老师审核过的题目解释说的不一样，很可能写错了，请核对' : '这句英语规则在老师审核过的题目解释里找不到依据，请老师自己确认对不对'}>
+    out.push(<Tooltip key={k++} title={conflict ? '这句讲规则的话和老师审核过的题目解释说的不一样，很可能写错了，请核对' : '这句讲规则的话在老师审核过的题目解释里找不到依据，请老师自己确认对不对'}>
       <span tabIndex={0} className={`ewb-etag ${conflict ? 'ewb-etag--mistake' : 'ewb-etag--thin'}`} data-testid={conflict ? 'mark-conflict' : 'mark-unverified'} style={{ marginInlineStart: 6, height: 20, verticalAlign: 'baseline' }}>{conflict ? '与题目解释矛盾' : '未核实'}</span>
     </Tooltip>)
     rest = rest.slice(i + mark.length)

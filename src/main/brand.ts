@@ -6,7 +6,7 @@
  */
 export const PRODUCT_NAME = '卷知'
 /** 副标题（窗口标题、安装向导、README 里和产品名一起出现） */
-export const PRODUCT_SUBTITLE = '小学英语试卷分析'
+export const PRODUCT_SUBTITLE = '小学试卷分析'
 /** 窗口标题 = 页面 <title>（index.html 里写同样的字，单测核对） */
 export const WINDOW_TITLE = `${PRODUCT_NAME} · ${PRODUCT_SUBTITLE}`
 export const APP_ID = 'cn.edu.english-exam-workbench'

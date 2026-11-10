@@ -184,8 +184,8 @@ assert.equal(pkg.name, 'english-exam-workbench')
   }
   const idx2 = fs.readFileSync(path.join(root, 'src/main/index.ts'), 'utf8')
   assert.match(idx2, /app\.setAppUserModelId\(APP_ID\)/); assert.match(idx2, /title: WINDOW_TITLE/); assert.match(idx2, /Menu\.setApplicationMenu/)
-  assert.match(fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8'), new RegExp(`<title>${WINDOW_TITLE}</title>`), '页面标题 = 窗口标题「卷知 · 小学英语试卷分析」')
-  assert.equal(WINDOW_TITLE, '卷知 · 小学英语试卷分析')
+  assert.match(fs.readFileSync(path.join(root, 'src/renderer/index.html'), 'utf8'), new RegExp(`<title>${WINDOW_TITLE}</title>`), '页面标题 = 窗口标题「卷知 · 小学试卷分析」')
+  assert.equal(WINDOW_TITLE, '卷知 · 小学试卷分析')
 }
 // ── 7. 用户看得到的文案里不能留开发里程碑的字样（M1–M5、「后续里程碑」、「占位」）──
 {

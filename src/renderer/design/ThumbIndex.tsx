@@ -4,7 +4,8 @@
  * 点击后由调用方跳到该大类的词条组，或按该大类筛选；配合 <PageTurn> 得到「翻页」横向滑入。
  */
 import React, { useRef } from 'react'
-import { CATEGORIES, type CategoryKey } from './tokens'
+import { type CategoryKey } from './tokens'
+import { useCategories } from '../subject/useCategories'
 
 export interface ThumbIndexItem {
   key: CategoryKey
@@ -13,7 +14,7 @@ export interface ThumbIndexItem {
 }
 
 export interface ThumbIndexProps {
-  /** 各大类的考点数。缺的大类显示为 0；顺序固定为 语音、词汇、语法、交际、阅读、写作 */
+  /** 各大类的考点数。缺的大类显示为 0；顺序固定为当前学科的六个大类（按色槽 1–6） */
   counts: Partial<Record<CategoryKey, number>>
   /** 当前选中的大类；null / 不传表示都没选 */
   value?: CategoryKey | null
@@ -27,6 +28,7 @@ export interface ThumbIndexProps {
 
 export default function ThumbIndex({ counts, value, onChange, sticky = true, responsive, ...rest }: ThumbIndexProps) {
   const listRef = useRef<HTMLUListElement>(null)
+  const { list: CATEGORIES } = useCategories()
   const onKey = (e: React.KeyboardEvent, i: number) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     e.preventDefault()

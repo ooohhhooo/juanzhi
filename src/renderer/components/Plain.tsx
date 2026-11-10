@@ -15,7 +15,7 @@ export function Term({ term, children }: { term: string; children?: React.ReactN
 export function AiDraftBadge({ confirmedAt, style }: { confirmedAt?: string | null; style?: React.CSSProperties }) {
   return confirmedAt
     ? <span className="ewb-status ewb-status--done" data-testid="ai-draft-badge" data-confirmed="1" style={style}>已由老师核对 · {confirmedAt}</span>
-    : <Tooltip title="AI 写出来的内容都是草稿：用之前请老师核对，尤其是讲英语规则的地方。"><span className="ewb-status ewb-status--pending" data-testid="ai-draft-badge" data-confirmed="0" tabIndex={0} style={style}>AI 草稿 · 请老师核对</span></Tooltip>
+    : <Tooltip title="AI 写出来的内容都是草稿：用之前请老师核对，尤其是讲规则的地方。"><span className="ewb-status ewb-status--pending" data-testid="ai-draft-badge" data-confirmed="0" tabIndex={0} style={style}>AI 草稿 · 请老师核对</span></Tooltip>
 }
 
 /** 等待 AI 时的文案：已用多少秒；推理模型先「思考」再「写」 */

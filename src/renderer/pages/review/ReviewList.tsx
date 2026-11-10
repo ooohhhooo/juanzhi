@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { inSubject } from '../../subject/papers'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Progress, Segmented } from 'antd'
@@ -7,12 +8,15 @@ import { statusMap } from '../../status'
 import SimilarNotice from '../../components/SimilarNotice'
 import { Btn, EmptyState, IndexTable, Page, SectionTitle, StatusLabel } from '../../design'
 import { Pill } from './parts'
+import { useSubject } from '../../subject/SubjectContext'
 import '../../design/page-review.css'
 
 export default function ReviewList() {
   const navigate = useNavigate()
+  const { subject } = useSubject()
   const [tab, setTab] = useState<'reviewing' | 'done'>('reviewing')
-  const { data: papers = [], isLoading } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  const { data: rawPapers = [], isLoading } = useQuery({ queryKey: ['papers', 'list', subject], queryFn: () => window.api.papers.list({ subject }) })
+  const papers = useMemo(() => inSubject(rawPapers, subject), [rawPapers, subject])
   const { data: summary = [] } = useQuery({ queryKey: ['questions', 'summary'], queryFn: () => window.api.questions.summary() })
   const bySummary = useMemo(() => new Map(summary.map(s => [s.paper_id, s])), [summary])
 

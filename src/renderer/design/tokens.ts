@@ -10,6 +10,7 @@
  */
 import { theme as antdThemeApi, type ThemeConfig } from 'antd'
 import { CARD_AMBER, CARD_PAPER } from '../../shared/card-style'
+import { DEFAULT_SUBJECT, SUBJECTS, categoryOf, type SubjectId } from '../../shared/subject'
 
 export type Mode = 'light' | 'dark'
 
@@ -142,24 +143,39 @@ export interface Category {
   dark: string
 }
 
-/** 全局固定，不能挪作他用。第二版：降低饱和度、统一明度，和长春花紫主色协调（琥珀、鼠尾草绿、天蓝、青、兰紫、陶土）。 */
-export const CATEGORIES: Category[] = [
-  { key: 'phonics', label: '语音', gloss: '字母、字母组合发音、重音和语调', codes: ['PH'], light: '#B98733', dark: '#E0B060' },
-  { key: 'vocab', label: '词汇', gloss: '主题词汇、词形变化、短语搭配', codes: ['VO'], light: '#4C9A74', dark: '#6CC49C' },
-  { key: 'grammar', label: '语法', gloss: '名词、代词、时态、介词、句型等', codes: ['GR'], light: '#3F86C9', dark: '#6FB0E8' },
-  { key: 'communication', label: '交际', gloss: '日常对话与功能用语：问路、购物、打电话', codes: ['FN'], light: '#2C9AA0', dark: '#52C4C8' },
-  { key: 'reading', label: '阅读', gloss: '阅读理解与听力理解（理解类）', codes: ['RD', 'LS'], light: '#A062B9', dark: '#C493E0' },
-  { key: 'writing', label: '写作', gloss: '写句子、书面表达', codes: ['WR'], light: '#C87B4C', dark: '#EAA079' }
+/** 六个色槽（slot 1–6）的颜色：全局固定，不能挪作他用。第二版：降低饱和度、统一明度，和长春花紫主色协调（琥珀、鼠尾草绿、天蓝、青、兰紫、陶土）。 */
+const SLOT_COLORS: Array<{ light: string; dark: string }> = [
+  { light: '#B98733', dark: '#E0B060' },
+  { light: '#4C9A74', dark: '#6CC49C' },
+  { light: '#3F86C9', dark: '#6FB0E8' },
+  { light: '#2C9AA0', dark: '#52C4C8' },
+  { light: '#A062B9', dark: '#C493E0' },
+  { light: '#C87B4C', dark: '#EAA079' }
 ]
+/**
+ * 色槽 1–6 对应的 CSS 类后缀（ewb-cat-<后缀>、--ewb-cat-<后缀>）。
+ * 沿用英语最早的六个名字，所以样式表和英语的 data-category 不用改；其他学科的大类按 slot 取同一个名字，
+ * 名字只是色槽的编号，不代表含义，界面上显示的永远是学科自己的 label。
+ */
+export const SLOT_KEYS: CategoryKey[] = ['phonics', 'vocab', 'grammar', 'communication', 'reading', 'writing']
 
-export const CATEGORY_BY_KEY = Object.fromEntries(CATEGORIES.map(c => [c.key, c])) as Record<CategoryKey, Category>
+/** 某学科的六个知识大类（按色槽顺序）：key = 色槽名，label / gloss / codes 取自学科注册表 */
+export function categoriesOf(subject: SubjectId = DEFAULT_SUBJECT): Category[] {
+  return SUBJECTS[subject].categories.map(c => ({
+    key: SLOT_KEYS[c.slot - 1], label: c.label, gloss: c.gloss, codes: c.codes, ...SLOT_COLORS[c.slot - 1]
+  }))
+}
+/** 英语的六类（颜色表、图表系列色、设计样张用；按学科显示名字请用 categoriesOf） */
+export const CATEGORIES: Category[] = categoriesOf('english')
 
-/** 知识点代码（如 GR.NOUN.PLURAL、PH.PHONICS.COMBO）属于哪个大类。认不出的返回 null（例如题型代码）。 */
-export function categoryOfCode(code: string | null | undefined): CategoryKey | null {
-  if (!code) return null
-  const head = code.split('.')[0]
-  for (const c of CATEGORIES) if (c.codes.includes(head)) return c.key
-  return null
+export const categoryByKeyOf = (subject: SubjectId = DEFAULT_SUBJECT): Record<CategoryKey, Category> =>
+  Object.fromEntries(categoriesOf(subject).map(c => [c.key, c])) as Record<CategoryKey, Category>
+export const CATEGORY_BY_KEY = categoryByKeyOf('english')
+
+/** 知识点代码（如 GR.NOUN.PLURAL、CN.WORD.IDIOM）属于该学科的哪个大类（色槽名）。认不出的返回 null（例如题型代码）。 */
+export function categoryOfCode(code: string | null | undefined, subject: SubjectId = DEFAULT_SUBJECT): CategoryKey | null {
+  const c = categoryOf(subject, code)
+  return c ? SLOT_KEYS[c.slot - 1] : null
 }
 
 export const categoryColor = (key: CategoryKey, mode: Mode): string => CATEGORY_BY_KEY[key][mode]

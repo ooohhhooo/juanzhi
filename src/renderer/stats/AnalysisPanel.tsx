@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { subjectName } from '../../shared/subject'
 import { Collapse, Popconfirm } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -85,7 +86,7 @@ export default function AnalysisPanel({ scope, focusCode, onView }: { scope: Com
           </div>
           {st.status === 'stale' && <UsageNote data-testid="ai-stale" kind="caution"><b>已过期，可重新生成</b>（{st.staleReasons.map(r => r === 'data' ? '统计数据或样本题有变化' : r === 'prompt' ? 'AI 的写作要求有更新' : '换了 AI 模型').join('；')}）。下面是 {st.createdAt} 生成的旧结果。</UsageNote>}
           {st.warnings.map((w, i) => <UsageNote key={i} kind="caution" data-testid="ai-warning">{w}</UsageNote>)}
-          {st.unverified.length > 0 && <UsageNote data-testid="ai-unverified" kind="caution">{`有 ${st.unverified.length} 句讲英语规则的话没能对上老师审核过的题目解释（正文里已标“未核实”）：请老师核对后再用`}</UsageNote>}
+          {st.unverified.length > 0 && <UsageNote data-testid="ai-unverified" kind="caution">{`有 ${st.unverified.length} 句讲${subjectName(scope.filter.subject)}规则的话没能对上老师审核过的题目解释（正文里已标“未核实”）：请老师核对后再用`}</UsageNote>}
           <div data-testid="ai-text">
             {focusCode && !full ? (
               section

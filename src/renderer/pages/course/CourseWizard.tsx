@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useSubject } from '../../subject/SubjectContext'
 import { App, Input, Modal, Radio } from 'antd'
 import { Download, FileSpreadsheet } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -25,6 +26,7 @@ type Mappings = Record<string, CourseSheetMapping | null>
 export default function CourseWizard({ open, onClose, replace, job }: { open: boolean; onClose: () => void; replace?: CourseOutlineCard; /** 后台已整理好的任务：直接进入第 2 步核对 */ job?: CourseJob }) {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
+  const { subject } = useSubject()
   const [step, setStep] = useState<1 | 2>(1)
   const [src, setSrc] = useState<CourseSource | null>(null)
   const [srcs, setSrcs] = useState<CourseSource[]>([])   // 第 1 步选的文件（可多个）
@@ -46,7 +48,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
   const [edited, setEdited] = useState(false)   // 预览里手改过格子：保存时才把整理结果带回主进程；没改过就只带 sessionId + 列映射
   const [collide, setCollide] = useState<CourseOutlineCard | null>(null)
   const [saving, setSaving] = useState(false)
-  const { data: cards } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list(), enabled: open })
+  const { data: cards } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject), enabled: open })
   const { data: ai } = useQuery({ queryKey: ['ai', 'config'], queryFn: () => window.api.ai.getConfig(), enabled: open })
   const seq = useRef(0)
 
@@ -143,9 +145,9 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
         return
       }
       const jobs = await window.api.course.jobStart(srcs.map(s0 => ({
-        sessionId: s0.sessionId, name: multi ? s0.name.slice(0, 60) : (replace?.name ?? name.trim()), scene, termNote,
+        subject, sessionId: s0.sessionId, name: multi ? s0.name.slice(0, 60) : (replace?.name ?? name.trim()), scene, termNote,
         mode: s0.fromDoc?.aiOrganised ? 'ai' as const : mode, ...(replace ? { replaceId: replace.id } : {})
-      })))
+      })) as Parameters<typeof window.api.course.jobStart>[0])
       for (const j of jobs) sessionJobIds.add(j.id)
       qc.invalidateQueries({ queryKey: ['course', 'jobs'] })
       qc.invalidateQueries({ queryKey: ['course'] })

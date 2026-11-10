@@ -3,6 +3,8 @@
 /* 页头：标题 + 右侧操作 */
 .ewb-lib-head { display: flex; align-items: center; gap: var(--ewb-sp-4); flex-wrap: wrap; margin-bottom: var(--ewb-sp-5); }
 .ewb-lib-title { margin: 0; font-size: var(--ewb-fs-h2); line-height: 1.25; font-weight: 700; color: var(--ewb-ink); }
+.ewb-lib-target { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 12px; border-radius: var(--ewb-r-pill); background: var(--ewb-primary-soft); color: var(--ewb-ink-2); font-size: var(--ewb-fs-sm); font-weight: 600; }
+.ewb-lib-target b { color: var(--ewb-primary-active); }
 .ewb-lib-actions { margin-left: auto; display: flex; align-items: center; gap: var(--ewb-sp-2); flex-wrap: wrap; }
 .ewb-lib-sub { font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
 

@@ -1,3 +1,4 @@
+import { asSubject, subjectName } from '../../shared/subject'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -63,7 +64,7 @@ export default function QueuePage() {
 
   useEffect(() => window.api.on('job:progress', (p: JobProgress) => setExtractProg(prev => ({ ...prev, [p.paperId]: p }))), [])
 
-  const { data: papers = [], isLoading } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  const { data: papers = [], isLoading } = useQuery({ queryKey: ['papers', 'list', 'all'], queryFn: () => window.api.papers.list() })   // 队列显示全部学科的卷子
   const { data: q } = useQuery({ queryKey: ['queue', 'state'], queryFn: () => window.api.queue.state(), refetchInterval: 1000 })
   const { data: usage = [] } = useQuery({ queryKey: ['usage'], queryFn: () => window.api.ai.usage() })
 
@@ -103,7 +104,7 @@ export default function QueuePage() {
       render: (t: string, p: Paper) => (
         <div className="ewb-lib-papercell">
           <div className="ewb-lib-papertitle"><a onClick={() => navigate(`/paper/${p.id}`)}>{t || p.file_name}</a><SimilarNotice paper={p} compact /></div>
-          <div className="ewb-lib-file">{p.file_name}</div>
+          <div className="ewb-lib-file"><span className="ewb-lib-tag" data-testid="queue-subject" data-subject={asSubject((p as { subject?: string }).subject)}>{subjectName((p as { subject?: string }).subject)}</span> {p.file_name}</div>
         </div>
       )
     },

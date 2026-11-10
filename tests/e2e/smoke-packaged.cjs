@@ -166,7 +166,7 @@ async function main() {
       title: BrowserWindow.getAllWindows()[0]?.getTitle()
     }))
     fs.writeFileSync(path.join(outDir, `${prefix}menu-${process.platform}.json`), JSON.stringify({ ...uiNames, appName: facts.name, pageTitle: await page.title() }, null, 2))
-    check('产品名', `窗口标题和页面标题都是「卷知 · 小学英语试卷分析」（不是内部名 ${facts.name}，也不是第三个名字）`, uiNames.title === '卷知 · 小学英语试卷分析' && (await page.title()) === '卷知 · 小学英语试卷分析', `${uiNames.title} / ${await page.title()}`)
+    check('产品名', `窗口标题和页面标题都是「卷知 · 小学试卷分析」（不是内部名 ${facts.name}，也不是第三个名字）`, uiNames.title === '卷知 · 小学试卷分析' && (await page.title()) === '卷知 · 小学试卷分析', `${uiNames.title} / ${await page.title()}`)
     if (isMac) {
       const flat = JSON.stringify(uiNames.menu)
       const appMenu = uiNames.menu[0]
