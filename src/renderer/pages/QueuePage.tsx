@@ -11,6 +11,8 @@ import { useDiscardGuard } from '../hooks/useDiscardGuard'
 import RetryActions from '../components/RetryActions'
 import SimilarNotice from '../components/SimilarNotice'
 import { useAdminOpen } from '../hooks/useUiPrefs'
+import { SubjectHintBar } from '../components/SubjectHint'
+import { hintOf } from '../subject/autoRoute'
 
 type View = 'active' | 'attention' | 'all'
 
@@ -155,6 +157,7 @@ export default function QueuePage() {
       render: (_: unknown, p: Paper) => {
         const active = parseWaiting.has(p.id) || running.has(p.id)
         if (active) return <Btn tone="secondary" size="small" icon={Ban} data-testid="cancel-parse" onClick={() => act(() => window.api.parse.cancel(p.id), '已取消')}>取消</Btn>
+        if (p.status === 'extracted' && hintOf(p)) return <Btn tone="secondary" size="small" icon={Zap} disabled title="请先确认学科" data-testid="start-parse-blocked">先确认学科</Btn>
         if (p.status === 'extracted') return <Btn tone="secondary" size="small" icon={Zap} data-testid="start-parse" onClick={() => start(p.id)}>开始 AI 解析</Btn>
         if (p.status === 'failed') return <RetryActions paper={p} />   // 与试卷库同一个组件
         if (p.status === 'reviewing' || p.status === 'done') {
@@ -187,6 +190,7 @@ export default function QueuePage() {
             : <Btn tone="secondary" icon={Pause} data-testid="pause-queue" onClick={() => act(() => window.api.queue.pause(), '已暂停：正在处理的试卷会做完当前这一步，不再开始新的')}>暂停队列</Btn>}
         </div>
       </div>
+      <SubjectHintBar papers={papers} />
       {q?.paused && <UsageNote kind="caution" title="队列已暂停" data-testid="paused-banner">不会开始新的提取和解析；已经在跑的试卷会继续做完。点右上角「继续处理」恢复。</UsageNote>}
       {q?.throttle?.throttled && (
         <UsageNote kind="caution" title="AI 服务太忙，暂时放慢" data-testid="throttle-banner">

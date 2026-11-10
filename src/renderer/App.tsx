@@ -86,13 +86,14 @@ function DataChangeListener() {
 
 /**
  * 窗口级拖放：任何页面把文件拖进窗口都不能让浏览器去「打开」它（会把整个应用导航成该文件），
- * 而是当作导入，并跳到试卷库看进度。试卷库自己的拖拽区会先处理并打上标记。
+ * 而是交给主进程自动分流（试卷进试卷库、表格和文档进数据），弹一条汇总提示，不跳页。
+ * 试卷库、数据页、助手页自己的拖拽区会先处理并打上 __ewbHandled 标记，这里不再重复处理。
  */
 function GlobalDrop() {
-  const { importPaths, pathsFromDrop } = useImportFlow()
+  const { importAuto, pathsFromDrop } = useImportFlow()
   const navigate = useNavigate()
-  const ref = useRef({ importPaths, pathsFromDrop, navigate })
-  ref.current = { importPaths, pathsFromDrop, navigate }
+  const ref = useRef({ importAuto, pathsFromDrop, navigate })
+  ref.current = { importAuto, pathsFromDrop, navigate }
 
   // 应用菜单「检查更新…」：主进程让页面跳到设置里的对应位置（只接受站内路径）
   useEffect(() => window.api.on('menu:navigate', (to: unknown) => { if (typeof to === 'string' && to.startsWith('/')) ref.current.navigate(to) }), [])
@@ -104,8 +105,7 @@ function GlobalDrop() {
       if ((e as any).__ewbHandled || !e.dataTransfer || e.dataTransfer.files.length === 0) return
       const paths = ref.current.pathsFromDrop(e.dataTransfer)
       if (paths.length === 0) return
-      ref.current.navigate('/')
-      await ref.current.importPaths(paths)
+      await ref.current.importAuto(paths)
     }
     window.addEventListener('dragover', over)
     window.addEventListener('drop', drop)

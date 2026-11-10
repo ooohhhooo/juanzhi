@@ -1,12 +1,15 @@
 import React from 'react'
 import { App } from 'antd'
+import { Btn } from '../design'
 import { useQueryClient } from '@tanstack/react-query'
 import { subjectName } from '../../shared/subject'
 import { useSubject } from '../subject/SubjectContext'
+import { autoApi, summarizeAuto } from '../subject/autoRoute'
 
 /** 导入流程：提示结果；内容相同的文件弹窗让用户选「仍然导入」 */
 export function useImportFlow() {
-  const { message, modal } = App.useApp()
+  const { message, modal, notification } = App.useApp()
+  const { setSubject } = useSubject()
   const queryClient = useQueryClient()
   const { subject } = useSubject()
   const sName = subjectName(subject)
@@ -88,6 +91,51 @@ export function useImportFlow() {
     }
   }
 
+  /**
+   * 全局拖放用：交给主进程自动分流（试卷 / 表格 / 文档），再汇总成一条提示。
+   * 进了别的学科的卷子，提示里带「切到某学科查看」；内容重复的沿用「仍然导入」弹窗。
+   */
+  async function importAuto(paths: string[]): Promise<void> {
+    try {
+      const res = await autoApi().files.importAuto(paths, subject)
+      const sum = summarizeAuto(res, subject)
+      queryClient.invalidateQueries({ queryKey: ['papers'] })
+      queryClient.invalidateQueries({ queryKey: ['datasets'] })
+      if (!sum.empty) {
+        const lines = [sum.text]
+        if (sum.hinted > 0) lines.push(`${sum.hinted} 份内容像别的学科，请到试卷库确认学科后再解析`)
+        for (const o of sum.others) lines.push(`${o.count} 份${subjectName(o.subject)}卷已放到${subjectName(o.subject)}`)
+        notification.success({
+          key: 'import-auto', message: '导入完成', duration: sum.others.length ? 10 : 5, placement: 'bottomRight',
+          description: <div data-testid="import-auto-summary">{lines.map((l, i) => <div key={i}>{l}</div>)}{sum.notes.map((n, i) => <div key={`n${i}`} style={{ opacity: 0.8 }}>{n}</div>)}</div>,
+          actions: sum.others.length ? (
+            <span style={{ display: 'inline-flex', gap: 8 }}>
+              {sum.others.map(o => (
+                <Btn key={o.subject} tone="secondary" size="small" data-testid={`switch-to-${o.subject}`}
+                  onClick={() => { setSubject(o.subject); notification.destroy('import-auto') }}>切到{subjectName(o.subject)}查看</Btn>
+              ))}
+            </span>
+          ) : undefined
+        })
+      } else if (sum.errors.length === 0 && sum.duplicates.length === 0) {
+        message.warning('没有可以导入的文件')
+      }
+      for (const e of sum.errors.slice(0, 5)) message.warning(e)
+      if (sum.errors.length > 5) message.warning(`另有 ${sum.errors.length - 5} 个文件没能导入`)
+      if (sum.duplicates.length) {
+        modal.confirm({
+          title: '发现内容相同的试卷',
+          content: <div data-testid="duplicate-confirm">{sum.duplicates.slice(0, 10).map(f => <div key={f}>「{f.split(/[\\/]/).pop()}」与已有的试卷内容完全相同</div>)}<div style={{ marginTop: 8 }}>是否仍然导入？（统计时同一个文件只算一份。）</div></div>,
+          okText: '仍然导入', cancelText: '跳过',
+          okButtonProps: { 'data-testid': 'duplicate-ok' } as any,
+          onOk: () => importPaths(sum.duplicates, sum.duplicates)
+        })
+      }
+    } catch (err) {
+      message.error(`导入失败: ${(err as Error).message}`)
+    }
+  }
+
   /** 取出拖入的文件路径（经 preload 登记授权）；取不到时给出提示 */
   function pathsFromDrop(dt: DataTransfer): string[] {
     if (!window.api?.getPathForFile) {
@@ -107,5 +155,5 @@ export function useImportFlow() {
     return paths
   }
 
-  return { importPaths, pathsFromDrop }
+  return { importPaths, importAuto, pathsFromDrop }
 }
