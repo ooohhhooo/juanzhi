@@ -7,6 +7,7 @@
 // 用法：const mock = await startMock({ apiKey: 'sk-mock' }); mock.baseUrl; mock.script([{ type: 'empty', times: 2 }]); await mock.stop()
 const http = require('node:http')
 const { build } = require('./canned.cjs')
+const subjects = require('./subjects.cjs')
 const p2 = require('./p2.cjs')
 const p3 = require('./p3.cjs')
 const p4 = require('./p4.cjs')
@@ -289,6 +290,12 @@ async function startMock(opts = {}) {
         if (isP1) {
           const mode = images > 0 ? 'vision' : 'text'
           let name = fileName.replace(/\.[^.]+$/, '')
+          // 语文 / 数学的 P1 提示词：回对应学科的假结果（代码取自内置种子）
+          const subj = subjects.subjectOf(sys)
+          if (subj) {
+            const c = JSON.stringify(subjects.build(subj, { mode, pages, prefix }))
+            return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
+          }
           const out = build({ file: fileName, mode, pages, prefix, splitLast: !!state.splitLast, visionFile: name, quirks: { ...state.quirks } })
           if (!out) {
             const c = JSON.stringify({ meta: {}, sections: [], materials: [], questions: [], notes: ['mock：没有这份试卷的 canned 数据'] })

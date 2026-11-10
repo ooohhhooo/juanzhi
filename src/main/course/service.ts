@@ -25,6 +25,8 @@ import type { ChunkEvent, UnverifiedItem } from '../ai/chunk'
 import { stripMarks } from '../../shared/factcheck'
 import { fixBackticks, stripInternalCodes } from '../../shared/report-post'
 import { stripCodes } from '../../shared/code-guard'
+import { asSubject } from '../../shared/subject'
+import type { SubjectId } from '../../shared/subject'
 import { collectEvidence } from '../stats/evidence'
 import { paperScope } from '../stats/filter'
 import type { StatsFilter } from '../stats/filter'
@@ -58,7 +60,7 @@ type Db = any
 
 /** Word / PDF / 图片没有现成表格时：读出的文字等 AI 整理成表（done 之后 read.sheets 里就有那张表）；extraWarnings = 整理时去掉了哪些找不到原文的课 */
 interface ExtractState { kind: RichKind; numbered: string; lines: string[]; pages: number; done: boolean; extraWarnings: MapWarning[] }
-interface Session { name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null; /** 后台整理任务还在用它：不能被挤掉 */ keep?: boolean; extract?: ExtractState; fromDoc?: RichKind }
+interface Session { /** 学科（向导里选的，缺省英语） */ subject?: string; name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null; /** 后台整理任务还在用它：不能被挤掉 */ keep?: boolean; extract?: ExtractState; fromDoc?: RichKind }
 const sessions = new Map<string, Session>()
 const MAX_SESSIONS = 40
 
@@ -124,6 +126,8 @@ export async function readSourceText(text: string): Promise<SourceInfo> {
 
 /** 后台整理任务占用 / 释放读取会话 */
 export function keepSession(id: string, keep: boolean): void { const s = sessions.get(id); if (s) s.keep = keep }
+/** 记下这份文件属于哪个学科（认列的提示词、表头猜测都按它） */
+export function setSessionSubject(id: string, subject: unknown): void { const s = sessions.get(id); if (s) s.subject = asSubject(subject) }
 export function dropSession(id: string): void { const s = sessions.get(id); if (!s) return; s.ctl?.abort(); sessions.delete(id) }
 
 export function sessionOf(id: string): Session {
@@ -259,21 +263,21 @@ async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' 
   const results = await mapLimit(todo, 4, async (sheet): Promise<SuggestItem> => {
     if (mode === 'manual') return { mapping: emptyMapping(), problems: [], source: 'manual' }
     if (mode === 'guess') {
-      const g = guessMapping(sheet)
+      const g = guessMapping(sheet, s.subject)
       return { mapping: g ?? emptyMapping(), problems: g ? [] : ['按表头文字没能猜出课次或标题列，请手动选择'], source: 'guess' }
     }
-    if (!aiReady()) return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: '还没有配置 AI 服务，已按表头文字猜了一遍，请核对' }
+    if (!aiReady()) return { mapping: guessMapping(sheet, s.subject) ?? emptyMapping(), problems: [], source: 'guess', error: '还没有配置 AI 服务，已按表头文字猜了一遍，请核对' }
     try {
       if (sub.signal.aborted) throw new AiError('aborted', '已取消')
-      const user = fillTemplate(promptText('p5_course_cols', 'user'), { SHEET_NAME: sheet.name, SHEET_PREVIEW: sheetPreview(sheet) })
-      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system'), user, signal: sub.signal, maxTokens: 8000 })
+      const user = fillTemplate(promptText('p5_course_cols', 'user', s.subject), { SHEET_NAME: sheet.name, SHEET_PREVIEW: sheetPreview(sheet) })
+      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system', s.subject), user, signal: sub.signal, maxTokens: 8000 })
       const p = parseColsResponse(r.content, sheet)
       if (p.ok && p.mapping) return { mapping: p.mapping, problems: p.problems, source: 'ai' }
-      return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: p.problems, source: 'guess', error: 'AI 没能认出这张表的列，已按表头文字猜了一遍，请核对' }
+      return { mapping: guessMapping(sheet, s.subject) ?? emptyMapping(), problems: p.problems, source: 'guess', error: 'AI 没能认出这张表的列，已按表头文字猜了一遍，请核对' }
     } catch (e) {
       if (e instanceof AiError && e.code === 'aborted') throw e
       const fr = friendlyAiError(e)
-      return { mapping: guessMapping(sheet) ?? emptyMapping(), problems: [], source: 'guess', error: `AI 整理没成功（${fr.message}），已按表头文字猜了一遍，请核对` }
+      return { mapping: guessMapping(sheet, s.subject) ?? emptyMapping(), problems: [], source: 'guess', error: `AI 整理没成功（${fr.message}），已按表头文字猜了一遍，请核对` }
     } finally {
       if (aiOn) onProgress?.(++finished, todo.length, '张表')
     }
@@ -320,9 +324,9 @@ export function quickCount(sessionId: string, sheetName: string, m: SheetMapping
 
 // ───────────────────────── 模板 / 示例 ─────────────────────────
 
-export async function makeTemplate(kind: 'blank' | 'sample'): Promise<Buffer> {
-  if (kind === 'blank') return buildXlsx([{ name: '示例级别', rows: templateRows() }])
-  return buildXlsx(sampleSheets())
+export async function makeTemplate(kind: 'blank' | 'sample', subject?: unknown): Promise<Buffer> {
+  if (kind === 'blank') return buildXlsx([{ name: '示例级别', rows: templateRows(subject) }])
+  return buildXlsx(sampleSheets(subject))
 }
 export { TEMPLATE_HEADERS }
 
@@ -344,9 +348,10 @@ export const MATCH_CONFIRM_TOKENS = 200_000
 
 /** 预估规模（点「开始匹配」之前给用户看）：课数、知识点数、批次数、预计 token */
 export function estimateMatch(db: Db, outlineId: string, onlyNew: boolean) {
+  const subject = outlineSubject(db, outlineId)
   const kps = pendingKps(db, outlineId, onlyNew)
   const lessons = lessonRows(db, [outlineId])
-  const lines = lessons.map(outlineLine)
+  const lines = lessons.map(l => outlineLine(l, subject))
   const chunks = chunkLines(lines).length
   const batches = batchKps(kps).length
   const outlineChars = lines.reduce((n, l) => n + l.length + 1, 0)
@@ -356,8 +361,13 @@ export function estimateMatch(db: Db, outlineId: string, onlyNew: boolean) {
   return { lessons: lessons.length, kps: kps.length, batches: batches * chunks, tokens, needsConfirm: tokens > MATCH_CONFIRM_TOKENS }
 }
 
+/** 课程体系的学科：从体系自己的行读（不信传入值） */
+function outlineSubject(db: Db, outlineId: string): SubjectId {
+  return asSubject((db.prepare('SELECT subject FROM course_outlines WHERE id = ?').get(outlineId) as any)?.subject)
+}
+
 function pendingKps(db: Db, outlineId: string, onlyNew: boolean) {
-  const all = targetKps(db)
+  const all = targetKps(db, outlineSubject(db, outlineId))
   if (!onlyNew) return all
   const o = db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(outlineId) as any
   const done = new Map((db.prepare('SELECT kp_code, outline_rev, kp_sig FROM course_kp_check WHERE outline_id = ?').all(outlineId) as any[]).map(r => [r.kp_code, r]))
@@ -379,10 +389,11 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
   if (!kps.length) return fail('no_kps', opts.onlyNew ? '没有需要补匹配的知识点' : '库里还没有标过知识点的题目，没有可匹配的内容')
   const cfg = loadConfig()
   const model = cfg.model
-  const system = promptText('p5_course_match', 'system')
-  const userTpl = promptText('p5_course_match', 'user')
-  const version = promptVersionFor('p5_course_match')
-  const chunks = chunkLines(lessons.map(outlineLine))
+  const subject = outlineSubject(db, outlineId)
+  const system = promptText('p5_course_match', 'system', subject)
+  const userTpl = promptText('p5_course_match', 'user', subject)
+  const version = promptVersionFor('p5_course_match', subject)
+  const chunks = chunkLines(lessons.map(l => outlineLine(l, subject)))
   const lessonText = new Map(lessons.map(l => [l.id, { searchText: l.searchText, quoteText: lessonQuoteText(l) }]))
   const kpInfo = new Map(kps.map(k => [k.code, k]))
   const chunkIds = (() => { let i = 0; return chunks.map(c => { const ids = lessons.slice(i, i + c.length).map(l => l.id); i += c.length; return new Set(ids) }) })()
@@ -408,10 +419,10 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
             const user = fillTemplate(userTpl, { OUTLINE_LINES: chunk.join('\n'), KP_BATCH: blk.text })
             const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
             // 本地解析不出有效内容：同一调用自动重试一次，仍失败再报错（problems 写日志，不含密钥 / 课程原文）
-            let p = parseMatchResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo })
+            let p = parseMatchResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
             for (let attempt = 1; attempt <= 2; attempt++) {
               const r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal })
-              p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo })
+              p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
               if (p.entries.length || !p.problems.length) break
               log.warn('course', '匹配回答解析失败', { attempt, problems: p.problems.slice(0, 3), chars: r.content.length })
             }
@@ -456,6 +467,8 @@ const aiConfigured = () => { const c = loadConfig(); return !!(c.base_url && c.m
 const GUIDE = '尚未配置 AI 服务（请联系管理员：设置 → 管理员设置 → AI 服务）'
 
 export interface AdvicePrepared {
+  /** 学科（取自筛选条件，缺省英语） */
+  subject: SubjectId
   dash: CourseDashboard
   scene: CourseScene
   system: string
@@ -472,12 +485,13 @@ export interface AdvicePrepared {
 /** kind = 'hint'：家长版结尾一句话（p5_course_hint，只放 1 个考点）；默认是老师版的话术（p5_course_advice） */
 export function prepareAdvice(db: Db, scope: AdviceScope, kind: 'advice' | 'hint' = 'advice'): AdvicePrepared {
   const pid = kind === 'hint' ? 'p5_course_hint' : 'p5_course_advice'
+  const subject = asSubject(scope.filter.subject)
   const dash = courseDashboard(db, scope.filter, scope.outlineIds)
   const sc = paperScope(scope.filter)
   const counts = scopeCounts(db, sc)
   const rows = courseRowsOf(dash)
   const infoRows = db.prepare(`SELECT code, plain, example_en, example_zh FROM kps WHERE code IN (${rows.length ? rows.map(() => '?').join(',') : "''"})`).all(...rows.map(r => r.code)) as any[]
-  const info = new Map(infoRows.map(r => [r.code, { plain: r.plain ?? '', exampleEn: r.example_en ?? '', exampleZh: r.example_zh ?? '' }]))
+  const info = new Map(infoRows.map(r => [r.code, { plain: r.plain ?? '', exampleEn: (subject === 'english' ? r.example_en : r.example_en || r.example_zh) ?? '', exampleZh: r.example_zh ?? '' }]))
   const withInfo = rows.map(r => ({ ...r, ...(info.get(r.code) ?? {}) }))
   const outline = dash.outlines[0]
   const scene = ((outline?.scene as CourseScene) ?? 'other')
@@ -487,15 +501,15 @@ export function prepareAdvice(db: Db, scope: AdviceScope, kind: 'advice' | 'hint
   const picked = [...withInfo].sort((a, b) => b.errorCount - a.errorCount || b.papers - a.papers).slice(0, 5)
   const evidence = collectEvidence(db, sc, { codes: picked.map(r => r.code) })
   const inp = (kind === 'hint' ? buildHintInputs : buildAdviceInputs)(withInfo, { scene, filterDesc, sampleWarning: warning, evidenceText: evidence.text })
-  const system = promptText(pid, 'system')
-  const userTpl = promptText(pid, 'user')
+  const system = promptText(pid, 'system', subject)
+  const userTpl = promptText(pid, 'user', subject)
   let user = ''
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, inp.placeholders) } catch (e) { promptError = (e as Error).message }
   // 体系内容改了（rev）、对应结果改了（用户文本里的课令牌和课名变了）、提示词变了、范围变了 → 缓存键变 → 已过期
   const revs = dash.outlines.map(o => `${o.id}:${(db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(o.id) as any)?.rev ?? 0}`).sort().join(',')
   const keys = cacheKeys(kind === 'hint' ? { ...scopeObject(scope), kind: 'course_hint' } : scopeObject(scope), system, `${user}\u0000${revs}`)
-  return { dash, scene, system, user, promptError, promptVersion: promptVersionFor(pid), labels: inp.labels, evidenceStatements: evidence.statements, eligible: inp.used.length, ...keys }
+  return { subject, dash, scene, system, user, promptError, promptVersion: promptVersionFor(pid, subject), labels: inp.labels, evidenceStatements: evidence.statements, eligible: inp.used.length, ...keys }
 }
 
 export interface AdviceState {
@@ -573,7 +587,7 @@ export async function generateAdvice(db: Db, scope: AdviceScope, requestId: stri
     const r = await stream.run()
     recordUsage({ paperId: null, kind: 'course-advice', model: r.model, usage: r.usage, ok: true })
     const cleaned = stripCodes(stripInternalCodes(fixBackticks(r.content), []))
-    const fin = finishAdvice(cleaned, p.labels, { statements: p.evidenceStatements })
+    const fin = finishAdvice(cleaned, p.labels, { statements: p.evidenceStatements, subject: p.subject })
     const warnings = [...fin.warnings]
     if (r.fellBackTo) warnings.push(limitFallbackNotice(r.fellBackTo))
     if (!fin.ok) {
@@ -583,9 +597,9 @@ export async function generateAdvice(db: Db, scope: AdviceScope, requestId: stri
       return { ok: false, code: 'too_short', message: msg, partial: fin.text }
     }
     const unverified: UnverifiedItem[] = fin.findings.map(f => ({ sentence: f.sentence, kind: f.kind, reason: f.reason }))
-    db.prepare(`INSERT OR REPLACE INTO course_advice (scope_key, cache_key, fingerprint, outline_ids_json, filter_json, markdown, warnings_json, verify_json, model, prompt_version, confirmed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`).run(p.scopeKey, p.cacheKey, crypto.createHash('sha256').update(p.user).digest('hex'), JSON.stringify([...scope.outlineIds].sort()), JSON.stringify(normalizeFilter(scope.filter)),
-      fin.text, JSON.stringify(warnings), JSON.stringify(unverified), r.model, p.promptVersion)
+    db.prepare(`INSERT OR REPLACE INTO course_advice (scope_key, cache_key, fingerprint, outline_ids_json, filter_json, markdown, warnings_json, verify_json, model, prompt_version, confirmed_at, subject)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`).run(p.scopeKey, p.cacheKey, crypto.createHash('sha256').update(p.user).digest('hex'), JSON.stringify([...scope.outlineIds].sort()), JSON.stringify(normalizeFilter(scope.filter)),
+      fin.text, JSON.stringify(warnings), JSON.stringify(unverified), r.model, p.promptVersion, p.subject)
     clearDraft(p.scopeKey)
     send({ id: requestId, type: 'done', markdown: fin.text, refs: [], warnings, unverified })
     return { ok: true, markdown: fin.text, warnings, unverified }

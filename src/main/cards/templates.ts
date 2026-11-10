@@ -7,6 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { escapeHtml, renderTemplate } from './engine.ts'
 import type { Audience, CardKind } from './schema.ts'
+import { asSubject, SUBJECTS } from '../../shared/subject.ts'
 
 export interface CardTemplate {
   id: string
@@ -97,6 +98,7 @@ export function clearLayoutCache(): void { layoutCache.clear(); manifestCache = 
 export function prepareData(kind: CardKind, data: Record<string, any>): Record<string, any> {
   const d: Record<string, any> = { ...data }
   if (kind === 'knowledge') {
+    d.defaultTag = `${SUBJECTS[asSubject(d.subject)].name}小卡`
     const ex = d.example ?? { en: '', zh: '' }
     d.example = { ...ex, enHtml: escapeHtml(ex.en).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') }
   } else if (kind === 'mnemonic') {

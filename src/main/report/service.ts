@@ -48,6 +48,9 @@ import { cacheOptionsOf, courseOutlineIds, extractCourseAdvice } from './course-
 import { courseSig } from '../course/report-sig'
 import { removeSentence } from '../../shared/factcheck'
 import type { ReportOptions } from '../../shared/report-options'
+import { ruleTalk } from '../../shared/factcheck'
+import { asSubject } from '../../shared/subject'
+import type { SubjectId } from '../../shared/subject'
 
 const KIND = 'report'
 const MAX_HISTORY = 100
@@ -55,6 +58,8 @@ const MAX_HISTORY = 100
 /** 读者 → 提示词 id（完整数据版沿用 p3_report） */
 export const PROMPT_OF: Record<ReportReader, PromptId> = { boss: 'p3_boss', parent: 'p3_parent', teacher: 'p3_teacher', full: 'p3_report' }
 export interface PreparedReport {
+  /** 学科（取自筛选条件，缺省英语）：选提示词、核对办法、家长版问候都按它 */
+  subject: SubjectId
   reader: ReportReader
   input: P3Input
   src: P3Source
@@ -79,7 +84,7 @@ function describeFilterDb(filter: StatsFilter, grades?: string[], counted?: numb
 }
 
 const currentRev = (): number => (getDb().prepare('SELECT rev FROM data_rev WHERE id = 1').get() as any)?.rev ?? 0
-const currentTemplateSig = (reader: ReportReader) => templateSig(promptText(PROMPT_OF[reader], 'system'), promptText(PROMPT_OF[reader], 'user'))
+const currentTemplateSig = (reader: ReportReader, subject?: unknown) => templateSig(promptText(PROMPT_OF[reader], 'system', subject), promptText(PROMPT_OF[reader], 'user', subject))
 const today = () => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
 
 const allCodes = (): string[] => {
@@ -95,9 +100,10 @@ export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full'
   const rev = currentRev()
   const src = collectP3Source(db, filter)
   const input = buildP3Input(src)
+  const subject = asSubject(filter.subject)
   const id = PROMPT_OF[reader]
-  const system = promptText(id, 'system')
-  const userTpl = promptText(id, 'user')
+  const system = promptText(id, 'system', subject)
+  const userTpl = promptText(id, 'user', subject)
   let user = ''
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, input.placeholders) } catch (e) { promptError = (e as Error).message }
@@ -105,8 +111,8 @@ export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full'
   // 勾了课程对照时，体系 rev 和知识点对应的指纹也进缓存键：课程变了报告就「已过期」
   const cacheOpts = hasOptions(options) ? cacheOptionsOf(options, courseSig(db, courseOutlineIds(options))) : null
   const keys = cacheKeys(cacheOpts ? { kind: KIND, reader, filter: normalizeFilter(filter), options: cacheOpts } : { kind: KIND, reader, filter: normalizeFilter(filter) }, system, user)
-  const title = reportTitle({ filter, grades: src.grades ?? [], semesters: src.semesters ?? [], examTypes: src.examTypes ?? [], years: src.years, reader, date: today(), paperCount: Number(input.placeholders.PAPER_COUNT) })
-  return { reader, input, src, system, user, promptError, promptVersion: promptVersionFor(id), templateSig: templateSig(system, userTpl), cacheKey: keys.cacheKey, rev, desc: describeFilterDb(filter, src.grades ?? [], Number(input.placeholders.PAPER_COUNT)), title }
+  const title = reportTitle({ filter: { ...filter, subject }, grades: src.grades ?? [], semesters: src.semesters ?? [], examTypes: src.examTypes ?? [], years: src.years, reader, date: today(), paperCount: Number(input.placeholders.PAPER_COUNT) })
+  return { subject, reader, input, src, system, user, promptError, promptVersion: promptVersionFor(id, subject), templateSig: templateSig(system, userTpl), cacheKey: keys.cacheKey, rev, desc: describeFilterDb(filter, src.grades ?? [], Number(input.placeholders.PAPER_COUNT)), title }
 }
 
 // ───────────────────────── 读：列表 / 单条 ─────────────────────────
@@ -222,7 +228,7 @@ function refreshRefs(refs: CitationRef[]): ReportDetail['refs'] {
 function checkRow(row: any, memo: Map<string, PreparedReport>): CheckRecord {
   const rev = currentRev()
   const reader = readerOf(row)
-  const sig = currentTemplateSig(reader)
+  const sig = currentTemplateSig(reader, parseFilter(row.filter_json).subject)
   // 带课程对照的报告：课程体系 / 对应的改动不会让数据修订号变化，所以不走“修订号没变就沿用”的捷径，每次都现算
   // 先算便宜的课程指纹：修订号、模板签名、课程指纹都没变就沿用上次的结论，不用每次列表都跑完整的 prepareReport
   const courseIds = courseOutlineIds(parseJson<ReportOptions>(row.options_json, {}))
@@ -333,7 +339,7 @@ export function confirmReport(id: string, acknowledged: string[] = []): boolean 
   const pending = unacknowledgedSentences(rep, acknowledged)
   if (pending.length) {
     const shown = pending.slice(0, 2).map(x => `「${x.length > 30 ? x.slice(0, 30) + '…' : x}」`).join('、')
-    throw new Error(`还有 ${pending.length} 句讲英语规则的话标着「未核实」，既没有确认无误、也没有删掉（如 ${shown}）。请逐句确认或删掉，再点「我已核对」`)
+    throw new Error(`还有 ${pending.length} 句${ruleTalk(rep.filter?.subject)}的话标着「未核实」，既没有确认无误、也没有删掉（如 ${shown}）。请逐句确认或删掉，再点「我已核对」`)
   }
   const ok = new Set(acknowledged)
   const marked = rep.unverified.map(u => (u.kind === 'unverified' && ok.has(u.sentence) ? { ...u, acknowledged: true } : u))
@@ -358,13 +364,13 @@ export function removeReportSentence(id: string, sentence: string): ReportDetail
   if (loadParts(id).some(r => r.part === 'main')) {
     if (!removeFromParts(id, sentence)) throw new Error('没能在报告里找到这一句（可能已经删过了）')
     const r2 = getDb().prepare('SELECT warnings_json, verify_json FROM reports WHERE id = ?').get(id) as any
-    getDb().prepare('UPDATE reports SET warnings_json = ? WHERE id = ?').run(JSON.stringify(refreshVerifyWarnings(parseJson<string[]>(r2.warnings_json, []), parseJson<UnverifiedItem[]>(r2.verify_json, []))), id)
+    getDb().prepare('UPDATE reports SET warnings_json = ? WHERE id = ?').run(JSON.stringify(refreshVerifyWarnings(parseJson<string[]>(r2.warnings_json, []), parseJson<UnverifiedItem[]>(r2.verify_json, []), parseFilter(row.filter_json).subject)), id)
     notifyDataChanged('reports')
     return getReport(id)!
   }
   const out = dropReportSentence(row.markdown ?? '', parseJson<UnverifiedItem[]>(row.verify_json, []), sentence)
   if (!out) throw new Error('没能在报告里找到这一句（可能已经删过了）')
-  const warnings = refreshVerifyWarnings(parseJson<string[]>(row.warnings_json, []), out.unverified)
+  const warnings = refreshVerifyWarnings(parseJson<string[]>(row.warnings_json, []), out.unverified, parseFilter(row.filter_json).subject)
   getDb().prepare('UPDATE reports SET markdown = ?, verify_json = ?, warnings_json = ? WHERE id = ?').run(out.markdown, JSON.stringify(out.unverified), JSON.stringify(warnings), id)
   notifyDataChanged('reports')
   return getReport(id)!
@@ -504,7 +510,7 @@ export function previewReport(filter: StatsFilter, reader: ReportReader = 'full'
   const ready = aiConfigured()
   let promptError: string | null = null
   const id = PROMPT_OF[reader]
-  try { fillTemplate(promptText(id, 'user'), Object.fromEntries(PLACEHOLDERS[id].map(k => [k, '']))) } catch (e) { promptError = (e as Error).message }
+  try { fillTemplate(promptText(id, 'user', filter.subject), Object.fromEntries(PLACEHOLDERS[id].map(k => [k, '']))) } catch (e) { promptError = (e as Error).message }
   const blocked = papers === 0 ? '当前筛选下没有计入统计的试卷（只统计已确认的试卷；可以先在审核页确认，或在筛选栏打开「含待审核」）'
     : promptError ? `报告提示词有问题：${promptError}（请联系管理员：设置 → 管理员设置 → 提示词，修正或恢复默认）`
     : !ready ? GUIDE : null
@@ -551,7 +557,8 @@ export async function generateReport(filter: StatsFilter, reader: ReportReader, 
     const warn = p.input.placeholders.SAMPLE_WARNING
     const fin = finishReport({
       raw: r.content, reader, title: p.title, knownRefs: new Set(p.input.refs.map(x => x.token)), knownCodes: allCodes(), sampleWarning: warn,
-      evidence: p.src.evidence?.statements ?? [], usedDefaultPrompt: promptVersionFor(PROMPT_OF[reader]) === defaultVersionOf(PROMPT_OF[reader]),
+      evidence: p.src.evidence?.statements ?? [], usedDefaultPrompt: promptVersionFor(PROMPT_OF[reader], p.subject) === defaultVersionOf(PROMPT_OF[reader], p.subject),
+      subject: p.subject,
       evidenceKps: (p.src.evidence?.kps ?? []).map(k => ({ code: k.code, name: k.name, plain: k.plain, example_en: k.example_en, example_zh: k.example_zh, hint_words: k.hint_words })),
       papers: Number(p.input.placeholders.PAPER_COUNT) || 0,
       topScore: topScoreOf(p.src),

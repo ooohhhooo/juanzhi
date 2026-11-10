@@ -98,7 +98,7 @@ export function registerReportIpc(): void {
     const report = getReport(id)
     if (!report) throw new Error('这份报告已经不存在了')
     assertExportable(report)
-    const mapped = kind === 'trick' ? trickToCard(report.markdown, index) : answercardToCard(report.markdown, index)
+    const mapped = kind === 'trick' ? trickToCard(report.markdown, index, report.filter?.subject) : answercardToCard(report.markdown, index)
     if (!mapped) throw new Error(kind === 'answercard' ? '答题卡里还没有题：请先在下面逐题勾「我核对过」' : '没有找到这张卡片')
     const img = await renderMapped(getDataDir(), mapped, templateId)
     return deliver(img, mode, kind === 'answercard' ? '保存答题卡图片' : '保存口诀卡图片', kind === 'answercard' ? '答题卡' : `口诀大招-${index + 1}`, { templateId: img.templateId, notes: img.notes })

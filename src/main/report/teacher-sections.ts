@@ -2,6 +2,7 @@
  * 老师版 v2 里由程序拼装的几块（M9 §2.3）：易错题集、易错知识点、口诀卡、变形题和答题卡。纯函数，单测直接加载。
  * 原则（§0.4）：数据库里有的东西（题、截图引用、易错说明、白话释义、例句）全部由程序拼，不经过 AI；AI 只写口诀、变形题这类必须由它写的部分。
  */
+import { asSubject } from '../../shared/subject.ts'
 
 /** 一个易错点（程序从「重难点」里取出的前几个）及它的样本题 */
 export interface ErrorItem {
@@ -22,6 +23,12 @@ export interface KpLite { code: string; name: string; plain: string; example_en:
 
 const clean = (s: string): string => s.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
 
+/** 知识点的例子文字：英语是「英文例句 + 中文意思」，语文 / 数学只有 example_zh（标签叫「例子」） */
+export function exampleOf(kp: KpLite | undefined, subject?: unknown): { label: string; text: string } {
+  if (asSubject(subject) === 'english') return { label: '例句', text: kp?.example_en ? `${clean(kp.example_en)} ${clean(kp.example_zh || '')}`.trim() : '' }
+  return { label: '例子', text: clean(kp?.example_zh || kp?.example_en || '') }
+}
+
 /**
  * 价格 / 营销 / 夸大的说法（§0.4）：老师版里 AI 写的话命中就整句去掉。
  * 只管营销语境：提分、保过、包会、课程报名 / 优惠 / 限时 / 学费、带营销词的价格；
@@ -36,7 +43,7 @@ export const hasOverclaim = (s: string): boolean => OVERCLAIM_RE.test(s)
  * 「易错题集」「易错知识点」两节（程序拼，不调用 AI）。
  * @param answerOf 题目 id → 参考答案；只有老师审核过的卷子里的题才给（其余返回 null，不显示答案）
  */
-export function buildErrorsSection(items: ErrorItem[], kps: KpLite[], opts: { answerOf?: (questionId: string) => string | null } = {}): string {
+export function buildErrorsSection(items: ErrorItem[], kps: KpLite[], opts: { answerOf?: (questionId: string) => string | null; subject?: unknown } = {}): string {
   if (items.length === 0) {
     return ['## 易错题集（AI 估计）', '', '> 这个范围内没有 AI 估计的易错题，所以没有易错题集；口诀和变形题也就没有生成。'].join('\n')
   }
@@ -57,7 +64,8 @@ export function buildErrorsSection(items: ErrorItem[], kps: KpLite[], opts: { an
     const kp = kpOf.get(it.code)
     L.push('', `### ${i + 1}. ${clean(it.name)}`)
     if (kp?.plain) L.push(`- **白话**：${clean(kp.plain)}`)
-    if (kp?.example_en) L.push(`- **例句**：${clean(kp.example_en)} ${clean(kp.example_zh || '')}`.trimEnd())
+    const eg = exampleOf(kp, opts.subject)
+    if (eg.text) L.push(`- **${eg.label}**：${eg.text}`)
     if (kp?.hint_words) L.push(`- **例词**：${clean(kp.hint_words)}`)
     L.push(`- **出现**：${it.papers} 份卷子`)
   })
@@ -85,7 +93,7 @@ export interface TrickResult { markdown: string; cards: number; dropped: string[
  * 口诀 JSON → 口诀卡 Markdown。`{"tricks":[{"n":1,"trick":"一句话口诀"}]}`。
  * 口诀文字由 AI 写；「例」一律取自证据里这个知识点的例句（程序填，AI 不写英文句子）；含价格 / 夸大说法的口诀去掉。
  */
-export function buildTricksSection(content: string, items: ErrorItem[], kps: KpLite[]): TrickResult {
+export function buildTricksSection(content: string, items: ErrorItem[], kps: KpLite[], subject?: unknown): TrickResult {
   const j = parseJsonLoose(content) as any
   const list: any[] = Array.isArray(j) ? j : Array.isArray(j?.tricks) ? j.tricks : []
   const kpOf = new Map(kps.map(k => [k.code, k]))
@@ -100,7 +108,7 @@ export function buildTricksSection(content: string, items: ErrorItem[], kps: KpL
     seen.add(n)
     const it = items[n - 1]
     const kp = kpOf.get(it.code)
-    const eg = kp?.example_en ? `${clean(kp.example_en)} ${clean(kp.example_zh || '')}`.trim() : ''
+    const eg = exampleOf(kp, subject).text
     cards.push(['::: trick 口诀大招', `**一句话**：${trick}`, ...(eg ? [`**例**：${eg}`] : []), `**出自考点**：${clean(it.name)}`, ':::'].join('\n'))
   }
   return { markdown: cards.join('\n\n'), cards: cards.length, dropped }

@@ -11,6 +11,9 @@
  * 这是启发式：不保证抓出所有错误，也不会判定「对」——通过只表示「和审核过的题目解释说的一致」。
  */
 
+import { asSubject } from './subject.ts'
+import type { SubjectId } from './subject.ts'
+
 export interface RuleFinding { sentence: string; kind: 'unverified' | 'conflict'; reason: string }
 
 /** 词类归并：动词 / 动词原形 / 动词原形 都算一类；名词 / 名词短语一类 */
@@ -343,6 +346,89 @@ export function checkRules(markdown: string, evidence: string[]): RuleFinding[] 
     if (en.some(w => !supported(w))) findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里找不到对应的说法' })
   }
   return findings
+}
+
+// ───────────────────────── 语文 / 数学：没有证据就标「未核实」 ─────────────────────────
+// 英语的核对靠「英文词语 + 词类 / 词尾」这类线索，语文和数学没有。这里换一个更保守的办法：
+// 凡是带「规则口气」的句子（公式、法则、口诀、读音、做法……），必须能在证据里找到足够多相同的说法，找不到就标「未核实」。
+// 宁可多标，也不能出现「全部放行」。不做矛盾判断（没有可靠办法），所以只会产生 unverified。
+
+/** 「讲英语规则」这类文案里的学科词：界面提示、警告共用 */
+export function ruleTalk(subject?: unknown): string {
+  const s = asSubject(subject)
+  return s === 'chinese' ? '讲语文规则' : s === 'math' ? '讲数学规则' : '讲英语规则'
+}
+
+const CUE_CN = /读\s*[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]|念\s*[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]|读作|读成|读音|注音|声调|调号|标在|标调|笔顺|笔画|部首|偏旁|多音字|组词|近义词|反义词|意思是|是指|比喻|拟人|排比|夸张|设问|反问|修辞|句式|改成|换成|变成|变为|应该|应当|必须|一定|不能|不可|不要|规则|口诀|区别|区分|用法|搭配|固定|作者|朝代|出自|写于|属于|先[^，。；]{1,10}再|要先|相当于|等于|表示|用于|用在|要用|常用|通常|一般|都要|都是|就是|才能|只能|不用|不加|后面|前面/
+const CUE_MA = /公式|法则|口诀|规律|规则|性质|定律|运算律|特征|运算顺序|先[^，。；]{1,10}再|要先|必须|一定|不能|不可|应该|应当|等于|相当于|变成|变为|乘以|除以|通分|约分|进位|退位|进率|换算|单位|小数点|移动|分子|分母|[A-Za-z]\s*[=＝]|[=＝×÷＋+]|不变|都是|都要|就是|才能|只能|用[^，。；]{0,6}(?:算|求|乘|除|加|减)|要用|可以用|通常|一般/
+const DATA_TALK = /份卷|占比|出现率|百分点|分值|样本|题数|%/
+
+/** 语文 / 数学下，这句话是不是「规则句」（带规则口气）；纯数据句（份数、占比）不算 */
+export function isRuleSentenceFor(subject: unknown, s: string): boolean {
+  const sub = asSubject(subject)
+  if (sub === 'english') return isRuleSentence(s)
+  if (!/[\u3400-\u9fff]|\d/.test(s)) return false
+  const cue = sub === 'chinese' ? CUE_CN : CUE_MA
+  if (!cue.test(s)) return false
+  if (DATA_TALK.test(s) && !/公式|法则|读作|读成|口诀|规则|变成|等于|相当于/.test(s)) return false
+  return true
+}
+
+const GEN_CUT_RE = /[的了是在和与及或要会把就也都很这那个些其它可以容易孩子学生题目考点知识点一定必须应该应当]/
+const GEN_NOISE = new RegExp(`${CUE_CN.source}|${CUE_MA.source}`, 'g')
+
+/** 句子里「有分量的片段」：去掉口气词和虚词后的汉字双字组 + 英文串 / 数字串（小写）。证据覆盖就拿它们去比 */
+export function contentTerms(s: string): { bigrams: string[]; tokens: string[] } {
+  const bigrams: string[] = []
+  const t = s.replace(GEN_NOISE, ' ')
+  for (const run of t.split(/[^\u3400-\u9fff]+/)) {
+    for (const piece of run.split(GEN_CUT_RE)) {
+      for (let i = 0; i + 1 < piece.length; i++) bigrams.push(piece.slice(i, i + 2))
+    }
+  }
+  const tokens = [...(s.toLowerCase().match(/[a-zπāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü][a-zπāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü0-9²³]*|\d+(?:[./]\d+)?/g) ?? [])]
+  return { bigrams: [...new Set(bigrams)], tokens: [...new Set(tokens)] }
+}
+
+/** 一条证据（按句切开）覆盖句子里多少比例的片段，以及英文 / 数字串是否都在整份证据里出现过 */
+const GEN_COVER = 0.6
+
+/**
+ * 语文 / 数学的规则句核对：规则句里的汉字片段要有一条证据子句覆盖 ≥ 60%，英文 / 数字串要在证据里出现过；否则标「未核实」。
+ * 没有证据（空）时，所有规则句都标「未核实」。这是保守策略：通过只表示「和审核过的题目解释说的差不多」。
+ */
+export function checkRulesGeneric(subject: unknown, markdown: string, evidence: string[]): RuleFinding[] {
+  const clauses: string[] = []
+  for (const e of evidence) for (const part of e.replace(/\r\n/g, '\n').split(/[。；;\n]/)) { const t = part.trim(); if (t.length >= 2) clauses.push(t) }
+  const clauseTerms = clauses.map(c => new Set(contentTerms(c).bigrams))
+  const allText = evidence.join('\n').toLowerCase()
+  const findings: RuleFinding[] = []
+  const seen = new Set<string>()
+  for (const s0 of splitSentences(markdown)) {
+    if (seen.has(s0)) continue
+    seen.add(s0)
+    if (!isRuleSentenceFor(subject, s0)) continue
+    const { bigrams, tokens } = contentTerms(s0)
+    const missingTok = tokens.filter(t => !allText.includes(t))
+    if (missingTok.length > 0) {
+      findings.push({ sentence: s0, kind: 'unverified', reason: `审核过的题目解释里没有出现「${missingTok.slice(0, 3).join('、')}」，找不到依据` })
+      continue
+    }
+    if (bigrams.length === 0) {
+      // 没有汉字片段可比（纯算式 / 符号）：英文 / 数字串都出现过就放行，否则上面已经标了
+      if (tokens.length > 0) continue
+      findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里找不到对应的说法' })
+      continue
+    }
+    const best = Math.max(0, ...clauseTerms.map(ct => bigrams.filter(b => ct.has(b)).length / bigrams.length))
+    if (best < GEN_COVER) findings.push({ sentence: s0, kind: 'unverified', reason: '审核过的题目解释里找不到对应的说法' })
+  }
+  return findings
+}
+
+/** 按学科核对：英语走原来的启发式，语文 / 数学走保守的「没有证据就标未核实」 */
+export function checkRulesFor(subject: unknown, markdown: string, evidence: string[]): RuleFinding[] {
+  return asSubject(subject) === 'english' ? checkRules(markdown, evidence) : checkRulesGeneric(subject, markdown, evidence)
 }
 
 export const MARK_UNVERIFIED = '〔未核实〕'

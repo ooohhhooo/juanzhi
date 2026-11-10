@@ -3,7 +3,7 @@
  * AI 的话不能直接发出去：价格、营销、夸大承诺一律整句删掉；课程用 [课#12] 令牌交给 AI，输出后由程序换成完整课名，
  * 不在输入里的令牌删除并告警；字数不在范围内只告警、不自动裁剪；讲英语规则的句子过事实核对（在调用处做）。
  */
-import { checkRules, markFindings } from '../../shared/factcheck.ts'
+import { checkRulesFor, markFindings } from '../../shared/factcheck.ts'
 
 /** 价格 / 营销 / 夸大承诺（命中的句子整句删除）。注意：先在令牌还没换成课名的文本上检查，课名里的字不会误伤 */
 export const FORBIDDEN_RE = new RegExp([
@@ -76,7 +76,7 @@ export function replaceLessonTokens(text: string, labels: Map<number, string>): 
  * 收尾。opts.range 给了就检查字数（话术 150–200；一句话建议不检查）。
  * opts.statements 是事实核对用的证据句子：给了就把对不上的规则句标「未核实」（返回的 text 里带标记）。
  */
-export function finishAdvice(raw: string, labels: Map<number, string>, opts: { range?: [number, number] | null; minChars?: number; statements?: string[] } = {}): AdviceFinish & { findings: Array<{ sentence: string; kind: 'unverified' | 'conflict'; reason: string }> } {
+export function finishAdvice(raw: string, labels: Map<number, string>, opts: { range?: [number, number] | null; minChars?: number; statements?: string[]; /** 学科（缺省英语）：决定事实核对的办法 */ subject?: unknown } = {}): AdviceFinish & { findings: Array<{ sentence: string; kind: 'unverified' | 'conflict'; reason: string }> } {
   const warnings: string[] = []
   const range = opts.range === undefined ? ADVICE_RANGE : opts.range
   const minChars = opts.minChars ?? MIN_CHARS
@@ -95,7 +95,7 @@ export function finishAdvice(raw: string, labels: Map<number, string>, opts: { r
   // 3. 事实核对
   let findings: Array<{ sentence: string; kind: 'unverified' | 'conflict'; reason: string }> = []
   if (opts.statements) {
-    const f = checkRules(text, opts.statements)
+    const f = checkRulesFor(opts.subject, text, opts.statements)
     findings = f.map(x => ({ sentence: x.sentence, kind: x.kind, reason: x.reason }))
     text = markFindings(text, f).text
   }

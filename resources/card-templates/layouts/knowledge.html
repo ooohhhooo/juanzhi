@@ -11,7 +11,7 @@
 .k-ex .zh{font-size:26px;color:#6B6A82;margin-top:2px}
 .k-warn{margin-top:14px;font-size:28px;font-weight:800;color:#D64545;text-align:center}
 </style>
-<zone name="content"><div class="k-head"><span class="chip">{{#if tag}}{{tag}}{{else}}英语小卡{{/if}}</span><div class="sm k-title">{{title}}</div></div>
+<zone name="content"><div class="k-head"><span class="chip">{{#if tag}}{{tag}}{{else}}{{defaultTag}}{{/if}}</span><div class="sm k-title">{{title}}</div></div>
 <div class="k-hook">{{hook}}</div>
 <div class="k-grid en">{{#each items}}<div class="k-pair"><span class="l">{{left}}</span><span class="a">→</span><span class="r">{{right}}</span></div>{{/each}}</div>
 <div class="k-ex"><div class="e en">{{{example.enHtml}}}</div><div class="zh">{{example.zh}}</div></div>

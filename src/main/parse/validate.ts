@@ -53,10 +53,24 @@ export function normalizeKps(q: Pick<AnyQuestion, 'kp_main' | 'kp_secondary' | '
   return { kp_main: main, kp_secondary: secondary.slice(0, 2), kp_suggestion: suggestion.slice(0, 60), flags: [...flags] }
 }
 
-export function normalizeQtype(qtype: string, qtypes: Set<string>): { qtype: string; invalid: boolean } {
+/**
+ * 数学文字的规则校正（OCR 常见错误；只改确定不会误伤的几种，其余原样保留）：
+ *  - 面积、体积单位的上标：cm2 → cm²、m3 → m³（前面不能是字母，后面不能再跟字母数字，避免动到 item2、m2x 之类）；
+ *  - 数字与数字之间的 x / X / * 是乘号：3x4 → 3×4、0.5 X 8 → 0.5×8（字母 x 作未知数，如 2x+3、x=5，不动）。
+ */
+export function fixMathText(s: string): string {
+  return s
+    .replace(/(?<![A-Za-z])(km|dm|cm|mm|m)([23])(?![0-9A-Za-z])/g, (_m, u: string, n: string) => `${u}${n === '2' ? '²' : '³'}`)
+    .replace(/(\d)\s*[xX*]\s*(?=\d)/g, '$1×')
+}
+
+/** other = 本学科的「其他」题型（英语 OTHER、语文 CN_OTHER、数学 MA_OTHER） */
+export function normalizeQtype(qtype: string, qtypes: Set<string>, other = 'OTHER'): { qtype: string; invalid: boolean } {
   const q = qtype.trim()
   if (qtypes.has(q)) return { qtype: q, invalid: false }
-  return { qtype: 'OTHER', invalid: true }
+  // 模型沿用了英语的通用兜底代码 OTHER（schema 缺省值也是它）：当作「没有填」，直接落到本学科的其他题型，不算无效
+  if (q === 'OTHER' && other !== 'OTHER') return { qtype: other, invalid: false }
+  return { qtype: other, invalid: true }
 }
 
 const FLAG_PENALTY: Record<string, number> = {

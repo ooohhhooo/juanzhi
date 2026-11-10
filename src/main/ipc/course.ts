@@ -7,6 +7,7 @@ import { allowPath } from '../allowedPaths'
 import { notifyDataChanged } from '../events'
 import { log } from '../log'
 import { StatsFilterSchema } from '../stats/filter'
+import { asSubject, SUBJECT_IDS } from '../../shared/subject'
 import { describeFilter } from '../stats/p2'
 import { AiError } from '../ai/client'
 import { withSpend } from './cost'
@@ -16,7 +17,7 @@ import { courseDashboard, gapsToCsv } from '../course/stats'
 import { SCENES, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
-  cancelSuggest, setJobHooks, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
+  cancelSuggest, setJobHooks, setSessionSubject, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
 } from '../course/service'
 import type { SuggestResult } from '../course/service'
 import { createJobQueue } from '../course/job-queue'
@@ -25,6 +26,8 @@ import type { AdviceScope } from '../course/service'
 const FilterArg = StatsFilterSchema.default({})
 const MAX_FILES = 20
 const IdSchema = z.string().uuid()
+/** 学科（可选，缺省英语） */
+const SubjectArg = z.enum(SUBJECT_IDS).optional()
 const OutlineIds = z.array(IdSchema).max(20)
 
 const MappingSchema = z.object({
@@ -62,7 +65,9 @@ const SaveSchema = z.object({
   mappings: MappingsSchema.default({}),
   aiModel: z.string().max(120).default(''),
   /** 替换会删掉老师确认 / 手工指定的对应时，用户在确认框里明确同意 */
-  confirmLockedLoss: z.boolean().default(false)
+  confirmLockedLoss: z.boolean().default(false),
+  /** 新建体系属于哪个学科（缺省英语）；替换时以原体系为准 */
+  subject: SubjectArg
 })
 
 const ScopeSchema = z.object({ filter: FilterArg, outlineIds: OutlineIds })
@@ -80,7 +85,7 @@ export function registerCourseIpc(): void {
   const db = () => getDb()
 
   // ───── 管理 ─────
-  ipcMain.handle('course:list', async () => listOutlines(db()))
+  ipcMain.handle('course:list', async (_e, subject?: unknown) => listOutlines(db(), SubjectArg.parse(subject ?? undefined)))
   ipcMain.handle('course:get', async (_e, id: unknown) => getOutline(db(), IdSchema.parse(id)))
   ipcMain.handle('course:maps', async (_e, id: unknown) => mapRows(db(), IdSchema.parse(id)))
   ipcMain.handle('course:search', async (_e, ids: unknown, q: unknown) => searchLessons(db(), OutlineIds.parse(ids), z.string().max(60).parse(q ?? ''), 20))
@@ -130,7 +135,8 @@ export function registerCourseIpc(): void {
 
   /** 认列：会调用 AI（写 ai_usage），归写入类 */
   ipcMain.handle('course:suggest', async (_e, raw: unknown) => {
-    const p = z.object({ sessionId: IdSchema, mode: z.enum(['ai', 'guess', 'manual']) }).parse(raw)
+    const p = z.object({ sessionId: IdSchema, mode: z.enum(['ai', 'guess', 'manual']), subject: SubjectArg }).parse(raw)
+    if (p.subject) setSessionSubject(p.sessionId, p.subject)
     try {
       const r = await suggestMappings(p.sessionId, p.mode)
       notifyDataChanged('usage')
@@ -158,12 +164,12 @@ export function registerCourseIpc(): void {
   })
   setJobHooks({ busy: () => queue.busy(), clear: () => queue.clear() })
   const jobInfo = (j: ReturnType<typeof queue.list>[number]) => ({
-    id: j.id, sessionId: j.sessionId, fileName: j.fileName, status: j.status, error: j.error ?? '', name: j.name, scene: j.scene, termNote: j.termNote, replaceId: j.replaceId ?? null, mode: j.mode, progress: j.status === 'running' ? j.progress ?? null : null
+    id: j.id, sessionId: j.sessionId, fileName: j.fileName, status: j.status, error: j.error ?? '', name: j.name, scene: j.scene, termNote: j.termNote, replaceId: j.replaceId ?? null, subject: asSubject(j.subject), mode: j.mode, progress: j.status === 'running' ? j.progress ?? null : null
   })
   ipcMain.handle('course:jobStart', async (_e, raw: unknown) => {
     const items = z.array(z.object({
       sessionId: IdSchema, name: z.string().trim().max(60), scene: z.enum(SCENES as [string, ...string[]]), termNote: z.string().max(100).default(''),
-      mode: z.enum(['ai', 'manual']), replaceId: IdSchema.optional()
+      mode: z.enum(['ai', 'manual']), replaceId: IdSchema.optional(), subject: SubjectArg
     })).min(1).max(MAX_FILES).parse(raw)
     // 先全部校验，通过后再统一入队，避免部分入队后抛错、重试时重复建任务
     const seen = new Set<string>()
@@ -176,6 +182,7 @@ export function registerCourseIpc(): void {
     })
     const out = items.map((it, i) => {
       keepSession(it.sessionId, true)
+      setSessionSubject(it.sessionId, it.subject)
       return queue.add({ ...it, fileName: names[i], name: it.name || names[i].slice(0, 60) })
     })
     return out.map(jobInfo)
@@ -216,20 +223,21 @@ export function registerCourseIpc(): void {
       notifyDataChanged('course')
       return { id: p.replaceId, replaced: true, ...r }
     }
-    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active' })
+    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(p.subject) })
     log.info('course', '保存课程体系', { levels: levels.length, lessons: levels.reduce((n, l) => n + l.lessons.length, 0) })
     notifyDataChanged('course')
     return { id, replaced: false }
   })
 
   // ───── 模板 ─────
-  ipcMain.handle('course:template', async (_e, kind: unknown) => {
+  ipcMain.handle('course:template', async (_e, kind: unknown, subject?: unknown) => {
     const k = z.enum(['blank', 'sample']).parse(kind)
+    const sub = SubjectArg.parse(subject ?? undefined)
     const win = getMainWindow()
     const opts: Electron.SaveDialogOptions = { title: k === 'blank' ? '保存空白模板' : '保存示例（虚构数据）', defaultPath: k === 'blank' ? '课程表模板.xlsx' : '课程表示例（虚构）.xlsx', filters: [{ name: 'Excel 表格', extensions: ['xlsx'] }] }
     const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
     if (r.canceled || !r.filePath) return { saved: false }
-    const buf = await makeTemplate(k)
+    const buf = await makeTemplate(k, sub)
     try { fs.writeFileSync(r.filePath, buf) } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
       throw new Error(code === 'EBUSY' || code === 'EPERM' || code === 'EACCES' ? '文件正被其他程序占用或没有写入权限，请换一个位置' : `保存失败：${(e as Error).message}`)

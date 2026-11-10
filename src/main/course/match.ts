@@ -9,6 +9,7 @@
 import crypto from 'node:crypto'
 import { lessonName } from './map.ts'
 import type { PointKind } from './map.ts'
+import { asSubject } from '../../shared/subject.ts'
 
 export type Confidence = 'high' | 'medium' | 'low'
 export type MapState = 'suggested' | 'confirmed' | 'rejected'
@@ -34,14 +35,20 @@ export function lessonSearchText(l: { levelName?: string; noLabel?: string; titl
 }
 
 /** 紧凑的课程行：#12 | 基础级 | 第 5 课《Animals》 | 主题 | 词汇… | 句型… | 对标… */
-export function outlineLine(l: LessonLite): string {
+const LETTERS = {
+  english: { phonics: '音', word: '词', pattern: '句', expression: '表', skill: '能' },
+  math: { phonics: '算', word: '点', pattern: '例', expression: '法', skill: '能' },
+  chinese: { phonics: '识', word: '词', pattern: '读', expression: '写', skill: '能' }
+} as const
+export function outlineLine(l: LessonLite, subject?: unknown): string {
+  const letter = LETTERS[asSubject(subject)]
   const pts = ['phonics', 'word', 'pattern', 'expression', 'skill'] as const
   const parts = [`#${l.id}`, l.levelName, lessonName(l), cut(l.theme, 40)]
-  for (const k of pts) { const t = l.points.filter(p => p.kind === k).map(p => p.text).join('；'); parts.push(t ? `${k === 'word' ? '词' : k === 'pattern' ? '句' : k === 'phonics' ? '音' : k === 'expression' ? '表' : '能'}:${cut(t, 80)}` : '') }
+  for (const k of pts) { const t = l.points.filter(p => p.kind === k).map(p => p.text).join('；'); parts.push(t ? `${letter[k]}:${cut(t, 80)}` : '') }
   parts.push(cut(l.textbookRef, 40) ? `对标:${cut(l.textbookRef, 40)}` : '')
   return parts.filter((p, i) => i < 3 || p).join(' | ')
 }
-export const outlineLines = (ls: LessonLite[]): string => ls.map(outlineLine).join('\n')
+export const outlineLines = (ls: LessonLite[], subject?: unknown): string => ls.map(l => outlineLine(l, subject)).join('\n')
 
 export const kpSig = (k: KpLite): string => crypto.createHash('sha1').update([k.name, k.plain, k.exampleEn, k.hintWords].join('\u0001')).digest('hex').slice(0, 12)
 
@@ -62,16 +69,27 @@ export function lessonQuoteText(l: { title?: string; theme?: string; textbookRef
 }
 
 /** quote 太短没有证明力：至少 3 个汉字，或 2 个英文单词，或 1 个 5 个字母以上的英文单词 */
-export function quoteLongEnough(q: string): boolean {
+export function quoteLongEnough(q: string, subject?: unknown): boolean {
   const cjk = (q.match(/[\u4e00-\u9fff]/g) ?? []).length
+  // 语文、数学的课程内容多是短词和算式（「口算」「3/4+1/4」）：放宽到 2 个汉字，或 3 个以上的数字 / 字母
+  if (asSubject(subject) !== 'english' && (cjk >= 2 || (q.match(/[0-9A-Za-z]/g) ?? []).length >= 3)) return true
   const words = q.match(/[A-Za-z]+/g) ?? []
   return cjk >= 3 || words.length >= 2 || words.some(w => w.length >= 5)
 }
 
 /** quote 和知识点有没有关系：含知识点的例词 / 例句里的单词（3 个字母以上），或知识点名里连续两个汉字 */
-export function quoteTouchesKp(q: string, kp: Partial<KpLite> | undefined): boolean {
+export function quoteTouchesKp(q: string, kp: Partial<KpLite> | undefined, subject?: unknown): boolean {
   if (!kp) return true
   const low = q.toLowerCase()
+  if (asSubject(subject) !== 'english') {
+    // 语文、数学：例词 / 例子里的汉字双字组、算式或字母串出现在原文里就算有关（不要求英文单词）
+    const src = [kp.hintWords ?? '', kp.exampleEn ?? '', kp.name ?? ''].join(' ')
+    const grams = new Set<string>()
+    for (const run of src.split(/[^\u4e00-\u9fff]+/)) for (let i = 0; i + 1 < run.length; i++) grams.add(run.slice(i, i + 2))
+    if ([...grams].some(g => q.includes(g))) return true
+    if ((src.toLowerCase().match(/[a-z0-9][a-z0-9/.²³]{1,}/g) ?? []).some(w => low.includes(w))) return true
+    return !src.trim()
+  }
   const words = [kp.hintWords ?? '', kp.exampleEn ?? ''].join(' ').split(/[^A-Za-z']+/).map(w => w.toLowerCase()).filter(w => w.length >= 3)
   if (words.some(w => low.includes(w))) return true
   const name = kp.name ?? ''
@@ -90,7 +108,7 @@ const stripFence = (s: string) => s.trim().replace(/^```(?:json)?\s*/i, '').repl
  * 校验一批回答。回答格式：{"results":[{"kp":"K1","lesson":"#12","confidence":"high","quote":"…","reason":"…"}, {"kp":"K2","none":true}]}
  * 同一个 kp 出现多条 = 多个对应（最多 5 个）。批里没出现的 kp 不产生条目（保持「没检查过」）。
  */
-export function parseMatchResponse(text: string, ctx: { tokens: Map<string, string>; lessons: Map<number, { searchText: string; quoteText?: string }>; kps?: Map<string, Partial<KpLite>> }): MatchParse {
+export function parseMatchResponse(text: string, ctx: { tokens: Map<string, string>; lessons: Map<number, { searchText: string; quoteText?: string }>; kps?: Map<string, Partial<KpLite>>; /** 学科（缺省英语）：语文、数学放宽引用的长度和关联判断 */ subject?: unknown }): MatchParse {
   let j: any
   try { j = JSON.parse(stripFence(text)) } catch {
     const m = /\{[\s\S]*\}/.exec(text)
@@ -115,10 +133,10 @@ export function parseMatchResponse(text: string, ctx: { tokens: Map<string, stri
     if (e.maps.length >= 5) { dropped++; continue }
     let confidence: Confidence = it.confidence === 'high' || it.confidence === 'medium' ? it.confidence : 'low'
     const quote = typeof it.quote === 'string' ? it.quote.trim().slice(0, 120) : ''
-    const quoteOk = !!quote && quoteLongEnough(quote) && norm(lesson.quoteText ?? lesson.searchText).includes(norm(quote))
+    const quoteOk = !!quote && quoteLongEnough(quote, ctx.subject) && norm(lesson.quoteText ?? lesson.searchText).includes(norm(quote))
     let reason = typeof it.reason === 'string' ? it.reason.trim().slice(0, 60) : ''
     if (!quoteOk) { confidence = 'low'; reason = reason ? `仅凭主题推测：${reason}` : '仅凭主题推测（没有找到课次里的原文依据）' }
-    else if (confidence === 'high' && !quoteTouchesKp(quote, ctx.kps?.get(code))) { confidence = 'medium'; reason = reason ? `原文依据与考点关联不明显：${reason}` : '原文依据与考点关联不明显' }
+    else if (confidence === 'high' && !quoteTouchesKp(quote, ctx.kps?.get(code), ctx.subject)) { confidence = 'medium'; reason = reason ? `原文依据与考点关联不明显：${reason}` : '原文依据与考点关联不明显' }
     e.maps.push({ lessonId: id, confidence, quote: quoteOk ? quote : '', reason, quoteOk })
   }
   for (const e of byKp.values()) e.none = e.maps.length === 0

@@ -7,10 +7,18 @@ import { configView, saveConfig, testConnection, testAll, loadConfig } from '../
 import { parseModelOf } from '../ai/types'
 import { judgeModelHint } from '../parse/model-hint'
 import { promptViews, savePrompt, resetPrompt, PROMPT_DEFAULT_VERSION } from '../ai/prompts'
+import { splitPromptRef, SUBJECT_PROMPT_IDS } from '../ai/prompt-rules'
 import { notifyDataChanged } from '../events'
 
 const PromptIdSchema = z.enum(PROMPT_IDS)
 const PartSchema = z.enum(['system', 'user'])
+/** 提示词引用：英语 'p1_text'，语文 / 数学 'chinese:p1_text' / 'math:p1_text'（只有登记过学科版本的提示词才认学科前缀） */
+function promptRefArg(raw: unknown): { id: z.infer<typeof PromptIdSchema>; subject: 'english' | 'chinese' | 'math' } {
+  const ref = splitPromptRef(z.string().max(60).parse(raw))
+  const id = PromptIdSchema.parse(ref.id)
+  if (ref.subject !== 'english' && !(SUBJECT_PROMPT_IDS as readonly string[]).includes(id)) throw new Error('这个提示词没有语文 / 数学版本')
+  return { id, subject: ref.subject }
+}
 
 export function registerAiIpc(): void {
   // 每个预设带上各模型的档案（是不是推理模型、默认输出上限、天花板），设置页「自动」模式据此说明
@@ -74,13 +82,15 @@ export function registerAiIpc(): void {
   ipcMain.handle('ai:prompts', async () => ({ defaultVersion: PROMPT_DEFAULT_VERSION, items: promptViews() }))
 
   ipcMain.handle('ai:savePrompt', async (_e, id: unknown, part: unknown, text: unknown) => {
-    savePrompt(PromptIdSchema.parse(id), PartSchema.parse(part), z.string().parse(text))
+    const ref = promptRefArg(id)
+    savePrompt(ref.id, PartSchema.parse(part), z.string().parse(text), ref.subject)
     notifyDataChanged('prompts')
     return true
   })
 
   ipcMain.handle('ai:resetPrompt', async (_e, id: unknown, part: unknown) => {
-    resetPrompt(PromptIdSchema.parse(id), PartSchema.parse(part))
+    const ref = promptRefArg(id)
+    resetPrompt(ref.id, PartSchema.parse(part), ref.subject)
     notifyDataChanged('prompts')
     return true
   })
