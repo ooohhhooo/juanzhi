@@ -1,4 +1,4 @@
-// README 截图脚本：用内置「示例数据」（12 份虚构试卷）+ mock AI 重拍 docs/screenshots/readme-v14-*.png。
+// README 截图脚本：用内置「示例数据」（英语 12 份 + 语文、数学各 8 份虚构试卷）+ mock AI 重拍 docs/screenshots/readme-v14-*.png。
 // 全部数据虚构（示例试卷、tests/fixtures/gen-ops-data.cjs 的假问卷、课程表示例），没有真实机构和学生。
 // 窗口内容区固定 1440×900，浅色主题；每张图拍之前等提示条消失、等加载完。
 // 用法：npm run docs:shots   （沙箱外运行；PATH=/usr/bin:$PATH，去掉代理变量）
@@ -66,7 +66,7 @@ async function main() {
   await goto('#/settings'); await T('sample-load').waitFor({ timeout: 15000 })
   await T('sample-load').click()
   const papers = await waitFor(async () => { const ps = await page.evaluate(() => window.api.papers.list()); return ps.filter(x => x.file_name.startsWith('示例')).length >= 12 ? ps.filter(x => x.file_name.startsWith('示例')) : null }, 60000)
-  check('示例数据', '加载了 12 份示例试卷', !!papers, String(papers && papers.length))
+  check('示例数据', '加载了 12 份英语示例试卷（另有语文、数学各 8 份）', !!papers, String(papers && papers.length))
   await sleep(2500)
 
   // ── 1. 总览 ──
@@ -74,6 +74,17 @@ async function main() {
     await goto('#/overview'); await sleep(2500)
     await shot('overview')
   }
+  // ── 1b. 学科：切到数学看总览，切换菜单展开（示例数据里语文、数学各 8 份）──
+  if (want('subjects')) {
+    await T('subject-switch').click(); await T('subject-opt-math').click()
+    await sleep(800)
+    await goto('#/overview'); await sleep(2500)
+    await T('subject-switch').click(); await T('subject-menu').waitFor({ timeout: 5000 })
+    await sleep(400)
+    await shot('subjects')
+    await T('subject-opt-english').click(); await sleep(1200)
+  }
+
 
   // ── 2. 审核：打开一份有题的试卷 ──
   if (want('review')) {

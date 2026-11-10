@@ -53,6 +53,8 @@ Juanzhi is a program you install on your computer. It is made for **primary-scho
 | Math (数学) | 147 (numbers, calculation, quantitative relations, measures, geometry, statistics and probability, word problems, mathematical thinking) | 21 | Works across textbook editions (人教, 北师大, 苏教, 青岛 6-3 / 5-4, 冀教, 西师, 北京, 沪教). Topics removed from the new textbooks but common in older papers (such as equations) are kept and marked 【旧教材】 (old textbook) |
 | English (英语) | 145 | 22 | Same as before |
 
+![Switched to Math: the overview only counts math papers, and the categories are math's own](docs/screenshots/readme-v14-subjects.png)
+
 The trees follow the 2022 national curriculum standards and the new textbook editions; the research notes (in Chinese) are in [docs/学科调研](docs/学科调研/). You can edit each subject's tree in Settings → 知识点树 (Knowledge-point tree). In math, a whole section of mental arithmetic, column calculation or step-by-step calculation counts as one question.
 
 5. **Built-in assistant (new in 1.4).** Ask questions in Chinese in the 「助手」(Assistant) page, such as "which classes' attendance dropped most" or "write a message to a parent about renewing". It looks up papers, courses, reports and the data you imported, and makes dashboards, write-ups, lists and share cards. See [section 7](#7-built-in-assistant-ask-about-your-data-in-chinese-make-dashboards-drafts-and-cards).
