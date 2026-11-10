@@ -1,4 +1,7 @@
 import React, { useState } from 'react'
+import { useSubject } from '../../subject/SubjectContext'
+import { useCategories } from '../../subject/useCategories'
+import { kpExamples } from '../../subject/examples'
 import { Drawer, Segmented } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import AnalysisPanel from '../../stats/AnalysisPanel'
@@ -9,7 +12,7 @@ import { pct } from '../../stats/format'
 import { compareText } from '../../../shared/plain-text'
 import { useShowCodes } from '../../hooks/useUiPrefs'
 import { Term } from '../../components/Plain'
-import { categoryOfCode, EmptyState, Entry, EntrySkeleton, UsageNote } from '../../design'
+import { EmptyState, Entry, EntrySkeleton, UsageNote } from '../../design'
 import type { EntryTagSpec } from '../../design'
 import '../../design/page-analysis.css'
 
@@ -25,7 +28,9 @@ export default function KpDrawer({ item, scope, cmp, onClose }: { item: CompareI
   const [side, setSide] = useState<'target' | 'base' | null>(null)
   const [view, setView] = useState<ViewTarget | null>(null)
   const [showCodes] = useShowCodes()
-  const { data: tax } = useQuery({ queryKey: ['taxonomy'], queryFn: () => window.api.taxonomy.tree(), staleTime: 60_000 })
+  const { subject } = useSubject()
+  const { ofCode } = useCategories()
+  const { data: tax } = useQuery({ queryKey: ['taxonomy', subject], queryFn: () => window.api.taxonomy.tree({ subject }), staleTime: 60_000 })
   const node = tax?.kps.find(k => k.code === item?.code)
   const eff = side ?? (item?.kind === 'removed' ? 'base' : 'target')
   const qSide: QuestionSide = eff === 'target' ? { kind: 'year', year: scope.target } : { kind: 'base', target: scope.target, base: scope.base, align: scope.align !== false }
@@ -39,12 +44,12 @@ export default function KpDrawer({ item, scope, cmp, onClose }: { item: CompareI
       <Drawer open={!!item} onClose={() => { setSide(null); onClose() }} width="min(760px, 94vw)" destroyOnHidden data-testid="kp-drawer" title="词条详情">
         {item && (
           <>
-            <Entry size="full" headingLevel={3} term={item.name} examples={words.length ? words : undefined} category={categoryOfCode(item.code) ?? undefined}
+            <Entry size="full" headingLevel={3} term={item.name} examples={words.length ? words : undefined} category={ofCode(item.code) ?? undefined}
               data-testid={node?.plain ? 'drawer-plain' : undefined}
               aside={showCodes ? <span className="ewb-num">{item.code}</span> : undefined}
               tags={[KIND_TAG[item.kind]]}
               plain={node?.plain || item.path}
-              examplesSentences={node?.example_en ? [{ en: node.example_en, zh: node.example_zh ?? undefined }] : undefined} />
+              examplesSentences={kpExamples(node, subject)} />
             <div className="ewb-ana-drawer-path">{item.path}</div>
             {cmp.limited.length > 0 && <UsageNote kind="caution">{cmp.insufficient.length > 0 ? '样本不足，暂不比较：卷子太少，结论只能说“这几份卷子里是这样”' : '样本有限，结论仅供参考'}</UsageNote>}
             <p data-testid="drawer-plain-compare" style={{ margin: '16px 0 0', fontSize: 'var(--ewb-fs-lg)' }}><b>{compareText(item.aB, item.nB, item.aT, item.nT)}</b></p>

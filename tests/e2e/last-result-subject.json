@@ -1,0 +1,116 @@
+[
+  {
+    "feature": "切换器",
+    "name": "侧栏有学科切换，默认是英语",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "切换器",
+    "name": "导入处写着「导入到：英语」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "英语",
+    "name": "试卷库里是 12 份示例卷",
+    "pass": true,
+    "detail": "共 12 份"
+  },
+  {
+    "feature": "切换器",
+    "name": "菜单里有英语 / 语文 / 数学三项",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "当前学科存进设置 current_subject",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "导入处写着「导入到：数学」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "试卷库是空的（没有英语的卷子）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "没配看图模型：试卷库给出数学卷的看图提示和 AI 设置链接",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "审核页没有英语的待审核卷",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "总览（看板）里没有英语的统计",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "分析看板能打开且没有英语的数据",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数学",
+    "name": "处理队列显示全部学科（页面能打开）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "英语",
+    "name": "切回英语：当前学科存回 english",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "英语",
+    "name": "切回英语：12 份示例卷还在",
+    "pass": true,
+    "detail": "共 12 份"
+  },
+  {
+    "feature": "英语",
+    "name": "数学的看图提示不再出现",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "语文",
+    "name": "导入处写着「导入到：语文」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "重启",
+    "name": "重启后仍记得当前学科是语文",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "重启",
+    "name": "设置里也是 chinese",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "运行",
+    "name": "页面没有控制台错误",
+    "pass": true,
+    "detail": ""
+  }
+]

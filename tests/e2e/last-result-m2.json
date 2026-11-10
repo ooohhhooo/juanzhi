@@ -7,9 +7,9 @@
   },
   {
     "feature": "迁移 v5",
-    "name": "带数据的真实 v4 库升级到最新版本（现为 v11，M3 在 v5 之后新增了 v6、v7、v8，M4 新增 v9，M6 新增 v10，M9 新增 v11）：版本号、v5 的新列、新表齐全",
-    "pass": true,
-    "detail": "v11"
+    "name": "带数据的真实 v4 库升级到最新版本（现为 v12，M3 在 v5 之后新增了 v6、v7、v8，M4 新增 v9，M6 新增 v10，M9 新增 v11，助手新增 v12）：版本号、v5 的新列、新表齐全",
+    "pass": false,
+    "detail": "v13"
   },
   {
     "feature": "迁移 v5",
@@ -21,19 +21,19 @@
     "feature": "迁移 v5",
     "name": "老师自建的知识点保留；与种子同代码的节点不被覆盖（INSERT OR IGNORE）；其余种子补齐",
     "pass": true,
-    "detail": "共 146 个节点"
+    "detail": "共 403 个节点"
   },
   {
     "feature": "知识点树",
-    "name": "全新库 v11：种子树 145 个节点（80–150）、最多 3 层、父节点都存在、代码唯一",
-    "pass": true,
-    "detail": "145 个"
+    "name": "全新库 v13：种子树 402 个节点（80–150）、最多 3 层、父节点都存在、代码唯一",
+    "pass": false,
+    "detail": "402 个"
   },
   {
     "feature": "知识点树",
     "name": "每个节点都有名称与引入年级；题型表含 OTHER 兜底与 6 种听力题型",
-    "pass": true,
-    "detail": "22 种题型"
+    "pass": false,
+    "detail": "70 种题型"
   },
   {
     "feature": "AI 设置",
@@ -51,7 +51,7 @@
     "feature": "AI 设置",
     "name": "「测试连接」用界面当前值（尚未保存）连通 mock，提示成功",
     "pass": true,
-    "detail": "成功  测试结果  拆题用的模型：成功 mock-text-model 连接成功（mock-text-model，139 毫秒） 重测这一项 写报告用的模型：没有测 mock-text-model 与拆题用的模型相同，不重复测 视觉模型：成功 mock-vision-model 能看图（mock-vision-model 读出了测试图上的字，4 毫秒） 重测这一项"
+    "detail": "成功  测试结果  拆题用的模型：成功 mock-text-model 连接成功（mock-text-model，99 毫秒） 重测这一项 写报告用的模型：没有测 mock-text-model 与拆题用的模型相同，不重复测 视觉模型：成功 mock-vision-model 能看图（mock-vision-model 读出了测试图上的字，6 毫秒） 重测这一项"
   },
   {
     "feature": "AI 设置",
@@ -75,13 +75,13 @@
     "feature": "AI 设置",
     "name": "密钥错误时给出明确中文原因（401 → API Key 无效）",
     "pass": true,
-    "detail": "失败  测试结果  拆题用的模型：失败 mock-text-model API Key 无效（密钥不对）：请重新复制，注意前后不要有空格，并确认它和所选服务商是一家的 查看详情（服务商返回的原话） 重测这一项 写报告用的模型：没有测 mock-text-model 与拆题用的模型相同，不重复测 视觉模型：失败 mock-vision-model API Key 无效（密钥不对）：请重新复制，注意前后不要有空格，并确认它和所选服务商是一家的 查看详情（服务商返回的原话） 重测这一项"
+    "detail": "失败  测试结果  拆题用的模型：失败 mock-text-model API Key 无效（密钥不对）：请重新复制，注意前后不要有空格，并确认它和所选服务商是一家的 API Key 无效或已过期 可能的原因： 密钥复制不完整，或前后多了空格。怎么办：重新复制整段密钥，粘贴后保存 密钥已被删除、停用或过期。怎么办：到服务商控制台看密钥是否还在，必要时新建一个 密钥和所选服务商 / 地址不是一家的。怎么办：核对「设置 → AI 服务」里的服务商和 Base URL 查看服务商原话 复制错误信息 查看详情（服务商返回的原话） 重测这一项 写报告用的模型：没有测 mock-text-model 与拆题用的模型相同，不重复测 视觉模型：失败 mock-vision-model API Key 无效（密钥不对）：请重新复制，注意前后不要有空格，并确认它和所选服务商是一家的 API Key 无效或已过期 可能的原因： 密钥复制不完整，或前后多了空格。怎么办：重新复制整段密钥，粘贴后保存 密钥已被删除、停用或过期。怎么办：到服务商控制台看密钥是否还在，必要时新建一个 密钥和所选服务商 / 地址不是一家的。怎么办：核对「设置 → AI 服务」里的服务商和 Base URL 查看服务商原话 复制错误信息 查看详情（服务商返回的原话） 重测这一项"
   },
   {
     "feature": "密钥安全",
     "name": "getConfig 只返回 hasKey，整个返回值里没有密钥",
     "pass": true,
-    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:61964/v1\",\"model\":\"mock-text-model\",\"parse_model\":\"\",\"vision_model\":\"mock-vision-model\",\"vision_base_url\":\"\",\""
+    "detail": "{\"provider\":\"custom\",\"base_url\":\"http://127.0.0.1:62799/v1\",\"model\":\"mock-text-model\",\"parse_model\":\"\",\"vision_model\":\"mock-vision-model\",\"vision_base_url\":\"\",\""
   },
   {
     "feature": "密钥安全",
@@ -93,7 +93,7 @@
     "feature": "密钥安全",
     "name": "渲染端 API 面上没有任何读取密钥的方法；保存后输入框已清空，页面 DOM / localStorage 里没有密钥",
     "pass": true,
-    "detail": "142 个 API"
+    "detail": "235 个 API"
   },
   {
     "feature": "密钥安全",
@@ -147,7 +147,7 @@
     "feature": "处理队列",
     "name": "恢复后 3 份自动走完「提取 → AI 解析 → 待审核」",
     "pass": true,
-    "detail": "39 秒"
+    "detail": "37 秒"
   },
   {
     "feature": "处理队列",
@@ -237,7 +237,7 @@
     "feature": "kp_suggestion",
     "name": "AI 的新增知识点建议单独存放、状态 pending；知识点树节点数没变，也没有以建议命名的节点（不自动写树）",
     "pass": true,
-    "detail": "kps 145 → 145"
+    "detail": "kps 402 → 402"
   },
   {
     "feature": "入库",
@@ -525,7 +525,7 @@
     "feature": "分阶段重试",
     "name": "「仅重新定位」不改动被复用的那条解析记录：它仍是同一条、状态仍是 done，审核页顶栏的提示词版本不会因此丢失或错位（复审 N4）",
     "pass": true,
-    "detail": "{\"id\":35,\"prompt_version\":\"v2.0\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-11-03 08:26:11\"}"
+    "detail": "{\"id\":35,\"prompt_version\":\"v2.0\",\"model\":\"mock-text-model\",\"vision_model\":null,\"status\":\"done\",\"finished_at\":\"2026-11-10 17:11:47\"}"
   },
   {
     "feature": "分阶段重试",
@@ -543,7 +543,7 @@
     "feature": "分阶段重试",
     "name": "「从头重试」即使关了自动解析也会在提取后接着解析，最终回到待审核且 extracted_at 更新",
     "pass": true,
-    "detail": "2026-11-03 08:24:56 → 2026-11-03 08:26:13"
+    "detail": "2026-11-10 17:10:35 → 2026-11-10 17:11:48"
   },
   {
     "feature": "取消",
@@ -693,7 +693,7 @@
     "feature": "审核页",
     "name": "审核页的侧栏是窄图标栏：宽度 < 100px，图标栏的 6 个入口 + 设置 + 外观都在，每个入口图标下面有两字标签，画布占满其余宽度",
     "pass": true,
-    "detail": "84px，9 个入口，标签 总览/试卷/课程/队列/审核/看板/报告/设置/自动，画布 1100px"
+    "detail": "84px，11 个入口，标签 助手/数据/总览/试卷/课程/队列/审核/看板/报告/设置/自动，画布 1100px"
   },
   {
     "feature": "审核页",
@@ -795,7 +795,7 @@
     "feature": "kp_suggestion",
     "name": "采纳（老师点击）才在树里新建节点：挂在 FN.SHOP 下、builtin=0；本题主知识点换成新节点，原主知识点降为次知识点；建议状态变 approved",
     "pass": true,
-    "detail": "FN.SHOP.U1 节点数 145→146"
+    "detail": "FN.SHOP.U1 节点数 402→403"
   },
   {
     "feature": "kp_suggestion",
@@ -909,7 +909,7 @@
     "feature": "密钥安全",
     "name": "用户同时重新输入地址与密钥即可恢复正常",
     "pass": true,
-    "detail": "http://127.0.0.1:61964/v1"
+    "detail": "http://127.0.0.1:62799/v1"
   },
   {
     "feature": "密钥安全",
@@ -925,7 +925,7 @@
   },
   {
     "feature": "密钥安全",
-    "name": "全程扫描：所有应用进程的 stdout/stderr（共 12 KB）里没有密钥",
+    "name": "全程扫描：所有应用进程的 stdout/stderr（共 14 KB）里没有密钥",
     "pass": true,
     "detail": ""
   }

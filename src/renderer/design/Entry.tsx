@@ -11,7 +11,9 @@ import { Tooltip } from 'antd'
 import { ArrowRight, X } from 'lucide-react'
 import { Icon } from './icons'
 import { Btn } from './Basics'
-import { CATEGORY_BY_KEY, type CategoryKey } from './tokens'
+import { type CategoryKey } from './tokens'
+import { useCategories } from '../subject/useCategories'
+import { useSubject } from '../subject/SubjectContext'
 
 // ───────────── 例句 ─────────────
 
@@ -20,14 +22,16 @@ export interface EntryExample {
   en: string
   /** 中文意思（次要色，跟在后面） */
   zh?: string
+  /** 句子的语言，默认 en；语文、数学的例子是中文 */
+  lang?: string
 }
 
 /** 把 "It's time **for** breakfast." 渲染成斜体句子，目标词加粗 */
-export function Example({ en, zh, className }: EntryExample & { className?: string }) {
+export function Example({ en, zh, lang = 'en', className }: EntryExample & { className?: string }) {
   const parts = en.split(/\*\*(.+?)\*\*/g)
   return (
     <p className={`ewb-eg${className ? ' ' + className : ''}`}>
-      <span className="ewb-eg__en" lang="en">
+      <span className="ewb-eg__en" lang={lang}>
         {parts.map((t, i) => (i % 2 === 1 ? <b key={i}>{t}</b> : <React.Fragment key={i}>{t}</React.Fragment>))}
       </span>
       {zh && <span className="ewb-eg__zh">{zh}</span>}
@@ -156,16 +160,18 @@ export default function Entry({
   term, examples, size = 'standard', category, tags, plain, examplesSentences, sources, see, aside, children, footer, onOpen, selected, headingLevel = 3, id, ...rest
 }: EntryProps) {
   const H = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
+  const { byKey } = useCategories()
+  const { subject } = useSubject()
   const senses = plain === undefined ? [] : Array.isArray(plain) ? plain : [plain]
   const egs = examplesSentences ?? []
   const shownEgs = size === 'full' ? egs : size === 'standard' ? egs.slice(0, 1) : []
   const shownSrc = size === 'full' ? sources ?? [] : size === 'standard' ? (sources ?? []).slice(0, 1) : []
-  const cat = category ? CATEGORY_BY_KEY[category] : null
+  const cat = category ? byKey[category] : null
   return (
     <article id={id} data-testid={rest['data-testid']} className={`ewb-entry ewb-entry--${size}${selected ? ' ewb-entry--selected' : ''}`}>
       <header className="ewb-entry__head">
         <H className="ewb-entry__term">{onOpen ? <button type="button" onClick={onOpen}>{term}</button> : term}</H>
-        {examples && examples.length > 0 && <span className="ewb-entry__ex" lang="en">{examples.join(' · ')}</span>}
+        {examples && examples.length > 0 && <span className="ewb-entry__ex" lang={subject === 'english' ? 'en' : undefined}>{examples.join(' · ')}</span>}
         <span className="ewb-entry__aside">
           {cat && <span className={`ewb-entry__cat ewb-cat-${cat.key}`}><i aria-hidden />{cat.label}</span>}
           {aside}

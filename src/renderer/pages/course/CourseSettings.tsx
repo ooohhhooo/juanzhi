@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useSubject } from '../../subject/SubjectContext'
 import { App, Drawer, Popconfirm, Switch, Table, Tabs } from 'antd'
 import { Plus } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,9 +15,10 @@ import '../../design/page-course.css'
 export default function CourseSettings() {
   const { message } = App.useApp()
   const qc = useQueryClient()
+  const { subject } = useSubject()
   const [wizard, setWizard] = useState<{ open: boolean; replace?: CourseOutlineCard; job?: CourseJob }>({ open: false })
   const [detail, setDetail] = useState<string | null>(null)
-  const { data: cards } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
+  const { data: cards } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject) })
   // 后台整理的任务（主进程内存里）：有排队 / 整理中的就隔几秒刷新一次
   const { data: jobs } = useQuery({
     queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),

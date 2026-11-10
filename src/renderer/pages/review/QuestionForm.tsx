@@ -9,6 +9,7 @@ import { KpMultiSelect, KpSelect } from '../../components/KpTreeSelect'
 import { flagLabel, difficultyLabel } from '../../status'
 import { Term } from '../../components/Plain'
 import { useShowCodes } from '../../hooks/useUiPrefs'
+import { SUBJECTS, type SubjectId } from '../../../shared/subject'
 
 interface Props {
   q: QuestionView
@@ -18,6 +19,8 @@ interface Props {
   lowConfidence: number
   kps: KpNode[] | undefined
   qtypes: QtypeRow[] | undefined
+  /** 这份卷子的学科：题型分组、材料叫法按它取 */
+  subject?: SubjectId
   material?: { mid: string; kind: string; text: string }
   hasNext: boolean
   /** 保存字段修改（父组件负责防抖合并与写库） */
@@ -36,7 +39,12 @@ interface Props {
   onReject: () => void
 }
 
-const kindLabel: Record<string, string> = { passage: '短文', dialogue: '对话', word_bank: '备选词句（A–E 这些选项）', listening_script: '听力原文', table: '表格', other: '材料' }
+/** 材料类型的叫法：按学科。没列到的类型用该学科的「其他」叫法 */
+const KIND_LABEL: Record<SubjectId, Record<string, string>> = {
+  english: { passage: '短文', dialogue: '对话', word_bank: '备选词句（A–E 这些选项）', listening_script: '听力原文', table: '表格', other: '材料' },
+  chinese: { passage: '阅读材料', dialogue: '对话', word_bank: '备选词语（A–E 这些选项）', listening_script: '听写材料', table: '表格', other: '材料' },
+  math: { passage: '情境材料', dialogue: '对话', word_bank: '备选条件', listening_script: '听算材料', table: '统计表', other: '材料' }
+}
 
 export default function QuestionForm(p: Props) {
   const { q } = p
@@ -59,12 +67,13 @@ export default function QuestionForm(p: Props) {
   }
 
   const qtypeOptions = useMemo(() => {
-    const groups: Record<string, { label: string; options: Array<{ label: string; value: string }> }> = {
-      listening: { label: '听力题型', options: [] }, written: { label: '笔试题型', options: [] }
-    }
-    for (const t of p.qtypes ?? []) (groups[t.group] ?? groups.written).options.push({ label: showCodes ? `${t.name}（${t.code}）` : t.name, value: t.code, search: `${t.name} ${t.code} ${t.note ?? ''}` } as any)
+    // 分组取自学科注册表；题型的 group 不在表里时归到最后一组
+    const defs = SUBJECTS[p.subject ?? 'english'].qtypeGroups
+    const groups: Record<string, { label: string; options: Array<{ label: string; value: string }> }> = Object.fromEntries(defs.map(g => [g.id, { label: g.label, options: [] }]))
+    const fallback = groups[defs[defs.length - 1].id]
+    for (const t of p.qtypes ?? []) (groups[t.group] ?? fallback).options.push({ label: showCodes ? `${t.name}（${t.code}）` : t.name, value: t.code, search: `${t.name} ${t.code} ${t.note ?? ''}` } as any)
     return Object.values(groups).filter(g => g.options.length)
-  }, [p.qtypes, showCodes])
+  }, [p.qtypes, p.subject, showCodes])
 
   const kpName = (code: string | null) => (code ? safeKpName(p.kps?.find(k => k.code === code)?.name) : '')
   const attention = q.confidence < p.lowConfidence
@@ -121,7 +130,7 @@ export default function QuestionForm(p: Props) {
 
       {p.material && (
         <Collapse size="small" items={[{
-          key: 'm', label: `${kindLabel[p.material.kind] ?? '材料'}（本题引用）`,
+          key: 'm', label: `${KIND_LABEL[p.subject ?? 'english'][p.material.kind] ?? '材料'}（本题引用）`,
           children: <div className="ewb-rev-material">{p.material.text}</div>
         }]} />
       )}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSubject } from '../subject/SubjectContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input } from 'antd'
@@ -212,9 +213,10 @@ export default function Assistant() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const { message } = App.useApp()
+  const { subject } = useSubject()
   const { data: rolesData } = useQuery({ queryKey: ['agent', 'roles'], queryFn: () => window.api.agent.roles(), staleTime: 0 })
   const { data: status } = useQuery({ queryKey: ['agent', 'status'], queryFn: () => window.api.agent.status(), staleTime: 0, refetchOnMount: 'always' })
-  const { data: sessions = [] } = useQuery({ queryKey: ['agent', 'sessions'], queryFn: () => window.api.agent.sessions(), staleTime: 0 })
+  const { data: sessions = [] } = useQuery({ queryKey: ['agent', 'sessions', subject], queryFn: () => window.api.agent.sessions(subject), staleTime: 0 })
 
   const [role, setRole] = useState('ops')
   const [active, setActive] = useState<string | null>(null)
@@ -304,6 +306,10 @@ export default function Assistant() {
     setActive(null); setSteps([]); setBranchId('main'); setForkFrom(null); setStale(false); setLive(''); setProgress(null); setRunning(false); setApproval(null); setStatusText(''); setSessTok(0)
   }, [qc])
 
+  // 切换学科：正在看的对话属于原来的学科，回到空白新对话
+  const subjectRef = useRef(subject)
+  useEffect(() => { if (subjectRef.current !== subject) { subjectRef.current = subject; newChat() } }, [subject, newChat])
+
   // 从报告页「问助手」进来（#/assistant?report=<id>）：开一个新对话，输入框预填报告编号，聚焦，不自动发送
   const [sp, setSp] = useSearchParams()
   const askReport = sp.get('report')
@@ -356,7 +362,7 @@ export default function Assistant() {
     startingRef.current = true
     setRunning(true); setLive(''); setProgress(null); setApproval(null)
     try {
-      const r = await window.api.agent.run({ sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), ...(attachIds.length ? { attachments: attachIds } : {}), playbooks: chips.filter(c => c.kind === 'playbook').map(c => c.label), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
+      const r = await window.api.agent.run({ ...{ subject }, sessionId: active ?? undefined, role: curRole?.id ?? role, text: t + chipsToHint(chips), ...(attachIds.length ? { attachments: attachIds } : {}), playbooks: chips.filter(c => c.kind === 'playbook').map(c => c.label), datasets: [...new Set([...getPickedDatasets().map(d => d.id), ...chips.filter(c => c.kind === 'dataset').map(c => c.key.slice('dataset:'.length))])], mode, approval: approval2, model: model && model !== '__other__' ? model : undefined, effort, ...(fromSeq !== undefined ? { branchFrom: fromSeq } : forkFrom !== null ? { branchFrom: forkFrom } : { branchId }) })
       activeRef.current = r.sessionId; setActive(r.sessionId); setBranchId(r.branchId); setForkFrom(null); setText(''); setChips([]); clearAttachments()
       const used = chips.filter(c => c.kind === 'dataset'); if (used.length) addPickedDatasets(used.map(c => ({ id: c.key.slice('dataset:'.length), name: c.label })))
     } catch (e) {

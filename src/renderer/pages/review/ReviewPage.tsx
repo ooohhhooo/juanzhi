@@ -1,3 +1,4 @@
+import { asSubject } from '../../../shared/subject'
 import SimilarNotice from '../../components/SimilarNotice'
 import { safeText } from '../../../shared/code-guard'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -42,7 +43,9 @@ export default function ReviewPage() {
   const { data: paper } = useQuery({ queryKey: ['papers', paperId], queryFn: () => window.api.papers.get(paperId!), enabled: !!paperId })
   const { data: pages = [] } = useQuery({ queryKey: ['pages', paperId], queryFn: () => window.api.papers.pages(paperId!), enabled: !!paperId })
   const { data: list, isLoading } = useQuery({ queryKey: ['questions', paperId], queryFn: () => window.api.questions.list(paperId!), enabled: !!paperId, staleTime: 5_000 })
-  const { data: tax } = useQuery({ queryKey: ['taxonomy'], queryFn: () => window.api.taxonomy.tree(), staleTime: 60_000 })
+  // 知识点树按这份卷子自己的学科取（不是侧栏当前选的学科）
+  const paperSubject = asSubject((paper as { subject?: string } | undefined)?.subject)
+  const { data: tax } = useQuery({ queryKey: ['taxonomy', paperSubject], queryFn: () => window.api.taxonomy.tree({ subject: paperSubject }), staleTime: 60_000, enabled: !!paper })
 
   const [overlay, setOverlay] = useState<Record<string, QuestionPatch>>({})
   // 改主知识点导致次知识点被去重删掉：页面上明确提示并给「撤销这一步」（12 秒后自动收起）
@@ -391,7 +394,7 @@ export default function ReviewPage() {
               localEdits={!!overlay[cur.id]}
               q={cur} index={curIndex < 0 ? questions.findIndex(q => q.id === cur.id) : curIndex} total={curIndex < 0 ? questions.length : visible.length}
               hint={list?.hints?.[cur.id]}
-              kps={tax?.kps} qtypes={tax?.qtypes} material={material ? { mid: material.mid, kind: material.kind, text: material.text } : undefined}
+              kps={tax?.kps} qtypes={tax?.qtypes} subject={paperSubject} material={material ? { mid: material.mid, kind: material.kind, text: material.text } : undefined}
               hasNext={questions.findIndex(q => q.id === cur.id) < questions.length - 1}
               onPatch={p => patch(cur.id, p)}
               onConfirm={confirmCurrent}

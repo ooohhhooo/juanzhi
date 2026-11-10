@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { subjectName } from '../../shared/subject'
 import { App, Checkbox, Collapse, Modal, Popconfirm } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { cancelAnalysis, dismissAnalysis, startAnalysis, useAnalysisEntry } from './analysisStore'
@@ -87,7 +88,7 @@ export default function CourseAdvice({ scope }: { scope: CourseAdviceScope }) {
           </div>
           {st.status === 'stale' && <UsageNote kind="caution" data-testid="advice-stale"><b>已过期，可重新生成</b>（{st.staleReasons.map(r => r === 'data' ? '统计数据或课程对应有变化' : r === 'prompt' ? 'AI 的写作要求有更新' : '换了 AI 模型').join('；')}）。过期的建议不能复制。</UsageNote>}
           {st.warnings.map((w, i) => <UsageNote key={i} kind="caution">{w}</UsageNote>)}
-          {st.unverified.length > 0 && !st.confirmedAt && <UsageNote kind="caution" data-testid="advice-unverified">{`有 ${st.unverified.length} 句讲英语规则的话没能对上老师审核过的题目解释（正文里已标“未核实”）：核对时请逐句确认${conflicts.length ? '；其中有与题目解释矛盾的句子，需要重新生成' : ''}。`}</UsageNote>}
+          {st.unverified.length > 0 && !st.confirmedAt && <UsageNote kind="caution" data-testid="advice-unverified">{`有 ${st.unverified.length} 句讲${subjectName(scope.filter.subject)}规则的话没能对上老师审核过的题目解释（正文里已标“未核实”）：核对时请逐句确认${conflicts.length ? '；其中有与题目解释矛盾的句子，需要重新生成' : ''}。`}</UsageNote>}
           <div className="ewb-crs-advice__text" data-testid="advice-text">{text(st.markdown)}</div>
           <div className="ewb-ana-ai__actions" style={{ marginTop: 8 }}>
             {!st.confirmedAt
@@ -104,7 +105,7 @@ export default function CourseAdvice({ scope }: { scope: CourseAdviceScope }) {
       <Modal open={confirmOpen} onCancel={() => setConfirmOpen(false)} title="核对这段话" destroyOnHidden okText="我已核对" cancelText="再看看" confirmLoading={busy}
         okButtonProps={{ 'data-testid': 'advice-confirm-ok', disabled: st.unverified.some(u => !ack.includes(u.sentence)) } as never} onOk={confirm}>
         <div data-testid="advice-confirm-modal">
-        <p>请确认：这段话里没有价格或夸大的承诺，讲英语规则的地方都是对的，提到的课确实有这些内容。</p>
+        <p>请确认：这段话里没有价格或夸大的承诺，讲{subjectName(scope.filter.subject)}规则的地方都是对的，提到的课确实有这些内容。</p>
         {st.unverified.length > 0 && (
           <>
             <p className="ewb-rep-note">下面这些句子没能对上题目解释，需要你逐句确认“无误”；不确定的就取消，重新生成。</p>

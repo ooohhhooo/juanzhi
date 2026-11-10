@@ -1,4 +1,7 @@
 import React, { useMemo, useState } from 'react'
+import { useSubject } from '../subject/SubjectContext'
+import { useCategories } from '../subject/useCategories'
+import { kpExamples } from '../subject/examples'
 import { Collapse, Tooltip } from 'antd'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -12,7 +15,7 @@ import KpDetailDrawer from '../stats/KpDetailDrawer'
 import type { ViewTarget } from '../stats/PageViewer'
 import { appearText } from '../../shared/plain-text'
 import {
-  CATEGORIES, CATEGORY_BY_KEY, categoryOfCode, Entry, EmptyState, EntryColumns, EntrySkeleton, Glossary, Headline, IndexTable, Page, PageTurn,
+  Entry, EmptyState, EntryColumns, EntrySkeleton, Glossary, Headline, IndexTable, Page, PageTurn,
   Panel, SectionTitle, StatusLabel, ThumbIndex, UsageNote
 } from '../design'
 import type { CategoryKey, EntryProps } from '../design'
@@ -38,13 +41,15 @@ function OriginExample({ code, filter, onView }: { code: string; filter: StatsFi
 export default function Overview() {
   const { filter, ready } = useStatsFilter()
   const nav = useNavigate()
+  const { subject } = useSubject()
+  const { list: CATEGORIES, byKey: CATEGORY_BY_KEY, ofCode: categoryOfCode } = useCategories()
   const [cat, setCat] = useState<CategoryKey | null>(null)
   const [order, setOrder] = useState(0)
   const [view, setView] = useState<ViewTarget | null>(null)
   const [openCode, setOpenCode] = useState<string | null>(null)
   const { data: o, isLoading } = useQuery({ queryKey: ['stats', 'overview', filter], queryFn: () => window.api.stats.overview(filter), enabled: ready, placeholderData: keepPreviousData })
   // 知识点的白话释义、例句、例词（和审核页、看板抽屉同一份）；易错信息取自「重难点」的二级排名（同一个缓存键）
-  const { data: tax } = useQuery({ queryKey: ['taxonomy'], queryFn: () => window.api.taxonomy.tree(), staleTime: 60_000 })
+  const { data: tax } = useQuery({ queryKey: ['taxonomy', subject], queryFn: () => window.api.taxonomy.tree({ subject }), staleTime: 60_000 })
   const hasPapers = (o?.cards.papers ?? 0) > 0
   const { data: hot } = useQuery({ queryKey: ['stats', 'hot', filter, 2], queryFn: () => window.api.stats.hot(filter, 2), enabled: ready && hasPapers, placeholderData: keepPreviousData })
   const nodes = useMemo(() => new Map((tax?.kps ?? []).map(k => [k.code, k])), [tax])
@@ -71,7 +76,7 @@ export default function Overview() {
         ...(h && h.errorCount > 0 ? [{ label: '易错', kind: 'mistake' as const, hint: `AI 估计其中 ${h.errorCount} 道题学生容易做错（估计，不是学生成绩）` }] : [])
       ],
       plain: n?.plain || t.path,
-      examplesSentences: n?.example_en ? [{ en: n.example_en, zh: n.example_zh ?? undefined }] : undefined
+      examplesSentences: kpExamples(n, subject)
     }
   }
   const inCat = (t: Top) => cat === null || categoryOfCode(t.code) === cat

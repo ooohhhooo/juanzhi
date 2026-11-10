@@ -5,7 +5,8 @@
  * - <ReaderTag> AI 报告里「给谁看」的标签：每种读者一种拇指索引色。
  */
 import React from 'react'
-import { CATEGORY_BY_KEY, type CategoryKey } from './tokens'
+import { type CategoryKey } from './tokens'
+import { useCategories } from '../subject/useCategories'
 
 export interface BarListRow {
   /** 词条名 */
@@ -20,11 +21,12 @@ export interface BarListRow {
 }
 
 export function BarList({ rows, max, label = '横条图' }: { rows: BarListRow[]; max?: number; label?: string }) {
+  const { byKey } = useCategories()
   const top = max ?? Math.max(1e-9, ...rows.map(r => r.value))
   return (
     <ul className="ewb-bars" aria-label={label}>
       {rows.map(r => {
-        const cat = CATEGORY_BY_KEY[r.category]
+        const cat = byKey[r.category]
         return (
           <li key={r.label} className={`ewb-bars__row ewb-cat-${r.category}`}>
             {r.onClick ? <button type="button" className="ewb-bars__label" onClick={r.onClick}>{r.label}</button> : <span className="ewb-bars__label">{r.label}</span>}

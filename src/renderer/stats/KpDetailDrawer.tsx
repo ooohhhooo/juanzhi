@@ -1,4 +1,7 @@
 import React, { useState } from 'react'
+import { useSubject } from '../subject/SubjectContext'
+import { useCategories } from '../subject/useCategories'
+import { kpExamples } from '../subject/examples'
 import { Drawer } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import QuestionCardView from './QuestionCardView'
@@ -8,7 +11,7 @@ import type { ViewTarget } from './PageViewer'
 import { pct } from './format'
 import { appearText } from '../../shared/plain-text'
 import { useShowCodes } from '../hooks/useUiPrefs'
-import { categoryOfCode, EmptyState, Entry, EntrySkeleton, UsageNote } from '../design'
+import { EmptyState, Entry, EntrySkeleton, UsageNote } from '../design'
 import type { EntryTagSpec } from '../design'
 import '../design/page-analysis.css'
 
@@ -20,8 +23,10 @@ import '../design/page-analysis.css'
 export default function KpDetailDrawer({ code, filter, onClose }: { code: string | null; filter: StatsFilter; onClose: () => void }) {
   const [view, setView] = useState<ViewTarget | null>(null)
   const [showCodes] = useShowCodes()
+  const { subject } = useSubject()
+  const { ofCode } = useCategories()
   const level = code ? code.split('.').length : 2
-  const { data: tax } = useQuery({ queryKey: ['taxonomy'], queryFn: () => window.api.taxonomy.tree(), staleTime: 60_000, enabled: !!code })
+  const { data: tax } = useQuery({ queryKey: ['taxonomy', subject], queryFn: () => window.api.taxonomy.tree({ subject }), staleTime: 60_000, enabled: !!code })
   const { data: dist } = useQuery({ queryKey: ['stats', 'distribution', filter], queryFn: () => window.api.stats.distribution(filter), staleTime: 30_000, enabled: !!code })
   const { data: hot } = useQuery({ queryKey: ['stats', 'hot', filter, Math.min(3, Math.max(2, level))], queryFn: () => window.api.stats.hot(filter, Math.min(3, Math.max(2, level))), staleTime: 30_000, enabled: !!code && level >= 2 })
   const { data: qs, isLoading } = useQuery({ queryKey: ['stats', 'kpQuestions', filter, { kind: 'filter' }, code, 30], queryFn: () => window.api.stats.questions(filter, { kind: 'filter' }, code!, 30), enabled: !!code })
@@ -40,10 +45,10 @@ export default function KpDetailDrawer({ code, filter, onClose }: { code: string
       <Drawer open={!!code} onClose={onClose} width="min(760px, 94vw)" destroyOnHidden data-testid="kp-detail-drawer" title="词条详情">
         {code && (
           <>
-            <Entry size="full" headingLevel={3} term={name} examples={words.length ? words : undefined} category={categoryOfCode(code) ?? undefined}
+            <Entry size="full" headingLevel={3} term={name} examples={words.length ? words : undefined} category={ofCode(code) ?? undefined}
               aside={showCodes ? <span className="ewb-num">{code}</span> : undefined}
               tags={tags} plain={node?.plain || kpPath}
-              examplesSentences={node?.example_en ? [{ en: node.example_en, zh: node.example_zh ?? undefined }] : undefined} />
+              examplesSentences={kpExamples(node, subject)} />
             {kpPath && <div className="ewb-ana-drawer-path">{kpPath}</div>}
             {stat && dist && (
               <dl className="ewb-ana-drawer-stats" data-testid="kp-detail-stats">

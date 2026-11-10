@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { useCategories } from '../../subject/useCategories'
 import { App, Segmented, Spin } from 'antd'
 import { Download } from 'lucide-react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -9,12 +10,13 @@ import { LEVEL_LABEL, clean, pct } from '../../stats/format'
 import { useScopeGuide, useStatsFilter } from '../../stats/StatsFilter'
 import KpDetailDrawer from '../../stats/KpDetailDrawer'
 import { appearText } from '../../../shared/plain-text'
-import { Btn, categoryOfCode, CATEGORY_BY_KEY, PageTurn, Panel, ThumbIndex, CATEGORIES, UsageNote } from '../../design'
+import { Btn, PageTurn, Panel, ThumbIndex, UsageNote } from '../../design'
 import type { CategoryKey } from '../../design'
 import '../../design/page-analysis.css'
 
 export default function DistributionTab() {
   const { filter } = useStatsFilter()
+  const { list: CATEGORIES, byKey: CATEGORY_BY_KEY, ofCode: categoryOfCode } = useCategories()
   const { message } = App.useApp()
   const { data: d, isLoading } = useQuery({ queryKey: ['stats', 'distribution', filter], queryFn: () => window.api.stats.distribution(filter), placeholderData: keepPreviousData })
   const [path, setPath] = useState<string[]>([])

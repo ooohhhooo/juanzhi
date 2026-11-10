@@ -121,7 +121,7 @@ export default function Settings() {
         <div className="ewb-set-panel">
           <Panel title="关于" data-testid="about-card">
             <Descriptions column={1} size="small">
-              <Descriptions.Item label="软件">卷知 · 小学英语试卷分析（离线桌面软件，数据只存在这台电脑上）</Descriptions.Item>
+              <Descriptions.Item label="软件">卷知 · 小学试卷分析（离线桌面软件，数据只存在这台电脑上）</Descriptions.Item>
               <Descriptions.Item label="版本"><span data-testid="about-version">{about?.version ?? '…'}</span>（数据库版本 v{about?.schema ?? '…'}）<span className="ewb-lib-tag" style={{ marginLeft: 8 }} data-testid="about-beta">公测版</span></Descriptions.Item>
               <Descriptions.Item label="遇到问题"><DiagnosticsPanel /></Descriptions.Item>
               <Descriptions.Item label="软件更新"><UpdateSettings /></Descriptions.Item>

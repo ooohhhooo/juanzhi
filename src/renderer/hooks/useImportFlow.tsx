@@ -1,11 +1,15 @@
 import React from 'react'
 import { App } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
+import { subjectName } from '../../shared/subject'
+import { useSubject } from '../subject/SubjectContext'
 
 /** 导入流程：提示结果；内容相同的文件弹窗让用户选「仍然导入」 */
 export function useImportFlow() {
   const { message, modal } = App.useApp()
   const queryClient = useQueryClient()
+  const { subject } = useSubject()
+  const sName = subjectName(subject)
 
   /** 文件夹确认：告诉用户找到多少个文件、跳过多少个（列出前几个和原因），确认后才导入 */
   function confirmFolder(ex: { files: string[]; folders: number; skipped: Array<{ name: string; reason: string }>; skippedMore: number; truncated: boolean }): Promise<boolean> {
@@ -24,7 +28,7 @@ export function useImportFlow() {
                 {skippedTotal > shown.length && <div style={{ opacity: 0.8 }} data-testid="folder-skipped-more">另有 {skippedTotal - shown.length} 个已跳过</div>}
               </div>
             )}
-            <div style={{ marginTop: 8 }}>内容完全相同的文件会再问你一次。</div>
+            <div style={{ marginTop: 8 }}>导入到：<b data-testid="folder-subject">{sName}</b>。内容完全相同的文件会再问你一次。</div>
           </div>
         ),
         okText: `导入这 ${ex.files.length} 个`,
@@ -53,10 +57,10 @@ export function useImportFlow() {
       for (let i = 0; i < list.length; i += 100) {
         const part = list.slice(i, i + 100)
         const allow = allowDuplicates ? part.filter(p => allowDuplicates.includes(p)) : undefined
-        results.push(...await window.api.papers.import(part, allow ? { allowDuplicates: allow } : undefined))
+        results.push(...await window.api.papers.import(part, { subject, ...(allow ? { allowDuplicates: allow } : {}) }))
       }
       const queued = results.filter(r => r.paperId)
-      if (queued.length) message.success(`已加入处理队列：${queued.length} 份`)
+      if (queued.length) message.success(`已加入处理队列：${queued.length} 份（${sName}）`)
       const failed = results.filter(r => r.error && r.code !== 'duplicate')
       for (const f of failed.slice(0, 5)) message.warning(`${f.fileName}：${f.error}`)
       if (failed.length > 5) message.warning(`另有 ${failed.length - 5} 个文件没能导入`)

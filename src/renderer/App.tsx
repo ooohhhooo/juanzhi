@@ -16,6 +16,7 @@ import { useImportFlow } from './hooks/useImportFlow'
 import Overview from './pages/Overview'
 import Dashboard from './pages/dashboard/Dashboard'
 import { StatsFilterProvider } from './stats/StatsFilter'
+import { SubjectProvider } from './subject/SubjectContext'
 import { installChunkListener } from './stats/analysisStore'
 import { installReportChunkListener } from './stats/reportStore'
 import Report from './pages/Report'
@@ -122,6 +123,7 @@ export default function App() {
       {/* 配色、字体、AntD token 由 main.tsx 里的 design/ThemeProvider 统一提供，这里只补语言包 */}
       <ConfigProvider locale={zhCN}>
         <AntApp>
+          <SubjectProvider>
           <StatsFilterProvider>
           <HashRouter>
             <DataChangeListener />
@@ -153,6 +155,7 @@ export default function App() {
             </Routes>
           </HashRouter>
           </StatsFilterProvider>
+          </SubjectProvider>
         </AntApp>
       </ConfigProvider>
     </QueryClientProvider>

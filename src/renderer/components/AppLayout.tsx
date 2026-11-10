@@ -8,6 +8,9 @@ import { Btn, Contents, NAV_FOOTER, NAV_ITEMS } from '../design'
 import { Tooltip } from 'antd'
 import { updateNavView } from '../design/updateNav'
 import { useUpdateState } from '../hooks/useUpdate'
+import { asSubject } from '../../shared/subject'
+import { useSubject } from '../subject/SubjectContext'
+import SubjectSwitch from './SubjectSwitch'
 
 /**
  * 应用外框（设计系统第二版）：浅灰底 + 窄图标侧栏（84px，图标 + 两字标签）+ 浮起的白色大画布。
@@ -18,16 +21,19 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { importPaths } = useImportFlow()
+  const { subject } = useSubject()
 
-  const { data: papers = [] } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  // 处理队列显示全部学科的卷子（每份标着学科）；审核的角标只数当前学科
+  const { data: papers = [] } = useQuery({ queryKey: ['papers', 'list', 'all'], queryFn: () => window.api.papers.list() })
   const active = papers.filter(p => ['imported', 'extracting', 'parsing'].includes(p.status)).length
-  const reviewing = papers.filter(p => p.status === 'reviewing').length
+  const reviewing = papers.filter(p => p.status === 'reviewing' && asSubject((p as { subject?: string }).subject) === subject).length
 
   const { data: courseJobs = [] } = useQuery({
     queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),
     refetchInterval: q => ((q.state.data ?? []).some(j => j.status === 'queued' || j.status === 'running') ? 1500 : false)
   })
-  const courseReview = courseJobs.filter(j => j.status === 'ready').length
+  // 课程对照的待确认：只数当前学科的（任务带学科时按它分；没带的按不分学科全数）
+  const courseReview = courseJobs.filter(j => j.status === 'ready' && (!(j as { subject?: string }).subject || (j as { subject?: string }).subject === subject)).length
 
   const upd = updateNavView(useUpdateState())
   const goUpdate = () => {
@@ -65,7 +71,7 @@ export default function AppLayout() {
   return (
     <div className="ewb-shell" data-testid="app-shell">
       <aside className="ewb-sider">
-        <Contents items={NAV_ITEMS(active, reviewing, courseReview)} footerItems={NAV_FOOTER} footerExtra={updateEntry} activeKey={selectedKey} onNavigate={navigate} />
+        <Contents items={NAV_ITEMS(active, reviewing, courseReview)} footerItems={NAV_FOOTER} footerExtra={updateEntry} brandExtra={<SubjectSwitch />} activeKey={selectedKey} onNavigate={navigate} />
       </aside>
       <main className="ewb-main" data-testid="app-main">
         {showFilter && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { inSubject } from '../subject/papers'
 import { Modal, Form, Select, InputNumber, Input, App, Dropdown, Checkbox } from 'antd'
 import { BarChart3, ClipboardCheck, Eye, FolderOpen, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -17,6 +18,8 @@ import { useStatsFilter } from '../stats/StatsFilter'
 import { MAX_SCOPE_PAPERS, chunk, filterPapers, isBusyStatus, plainError, scopeFromSelection, summarizeBatch, titleList } from '../../shared/library-select'
 import type { BatchResult } from '../../shared/library-select'
 import SimilarNotice from '../components/SimilarNotice'
+import { ImportTarget, MathVisionHint } from '../components/ImportTarget'
+import { useSubject } from '../subject/SubjectContext'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
@@ -46,6 +49,7 @@ export default function PaperLibrary() {
   const [progress, setProgress] = useState<Record<string, JobProgress>>({})
   const [dragOver, setDragOver] = useState(false)
   const { selectPapers, filter: statsFilter } = useStatsFilter()
+  const { subject, def } = useSubject()
   // 搜索：draft 是输入框里的字，query 是真正用来过滤的（输入法拼音还没确认时不过滤）
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
@@ -61,10 +65,11 @@ export default function PaperLibrary() {
     })
   }, [])
 
-  const { data: papers = [], isLoading } = useQuery({
-    queryKey: ['papers'],
-    queryFn: () => window.api.papers.list()
+  const { data: rawPapers = [], isLoading } = useQuery({
+    queryKey: ['papers', 'list', subject],
+    queryFn: () => window.api.papers.list({ subject })
   })
+  const papers = useMemo(() => inSubject(rawPapers, subject), [rawPapers, subject])
 
   // 输入稍停一下再过滤；用输入法打字（拼音还没选字）时一律不过滤
   useEffect(() => {
@@ -377,12 +382,14 @@ export default function PaperLibrary() {
     <Page>
       <div className="ewb-lib-head">
         <h1 className="ewb-lib-title">试卷库</h1>
+        <ImportTarget />
         <div className="ewb-lib-actions">
           <Btn tone="secondary" icon={FolderOpen} data-testid="import-folder" onClick={handleImportFolder} loading={importing}>导入文件夹</Btn>
           <Btn tone="primary" icon={Plus} onClick={handleImportFiles} loading={importing}>导入试卷</Btn>
         </div>
       </div>
 
+      <MathVisionHint />
       <BetaWelcome />
       <RoleGuide />
       <Onboarding />
@@ -400,7 +407,7 @@ export default function PaperLibrary() {
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleImportFiles() } }}
       >
         <div className="ewb-lib-drop__icon"><Icon as={Inbox} size={32} /></div>
-        <p className="ewb-lib-drop__main">拖拽试卷文件到此处，或点击选择</p>
+        <p className="ewb-lib-drop__main">拖拽{def.name}试卷文件到此处，或点击选择</p>
         <p className="ewb-lib-drop__sub">支持 PDF、JPG/PNG/HEIC、DOCX（不支持 .doc，请先另存为 .docx）；也可以直接拖入整个文件夹</p>
       </div>
 
@@ -500,7 +507,7 @@ export default function PaperLibrary() {
             </Form.Item>
           </div>
           <Form.Item name="textbook" label={<span>教材版本{editPaper && aiFieldsOf(editPaper).includes('textbook') && <AiGuessTag />}</span>}>
-            <Input placeholder="如 PEP 三年级起点" />
+            <Input placeholder={subject === 'english' ? '如 PEP 三年级起点' : `如 ${def.textbooks[0]}`} />
           </Form.Item>
           <div className="ewb-lib-formrow">
             <Form.Item name="region" label="地区">

@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { subjectName, type SubjectId } from '../../shared/subject'
+import { useSubject } from '../subject/SubjectContext'
 import { App, Checkbox, Collapse, Modal, Popconfirm, Tooltip } from 'antd'
 import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, Mail, MessageSquare, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -28,11 +30,18 @@ async function writeClipboard(text: string): Promise<void> {
 }
 
 /** 给老师的核对清单（纯文本，可以直接发微信 / 邮件）：这份报告要看哪些地方 + 系统没能对上题目解释的句子 */
-function checklistText(d: ReportDetail): string {
+/** 核对清单里「规则」的例子：按学科 */
+const RULE_EXAMPLE: Record<SubjectId, string> = {
+  english: 'time for / time to 怎么用、名词复数怎么变',
+  chinese: '成语怎么用、关联词怎么搭配、标点怎么点',
+  math: '公式怎么用、算理说得对不对、单位怎么换算'
+}
+function checklistText(d: ReportDetail, subject: SubjectId): string {
+  const name = subjectName(subject)
   const lines = [
     `【请老师核对】${d.title}`,
-    '这份报告是 AI 写的草稿，需要懂英语的老师看一遍再用。请重点看：',
-    '1. 讲英语规则的句子对不对（比如 time for / time to 怎么用、名词复数怎么变）；',
+    `这份报告是 AI 写的草稿，需要懂${name}的老师看一遍再用。请重点看：`,
+    `1. 讲${name}规则的句子对不对（比如 ${RULE_EXAMPLE[subject]}）；`,
     '2. 每个例句有没有错，例句和讲的那条是不是对得上；'
   ]
   if (d.unverified.length > 0) {
@@ -106,6 +115,8 @@ export default function Report() {
   const nav = useNavigate()
   const qc = useQueryClient()
   const { filter, ready } = useStatsFilter()
+  const { subject } = useSubject()
+  const sName = subjectName(subject)
   const jobs = useReportJobs()
   const [watchId, setWatchId] = useState<string | null>(null)
   // 正在看的那份任务（下面的实时文字 / 失败提示都跟着它）：默认最新开始的一份
@@ -118,7 +129,7 @@ export default function Report() {
   const [withCourse, setWithCourse] = useState(false)
   const [courseIds, setCourseIds] = useState<string[]>([])
   const [parentHint, setParentHint] = useState(true)
-  const { data: outlines = [] } = useQuery({ queryKey: ['course', 'list'], queryFn: () => window.api.course.list() })
+  const { data: outlines = [] } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject) })
   const usable = (outlines as any[]).filter(o => o.status === 'active' && o.active)
   const courseSupported = reader !== 'boss'
   const courseOn = withCourse && courseSupported && usable.length > 0
@@ -136,7 +147,7 @@ export default function Report() {
     else if (r.result === 'queued') message.info('已加入排队')
   }
 
-  const { data: list = [], isLoading } = useQuery({ queryKey: ['reports', 'list'], queryFn: () => window.api.report.list(), placeholderData: keepPreviousData })
+  const { data: list = [], isLoading } = useQuery({ queryKey: ['reports', 'list', subject], queryFn: () => window.api.report.list(subject), placeholderData: keepPreviousData })
   const { data: preview } = useQuery({ queryKey: ['reports', 'preview', filter, reader], queryFn: () => window.api.report.preview(filter, reader), enabled: ready, placeholderData: keepPreviousData })
   const current = selected && list.some(r => r.id === selected) ? selected : (list[0]?.id ?? null)
   const { data: detail } = useQuery({ queryKey: ['reports', 'detail', current], queryFn: () => window.api.report.get(current!), enabled: !!current })
@@ -282,7 +293,7 @@ export default function Report() {
   }
   const handOver = async () => {
     if (!detail) return
-    try { await writeClipboard(checklistText(detail)); message.success('已复制核对清单，发给懂英语的老师就行') } catch (e) { message.error(clean(e)) }
+    try { await writeClipboard(checklistText(detail, subject)); message.success(`已复制核对清单，发给懂${sName}的老师就行`) } catch (e) { message.error(clean(e)) }
   }
   const doConfirm = async () => {
     if (!detail) return
@@ -347,7 +358,7 @@ export default function Report() {
           )}
         </div>
         <div className="ewb-rep-genrow">
-          <span>按当前筛选生成：<b data-testid="report-scope">{filterLabel(filter)}{filter.sample ? ' · 示例数据' : ''}</b>
+          <span>按当前筛选生成（{sName}）：<b data-testid="report-scope">{filterLabel(filter)}{filter.sample ? ' · 示例数据' : ''}</b>
             {preview && <span className="ewb-rep-counts" data-testid="report-counts">共 {preview.papers} 份卷子、{preview.questions} 道题</span>}</span>
           {!preview?.blocked && <Btn tone="primary" icon={Sparkles} data-testid="report-generate" disabled={!preview || !ready} onClick={() => submit(preview!.filterDesc, reader, courseOptions)}>生成{READER_LABEL[reader]}</Btn>}
         </div>
@@ -510,7 +521,7 @@ export default function Report() {
               {detail.needsConfirm && <UsageNote kind="caution" data-testid="report-needs-confirm">家长版要先由老师核对：读一遍、改掉不对的地方，然后点上面的「我已核对」，才能导出或复制到微信。</UsageNote>}
               {detail.sampleWarning && <UsageNote kind="caution" data-testid="report-sample-warning"><b>样本提示（程序判定）：</b>{detail.sampleWarning}结论仅供参考。</UsageNote>}
               {detail.unverified.length > 0 && (
-                <UsageNote kind="caution" data-testid="report-unverified" title={`有 ${detail.unverified.length} 句讲英语规则的话没能对上老师审核过的题目解释（正文里已标“未核实”或“与题目解释矛盾”）`}>
+                <UsageNote kind="caution" data-testid="report-unverified" title={`有 ${detail.unverified.length} 句讲${sName}规则的话没能对上老师审核过的题目解释（正文里已标“未核实”或“与题目解释矛盾”）`}>
                   <Collapse ghost size="small" style={{ marginInlineStart: -12 }} items={[{ key: 'u', label: <span className="ewb-rep-collapse-label">看是哪几句</span>, children: <ul className="ewb-rep-list-ul">{detail.unverified.map((u, i) => <li key={i}>{u.sentence}<span className="ewb-rep-muted">：{u.reason}{u.acknowledged ? '（老师已确认无误）' : ''}</span></li>)}</ul> }]} />
                 </UsageNote>
               )}
@@ -581,8 +592,8 @@ export default function Report() {
         okButtonProps={{ 'data-testid': 'confirm-ok', disabled: conflictCount > 0 || pendingCount > 0 || !!removing } as any} width={640}>
         {detail && (
           <div data-testid="confirm-dialog">
-            <div>核对后，标识会从“AI 草稿”变成“已由老师核对”{detail.reader === 'parent' ? '，才能导出或复制到微信' : ''}。请至少看一遍：讲英语规则的句子对不对、例句有没有错。</div>
-            <div className="ewb-rep-verify__who" data-testid="confirm-who">这一步要由<b>懂英语的老师</b>来做：核对的是英语规则和例句对不对，运营不确定的话，请不要自己点「我已核对」。</div>
+            <div>核对后，标识会从“AI 草稿”变成“已由老师核对”{detail.reader === 'parent' ? '，才能导出或复制到微信' : ''}。请至少看一遍：讲{sName}规则的句子对不对、例子有没有错。</div>
+            <div className="ewb-rep-verify__who" data-testid="confirm-who">这一步要由<b>懂{sName}的老师</b>来做：核对的是{sName}规则和例子对不对，运营不确定的话，请不要自己点「我已核对」。</div>
             {role === 'ops' && <div style={{ marginTop: 8 }}><Btn tone="secondary" size="small" icon={ClipboardList} data-testid="confirm-hand-over" onClick={handOver}>改为「交给老师核对」：复制核对清单</Btn></div>}
             {detail.unverified.length > 0 && (
               <div className="ewb-rep-verify" data-testid="confirm-unverified">

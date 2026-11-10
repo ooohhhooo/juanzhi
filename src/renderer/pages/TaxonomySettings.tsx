@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react'
-import { App, Input, Modal, Popconfirm, Select, Space, Tree, TreeSelect } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
+import { SUBJECTS, SUBJECT_LIST, type SubjectId } from '../../shared/subject'
+import { useSubject } from '../subject/SubjectContext'
+import { App, Input, Modal, Popconfirm, Segmented, Select, Space, Tree, TreeSelect } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useShowCodes } from '../hooks/useUiPrefs'
 import { Btn, Glossary, Panel, UsageNote } from '../design'
@@ -24,9 +26,15 @@ const descendants = (t: TNode): Set<string> => new Set(flat([t]).map(x => x.key)
 export default function TaxonomySettings() {
   const { message } = App.useApp()
   const qc = useQueryClient()
-  const { data } = useQuery({ queryKey: ['taxonomy', 'tree', 'all'], queryFn: () => window.api.taxonomy.tree({ includeDeprecated: true }) })
+  // 这里看哪个学科的树：默认跟侧栏当前学科，也可以在页内单独切换（不影响侧栏）
+  const { subject: current } = useSubject()
+  const [subject, setSubject] = useState<SubjectId>(current)
+  useEffect(() => { setSubject(current) }, [current])
+  const def = SUBJECTS[subject]
+  const { data } = useQuery({ queryKey: ['taxonomy', subject, 'tree', 'all'], queryFn: () => window.api.taxonomy.tree({ includeDeprecated: true, subject }) })
   const [sel, setSel] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
+  useEffect(() => { setSel(null); setExpanded([]); setQ('') }, [subject])
   const [q, setQ] = useState('')
   const [dlg, setDlg] = useState<Dialog>(null)
   const [name, setName] = useState('')
@@ -65,7 +73,7 @@ export default function TaxonomySettings() {
     if (!dlg) return
     const n = dlg.node
     const plainFields = { plain: plain.trim() || null, example_en: exEn.trim() || null, example_zh: exZh.trim() || null, hint_words: hints.trim() || null }
-    if (dlg.kind === 'add') return run([{ op: 'add', parent_code: n ? n.code : null, name, note: note || undefined, intro_grade: grade, ...plainFields }], '已新增')
+    if (dlg.kind === 'add') return run([{ op: 'add', parent_code: n ? n.code : null, name, note: note || undefined, intro_grade: grade, ...plainFields, ...{ subject } }], '已新增')
     if (dlg.kind === 'edit') return run([{ op: 'update', code: n!.code, name, note: note || null, intro_grade: grade, ...plainFields }], '已保存')
     if (dlg.kind === 'move') return run([{ op: 'move', code: n!.code, parent_code: target ?? null }], '已移动')
     if (dlg.kind === 'merge' && target) return run([{ op: 'merge', code: n!.code, into: target }], '已合并，题目标注已迁到目标知识点')
@@ -110,7 +118,8 @@ export default function TaxonomySettings() {
   const dlgTitle = dlg ? { add: dlg.node ? `在「${dlg.node.name}」下新增子节点` : '新增一级知识点', edit: `修改「${dlg.node?.name}」`, move: `移动「${dlg.node?.name}」`, merge: `把「${dlg.node?.name}」合并到别的知识点` }[dlg.kind] : ''
   const n = selected?.node ?? null
   return (
-    <div className="ewb-set-panel"><Panel title="知识点（考什么）" data-testid="taxonomy-settings">
+    <div className="ewb-set-panel"><Panel title="知识点（考什么）" data-testid="taxonomy-settings"
+      aside={<Segmented size="small" data-testid="kp-subject" value={subject} onChange={v => setSubject(v as SubjectId)} options={SUBJECT_LIST.map(s => ({ label: s.name, value: s.id }))} />}>
       <p className="ewb-rep-note" style={{ marginBottom: 12 }}>这棵树决定 AI 给题目标注知识点时能选哪些、也是看板统计的口径。改名、移动都不会影响已有的标注和统计。白话释义和例句会显示在审核页的选择框里，也会让 AI 的报告更好懂。内置节点只能改名或停用，不能移动、合并掉或删除。改动会让看板立即刷新，已生成的 AI 分析 / 报告会标成「已过期」。</p>
       <Space style={{ marginBottom: 8 }} wrap>
         <Input.Search data-testid="kp-search" placeholder="按名称、例词搜索" allowClear style={{ width: 220 }} value={q} onChange={e => setQ(e.target.value)} />
@@ -129,7 +138,9 @@ export default function TaxonomySettings() {
             {n.builtin ? <span className="ewb-set-pill">内置</span> : <span className="ewb-set-pill ewb-set-pill--own">自建</span>}
             {n.merged_into ? <span className="ewb-set-pill">已合并到 {all.get(n.merged_into)?.node.name ?? n.merged_into}</span> : n.deprecated ? <span className="ewb-set-pill">已停用</span> : null}
             {n.plain && <div className="ewb-set-selected-plain" data-testid="kp-selected-plain">{n.plain}</div>}
-            {n.example_en && <div className="ewb-set-selected-ex" data-testid="kp-selected-example"><i>{n.example_en.replace(/\*\*/g, '')}</i> {n.example_zh}</div>}
+            {def.exampleLabels.en
+              ? n.example_en && <div className="ewb-set-selected-ex" data-testid="kp-selected-example"><i>{n.example_en.replace(/\*\*/g, '')}</i> {n.example_zh}</div>
+              : n.example_zh && <div className="ewb-set-selected-ex" data-testid="kp-selected-example">{def.exampleLabels.zh}：{n.example_zh}</div>}
             {n.note && <div className="ewb-set-selected-ex">{n.note}</div>}
           </div>
           <Space wrap>
@@ -155,9 +166,9 @@ export default function TaxonomySettings() {
             <Input data-testid="kp-modal-name" placeholder="名称（不超过 30 个字）" maxLength={30} value={name} onChange={e => setName(e.target.value)} onPressEnter={submit} />
             <Input.TextArea data-testid="kp-modal-note" placeholder="说明 / 例词（一行，会写进给 AI 的知识点树里；不要用竖线「|」）" rows={2} maxLength={500} value={note} onChange={e => setNote(e.target.value.replace(/[\r\n]+/g, ' '))} />
             <Input data-testid="kp-modal-plain" placeholder="白话释义：一句话说清考什么（如“表示‘谁的’”，不超过 40 字）" maxLength={40} value={plain} onChange={e => setPlain(e.target.value.replace(/[\r\n|]+/g, ' '))} />
-            <Input data-testid="kp-modal-example-en" placeholder="英文例句（用 ** 标出关键词，如 This is **my** book.）" maxLength={120} value={exEn} onChange={e => setExEn(e.target.value.replace(/[\r\n|]+/g, ' '))} />
-            <Input data-testid="kp-modal-example-zh" placeholder="例句的中文意思（如 这是我的书。）" maxLength={80} value={exZh} onChange={e => setExZh(e.target.value.replace(/[\r\n|]+/g, ' '))} />
-            <Input data-testid="kp-modal-hints" placeholder="例词，用 / 隔开（如 my / your / his）" maxLength={60} value={hints} onChange={e => setHints(e.target.value.replace(/[\r\n|]+/g, ' '))} />
+            {def.exampleLabels.en && <Input data-testid="kp-modal-example-en" placeholder={`${def.exampleLabels.en}（用 ** 标出关键词，如 This is **my** book.）`} maxLength={120} value={exEn} onChange={e => setExEn(e.target.value.replace(/[\r\n|]+/g, ' '))} />}
+            <Input data-testid="kp-modal-example-zh" placeholder={def.exampleLabels.en ? `${def.exampleLabels.zh}（如 这是我的书。）` : `${def.exampleLabels.zh}（用 ** 标出关键词，一句话）`} maxLength={80} value={exZh} onChange={e => setExZh(e.target.value.replace(/[\r\n|]+/g, ' '))} />
+            <Input data-testid="kp-modal-hints" placeholder={subject === 'english' ? '例词，用 / 隔开（如 my / your / his）' : '例词，用 / 隔开'} maxLength={60} value={hints} onChange={e => setHints(e.target.value.replace(/[\r\n|]+/g, ' '))} />
             <Select data-testid="kp-modal-grade" allowClear placeholder="课标一般几年级开始学（可不选）" style={{ width: 200 }} value={grade ?? undefined} onChange={v => setGrade(v ?? null)} options={[1, 2, 3, 4, 5, 6].map(g => ({ value: g, label: `${g} 年级` }))} />
             {dlg.kind === 'edit' && dlg.node?.builtin ? <UsageNote kind="tip">内置节点改名后，代码不变，已有标注和统计不受影响。</UsageNote> : null}
           </Space>

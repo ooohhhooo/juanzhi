@@ -1,0 +1,116 @@
+[
+  {
+    "feature": "数据页",
+    "name": "侧栏有“数据”入口",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据页",
+    "name": "没有数据时显示空状态",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "导入",
+    "name": "导入 survey.xlsx：列表出现数据集卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "导入",
+    "name": "卡片摘要含两张表及行数（问卷 300 行）和敏感列提示",
+    "pass": true,
+    "detail": "survey.xlsx · 问卷 300 行，教师名册 5 行 · 60 KB含敏感列"
+  },
+  {
+    "feature": "导入",
+    "name": "再导入 classes.csv：列表有两个数据集",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "导入",
+    "name": "目录里有 catalog.json 和两个 sqlite 文件",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "概况",
+    "name": "问卷 300 行、标题行已跳过；类型：渠道=选项、推荐分=整数、原因=多选、提交时间=日期时间",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "概况",
+    "name": "推荐分范围 0–10、有“像评分”提示；渠道常见取值 4 种",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "概况",
+    "name": "多选原因：6 个选项，有长表视图",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "敏感列",
+    "name": "自动标出：学员编号、家长手机、授课老师、辅导老师（年级 / 渠道 / 分数不标）",
+    "pass": true,
+    "detail": "学员编号,家长手机,授课老师,辅导老师"
+  },
+  {
+    "feature": "敏感列",
+    "name": "界面开关：授课老师为开、年级为关",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "预览",
+    "name": "预览前 100 行显示真名（张老师01 一类），不是代号",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "预览",
+    "name": "预览接口返回 100 行、总行数 300",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "敏感列",
+    "name": "给 AI 的概况文本里敏感列是代号，没有真名和手机号",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "敏感列",
+    "name": "在界面勾选“年级”后，目录里记为敏感（非自动）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "删除",
+    "name": "删除后列表里没有了，sqlite 与代号文件一并删除",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "删除",
+    "name": "catalog.json 只剩 classes.csv 一项",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "导入",
+    "name": "不支持的文件给白话提示",
+    "pass": false,
+    "detail": ""
+  },
+  {
+    "feature": "运行",
+    "name": "页面没有控制台错误",
+    "pass": true,
+    "detail": ""
+  }
+]

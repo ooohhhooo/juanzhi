@@ -1,10 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { inSubject } from '../subject/papers'
 import { useNavigate } from 'react-router-dom'
 import { Popconfirm, Segmented, Select, Switch, Tooltip } from 'antd'
 import { Btn, ScopeBar, ScopeField, UsageNote } from '../design'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { sanitizePaperIds } from '../../shared/library-select'
 import PaperPicker from './PaperPicker'
+import { useSubject } from '../subject/SubjectContext'
 
 /** 全局筛选条件（总览与分析看板共用）。存在设置里（ui_stats_filter），重启后记住。 */
 const SETTING_KEY = 'ui_stats_filter'
@@ -46,10 +48,13 @@ interface Ctx {
 const FilterCtx = createContext<Ctx | null>(null)
 
 export function StatsFilterProvider({ children }: { children: React.ReactNode }) {
-  const [filter, setFilter] = useState<StatsFilter>({})
+  const { subject } = useSubject()
+  const [dims, setFilter] = useState<StatsFilter>({})   // 筛选条件本身（不含学科：学科由侧栏的切换决定，不存进 ui_stats_filter）
   const [ready, setReady] = useState(false)
-  const latest = useRef(filter)
-  latest.current = filter
+  const latest = useRef(dims)
+  latest.current = dims
+  // 对外的筛选条件自动带上当前学科（所有统计、报告、课程对照的请求和缓存键都用它）
+  const filter = useMemo<StatsFilter>(() => ({ ...dims, subject }), [dims, subject])
 
   useEffect(() => {
     let alive = true
@@ -63,6 +68,19 @@ export function StatsFilterProvider({ children }: { children: React.ReactNode })
     window.api.settings.get(STASH_KEY).then(v => { if (alive) { const { includeReviewing: _a, includeDuplicates: _b, sample: _c, paperIds: _d, ...dims } = sanitizeFilter(v); stash.current = dims } }, () => { /* 没有就算了 */ })
     return () => { alive = false }
   }, [])
+
+  // 切换学科：教材、地区、选中的试卷只对原来的学科有效，一并清掉；示例数据只有英语，离开英语就切回真实数据
+  const prevSubject = useRef(subject)
+  useEffect(() => {
+    if (prevSubject.current === subject) return
+    prevSubject.current = subject
+    const { paperIds: _a, textbook: _b, region: _c, sample: _d, ...rest } = latest.current
+    const next = sanitizeFilter(subject === 'english' ? { ...rest, sample: latest.current.sample && !latest.current.paperIds } : rest)
+    stash.current = {}
+    window.api.settings.set(STASH_KEY, {}).catch(() => { /* 存不上不影响本次使用 */ })
+    latest.current = next; setFilter(next)
+    window.api.settings.set(SETTING_KEY, next).catch(() => { /* 存不上不影响本次使用 */ })
+  }, [subject])
 
   const persist = useCallback((f: StatsFilter) => { window.api.settings.set(SETTING_KEY, f).catch(() => { /* 存不上不影响本次使用 */ }) }, [])
   const set = useCallback((patch: Partial<Record<keyof StatsFilter, unknown>>) => {
@@ -154,6 +172,7 @@ export function scopeSentence(f: StatsFilter, count: number | null, grades: stri
  */
 export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
   const { filter, set, reset, ready, clearSelection } = useStatsFilter()
+  const subject = filter.subject ?? 'english'
   const nav = useNavigate()
   const g = useGuide()
   const qc = useQueryClient()
@@ -162,10 +181,11 @@ export default function FilterBar({ actions }: { actions?: React.ReactNode }) {
   // 示例数据被清除了，筛选里却还停在"示例数据"：自动切回真实数据，免得看到一个空看板还不知道为什么
   // （正在重新取数时不判断：刚加载完示例数据、缓存里还是旧的"没有示例数据"，不能据此把筛选切回去）
   useEffect(() => { if (sampleSt && !sampleFetching && !sampleSt.loaded && filter.sample) set({ sample: false }) }, [sampleSt?.loaded, sampleFetching, filter.sample])
-  const { data: opts } = useQuery({ queryKey: ['stats', 'filterOptions', !!filter.includeReviewing, !!filter.sample], queryFn: () => window.api.stats.filterOptions({ includeReviewing: filter.includeReviewing, sample: filter.sample }), staleTime: 10_000 })
+  const { data: opts } = useQuery({ queryKey: ['stats', 'filterOptions', subject, !!filter.includeReviewing, !!filter.sample], queryFn: () => window.api.stats.filterOptions({ includeReviewing: filter.includeReviewing, sample: filter.sample, subject }), staleTime: 10_000 })
   const { data: notes } = useQuery({ queryKey: ['stats', 'notes', filter], queryFn: () => window.api.stats.notes(filter) })
   const { data: ov } = useQuery({ queryKey: ['stats', 'overview', filter], queryFn: () => window.api.stats.overview(filter), enabled: ready, staleTime: 10_000 })
-  const { data: allPapers = [], isLoading: isLoadingPapers } = useQuery({ queryKey: ['papers'], queryFn: () => window.api.papers.list() })
+  const { data: rawPapers = [], isLoading: isLoadingPapers } = useQuery({ queryKey: ['papers', 'list', subject], queryFn: () => window.api.papers.list({ subject }) })
+  const allPapers = useMemo(() => inSubject(rawPapers, subject), [rawPapers, subject])
   // 选中的试卷后来被删掉了：悄悄从范围里去掉（全没了就回到普通筛选），不让范围句里的份数和实际对不上
   const byIds = !!filter.paperIds
   useEffect(() => {
