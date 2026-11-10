@@ -49,7 +49,6 @@ import { courseSig } from '../course/report-sig'
 import { removeSentence } from '../../shared/factcheck'
 import type { ReportOptions } from '../../shared/report-options'
 import { ruleTalk } from '../../shared/factcheck'
-import { asSubject } from '../../shared/subject'
 import type { SubjectId } from '../../shared/subject'
 
 const KIND = 'report'

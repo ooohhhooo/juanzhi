@@ -23,5 +23,5 @@ export const ManifestSchema = z.object({
 export type Manifest = z.infer<typeof ManifestSchema>
 
 /** 被打进包里的 settings 键（白名单）。AI 配置、密钥密文、数据目录、onboarding 状态等都属于这台电脑，不进包 */
-export const PACK_SETTING_KEYS = ['ai_prompts', 'ai_prompt_bases', 'ui_theme', 'ui_language', 'default_textbook'] as const
+export const PACK_SETTING_KEYS = ['ai_prompts', 'ai_prompt_bases', 'ui_theme', 'ui_language', 'default_textbook', 'default_textbook.chinese', 'default_textbook.math'] as const
 export const isPackSettingKey = (k: string): boolean => (PACK_SETTING_KEYS as readonly string[]).includes(k)

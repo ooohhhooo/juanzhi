@@ -3,17 +3,19 @@ import { App, Modal } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Eye } from 'lucide-react'
 import { Btn } from '../design'
+import { useSubject } from '../subject/SubjectContext'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 /** 一张模板的缩略图（实时渲染示例，主进程一次只渲染一张，所以按顺序慢慢出来） */
 function Thumb({ t, picked, onPick, onZoom }: { t: CardTemplateInfo; picked: boolean; onPick: () => void; onZoom: () => void }) {
+  const { subject } = useSubject()
   const [src, setSrc] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
-    void window.api.cards.preview(t.id, true).then(u => { if (alive) setSrc(u) }).catch(() => undefined)
+    void window.api.cards.preview(t.id, true, undefined, subject).then(u => { if (alive) setSrc(u) }).catch(() => undefined)
     return () => { alive = false }
-  }, [t.id])
+  }, [t.id, subject])
   return (
     <div data-testid={`card-tpl-${t.id}`} data-picked={picked ? '1' : undefined} style={{ width: 112, textAlign: 'center' }}>
       <button type="button" onClick={onPick} aria-pressed={picked} aria-label={`设为默认：${t.name}`} title={t.scene}
@@ -32,13 +34,14 @@ function Thumb({ t, picked, onPick, onZoom }: { t: CardTemplateInfo; picked: boo
 /** 助手设置 → 分享卡片：给学生 / 给家长各选一套默认模板，设置孩子称呼 */
 export function CardsPanel() {
   const { message } = App.useApp()
+  const { subject } = useSubject()
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['cards', 'templates'], queryFn: () => window.api.cards.templates(), staleTime: 0 })
   const [zoom, setZoom] = useState<{ t: CardTemplateInfo; src: string | null } | null>(null)
   const refresh = () => qc.invalidateQueries({ queryKey: ['cards', 'templates'] })
   const setDefault = async (a: 'student' | 'parent', id: string) => { try { await window.api.cards.setDefault(a, id); await refresh() } catch (e) { message.error(clean(e)) } }
   const setName = async (m: 'first' | 'none') => { try { await window.api.cards.setChildName(m); await refresh() } catch (e) { message.error(clean(e)) } }
-  const openZoom = (t: CardTemplateInfo) => { setZoom({ t, src: null }); void window.api.cards.preview(t.id, false).then(src => setZoom(z => (z && z.t.id === t.id ? { ...z, src } : z))).catch(e => message.error(clean(e))) }
+  const openZoom = (t: CardTemplateInfo) => { setZoom({ t, src: null }); void window.api.cards.preview(t.id, false, undefined, subject).then(src => setZoom(z => (z && z.t.id === t.id ? { ...z, src } : z))).catch(e => message.error(clean(e))) }
   const group = (a: 'student' | 'parent', title: string, hint: string) => (
     <div>
       <b>{title}</b>

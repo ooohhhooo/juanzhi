@@ -175,7 +175,7 @@ interface ElectronAPI {
     /** 改过格子才带 levels；没改过只带 sessionId + mappings */
     diff(req: { id: string; sessionId?: string; mappings?: Record<string, CourseSheetMapping | null>; levels?: CourseLevelDraft[] }): Promise<{ added: number; changed: number; removed: number; affectedMaps: number; lockedLost: number; lockedRecheck: number }>
     save(req: CourseSaveRequest): Promise<{ id: string; replaced: boolean; added?: number; changed?: number; removed?: number; affectedMaps?: number }>
-    template(kind: 'blank' | 'sample'): Promise<{ saved: boolean; path?: string }>
+    template(kind: 'blank' | 'sample', subject?: import('../shared/subject').SubjectId): Promise<{ saved: boolean; path?: string }>
     matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number; needsConfirm: boolean }>
     matchProgress(id: string): Promise<CourseMatchProgress | null>
     matchCancel(id: string): Promise<boolean>
@@ -278,7 +278,7 @@ interface ElectronAPI {
   }
   cards: {
     templates(): Promise<{ student: CardTemplateInfo[]; parent: CardTemplateInfo[]; settings: { defaults: { student: string; parent: string }; childName: 'first' | 'none' } }>
-    preview(id: string, thumb: boolean, kind?: string): Promise<string>
+    preview(id: string, thumb: boolean, kind?: string, subject?: import('../shared/subject').SubjectId): Promise<string>
     setDefault(audience: 'student' | 'parent', id: string): Promise<any>
     setChildName(mode: 'first' | 'none'): Promise<any>
   }

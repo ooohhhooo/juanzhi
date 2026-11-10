@@ -228,7 +228,7 @@ const api = {
     preview: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:preview', req),
     diff: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:diff', req),
     save: (req: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('course:save', req),
-    template: (kind: 'blank' | 'sample'): Promise<any> => ipcRenderer.invoke('course:template', kind),
+    template: (kind: 'blank' | 'sample', subject?: string): Promise<any> => ipcRenderer.invoke('course:template', kind, subject),
     matchEstimate: (id: string, onlyNew: boolean): Promise<any> => ipcRenderer.invoke('course:matchEstimate', id, onlyNew),
     matchProgress: (id: string): Promise<any> => ipcRenderer.invoke('course:matchProgress', id),
     matchCancel: (id: string): Promise<boolean> => ipcRenderer.invoke('course:matchCancel', id),
@@ -338,7 +338,7 @@ const api = {
   /** 分享卡片：模板列表（含默认 / 孩子称呼设置）、示例预览、改默认模板、改孩子称呼 */
   cards: {
     templates: (): Promise<any> => ipcRenderer.invoke('cards:templates'),
-    preview: (id: string, thumb: boolean, kind?: string): Promise<string> => ipcRenderer.invoke('cards:preview', id, thumb, kind),
+    preview: (id: string, thumb: boolean, kind?: string, subject?: string): Promise<string> => ipcRenderer.invoke('cards:preview', id, thumb, kind, subject),
     setDefault: (audience: 'student' | 'parent', id: string): Promise<any> => ipcRenderer.invoke('cards:setDefault', audience, id),
     setChildName: (mode: 'first' | 'none'): Promise<any> => ipcRenderer.invoke('cards:setChildName', mode),
   },

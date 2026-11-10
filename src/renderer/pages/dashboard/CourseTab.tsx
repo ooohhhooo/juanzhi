@@ -50,7 +50,7 @@ export default function CourseTab() {
           steps={['上传课程表（.xlsx 或 .csv，也可以先下载模板）', '核对 AI 整理的结果', '开始匹配：让 AI 把知识点对应到课']}
           action={<span className="ewb-rep-row" style={{ justifyContent: 'center' }}>
             <Btn tone="primary" data-testid="course-go-upload" onClick={() => nav('/courses')}>去上传课程大纲</Btn>
-            <Btn tone="secondary" data-testid="course-go-template" onClick={async () => { try { const r = await window.api.course.template('blank'); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }}>下载空白模板</Btn>
+            <Btn tone="secondary" data-testid="course-go-template" onClick={async () => { try { const r = await window.api.course.template('blank', filter.subject); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }}>下载空白模板</Btn>
           </span>} />
         <p className="ewb-rep-note" style={{ textAlign: 'center' }}>课程表只存在这台电脑上；整理和匹配时，内容会发给你在“AI 服务”里设置的模型，不会发给卷知开发者。</p>
       </div>

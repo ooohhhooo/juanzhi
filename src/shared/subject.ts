@@ -136,5 +136,12 @@ export function categoryOf(subject: SubjectId, code: string | null | undefined):
   return best
 }
 
+/** 课程大纲四个「内容列」在各学科的叫法（存库的类型名不变：phonics / word / pattern / expression） */
+export const COURSE_FIELD_LABELS: Record<SubjectId, { phonics: string; word: string; pattern: string; expression: string }> = {
+  english: { phonics: '字母与语音', word: '词汇', pattern: '句型', expression: '实用表达' },
+  math: { phonics: '计算与口算', word: '知识点', pattern: '例题', expression: '方法' },
+  chinese: { phonics: '识字与写字', word: '词语积累', pattern: '阅读', expression: '写作与表达' }
+}
+
 /** 自建知识点在根上的代码前缀（避免三个学科的 U.U1 互相撞）：英语沿用 U，其余 CN.U / MA.U */
 export const customRootPrefix = (s: SubjectId): string => (s === 'english' ? 'U' : `${SUBJECTS[s].kpRoots[0]}.U`)

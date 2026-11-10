@@ -25,7 +25,7 @@ export default function CourseSettings() {
     refetchInterval: q => ((q.state.data ?? []).some(j => j.status === 'queued' || j.status === 'running') ? 1500 : false)
   })
   const refresh = () => qc.invalidateQueries({ queryKey: ['course'] })
-  const tpl = async (kind: 'blank' | 'sample') => { try { const r = await window.api.course.template(kind); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }
+  const tpl = async (kind: 'blank' | 'sample') => { try { const r = await window.api.course.template(kind, subject); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }
   const run = async (fn: () => Promise<unknown>, ok?: string) => { try { await fn(); if (ok) message.success(ok); refresh() } catch (e) { message.error(clean(e)) } }
 
   return (

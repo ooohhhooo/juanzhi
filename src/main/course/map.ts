@@ -6,7 +6,7 @@
  * 没有 AI（或不想发送）时，用户在预览里手动给每一列选类型；也可以用 guessMapping 按表头文字猜一遍。
  */
 import { cleanCell } from './table-read.ts'
-import { asSubject } from '../../shared/subject.ts'
+import { asSubject, COURSE_FIELD_LABELS } from '../../shared/subject.ts'
 import type { SubjectId } from '../../shared/subject.ts'
 import type { Sheet } from './table-read.ts'
 
@@ -20,10 +20,7 @@ export const FIELD_LABEL: Record<ColField, string> = {
 }
 
 /** 各学科下四个「内容列」的叫法（存库的类型名不变：phonics / word / pattern / expression，英语沿用上面的 FIELD_LABEL） */
-const SUBJECT_FIELD_LABEL: Record<'chinese' | 'math', Partial<Record<ColField, string>>> = {
-  math: { phonics: '计算与口算', word: '知识点', pattern: '例题', expression: '方法' },
-  chinese: { phonics: '识字与写字', word: '词语积累', pattern: '阅读', expression: '写作与表达' }
-}
+const SUBJECT_FIELD_LABEL: Record<'chinese' | 'math', Partial<Record<ColField, string>>> = { math: COURSE_FIELD_LABELS.math, chinese: COURSE_FIELD_LABELS.chinese }
 export function fieldLabelsOf(subject?: unknown): Record<ColField, string> {
   const s = asSubject(subject)
   return s === 'english' ? FIELD_LABEL : { ...FIELD_LABEL, ...SUBJECT_FIELD_LABEL[s] }

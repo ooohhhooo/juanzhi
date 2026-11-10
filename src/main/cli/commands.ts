@@ -239,12 +239,12 @@ function reportOut(r: NonNullable<ReturnType<typeof getReport>>) {
 }
 
 /** --with-course <id[,id]>：每个体系都要存在、是正式的（不是草稿）、并且已经匹配完；否则报 course_not_matched */
-function courseIdsFromFlags(flags: Record<string, string | true>): string[] {
+function courseIdsFromFlags(flags: Record<string, string | true>, subject: SubjectId): string[] {
   const v = flags['with-course']
   if (v === undefined) return []
   if (v === true || !v.trim()) throw new CliError('usage', '--with-course 需要一个或几个课程体系 id（用逗号分隔），可以用 course list 查')
   const ids = [...new Set(v.split(',').map(x => x.trim()).filter(Boolean))]
-  const cards = listOutlines(getDb())
+  const cards = listOutlines(getDb(), subject)   // 只认本学科的课程体系
   for (const id of ids) {
     needUuid(id, '课程体系')
     const c = cards.find(x => x.id === id)
@@ -258,7 +258,7 @@ function courseIdsFromFlags(flags: Record<string, string | true>): string[] {
 async function reportGenerate(ctx: CliCtx) {
   const reader = readerFromFlags(ctx.args.flags)
   requireAi()
-  let courseIds = courseIdsFromFlags(ctx.args.flags)
+  let courseIds = courseIdsFromFlags(ctx.args.flags, subjectOf(ctx))
   if (courseIds.length && reader === 'boss') { ctx.log('老板版不加课程对照，已忽略 --with-course'); courseIds = [] }
   const filter = statsFilterFromFlags(ctx.args.flags, subjectOf(ctx))
   const requestId = crypto.randomUUID()
@@ -285,8 +285,8 @@ async function reportGenerate(ctx: CliCtx) {
 
 const matchLabel: Record<string, string> = { none: '未匹配', partial: '部分已匹配（有新的知识点）', stale: '大纲已更新，需要重新匹配', done: '已匹配' }
 
-async function courseList(_ctx: CliCtx) {
-  const items = listOutlines(getDb())
+async function courseList(ctx: CliCtx) {
+  const items = listOutlines(getDb(), subjectOf(ctx))
   return {
     outlines: items.map(o => ({ id: o.id, name: o.name, scene: o.scene, status: o.status, draft: o.status === 'draft', active: o.active, levels: o.levels, lessons: o.lessons, match: o.match.state, matchLabel: matchLabel[o.match.state], matchedKps: o.match.checked, totalKps: o.match.total, createdAt: o.createdAt })),
     note: items.some(o => o.status === 'draft') ? '草稿（draft）不参与对照：请在卷知窗口的侧栏的“课程大纲”页里打开核对并确认。' : undefined
@@ -329,7 +329,8 @@ async function courseMatch(ctx: CliCtx) {
   const id = needUuid(ctx.args.positionals[0], '课程体系')
   requireAi()
   const db = getDb()
-  const o = listOutlines(db).find(x => x.id === id)
+  const own = db.prepare('SELECT subject FROM course_outlines WHERE id = ?').get(id) as { subject?: string } | undefined   // 学科从课程体系自己的行读
+  const o = own ? listOutlines(db, own.subject).find(x => x.id === id) : undefined
   if (!o) throw new CliError('not_found', `找不到这个课程体系：${id}`)
   if (o.status !== 'active') throw new CliError('invalid_state', `课程体系「${o.name}」还是草稿，请先在卷知窗口里确认（侧栏「课程大纲」）`)
   const onlyNew = ctx.args.flags['only-new'] === true

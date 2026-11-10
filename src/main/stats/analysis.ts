@@ -16,12 +16,12 @@ import type { ChunkEvent, UnverifiedItem } from '../ai/chunk'
 import { friendlyAiError } from '../ai/friendly'
 import { clearDraft, getDraft, saveDraft } from '../ai/drafts'
 import type { Draft } from '../ai/drafts'
-import { promptText, promptVersionFor, PROMPT_DEFAULT_VERSION } from '../ai/prompts'
+import { promptText, promptVersionFor, defaultVersionOf } from '../ai/prompts'
 import { notifyDataChanged } from '../events'
 import { stripUnknownCitations } from '../../shared/citation'
 import type { CitationRef } from '../../shared/citation'
 import { headingCodes } from '../../shared/markdown'
-import { checkRules, markFindings } from '../../shared/factcheck'
+import { checkRulesFor, markFindings } from '../../shared/factcheck'
 import { fixBackticks } from '../../shared/report-post'
 import { compare, hot, sideScopes } from './core'
 import type { CompareResult } from './core'
@@ -67,7 +67,7 @@ export interface Prepared {
 const currentRev = (): number => (getDb().prepare('SELECT rev FROM data_rev WHERE id = 1').get() as any)?.rev ?? 0
 
 /** 当前 P2 提示词模板（system + user，未填数据）的签名。提示词在设置里改了、或程序升级换了内置模板，它就变 */
-const currentTemplateSig = () => templateSig(promptText('p2_yoy', 'system'), promptText('p2_yoy', 'user'))
+const currentTemplateSig = (subject?: unknown) => templateSig(promptText('p2_yoy', 'system', subject), promptText('p2_yoy', 'user', subject))
 
 export function prepare(scope: AnalysisScope): Prepared {
   const db = getDb()
@@ -79,13 +79,14 @@ export function prepare(scope: AnalysisScope): Prepared {
   const evidence = collectEvidence(db, both, { codes: p2Codes(cmp, hotRes) })
   const grades = (db.prepare(`SELECT DISTINCT p.grade g FROM papers p WHERE ${both.where} AND p.grade IS NOT NULL AND p.grade <> '' ORDER BY g`).all(...both.params) as any[]).map(r => String(r.g))
   const input = buildP2Input(cmp, hotRes, scope.filter, evidence.text, grades)
-  const system = promptText('p2_yoy', 'system')
-  const userTpl = promptText('p2_yoy', 'user')
+  const subject = scope.filter.subject
+  const system = promptText('p2_yoy', 'system', subject)
+  const userTpl = promptText('p2_yoy', 'user', subject)
   let user = ''
   let promptError: string | null = null
   try { user = fillTemplate(userTpl, input.placeholders) } catch (e) { promptError = (e as Error).message }
   const keys = cacheKeys(scopeObject(scope), system, user)
-  return { cmp, input, system, user, promptError, promptVersion: promptVersionFor('p2_yoy'), templateSig: templateSig(system, userTpl), rev, evidence, ...keys }
+  return { cmp, input, system, user, promptError, promptVersion: promptVersionFor('p2_yoy', subject), templateSig: templateSig(system, userTpl), rev, evidence, ...keys }
 }
 
 export interface AnalysisState {
@@ -151,7 +152,7 @@ function sidesEmpty(scope: AnalysisScope): boolean {
 export function analysisState(scope: AnalysisScope): AnalysisState {
   const db = getDb()
   const ready = aiConfigured()
-  const label = promptVersionFor('p2_yoy')
+  const label = promptVersionFor('p2_yoy', scope.filter.subject)
   const { scopeKey } = cacheKeys(scopeObject(scope), '', '')
   const row = db.prepare('SELECT * FROM ai_analyses WHERE scope_key = ?').get(scopeKey) as any
   if (!row) {
@@ -159,7 +160,7 @@ export function analysisState(scope: AnalysisScope): AnalysisState {
     return { aiReady: ready, blocked, promptVersion: label, status: 'none', markdown: '', refs: [], model: null, createdAt: null, staleReasons: [], warnings: [], unverified: [], draft: draftView(scopeKey), aiDraft: true }
   }
   const rev = currentRev()
-  const sig = currentTemplateSig()
+  const sig = currentTemplateSig(scope.filter.subject)
   let chk: CheckRecord | null = reusableCheck(row, rev, sig)
   if (!chk) {
     const p = prepare(scope)
@@ -249,9 +250,9 @@ export async function generateAnalysis(scope: AnalysisScope, requestId: string, 
     const stray = headingCodes(cited).filter(c => !codes.has(c))
     if (stray.length) warnings.push(`有 ${stray.length} 个小标题的知识点对不上输入数据（${stray.slice(0, 3).join('、')}），请核对`)
     // 完整性兜底：默认提示词规定了「五、…」这个最后一节；缺了很可能是被截断（自定义提示词不检查）
-    if (promptVersionFor('p2_yoy') === PROMPT_DEFAULT_VERSION && !/^#{1,3}\s*五、/m.test(cited)) warnings.push('输出里没有最后一节「五、下学期教学与复习建议」，内容可能不完整，建议重新生成')
+    if (promptVersionFor('p2_yoy', scope.filter.subject) === defaultVersionOf('p2_yoy', scope.filter.subject) && !/^#{1,3}\s*五、/m.test(cited)) warnings.push('输出里没有最后一节「五、下学期教学与复习建议」，内容可能不完整，建议重新生成')
     // 事实核对：规则句只能对得上已审核题目的解释，对不上的标「未核实」，说反的标「矛盾」
-    const findings = checkRules(cited, p.evidence.statements)
+    const findings = checkRulesFor(scope.filter.subject, cited, p.evidence.statements)
     const text = markFindings(cited, findings).text
     const unverified: UnverifiedItem[] = findings.map(f => ({ sentence: f.sentence, kind: f.kind, reason: f.reason }))
     const used = p.input.refs.filter(x => text.includes(x.token))

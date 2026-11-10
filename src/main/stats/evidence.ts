@@ -107,14 +107,16 @@ export function collectEvidence(db: Db, scope: PaperScope, opts: { codes?: strin
       note: oneLine(k.note ?? ''), hint_words: oneLine(k.hint_words ?? ''), reasons
     })
   }
-  const useful = kps.filter(k => k.plain || k.example_en || k.reasons.length)
+  // 例子：英语是英文例句 + 中文意思；语文、数学只有 example_zh（例子本身）
+  const exampleOf = (k: { example_en: string; example_zh: string }): string => (k.example_en ? `${k.example_en} ${k.example_zh}`.trim() : k.example_zh)
+  const useful = kps.filter(k => k.plain || exampleOf(k) || k.reasons.length)
   const text = useful.length
-    ? useful.slice(0, opts.codes ? 80 : MAX_EVIDENCE_KPS).map(k => [k.name, k.plain || '—', k.example_en ? `${k.example_en} ${k.example_zh}`.trim() : '—', k.reasons.length ? k.reasons.join('；') : '—'].join(' | ')).join('\n')
+    ? useful.slice(0, opts.codes ? 80 : MAX_EVIDENCE_KPS).map(k => [k.name, k.plain || '—', exampleOf(k) || '—', k.reasons.length ? k.reasons.join('；') : '—'].join(' | ')).join('\n')
     : '（无）'
   const statements: string[] = []
   for (const k of kps) {
     if (k.plain) statements.push(`${k.name}：${k.plain}`)
-    if (k.example_en) statements.push(`${k.example_en} ${k.example_zh}`.trim())
+    if (exampleOf(k)) statements.push(exampleOf(k))
     if (k.note) statements.push(k.note)
     for (const r of k.reasons) statements.push(r)
   }

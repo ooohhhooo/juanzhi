@@ -34,6 +34,8 @@ export function checkPackSetting(key: string, valueJson: unknown): SettingCheck 
     case 'ui_language':
       return short(v, 40) ? { ok: true, value: v } : { ok: false, note: `设置「${key}」的值不合法，已忽略` }
     case 'default_textbook':
+    case 'default_textbook.chinese':
+    case 'default_textbook.math':
       return short(v, 100) ? { ok: true, value: v } : { ok: false, note: '数据包里的默认教材不合法，已忽略' }
     default:
       return { ok: false, note: `未知的设置「${key}」，已忽略` }

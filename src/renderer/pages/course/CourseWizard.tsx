@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useSubject } from '../../subject/SubjectContext'
+import { COURSE_FIELD_LABELS } from '../../../shared/subject'
+import type { SubjectId } from '../../../shared/subject'
 import { App, Input, Modal, Radio } from 'antd'
 import { Download, FileSpreadsheet } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -10,10 +12,14 @@ import { SCENE_LABEL, wordsOf } from './format'
 import type { Scene } from './format'
 import '../../design/page-course.css'
 
-const FIELDS: Array<[CourseSheetMapping['columns'][number]['field'], string]> = [
-  ['seq', '课次'], ['level', '级别'], ['title', '课程标题'], ['theme', '主题'], ['textbook_ref', '教材对标'], ['phonics', '字母与语音'],
-  ['word', '词汇'], ['pattern', '句型'], ['expression', '实用表达'], ['skill', '能力目标'], ['note', '备注'], ['ignore', '忽略']
-]
+/** 列的叫法按学科：四个内容列英语是「字母与语音 / 词汇 / 句型 / 实用表达」，数学、语文见 COURSE_FIELD_LABELS */
+const fieldsOf = (s: SubjectId): Array<[CourseSheetMapping['columns'][number]['field'], string]> => {
+  const c = COURSE_FIELD_LABELS[s]
+  return [
+    ['seq', '课次'], ['level', '级别'], ['title', '课程标题'], ['theme', '主题'], ['textbook_ref', '教材对标'], ['phonics', c.phonics],
+    ['word', c.word], ['pattern', c.pattern], ['expression', c.expression], ['skill', '能力目标'], ['note', '备注'], ['ignore', '忽略']
+  ]
+}
 
 type Mappings = Record<string, CourseSheetMapping | null>
 
@@ -112,7 +118,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     })
   }
   const downloadTemplate = async (kind: 'blank' | 'sample') => {
-    try { const r = await window.api.course.template(kind); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) }
+    try { const r = await window.api.course.template(kind, subject); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) }
   }
 
   const reparse = async (m: Mappings, sid = src?.sessionId) => {
@@ -274,7 +280,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
           <div className="ewb-rep-row" style={{ marginTop: 12 }}>
             <Btn tone="quiet" size="small" icon={Download} data-testid="course-template-blank" onClick={() => downloadTemplate('blank')}>下载空白模板</Btn>
             <Btn tone="quiet" size="small" icon={Download} data-testid="course-template-sample" onClick={() => downloadTemplate('sample')}>下载示例（虚构数据）</Btn>
-            <span className="ewb-rep-note">模板一张工作表放一个{w.level}，首行是列名：课次 / 级别 / 主题 / 课程标题 / 字母与语音 / 词汇 / 句型 / 实用表达 / 教材对标 / 能力目标 / 备注。</span>
+            <span className="ewb-rep-note">模板一张工作表放一个{w.level}，首行是列名：课次 / 级别 / 主题 / 课程标题 / {COURSE_FIELD_LABELS[subject].phonics} / {COURSE_FIELD_LABELS[subject].word} / {COURSE_FIELD_LABELS[subject].pattern} / {COURSE_FIELD_LABELS[subject].expression} / 教材对标 / 能力目标 / 备注。</span>
           </div>
 
           <div className="ewb-crs-form">
@@ -333,7 +339,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
                 <th key={c}>
                   <select aria-label={`第 ${c + 1} 列的类型`} data-testid={`course-col-${c}`} value={colField(c)} onChange={e => setColField(c, e.target.value)} className="ant-input" style={{ width: '100%', minWidth: 96 }}>
                     <option value="">未识别</option>
-                    {FIELDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    {fieldsOf(subject).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </th>
               ))}</tr></thead>

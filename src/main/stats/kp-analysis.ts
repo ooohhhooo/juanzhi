@@ -17,7 +17,7 @@ import { promptText, promptVersionFor } from '../ai/prompts'
 import { notifyDataChanged } from '../events'
 import { stripUnknownCitations } from '../../shared/citation'
 import type { CitationRef } from '../../shared/citation'
-import { checkRules, markFindings } from '../../shared/factcheck'
+import { checkRulesFor, markFindings } from '../../shared/factcheck'
 import { fixBackticks, stripInternalCodes } from '../../shared/report-post'
 import { safeKpName, stripCodes } from '../../shared/code-guard'
 import { nodeStats, questionsOfKp, scopeCounts, sideScopes } from './core'
@@ -77,8 +77,9 @@ export function prepareKp(scope: KpScope): KpPrepared {
   const years = (db.prepare(`SELECT DISTINCT p.school_year_start y FROM papers p WHERE ${sc.where} AND p.school_year_start IS NOT NULL ORDER BY y`).all(...sc.params) as any[]).map(r => yearLabel(r.y)).join('、') || '（未填写学年）'
   const warning = p3SampleWarning({ dist: { papers: counts.papers, coverage: { questions: 0, scored: 0, tagged: 0 } } as any, cmp: null, distinctGrades: 1, distinctExamTypes: 1 })
   const evidence = collectEvidence(db, sc, { codes: [scope.code] })
-  const system = promptText('p2_kp', 'system')
-  const userTpl = promptText('p2_kp', 'user')
+  const subject = scope.filter.subject
+  const system = promptText('p2_kp', 'system', subject)
+  const userTpl = promptText('p2_kp', 'user', subject)
   let user = ''
   let promptError: string | null = null
   try {
@@ -88,7 +89,7 @@ export function prepareKp(scope: KpScope): KpPrepared {
     })
   } catch (e) { promptError = (e as Error).message }
   const keys = cacheKeys(scopeObject(scope), system, user)
-  return { system, user, refs: [...reg.refs.values()], evidenceStatements: evidence.statements, promptError, promptVersion: promptVersionFor('p2_kp'), templateSig: templateSig(system, userTpl), empty: counts.papers === 0, name, ...keys }
+  return { system, user, refs: [...reg.refs.values()], evidenceStatements: evidence.statements, promptError, promptVersion: promptVersionFor('p2_kp', subject), templateSig: templateSig(system, userTpl), empty: counts.papers === 0, name, ...keys }
 }
 
 export interface KpAnalysisState {
@@ -160,7 +161,7 @@ export async function generateKpAnalysis(scope: KpScope, requestId: string, send
     if (removed.length) warnings.push(`已移除 ${removed.length} 处无法核对的引用`)
     // 四行都写成列表项（模型有时漏写「- 」，Markdown 里四行就并成一段了）
     const clean = stripCodes(cited).split('\n').map(l => (/^\*\*[^*]+\*\*/.test(l.trim()) ? `- ${l.trim()}` : l)).join('\n')
-    const findings = checkRules(clean, p.evidenceStatements)
+    const findings = checkRulesFor(scope.filter.subject, clean, p.evidenceStatements)
     const text = markFindings(clean, findings).text
     const unverified: UnverifiedItem[] = findings.map(f => ({ sentence: f.sentence, kind: f.kind, reason: f.reason }))
     const used = p.refs.filter(x => text.includes(x.token))
