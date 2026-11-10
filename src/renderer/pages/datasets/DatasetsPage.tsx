@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from 'react'
-import { App, Drawer, Input, Popconfirm, Switch, Table, Tabs, Tag } from 'antd'
+import { App, Drawer, Input, Popconfirm, Segmented, Select, Switch, Table, Tabs, Tag } from 'antd'
 import { FileText, Image as ImageIcon, Inbox, Trash2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, EmptyState, Icon, Page } from '../../design'
 import '../../design/page-report.css'
 import '../../design/page-library.css'
 import '../../design/page-course.css'
+import { useSubject } from '../../subject/SubjectContext'
+import { autoApi, asDataSubject, dataSubjectName, DATA_SUBJECTS, type DataSubject } from '../../subject/autoRoute'
+
+type Scope = 'current' | 'all'
+
+/** 学科标签：能直接改（英语 / 语文 / 数学 / 通用） */
+function SubjectTag({ value, label, onChange }: { value: DataSubject; label: string; onChange: (s: DataSubject) => void }) {
+  return (
+    <Select size="small" variant="filled" value={value} style={{ width: 80 }} aria-label={`${label} 的学科`} data-testid="data-subject-tag" data-subject={value}
+      options={DATA_SUBJECTS.map(v => ({ value: v, label: dataSubjectName(v) }))} onChange={v => onChange(v)} />
+  )
+}
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 const TYPE_LABEL: Record<string, string> = { integer: '整数', real: '小数', date: '日期', datetime: '日期时间', boolean: '是否', text: '文本', select: '选项', multi: '多选' }
@@ -23,9 +34,16 @@ export default function DatasetsPage() {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<Progress | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
-  const { data: list = [] } = useQuery({ queryKey: ['datasets', 'list'], queryFn: () => window.api.datasets.list() })
-  const { data: docs = [] } = useQuery({ queryKey: ['datasets', 'documents'], queryFn: () => window.api.datasets.documents() })
-  const { data: src } = useQuery({ queryKey: ['datasets', 'sources'], queryFn: () => window.api.datasets.sources() })
+  const { subject } = useSubject()
+  const [scope, setScope] = useState<Scope>('current')
+  const { data: rawList = [] } = useQuery({ queryKey: ['datasets', 'list', subject], queryFn: () => window.api.datasets.list() })
+  const { data: rawDocs = [] } = useQuery({ queryKey: ['datasets', 'documents', subject], queryFn: () => window.api.datasets.documents() })
+  // 学科由主进程写在每一项里（缺省 = 通用）；筛选在本地做：默认只看当前学科和通用
+  const subjOf = (x: object): DataSubject => asDataSubject((x as { subject?: unknown }).subject)
+  const keep = (x: object) => scope === 'all' || subjOf(x) === 'general' || subjOf(x) === subject
+  const list = rawList.filter(keep)
+  const docs = rawDocs.filter(keep)
+  const hiddenCount = rawList.length + rawDocs.length - list.length - docs.length
   const [docId, setDocId] = useState<string | null>(null)
   const refresh = () => qc.invalidateQueries({ queryKey: ['datasets'] })
 
@@ -51,6 +69,14 @@ export default function DatasetsPage() {
     for (const f of Array.from(e.dataTransfer.files)) { try { const p = window.api.getPathForFile(f); if (p) paths.push(p) } catch { /* 忽略 */ } }
     await doImport(paths)
   }
+  const changeSubj = async (kind: 'doc' | 'set', id: string, s: DataSubject) => {
+    try {
+      if (kind === 'doc') await autoApi().datasets.setDocumentSubject(id, s)
+      else await autoApi().datasets.setDatasetSubject(id, s)
+      message.success(`已改为${dataSubjectName(s)}`)
+    } catch (e) { message.error(clean(e)) }
+    refresh()
+  }
   const removeDoc = async (id: string) => { try { await window.api.datasets.removeDocument(id); message.success('已删除'); if (docId === id) setDocId(null); refresh() } catch (e) { message.error(clean(e)) } }
   const remove = async (id: string) => { try { await window.api.datasets.remove(id); message.success('已删除'); if (openId === id) setOpenId(null); refresh() } catch (e) { message.error(clean(e)) } }
 
@@ -58,11 +84,11 @@ export default function DatasetsPage() {
     <Page data-testid="datasets-page">
       <h1 className="ewb-rep-h1">数据</h1>
       <p className="ewb-set-lead">导入表格、图片或文档，之后可以让助手查询和分析。数据只存在这台电脑上，发给 AI 前姓名、手机号等会换成代号或去掉。</p>
-      {src && (src.papers + src.outlines + src.reports > 0) && (
-        <p className="ewb-rep-note" data-testid="datasets-sources" style={{ margin: '0 0 12px' }}>
-          助手也能直接用卷知里的这些数据：<Link to="/">试卷 {src.papers} 份</Link> · <Link to="/courses">课程大纲 {src.outlines} 套</Link> · <Link to="/report">报告 {src.reports} 份</Link>
-        </p>
-      )}
+      <div className="ewb-rep-row" style={{ margin: '0 0 12px', alignItems: 'center' }}>
+        <Segmented value={scope} onChange={v => setScope(v as Scope)} data-testid="datasets-scope"
+          options={[{ label: '当前学科和通用', value: 'current' }, { label: '全部', value: 'all' }]} />
+        {scope === 'current' && hiddenCount > 0 && <span className="ewb-rep-note" data-testid="datasets-hidden">另有 {hiddenCount} 项属于其他学科，切到「全部」可以看到。</span>}
+      </div>
       <div
         data-testid="datasets-drop" data-over={over ? 'true' : 'false'} className="ewb-lib-drop" role="button" tabIndex={0}
         onDrop={drop} onDragOver={e => { e.preventDefault(); e.stopPropagation(); setOver(true) }} onDragLeave={e => { e.preventDefault(); setOver(false) }}
@@ -77,7 +103,7 @@ export default function DatasetsPage() {
           <div className="ewb-thinking__rail" aria-hidden><div className="ewb-thinking__fill" style={{ transform: `scaleX(${progress.total ? Math.min(1, progress.done / progress.total) : 0})` }} /></div>
         </div>
       )}
-      {list.length === 0 && docs.length === 0 && !busy && <EmptyState inline title="还没有数据" description="导入后会在这里列出：表格可以查看每列的概况，文档可以查看读出的文字。" />}
+      {list.length === 0 && docs.length === 0 && !busy && hiddenCount === 0 && <EmptyState inline title="还没有数据" description="导入后会在这里列出：表格可以查看每列的概况，文档可以查看读出的文字。" />}
       {list.length > 0 && docs.length > 0 && <h3 className="ewb-rep-h2" style={{ margin: '8px 0' }}>表格</h3>}
       <div className="ewb-crs-cards" data-testid="datasets-list">
         {list.map(d => (
@@ -85,6 +111,7 @@ export default function DatasetsPage() {
             <div className="ewb-crs-card__head">
               <span className="ewb-crs-card__name" data-testid="dataset-name">{d.name}</span>
               <span className="ewb-rep-row">
+                <SubjectTag value={subjOf(d)} label={d.name} onChange={v => void changeSubj('set', d.id, v)} />
                 <Btn tone="secondary" size="small" data-testid="dataset-open" onClick={() => setOpenId(d.id)}>查看</Btn>
                 <Popconfirm title="删除这个数据集？" description="数据文件会一并删除，不能恢复。" okText="删除" cancelText="取消" onConfirm={() => void remove(d.id)}>
                   <Btn tone="danger" size="small" icon={Trash2} data-testid="dataset-remove">删除</Btn>
@@ -107,6 +134,7 @@ export default function DatasetsPage() {
                 <div className="ewb-crs-card__head">
                   <span className="ewb-crs-card__name">{d.kind === 'image' ? <ImageIcon size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} /> : <FileText size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />}{d.name}</span>
                   <span className="ewb-rep-row">
+                    <SubjectTag value={subjOf(d)} label={d.name} onChange={v => void changeSubj('doc', d.id, v)} />
                     <Btn tone="secondary" size="small" data-testid="document-open" onClick={() => setDocId(d.id)}>查看文字</Btn>
                     <Popconfirm title="删除这份文档？" description="读出的文字会一并删除（原文件不受影响）。" okText="删除" cancelText="取消" onConfirm={() => void removeDoc(d.id)}>
                       <Btn tone="danger" size="small" icon={Trash2} data-testid="document-remove">删除</Btn>

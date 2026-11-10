@@ -20,6 +20,8 @@ import type { BatchResult } from '../../shared/library-select'
 import SimilarNotice from '../components/SimilarNotice'
 import { ImportTarget, MathVisionHint } from '../components/ImportTarget'
 import { useSubject } from '../subject/SubjectContext'
+import { SubjectHintBar, useChangeSubject } from '../components/SubjectHint'
+import { hintOf } from '../subject/autoRoute'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
@@ -50,6 +52,7 @@ export default function PaperLibrary() {
   const [dragOver, setDragOver] = useState(false)
   const { selectPapers, filter: statsFilter } = useStatsFilter()
   const { subject, def } = useSubject()
+  const changeSubject = useChangeSubject()
   // 搜索：draft 是输入框里的字，query 是真正用来过滤的（输入法拼音还没确认时不过滤）
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
@@ -348,19 +351,24 @@ export default function PaperLibrary() {
         const items = [
           { key: 'view', label: <span data-testid="view-paper">查看原卷</span> },
           { key: 'edit', label: <span data-testid="edit-paper" title="修改年级、学年、教材等信息">改信息</span> },
+          { key: 'subject', disabled: ['imported', 'extracting', 'parsing'].includes(record.status), label: <span data-testid="change-subject" title="改成别的学科，会删掉现有题目并重新识别">改学科</span> },
           ...(canRework ? [{ key: 'reprocess', label: <span data-testid="reprocess" title="重新读取文件（会清除已整理好的题目）">重新读取</span> }] : []),
           { key: 'delete', danger: true, label: <span data-testid="delete-paper">删除</span> }
         ]
         const onMenu = ({ key }: { key: string }) => {
           if (key === 'view') navigate(`/paper/${record.id}`)
           else if (key === 'edit') handleEdit(record)
+          else if (key === 'subject') changeSubject.open(record)
           else if (key === 'reprocess') void confirmReprocess(record)
           else if (key === 'delete') confirmDelete(record)
         }
         return (
           <div className="ewb-lib-ops">
             {record.status === 'failed' && <RetryActions paper={record} menuLabel="其他方式" />}
-            {record.status === 'extracted' && (
+            {record.status === 'extracted' && hintOf(record) && (
+              <Btn tone="secondary" size="small" icon={Zap} disabled title="请先确认学科" data-testid="parse-paper-blocked">先确认学科</Btn>
+            )}
+            {record.status === 'extracted' && !hintOf(record) && (
               <Btn tone="secondary" size="small" icon={Zap} title="让 AI 读出题目并标上知识点" data-testid="parse-paper" onClick={() => handleParse(record.id)}>AI 解析</Btn>
             )}
             {reviewable && (
@@ -390,6 +398,7 @@ export default function PaperLibrary() {
       </div>
 
       <MathVisionHint />
+      <SubjectHintBar papers={papers} />
       <BetaWelcome />
       <RoleGuide />
       <Onboarding />
@@ -472,6 +481,7 @@ export default function PaperLibrary() {
         } : undefined}
       />
 
+      {changeSubject.holder}
       <BatchEditModal
         open={batchEditOpen}
         papers={selected.map(p => ({ id: p.id, ai: aiFieldsOf(p) }))}
