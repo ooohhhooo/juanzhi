@@ -6,6 +6,8 @@
  * 没有 AI（或不想发送）时，用户在预览里手动给每一列选类型；也可以用 guessMapping 按表头文字猜一遍。
  */
 import { cleanCell } from './table-read.ts'
+import { asSubject } from '../../shared/subject.ts'
+import type { SubjectId } from '../../shared/subject.ts'
 import type { Sheet } from './table-read.ts'
 
 export const COL_FIELDS = ['seq', 'level', 'title', 'theme', 'textbook_ref', 'phonics', 'word', 'pattern', 'expression', 'skill', 'note', 'ignore'] as const
@@ -15,6 +17,16 @@ export type ColField = (typeof COL_FIELDS)[number]
 export const FIELD_LABEL: Record<ColField, string> = {
   seq: '课次', level: '级别', title: '课程标题', theme: '主题', textbook_ref: '教材对标',
   phonics: '字母与语音', word: '词汇', pattern: '句型', expression: '实用表达', skill: '能力目标', note: '备注', ignore: '忽略'
+}
+
+/** 各学科下四个「内容列」的叫法（存库的类型名不变：phonics / word / pattern / expression，英语沿用上面的 FIELD_LABEL） */
+const SUBJECT_FIELD_LABEL: Record<'chinese' | 'math', Partial<Record<ColField, string>>> = {
+  math: { phonics: '计算与口算', word: '知识点', pattern: '例题', expression: '方法' },
+  chinese: { phonics: '识字与写字', word: '词语积累', pattern: '阅读', expression: '写作与表达' }
+}
+export function fieldLabelsOf(subject?: unknown): Record<ColField, string> {
+  const s = asSubject(subject)
+  return s === 'english' ? FIELD_LABEL : { ...FIELD_LABEL, ...SUBJECT_FIELD_LABEL[s] }
 }
 
 export type PointKind = 'word' | 'pattern' | 'phonics' | 'expression' | 'skill' | 'other'
@@ -71,12 +83,19 @@ export function headerLabels(sheet: Sheet, headerRows: number): string[] {
   return out
 }
 
-const GUESS_RULES: Array<[ColField, RegExp]> = [
+const GUESS_HEAD: Array<[ColField, RegExp]> = [
   ['textbook_ref', /对标|教材|课本|教科书|版本|textbook/i],
   ['level', /级别|等级|阶段|\blevel\b/i],
   ['seq', /课次|课时|课序|序号|节次|第几课|课号|周次|单元序|^lesson\b|^no\.?$|^#$|^unit$|^week$/i],
   ['title', /标题|课名|课题|课程名|课程名称|名称|\btitle\b/i],
-  ['theme', /主题|话题|场景|\btopic\b|\btheme\b/i],
+  ['theme', /主题|话题|场景|\btopic\b|\btheme\b/i]
+]
+/** 语文 / 数学表头的特有叫法（放在通用规则前面：数学的「知识点」「例题」「方法」，语文的「识字」「阅读」「写作」） */
+const GUESS_SUBJECT: Record<'chinese' | 'math', Array<[ColField, RegExp]>> = {
+  math: [['word', /知识点|考点|内容要点|学习内容/], ['pattern', /例题|典型题|题型|习题/], ['expression', /方法|策略|解法|思路/], ['phonics', /计算|口算|运算/]],
+  chinese: [['phonics', /识字|写字|生字|字词|拼音/], ['word', /词语|积累|成语|词汇/], ['pattern', /阅读|课文|古诗|诗文|文言/], ['expression', /写作|习作|写话|表达|口语交际/]]
+}
+const GUESS_TAIL: Array<[ColField, RegExp]> = [
   ['phonics', /字母|语音|自然拼读|拼读|自拼|phonics/i],
   ['word', /词汇|单词|生词|词语|\bvocab|\bwords?\b/i],
   ['pattern', /句型|句式|语法|句子|pattern|sentence/i],
@@ -86,11 +105,13 @@ const GUESS_RULES: Array<[ColField, RegExp]> = [
 ]
 
 /** 按表头文字猜列类型（本地规则，不调用 AI） */
-export function guessField(label: string): ColField | null {
+export function guessField(label: string, subject?: unknown): ColField | null {
   const t = label.trim()
   if (!t) return null
   if (isPriceHeader(t)) return 'ignore'
-  for (const [f, re] of GUESS_RULES) if (re.test(t)) return f
+  const s = asSubject(subject)
+  const rules = s === 'english' ? [...GUESS_HEAD, ...GUESS_TAIL] : [...GUESS_HEAD, ...GUESS_SUBJECT[s], ...GUESS_TAIL]
+  for (const [f, re] of rules) if (re.test(t)) return f
   return null
 }
 
@@ -107,12 +128,12 @@ export function parseSeq(cell: string): number | null {
  * 按表头文字猜一份映射。表头行数在 1–4 之间找：第一个让「课次列的下一行是数字」成立的行数。
  * 猜不出课次或标题列时返回 null。
  */
-export function guessMapping(sheet: Sheet): SheetMapping | null {
+export function guessMapping(sheet: Sheet, subject?: unknown): SheetMapping | null {
   const maxH = Math.min(4, Math.max(1, sheet.rows.length - 1))
   for (let h = 1; h <= maxH; h++) {
     const labels = headerLabels(sheet, h)
     const columns: SheetMapping['columns'] = []
-    labels.forEach((l, col) => { const f = guessField(l); if (f) columns.push({ col, field: f }) })
+    labels.forEach((l, col) => { const f = guessField(l, subject); if (f) columns.push({ col, field: f }) })
     const seqCols = columns.filter(c => c.field === 'seq')
     const hasTitle = columns.some(c => c.field === 'title')
     if (!seqCols.length && !hasTitle) continue

@@ -65,7 +65,8 @@ export type PromptId = (typeof PROMPT_IDS)[number]
 export type PromptPart = 'system' | 'user'
 
 export interface PromptView {
-  id: PromptId
+  /** 英语 'p1_text'；语文 / 数学 'chinese:p1_text' / 'math:p1_text' */
+  id: string
   part: PromptPart
   title: string
   text: string

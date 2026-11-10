@@ -125,7 +125,7 @@ const order = (a: LessonRef, b: LessonRef) => (a.outlineName < b.outlineName ? -
 export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[], opts: { errRows?: number; hotRows?: number } = {}): CourseDashboard {
   const scope = paperScope(filter)
   const counts = scopeCounts(db, scope)
-  const cards = listOutlines(db).filter(o => outlineIds.includes(o.id) && o.status === 'active')
+  const cards = listOutlines(db, filter.subject).filter(o => outlineIds.includes(o.id) && o.status === 'active')
   const ids = cards.map(c => c.id)
   const levelsOf = new Map<string, Array<{ id: number; name: string }>>()
   for (const lv of db.prepare('SELECT id, outline_id, name FROM course_levels ORDER BY sort, id').all() as any[]) {

@@ -4,6 +4,7 @@
  */
 import crypto from 'node:crypto'
 import { safeKpName } from '../../shared/code-guard.ts'
+import { asSubject } from '../../shared/subject.ts'
 import { lessonSearchText, lessonQuoteText, kpSig, planMerge } from './match.ts'
 import type { KpLite, LessonLite, MatchEntry, ExistingMap } from './match.ts'
 import { lessonHash, planReplace, countsOf } from './replace-diff.ts'
@@ -28,6 +29,8 @@ export interface OutlineInput {
   aiModel: string
   status: 'active' | 'draft'
   levels: ParsedLevel[]
+  /** 学科（缺省英语） */
+  subject?: string
 }
 
 /** 读库里的 JSON 文本：解析失败、或形状和 fallback 不一样（该是数组却是对象 / 字符串……）一律用 fallback——数据包里来的内容不能把界面搞崩 */
@@ -58,8 +61,8 @@ export function createOutline(db: Db, input: OutlineInput): string {
   const id = uuid()
   db.exec('BEGIN')
   try {
-    db.prepare(`INSERT INTO course_outlines (id, name, scene, term_note, source_name, source_hash, status, active, rev, mapping_json, warnings_json, ai_model)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?)`).run(id, input.name, input.scene, input.termNote, input.sourceName, input.sourceHash, input.status, JSON.stringify(input.mapping ?? null), JSON.stringify(input.warnings), input.aiModel)
+    db.prepare(`INSERT INTO course_outlines (id, name, scene, term_note, source_name, source_hash, status, active, rev, mapping_json, warnings_json, ai_model, subject)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?)`).run(id, input.name, input.scene, input.termNote, input.sourceName, input.sourceHash, input.status, JSON.stringify(input.mapping ?? null), JSON.stringify(input.warnings), input.aiModel, asSubject(input.subject))
     const insLv = db.prepare('INSERT INTO course_levels (outline_id, name, sort) VALUES (?, ?, ?)')
     input.levels.forEach((lv, i) => {
       const r = insLv.run(id, lv.name, i)
@@ -181,15 +184,16 @@ export function renameOutline(db: Db, id: string, name: string): boolean {
 export interface KpTarget extends KpLite { sig: string }
 
 /** 要匹配的知识点：库里（非示例卷）至少有一道题标过的二、三级知识点 */
-export function targetKps(db: Db): KpTarget[] {
-  const q = (sample: 0 | 1) => db.prepare(`SELECT DISTINCT k.code, k.name, k.plain, k.example_en, k.hint_words, k.sort FROM kps k
+export function targetKps(db: Db, subject?: unknown): KpTarget[] {
+  const sub = asSubject(subject)
+  const q = (sample: 0 | 1) => db.prepare(`SELECT DISTINCT k.code, k.name, k.plain, k.example_en, k.example_zh, k.hint_words, k.sort FROM kps k
     JOIN question_kps qk ON qk.kp_code = k.code JOIN questions q ON q.id = qk.question_id JOIN papers p ON p.id = q.paper_id
-    WHERE p.is_sample = ${sample} AND k.level >= 2 ORDER BY k.sort, k.code`).all() as any[]
+    WHERE p.is_sample = ${sample} AND k.level >= 2 AND p.subject = ? ORDER BY k.sort, k.code`).all(sub) as any[]
   // 只有示例数据（新用户先试用）时，用示例试卷里的知识点匹配，课程对照才看得到效果；有了真实试卷就只匹配真实数据
   let rows = q(0)
   if (!rows.length) rows = q(1)
   return rows.map(r => {
-    const kp: KpLite = { code: r.code, name: safeKpName(r.name), plain: r.plain ?? '', exampleEn: r.example_en ?? '', hintWords: r.hint_words ?? '' }
+    const kp: KpLite = { code: r.code, name: safeKpName(r.name), plain: r.plain ?? '', exampleEn: (sub === 'english' ? r.example_en : r.example_en || r.example_zh) ?? '', hintWords: r.hint_words ?? '' }
     return { ...kp, sig: kpSig(kp) }
   })
 }
@@ -216,10 +220,11 @@ export interface OutlineCard {
   match: MatchState
 }
 
-export function listOutlines(db: Db): OutlineCard[] {
-  const kps = targetKps(db)
+export function listOutlines(db: Db, subject?: unknown): OutlineCard[] {
+  const sub = asSubject(subject)
+  const kps = targetKps(db, sub)
   const rows = db.prepare(`SELECT o.*, (SELECT COUNT(*) FROM course_levels WHERE outline_id = o.id) levels, (SELECT COUNT(*) FROM course_lessons WHERE outline_id = o.id) lessons
-    FROM course_outlines o ORDER BY o.created_at DESC, o.rowid DESC`).all() as any[]
+    FROM course_outlines o WHERE o.subject = ? ORDER BY o.created_at DESC, o.rowid DESC`).all(sub) as any[]
   return rows.map(r => ({
     id: r.id, name: r.name, scene: r.scene, termNote: r.term_note ?? '', sourceName: r.source_name ?? '', status: r.status, active: !!r.active, rev: r.rev,
     levels: r.levels, lessons: r.lessons, createdAt: r.created_at, updatedAt: r.updated_at, aiModel: r.ai_model ?? '', warnings: json(r.warnings_json, []), match: matchState(db, r.id, kps)

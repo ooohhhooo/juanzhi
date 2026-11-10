@@ -3,7 +3,8 @@
  * 顺序：去反引号 → 去内部代码 → 去模型写的标题 → 校验引用 → 家长版先删矛盾句、再净化统计词 → 写标题 → 补样本提示 → 事实核对写回「未核实」标记。
  */
 import { stripUnknownCitations } from '../../shared/citation.ts'
-import { checkRules, markFindings, removeSentence, splitSentences } from '../../shared/factcheck.ts'
+import { checkRulesFor, markFindings, removeSentence, ruleTalk, splitSentences } from '../../shared/factcheck.ts'
+import { asSubject } from '../../shared/subject.ts'
 import { hasOverclaim } from './teacher-sections.ts'
 import { fixBackticks, hasBossReviewLine, markdownToWechat, parentBodyLength, parentItemCount, PARENT_MIN_CHARS, PARENT_MIN_ITEMS, sanitizeParent, setBossReviewLine, stripInternalCodes, topScoreGapWarning } from '../../shared/report-post.ts'
 import { bossJargon, fixParent, fixTeacherExamples, softenOverclaims } from '../../shared/parent-fix.ts'
@@ -41,8 +42,12 @@ export function finishReport(o: {
   topScore?: { name: string; share: number } | null
   /** 考试类型（期中 / 期末……）：家长版开头问候里写；不传就不写具体类型 */
   examLabel?: string | null
+  /** 学科（缺省英语）：决定事实核对的办法、家长版问候语，以及警告文案里的学科词 */
+  subject?: string
 }): { text: string; warnings: string[]; unverified: UnverifiedItem[] } {
   const warnings: string[] = []
+  const subject = asSubject(o.subject)
+  const talk = ruleTalk(subject)
   let body = stripInternalCodes(fixBackticks(o.raw), o.knownCodes)
   body = dropLeadingH1(body)
   const stripped = stripUnknownCitations(body, o.knownRefs)
@@ -51,19 +56,19 @@ export function finishReport(o: {
 
   // 事实核对：规则句对证据。家长版里和题目解释矛盾的句子整句删掉（不能让错的规则发给家长），再净化统计词；核对结果以最终正文为准
   if (o.reader === 'parent') {
-    const conflicts = checkRules(body, o.evidence).filter(f => f.kind === 'conflict')
+    const conflicts = checkRulesFor(subject, body, o.evidence).filter(f => f.kind === 'conflict')
     for (const c of conflicts) body = removeSentence(body, c.sentence)
     if (conflicts.length) {
       // 删完再核对一遍：以实际结果为准，提示不能比事实乐观（句子里夹着别的东西时可能没删干净）
-      const left = checkRules(body, o.evidence).filter(f => f.kind === 'conflict').length
-      if (left === 0) warnings.push(`有 ${conflicts.length} 句讲英语规则的话和审核过的题目解释矛盾，已从家长版里删掉`)
-      else warnings.push(`有 ${conflicts.length} 句讲英语规则的话和审核过的题目解释矛盾，其中 ${left} 句没能自动删掉，已在正文里标出「与题目解释矛盾」；这份家长版不能核对通过，请重新生成`)
+      const left = checkRulesFor(subject, body, o.evidence).filter(f => f.kind === 'conflict').length
+      if (left === 0) warnings.push(`有 ${conflicts.length} 句${talk}的话和审核过的题目解释矛盾，已从家长版里删掉`)
+      else warnings.push(`有 ${conflicts.length} 句${talk}的话和审核过的题目解释矛盾，其中 ${left} 句没能自动删掉，已在正文里标出「与题目解释矛盾」；这份家长版不能核对通过，请重新生成`)
     }
     const clean = sanitizeParent(body)
     body = clean.text
     if (clean.removed) warnings.push(`家长版里有 ${clean.removed} 句含统计词或百分比，已删掉`)
     // 例句和要点对得上、没有家长看不懂的写法、开头问候、条与条空一行、字数按「复制到微信」的口径 ≤ 300
-    const fixed = fixParent(body, o.evidenceKps ?? [], md => markdownToWechat(md, { spaced: true }).length, 300, o.examLabel)
+    const fixed = fixParent(body, o.evidenceKps ?? [], md => markdownToWechat(md, { spaced: true }).length, 300, o.examLabel, subject)
     body = fixed.text
     warnings.push(...fixed.warnings)
     const n = markdownToWechat(body, { spaced: true }).length
@@ -83,7 +88,7 @@ export function finishReport(o: {
     const jargon = bossJargon(body)
     if (jargon.length) warnings.push(`老板版里还有老板看不懂的词（${jargon.join('、')}），发出去之前请改成大白话`)
   }
-  if (o.reader === 'teacher' && o.evidenceKps) {
+  if (o.reader === 'teacher' && o.evidenceKps && subject === 'english') {   // 老师版例句校对只对英语开（按英文词对照）
     const fixedT = fixTeacherExamples(body, o.evidenceKps)
     body = fixedT.text
     warnings.push(...fixedT.warnings)
@@ -94,7 +99,7 @@ export function finishReport(o: {
     for (const s of bad) body = removeSentence(body, s)
     if (bad.length) warnings.push(`老师版里有 ${bad.length} 句含价格 / 夸大的说法，已删掉：${bad.slice(0, 3).map(s => `「${s.replace(/\s+/g, ' ').trim().slice(0, 30)}${s.trim().length > 30 ? '…' : ''}」`).join('')}${bad.length > 3 ? '等' : ''}`)
   }
-  const remaining = checkRules(body, o.evidence)
+  const remaining = checkRulesFor(subject, body, o.evidence)
   // 家长版不写标题（老师口吻：开头就是「各位家长好」）；其他版本标题由程序写
   let text = o.reader === 'parent' ? body.replace(/^\s+/, '') : `# ${o.title}\n\n${body.replace(/^\s+/, '')}`
   if (o.reader === 'boss' && o.bossLine) {
@@ -136,15 +141,15 @@ export function dropReportSentence(markdown: string, unverified: UnverifiedItem[
   return { markdown: hasBossReviewLine(next) ? setBossReviewLine(next, left.length) : next, unverified: left }
 }
 
-const VERIFY_WARNING_RE = /句讲英语规则的话在审核过的题目解释里找不到依据，已标「未核实」/
+const VERIFY_WARNING_RE = /句讲(?:英语|语文|数学)规则的话在审核过的题目解释里找不到依据，已标「未核实」/
 
-/** 「有 N 句……未核实」那条提示的文字（生成时和删句后重算都用它，数字永远和清单一致） */
-export function verifyWarning(unverified: UnverifiedItem[], missed = 0): string {
-  return `有 ${unverified.length} 句讲英语规则的话在审核过的题目解释里找不到依据，已标「未核实」，请老师核对后再用${unverified.some(u => u.kind === 'conflict') ? '（其中有和题目解释矛盾的）' : ''}${missed ? `；其中 ${missed} 句在正文里定位不到标记位置，只列在「未核实」清单里` : ''}`
+/** 「有 N 句……未核实」那条提示的文字（生成时和删句后重算都用它，数字永远和清单一致）；subject 缺省英语，文案要和上面的 VERIFY_WARNING_RE 同步 */
+export function verifyWarning(unverified: UnverifiedItem[], missed = 0, subject?: unknown): string {
+  return `有 ${unverified.length} 句${ruleTalk(subject)}的话在审核过的题目解释里找不到依据，已标「未核实」，请老师核对后再用${unverified.some(u => u.kind === 'conflict') ? '（其中有和题目解释矛盾的）' : ''}${missed ? `；其中 ${missed} 句在正文里定位不到标记位置，只列在「未核实」清单里` : ''}`
 }
 
 /** 删句之后重写 warnings：去掉旧的「有 N 句未核实」那条，按现在的清单重算（清单空了就不留这条）；其余提示（样本、引用、家长版删句记录……）原样保留 */
-export function refreshVerifyWarnings(warnings: string[], unverified: UnverifiedItem[]): string[] {
+export function refreshVerifyWarnings(warnings: string[], unverified: UnverifiedItem[], subject?: unknown): string[] {
   const rest = warnings.filter(w => !VERIFY_WARNING_RE.test(w))
-  return unverified.length ? [...rest, verifyWarning(unverified)] : rest
+  return unverified.length ? [...rest, verifyWarning(unverified, 0, subject)] : rest
 }

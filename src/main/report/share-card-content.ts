@@ -4,6 +4,7 @@
  */
 import { parseBlocks, parseInline, trickFields } from '../../shared/markdown.ts'
 import type { Inline } from '../../shared/markdown.ts'
+import { asSubject } from '../../shared/subject.ts'
 
 export interface Mapped { kind: 'mnemonic' | 'practice' | 'brief'; content: Record<string, any>; notes: string[] }
 
@@ -33,7 +34,7 @@ type CardBlock = Extract<ReturnType<typeof parseBlocks>[number], { type: 'card' 
 const cardsOf = (markdown: string, kind: 'trick' | 'answercard'): CardBlock[] =>
   parseBlocks(markdown).filter((b): b is CardBlock => b.type === 'card' && b.kind === kind)
 
-export function trickToCard(markdown: string, index: number): Mapped | null {
+export function trickToCard(markdown: string, index: number, subject?: unknown): Mapped | null {
   const c = cardsOf(markdown, 'trick')[index]
   if (!c) return null
   const f = trickFields(c.raw)
@@ -41,7 +42,7 @@ export function trickToCard(markdown: string, index: number): Mapped | null {
   const example = plainText(f.example)
   const from = plainText(f.from)
   const examples: Array<{ label: string; text: string }> = []
-  if (example) examples.push({ label: '例句', text: example })
+  if (example) examples.push({ label: asSubject(subject) === 'english' ? '例句' : '例子', text: example })   // 语文、数学叫「例子」
   if (from) examples.push({ label: '出自', text: from })
   if (examples.length < 2) examples.push({ label: '记住', text: '多念几遍，做题时就想起来' })
   if (examples.length < 2) examples.push({ label: '加油', text: '每天念一念，慢慢就会了' })

@@ -14,6 +14,8 @@ export interface JobInput {
   scene: string
   termNote: string
   replaceId?: string
+  /** 学科（缺省英语）：认列用对应学科的提示词和表头规则 */
+  subject?: string
 }
 export interface JobProgress { done: number; total: number; unit: string }
 export interface Job<R> extends JobInput {

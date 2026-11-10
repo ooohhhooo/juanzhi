@@ -15,7 +15,8 @@ import { promptText, promptVersionFor } from '../ai/prompts'
 import { fillTemplate } from '../stats/p2'
 import { paperScope } from '../stats/filter'
 import { questionsOfKp } from '../stats/core'
-import { checkRules, markFindings } from '../../shared/factcheck'
+import { checkRulesFor, markFindings } from '../../shared/factcheck'
+import { asSubject } from '../../shared/subject'
 import type { UnverifiedItem } from '../ai/chunk'
 import type { ReportReader } from '../../shared/report-post'
 import { log } from '../log'
@@ -237,8 +238,8 @@ const kpsOf = (p: PreparedReport) => (p.src.evidence?.kps ?? []).map(k => ({ cod
 const evidenceOf = (p: PreparedReport): string[] => p.src.evidence?.statements ?? []
 
 /** 对一段 AI 写的文字做事实核对：对不上证据的句子加「未核实」标记，并返回清单 */
-function factCheck(md: string, evidence: string[]): { text: string; unverified: UnverifiedItem[] } {
-  const found = checkRules(md, evidence)
+function factCheck(md: string, evidence: string[], subject?: unknown): { text: string; unverified: UnverifiedItem[] } {
+  const found = checkRulesFor(subject, md, evidence)
   if (!found.length) return { text: md, unverified: [] }
   return { text: markFindings(md, found).text, unverified: found.map(f => ({ sentence: f.sentence, kind: f.kind, reason: f.reason })) }
 }
@@ -256,7 +257,7 @@ registerReportPart({
       const rows = db.prepare(`SELECT q.id, q.answer FROM questions q JOIN papers p ON p.id = q.paper_id WHERE p.status = 'done' AND q.answer IS NOT NULL AND q.answer <> '' AND q.id IN (${ids.map(() => '?').join(',')})`).all(...ids) as Array<{ id: string; answer: string }>
       for (const r of rows) answers.set(r.id, r.answer)
     }
-    return { markdown: buildErrorsSection(items, kpsOf(ctx.prepared), { answerOf: id => answers.get(id) ?? null }) }
+    return { markdown: buildErrorsSection(items, kpsOf(ctx.prepared), { answerOf: id => answers.get(id) ?? null, subject: ctx.prepared.subject }) }
   }
 })
 
@@ -265,14 +266,14 @@ registerReportPart({
   skip: ctx => (ctx.prepared.input.errorItems.length === 0 ? '这个范围内没有 AI 估计的易错点，不用写口诀' : null),
   async run(ctx) {
     const p = ctx.prepared
-    const user = fillTemplate(promptText('p3_tricks', 'user'), { ERROR_ITEMS: p.input.placeholders.ERROR_ITEMS, EVIDENCE: p.input.placeholders.EVIDENCE })
-    const r = await partChat({ system: promptText('p3_tricks', 'system'), user, kind: 'p3_tricks', signal: ctx.signal })
-    const built = buildTricksSection(r.content, p.input.errorItems, kpsOf(p))
+    const user = fillTemplate(promptText('p3_tricks', 'user', p.subject), { ERROR_ITEMS: p.input.placeholders.ERROR_ITEMS, EVIDENCE: p.input.placeholders.EVIDENCE })
+    const r = await partChat({ system: promptText('p3_tricks', 'system', p.subject), user, kind: 'p3_tricks', signal: ctx.signal })
+    const built = buildTricksSection(r.content, p.input.errorItems, kpsOf(p), p.subject)
     if (built.cards === 0) throw new Error('AI 没有写出可用的口诀（可能是证据里没有对应的规则，或口诀不合要求）。可以点「重试这一部分」')
-    const fc = factCheck(built.markdown, evidenceOf(p))
+    const fc = factCheck(built.markdown, evidenceOf(p), p.subject)
     const warnings: string[] = []
     if (built.dropped.length) warnings.push(`有 ${built.dropped.length} 句口诀含价格 / 夸大的说法或太长，已去掉：${built.dropped.slice(0, 3).map(s => `「${s}」`).join('')}`)
-    return { markdown: fc.text, model: r.model, promptVersion: promptVersionFor('p3_tricks'), usage: r.usage, unverified: fc.unverified, warnings }
+    return { markdown: fc.text, model: r.model, promptVersion: promptVersionFor('p3_tricks', p.subject), usage: r.usage, unverified: fc.unverified, warnings }
   }
 })
 
@@ -294,13 +295,14 @@ registerReportPart({
     const db = getDb()
     const items = p.input.errorItems.slice(0, 3)
     const kps = new Map(kpsOf(p).map(k => [k.code, k]))
+    const english = asSubject(p.subject) === 'english'
     // 只把考点、白话释义、例词、例句和题型交给 AI；题干与选项原文不外发
     const kpRows = items.map((it, i) => {
       const k = kps.get(it.code)
-      return [i + 1, it.name, k?.plain || '—', k?.hint_words || '—', k?.example_en ? `${k.example_en} ${k.example_zh}`.trim() : '—', it.qtypes.join('、') || '—'].map(x => String(x).replace(/\s+/g, ' ').replace(/\|/g, '／')).join(' | ')
+      return [i + 1, it.name, k?.plain || '—', k?.hint_words || '—', (english ? (k?.example_en ? `${k.example_en} ${k.example_zh}`.trim() : '') : (k?.example_zh || '')) || '—', it.qtypes.join('、') || '—'].map(x => String(x).replace(/\s+/g, ' ').replace(/\|/g, '／')).join(' | ')
     })
-    const user = fillTemplate(promptText('p4_variant_gen', 'user'), { VARIANT_KPS: kpRows.join('\n'), EVIDENCE: p.input.placeholders.EVIDENCE })
-    const gen = await partChat({ system: promptText('p4_variant_gen', 'system'), user, kind: 'p4_variant_gen', signal: ctx.signal })
+    const user = fillTemplate(promptText('p4_variant_gen', 'user', p.subject), { VARIANT_KPS: kpRows.join('\n'), EVIDENCE: p.input.placeholders.EVIDENCE })
+    const gen = await partChat({ system: promptText('p4_variant_gen', 'system', p.subject), user, kind: 'p4_variant_gen', signal: ctx.signal })
 
     // 本机核对用的材料（题干与选项原文不外发）：这些考点在范围内的原题原文（查抄袭）+ 已出现过的英文词（查超纲）
     const sc = paperScope(p.src.filter)
@@ -308,24 +310,26 @@ registerReportPart({
     for (const it of items) for (const q of questionsOfKp(db, sc, it.code, 30)) originals.push(`${q.stem} ${q.options.join(' ')}`)
     const vocab = new Set<string>()
     const addWords = (t: string) => { for (const m of t.toLowerCase().matchAll(/[a-z]+(?:'[a-z]+)?/g)) { vocab.add(m[0]); vocab.add(m[0].replace(/(es|s|ed|ing)$/, '')) } }
-    originals.forEach(addWords)
-    for (const k of kps.values()) addWords(`${k.example_en} ${k.hint_words} ${k.name}`)
+    if (english) {   // 词汇范围只对英语查
+      originals.forEach(addWords)
+      for (const k of kps.values()) addWords(`${k.example_en} ${k.hint_words} ${k.name}`)
+    }
 
-    const v = validateVariants(gen.content, { kpCodes: items.map(i => i.code), originals, vocab, max: 3 })
+    const v = validateVariants(gen.content, { kpCodes: items.map(i => i.code), originals, vocab, max: 3, subject: p.subject })
     if (v.error) throw new Error(`${v.error}。可以点「重试这一部分」`)
     const usable = v.variants.filter(x => x.problems.length === 0)
     if (usable.length === 0) throw new Error(`AI 出的题都没有通过程序校验（${[...new Set(v.variants.flatMap(x => x.problems))].slice(0, 3).join('；') || '格式不对'}）。可以点「重试这一部分」`)
 
     // 第二次 AI 独立解答：只给题干和选项，不给出题答案
     const qText = usable.map((x, i) => `${i + 1}. ${x.stem}` + (x.qtype === 'choice' ? '\n' + x.options.map((o, k) => `${'ABCD'[k]}. ${o}`).join('\n') : '')).join('\n\n')
-    const chk = await partChat({ system: promptText('p4_variant_check', 'system'), user: fillTemplate(promptText('p4_variant_check', 'user'), { QUESTIONS: qText }), kind: 'p4_variant_check', signal: ctx.signal })
+    const chk = await partChat({ system: promptText('p4_variant_check', 'system', p.subject), user: fillTemplate(promptText('p4_variant_check', 'user', p.subject), { QUESTIONS: qText }), kind: 'p4_variant_check', signal: ctx.signal })
     const second = parseCheckAnswers(chk.content)
     if (second.size === 0) throw new Error('第二次 AI 解答没有给出可以读取的答案，变形题没法核对。可以点「重试这一部分」')
 
     const evidence = evidenceOf(p)
     const unverified: UnverifiedItem[] = []
     for (const x of usable) {
-      const fc = factCheck(x.explanation, evidence)
+      const fc = factCheck(x.explanation, evidence, p.subject)
       if (fc.unverified.length) { x.explanation = fc.text; unverified.push(...fc.unverified) }
     }
     const flagged = usable.filter((x, i) => !sameAnswer(x, second.get(i + 1))).length
@@ -334,7 +338,7 @@ registerReportPart({
     if (usable.length < 3) warnings.push(`变形题只有 ${usable.length} 道通过了程序校验`)
     const usableIndex = new Map(usable.map((x, i) => [x, i + 1]))
     return {
-      markdown: '', model: gen.model, promptVersion: promptVersionFor('p4_variant_gen'), usage: { gen: gen.usage, check: chk.usage }, unverified, warnings,
+      markdown: '', model: gen.model, promptVersion: promptVersionFor('p4_variant_gen', p.subject), usage: { gen: gen.usage, check: chk.usage }, unverified, warnings,
       persist: (d, reportId) => {
         d.prepare('DELETE FROM report_variants WHERE report_id = ?').run(reportId)
         const ins = d.prepare(`INSERT INTO report_variants (id, report_id, seq, kp_code, source_question_id, qtype, stem, options_json, answer, explanation, changed, status, teacher_ok, check_json, model, check_model)

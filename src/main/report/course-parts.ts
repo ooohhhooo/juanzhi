@@ -47,10 +47,10 @@ registerReportPart({
     const p = prepareAdvice(db, scopeOf(ctx), 'advice')
     if (p.promptError) throw new Error(`提示词有问题：${p.promptError}（请联系管理员：设置 → 管理员设置 → 提示词）`)
     const r = await partChat({ system: p.system, user: p.user, kind: 'p5_course_advice', signal: ctx.signal, json: false })
-    const fin = finishAdvice(cleanAi(r.content), p.labels, { statements: p.evidenceStatements })
+    const fin = finishAdvice(cleanAi(r.content), p.labels, { statements: p.evidenceStatements, subject: p.subject })
     if (!fin.ok) throw new Error(`${fin.failReason ?? '内容不合格'}。可以点「重试这一部分」`)
     const rows = courseRowsOf(p.dash)
-    return { markdown: composeTeacherCourse(rows, fin.text), model: r.model, promptVersion: promptVersionFor('p5_course_advice'), usage: r.usage, unverified: toUnverified(fin.findings), warnings: fin.warnings }
+    return { markdown: composeTeacherCourse(rows, fin.text), model: r.model, promptVersion: promptVersionFor('p5_course_advice', p.subject), usage: r.usage, unverified: toUnverified(fin.findings), warnings: fin.warnings }
   }
 })
 
@@ -72,8 +72,8 @@ registerReportPart({
     if (p.promptError) throw new Error(`提示词有问题：${p.promptError}（请联系管理员：设置 → 管理员设置 → 提示词）`)
     const r = await partChat({ system: p.system, user: p.user, kind: 'p5_course_hint', signal: ctx.signal, json: false })
     // 一句话：不查字数范围，只要不是空的；只取第一行
-    const fin = finishAdvice(cleanAi(r.content), p.labels, { range: null, minChars: 6, statements: p.evidenceStatements })
-    const base = { model: r.model, promptVersion: promptVersionFor('p5_course_hint'), usage: r.usage }
+    const fin = finishAdvice(cleanAi(r.content), p.labels, { range: null, minChars: 6, statements: p.evidenceStatements, subject: p.subject })
+    const base = { model: r.model, promptVersion: promptVersionFor('p5_course_hint', p.subject), usage: r.usage }
     if (!fin.ok) return { markdown: '', ...base, warnings: [...fin.warnings, '课程建议内容太少，已省略'] }
     const line = fin.text.split('\n').map(s => s.trim()).find(Boolean) ?? ''
     // 家长版字数口径 = 复制到微信（含换行和序号）；加上这一句超过 300 字就丢掉

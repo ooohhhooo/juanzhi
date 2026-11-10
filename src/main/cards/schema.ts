@@ -41,6 +41,8 @@ const foot = { signature: opt(16, '署名'), date: opt(12, '日期') }
 
 export const KnowledgeSchema = z.object({
   tag: opt(8, '小标'),
+  /** 学科（english / chinese / math，缺省英语）：决定没写小标时的默认小标「英语小卡 / 语文小卡 / 数学小卡」 */
+  subject: z.enum(['english', 'chinese', 'math']).optional(),
   title: str(14, '标题'),
   hook: str(26, '引导语'),
   items: arr(z.object({ left: str(14, '要点左侧'), right: str(14, '要点右侧') }), 2, 6, '要点'),
@@ -100,7 +102,7 @@ export const KIND_SCHEMA: Record<CardKind, z.ZodTypeAny> = {
 
 /** 给模型看的各版式字段说明（写进 card_make 的描述） */
 export const KIND_HELP: Record<CardKind, string> = {
-  knowledge: 'knowledge（学生·知识点卡）：{title≤14字, hook≤26字 一句引导, items:[{left≤14, right≤14}] 2–6 组词或要点, example:{en≤70, zh≤40}, warning≤30字 易错提醒(可选), tag≤8字(可选), signature≤16(可选), date≤12(可选)}',
+  knowledge: 'knowledge（学生·知识点卡）：{title≤14字, hook≤26字 一句引导, items:[{left≤14, right≤14}] 2–6 组词或要点, example:{en≤70, zh≤40}, warning≤30字 易错提醒(可选), tag≤8字(可选), subject(可选，english/chinese/math，决定默认小标；语文数学的 example.en 写例子本身，zh 写说明), signature≤16(可选), date≤12(可选)}',
   mnemonic: 'mnemonic（学生·口诀卡）：{title≤14, lines:[{text≤24, highlight≤10 要高亮的关键词(可选，须是 text 里的原文)}] 2–6 行, examples:[{label≤8, text≤50}] 2–4 个, signature, date}',
   practice: 'practice（学生·小练习卡）：{title≤14, questions:[{q≤60, options:["A. …"…最多4个](可选)}] 2–4 道, encourage≤30 鼓励语(可选), signature, date}',
   weekly: 'weekly（家长·本周学情）：{student 孩子称呼(可选), grade≤16, week≤16, metrics:[{value≤8, label≤12}] 2–3 个指标, learned≤80 本周学了, good≤80 做得好的, improve≤80 还要加强, tips≤100 家庭配合建议, teacher≤16 老师署名, date}',

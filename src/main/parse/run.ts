@@ -11,13 +11,15 @@ import { chat, AiError } from '../ai/client'
 import { effectiveMaxTokens, modelProfile } from '../ai/providers'
 import { RETRY_HINT, friendlyAiError } from '../ai/friendly'
 import type { ChatMessage } from '../ai/client'
-import { loadConfig, recordUsage, visionCreds } from '../ai/config'
+import { loadConfig, recordUsage, visionCreds, visionPolicyFor } from '../ai/config'
 import { getApiKey } from '../ai/secret'
 import { parseModelOf } from '../ai/types'
 import { decidePage, paperExpectsCjk, namesHaveCjk, ocrQuality, relaxSparse } from '../pipeline/ocr-quality'
 import type { PageChoice, PageQuality, Recognizer } from '../pipeline/ocr-quality'
 import { promptText, promptVersionFor } from '../ai/prompts'
 import { loadTaxonomy } from '../ai/taxonomy'
+import { asSubject, SUBJECTS } from '../../shared/subject'
+import type { SubjectId } from '../../shared/subject'
 import type { TaxonomyContext } from '../ai/taxonomy'
 import type { AiConfig } from '../ai/types'
 import { buildRows, rowsFromPlainText } from './lines'
@@ -32,7 +34,7 @@ import { locateAll } from './locate'
 import type { PageGeom, LocateResult } from './locate'
 import { detectSimilar } from './similar'
 import { refinePaperBoxes } from './refine-run'
-import { normalizeKps, normalizeQtype, scoreConfidence, metaToPaperFields, pickPrefill, knownMetaText } from './validate'
+import { fixMathText, normalizeKps, normalizeQtype, scoreConfidence, metaToPaperFields, pickPrefill, knownMetaText } from './validate'
 import type { JobProgress } from '../types'
 
 export type ParseStage = 'prepare' | 'ai' | 'locate' | 'save'
@@ -97,7 +99,8 @@ function recognizerOf(p: PageRow, mode: PageInput['mode']): Recognizer | null {
  * 决定每页走文本还是视觉。不再相信 Windows 的固定置信度：看文字本身的质量（pipeline/ocr-quality.ts）。
  * 默认（auto）只有本机识别不好的页才交给视觉模型；设置里可改成图片和扫描件一律读图，或从不读图。空白页在没有视觉模型时跳过。
  */
-function preparePages(pages: PageRow[], cfg: AiConfig, names: string[]): Prepared {
+function preparePages(pages: PageRow[], cfg: AiConfig, names: string[], subject: SubjectId = 'english'): Prepared {
+  const policy = visionPolicyFor(cfg, subject)
   const notes: string[] = []
   const inputs: PageInput[] = []
   const choices = new Map<number, PageChoice>()
@@ -126,13 +129,17 @@ function preparePages(pages: PageRow[], cfg: AiConfig, names: string[]): Prepare
       textSource: p.text_source, hasImage, rowTexts: rows.map(r => r.text), lang: p.ocr_lang,
       // 有引擎语言 = Windows，那个置信度是固定值，不可信
       conf: p.ocr_lang ? null : p.ocr_conf, quality: stored
-    }, { policy: cfg.vision_policy, visionReady, expectsCjk, nameHasCjk: nameCjk })
+    }, { policy, visionReady, expectsCjk, nameHasCjk: nameCjk })
     choices.set(p.idx, c)
     if (c.mode === 'skip') {
       if (c.reason === 'ocr-failed') blockers.push(`第 ${p.idx} 页`)
       else if (p.text_source === 'none' || c.reason === 'no-text') notes.push(`第 ${p.idx} 页没有识别出文字，已跳过（配置视觉模型后重试可让 AI 直接读图）`)
     }
     inputs.push({ idx: p.idx, mode: c.mode, rows, chars, imageRel: p.image_rel })
+  }
+  // 数学卷默认读图：没配视觉模型时本机文字认不准分数、竖式、图形，提示一句
+  if (subject === 'math' && policy === 'images_always' && !visionReady && pages.some(p => !!p.image_rel && p.text_source === 'ocr')) {
+    notes.push('数学卷的分数、竖式和图形靠本机文字识别容易认错，建议在「设置 → AI 服务」配置能看图的视觉模型，再重新解析')
   }
   if (blockers.length) {
     throw new ParseError('prepare', `${blockers.join('、')}没有可用的文字（本机识别未成功），需要视觉模型来读图。请在「设置 → AI 服务」填写视觉模型后点击重试`)
@@ -198,7 +205,7 @@ async function readImageDataUrl(paperId: string, rel: string): Promise<string> {
 
 async function runAiStage(
   paperId: string, runId: number, fileName: string, prepared: Prepared, cfg: AiConfig, tax: TaxonomyContext,
-  knownMeta: string, ctx: ParseContext
+  knownMeta: string, ctx: ParseContext, subject: SubjectId = 'english'
 ): Promise<AiStageResult> {
   const key = getApiKey()
   if (!key) throw new ParseError('prepare', '尚未设置 API Key，请先到「设置 → AI 服务」配置')
@@ -215,10 +222,10 @@ async function runAiStage(
   let curProgress = 8
   const say = (message: string) => ctx.onProgress({ paperId, stage: 'parse:ai', progress: curProgress, message })
 
-  const sysText = promptText('p1_text', 'system')
-  const sysVision = promptText('p1_vision', 'system')
-  const userText = promptText('p1_text', 'user')
-  const userVision = promptText('p1_vision', 'user')
+  const sysText = promptText('p1_text', 'system', subject)
+  const sysVision = promptText('p1_vision', 'system', subject)
+  const userText = promptText('p1_text', 'user', subject)
+  const userVision = promptText('p1_vision', 'user', subject)
 
   const buildMessages = async (batch: Batch, seqNo: number, plannedNo: number | null): Promise<ChatMessage[]> => {
     const vars: Record<string, string> = {
@@ -411,13 +418,14 @@ interface FinalQuestion {
   score: number | null
 }
 
-function finalize(state: MergeState, geoms: Map<number, PageGeom>, tax: TaxonomyContext): FinalQuestion[] {
+function finalize(state: MergeState, geoms: Map<number, PageGeom>, tax: TaxonomyContext, subject: SubjectId = 'english'): FinalQuestion[] {
+  const other = SUBJECTS[subject].otherQtype
   const locs = locateAll(state.questions, state.sections, geoms)
   return state.questions.map((q, i) => {
     const loc = locs[i]
     const sec = state.sections.find(s => s.no === q.section && s.inst === q.inst)
-    let { qtype, invalid } = normalizeQtype(q.qtype, tax.qtypes)
-    if (invalid && sec && tax.qtypes.has(sec.qtype) && sec.qtype !== 'OTHER') { qtype = sec.qtype; invalid = false }
+    let { qtype, invalid } = normalizeQtype(q.qtype, tax.qtypes, other)
+    if (invalid && sec && tax.qtypes.has(sec.qtype) && sec.qtype !== other) { qtype = sec.qtype; invalid = false }
     const k = normalizeKps(q, tax.kps)
     const flags = new Set([...k.flags, ...loc.flags])
     if (invalid) flags.add('qtype_invalid')
@@ -427,8 +435,10 @@ function finalize(state: MergeState, geoms: Map<number, PageGeom>, tax: Taxonomy
     // docx 页面本来就没有坐标，没有 bbox 不算定位失败
     const noCoordsPage = !geoms.get(loc.page)?.rows.some(r => r.hasCoords)
     const confidence = scoreConfidence([...flags], { hasBbox: !!loc.bbox || noCoordsPage, hasStem: !!(q.stem.trim() || q.options.length) })
+    // 数学：单位上标、乘号的规则校正（stem / options）
+    const qq = subject === 'math' ? { ...q, stem: fixMathText(q.stem), options: q.options.map(fixMathText) } : q
     return {
-      q, qtype, kp_main: k.kp_main, kp_secondary: k.kp_secondary, kp_suggestion: k.kp_suggestion,
+      q: qq, qtype, kp_main: k.kp_main, kp_secondary: k.kp_secondary, kp_suggestion: k.kp_suggestion,
       flags: [...flags], loc, confidence, score: q.score ?? sec?.score_each ?? null
     }
   })
@@ -471,14 +481,17 @@ function saveResults(
       for (const k of f.kp_secondary) insK.run(id, k, 0)
     })
 
-    const paper = db.prepare('SELECT title, file_name, grade, semester, school_year_start, exam_type, textbook, total_score, ai_meta_json FROM papers WHERE id = ?').get(paperId) as any
+    const paper = db.prepare('SELECT title, file_name, grade, semester, school_year_start, exam_type, textbook, total_score, ai_meta_json, subject FROM papers WHERE id = ?').get(paperId) as any
+    const paperSubject = asSubject(paper.subject)
     let prevAi: string[] = []
     try { prevAi = JSON.parse(paper.ai_meta_json || '[]') } catch { /* 忽略 */ }
     const guess = metaToPaperFields(state.meta)
     const { fields, aiFields } = pickPrefill(paper, guess, prevAi)
     // 首次启动引导里选的教材版本（M4）：AI 没从卷头读出教材、老师也没填时，用它作默认值；AI 读到了就以 AI 为准（仍标「AI 猜测」）
     if (fields.textbook === undefined && !paper.textbook) {
-      const row = db.prepare("SELECT value_json FROM settings WHERE key = 'default_textbook'").get() as { value_json: string } | undefined
+      // 英语沿用 default_textbook，语文、数学读 default_textbook.<学科>
+      const tbKey = paperSubject === 'english' ? 'default_textbook' : `default_textbook.${paperSubject}`
+      const row = db.prepare('SELECT value_json FROM settings WHERE key = ?').get(tbKey) as { value_json: string } | undefined
       try { const t = row ? JSON.parse(row.value_json) : null; if (typeof t === 'string' && t.trim()) fields.textbook = t.trim().slice(0, 100) } catch { /* 忽略损坏的设置 */ }
     }
     const sets = Object.keys(fields).map(k => `${k} = ?`)
@@ -508,7 +521,8 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
   if (!paper) throw new ParseError('prepare', '试卷不存在')
   const pages = db.prepare('SELECT idx, image_rel, width, height, text_source, lines_json, text, ocr_conf, recognizer, ocr_lang, quality_json FROM pages WHERE paper_id = ? ORDER BY idx').all(paperId) as unknown as PageRow[]
   if (pages.length === 0) throw new ParseError('prepare', '这份试卷还没有提取出页面，请先重新提取')
-  const tax = loadTaxonomy()
+  const subject = asSubject(paper.subject)   // 学科取自卷子自己的行，不信传入值
+  const tax = loadTaxonomy(subject)
 
   const stage = (s: ParseStage, progress: number, message: string) => {
     db.prepare('UPDATE papers SET parse_stage = ? WHERE id = ?').run(s, paperId)
@@ -539,10 +553,10 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
     runId = last.id
     // 不改动被复用的那条运行的状态：重新定位若被取消/失败，题目没变，审核页顶栏仍应显示这条已完成的运行；成功时 saveResults 会更新它
   } else {
-    const prepared = preparePages(pages, cfg, [paper.file_name ?? '', paper.title ?? ''])
+    const prepared = preparePages(pages, cfg, [paper.file_name ?? '', paper.title ?? ''], subject)
     const usesVision = prepared.inputs.some(i => i.mode === 'vision')
     const usesText = prepared.inputs.some(i => i.mode === 'text')
-    const parts = [usesText ? promptVersionFor('p1_text') : '', usesVision ? promptVersionFor('p1_vision') : ''].filter(Boolean)
+    const parts = [usesText ? promptVersionFor('p1_text', subject) : '', usesVision ? promptVersionFor('p1_vision', subject) : ''].filter(Boolean)
     version = [...new Set(parts)].join(' / ')
     let prevAi: string[] = []
     try { prevAi = JSON.parse(paper.ai_meta_json || '[]') } catch { /* 忽略 */ }
@@ -553,7 +567,7 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
     recordRecognition(paperId, pages, prepared)
     stage('ai', 8, '调用 AI 拆题与标注…')
     try {
-      const r = await runAiStage(paperId, runId, paper.file_name, prepared, cfg, tax, known, ctx)
+      const r = await runAiStage(paperId, runId, paper.file_name, prepared, cfg, tax, known, ctx, subject)
       recordRecognition(paperId, pages, prepared)   // 读图失败改用本机文字的页，记录要跟着改
       state = r.state
       usedModel = [r.batches.some(b => b.mode === 'text') ? parseModelOf(cfg) : '', r.visionModel ?? ''].filter(Boolean).join(' + ') || parseModelOf(cfg)
@@ -572,7 +586,7 @@ export async function parsePaper(paperId: string, fromStage: FromStage | undefin
 
   checkAbort(ctx)
   stage('locate', 92, '定位每道题在原卷上的位置…')
-  const finals = finalize(state, loadGeoms(pages), tax)
+  const finals = finalize(state, loadGeoms(pages), tax, subject)
   checkAbort(ctx)
   stage('save', 97, '保存到数据库…')
   saveResults(paperId, runId, state, finals, { model: usedModel, promptVersion: version, usageNote }, notes)

@@ -8,8 +8,18 @@ import { explainTestError, judgeVisionAnswer } from './test-rules'
 import type { ChatMessage, Usage } from './client'
 import { isHttpUrl, sameServer, pickVisionKey } from './guard'
 import { makeTextPng } from './png'
+import { asSubject, SUBJECTS } from '../../shared/subject'
 
 const CONFIG_KEY = 'ai_config'
+
+/**
+ * 这个学科实际用的读图策略。设置里改成「一律读图」或「从不读图」的，以用户的为准；
+ * 保持「自动」（默认值，设置页保存时也会写成 auto）的，按学科的默认值走：数学卷的分数、竖式、图形靠本机文字识别认不准，默认读图。
+ */
+export function visionPolicyFor(cfg: Pick<AiConfig, 'vision_policy'>, subject?: unknown): AiConfig['vision_policy'] {
+  if (cfg.vision_policy !== 'auto') return cfg.vision_policy
+  return SUBJECTS[asSubject(subject)].visionDefault
+}
 
 export function loadConfig(): AiConfig {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(CONFIG_KEY) as { value_json: string } | undefined

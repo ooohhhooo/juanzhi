@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { App, Collapse, Input, Space } from 'antd'
+import { App, Collapse, Input, Space, Tabs } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, Glossary, Panel, UsageNote } from '../design'
 import '../design/page-report.css'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+/** 提示词按学科分组：英语的 id 是 'p1_text'，语文 / 数学是 'chinese:p1_text' / 'math:p1_text' */
+const SUBJECT_TABS = [{ key: 'english', label: '英语' }, { key: 'chinese', label: '语文' }, { key: 'math', label: '数学' }] as const
+const subjectOfId = (id: string): string => (id.startsWith('chinese:') ? 'chinese' : id.startsWith('math:') ? 'math' : 'english')
 const partLabel = { system: 'system（固定指令，利于服务商前缀缓存）', user: 'user（每次调用填入占位符）' } as const
 
 function PromptEditor({ item, onSaved }: { item: PromptView; onSaved: () => void }) {
@@ -55,7 +58,6 @@ export default function PromptSettings() {
   const queryClient = useQueryClient()
   const { data } = useQuery({ queryKey: ['prompts'], queryFn: () => window.api.ai.prompts(), staleTime: 0 })
   if (!data) return null
-  const groups = [...new Set(data.items.map(i => i.id))]
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['prompts'] })
 
   return (
@@ -63,13 +65,23 @@ export default function PromptSettings() {
       <UsageNote kind="caution" title="一般不需要改。改坏了会让解析失败或结果变差；任何时候都可以点「恢复默认」。">
         <span>每份试卷解析时都会记录用的是哪个提示词版本（内置版本现为 <b>{data.defaultVersion}</b>，老师版及其口诀 / 变形题提示词已升到 <b>v3.0</b>；改写后显示为「基于的内置版本+自定义·哈希」）。<code>{'{{占位符}}'}</code> 由程序在每次调用时填入，不要改名；Schema 与 anchor 规则改动后需同步改程序的校验。</span>
       </UsageNote>
-      <Collapse accordion size="small" items={groups.map(id => {
-        const items = data.items.filter(i => i.id === id)
-        const custom = items.some(i => i.isCustom)
+      <Tabs size="small" data-testid="prompt-subject-tabs" items={SUBJECT_TABS.filter(s => data.items.some(i => subjectOfId(i.id) === s.key)).map(s => {
+        const inSubject = data.items.filter(i => subjectOfId(i.id) === s.key)
+        const groups = [...new Set(inSubject.map(i => i.id))]
         return {
-          key: id,
-          label: <span>{items[0].title} {custom && <span className="ewb-set-pill ewb-set-pill--custom">已自定义</span>} {items.some(i => i.defaultUpdated) && <span className="ewb-set-pill">默认版已更新，可对比</span>} {!items[0].usedInM2 && <span className="ewb-set-pill">当前版本未使用</span>}</span>,
-          children: items.map(i => <PromptEditor key={i.part} item={i} onSaved={refresh} />)
+          key: s.key,
+          label: s.label,
+          children: (
+            <Collapse accordion size="small" items={groups.map(id => {
+              const items = inSubject.filter(i => i.id === id)
+              const custom = items.some(i => i.isCustom)
+              return {
+                key: id,
+                label: <span>{items[0].title.replace(/^(语文|数学) · /, '')} {custom && <span className="ewb-set-pill ewb-set-pill--custom">已自定义</span>} {items.some(i => i.defaultUpdated) && <span className="ewb-set-pill">默认版已更新，可对比</span>} {!items[0].usedInM2 && <span className="ewb-set-pill">当前版本未使用</span>}</span>,
+                children: items.map(i => <PromptEditor key={i.part} item={i} onSaved={refresh} />)
+              }
+            })} />
+          )
         }
       })} />
     </Panel></div>

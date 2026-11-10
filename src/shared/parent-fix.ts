@@ -7,6 +7,8 @@
  *  - 字数：以「复制到微信」的字数为准（markdownToWechat），超过 300 就从最后一条起去掉例句。
  */
 
+import { asSubject, SUBJECTS } from './subject.ts'
+
 export interface KpEvidence {
   code?: string
   name: string
@@ -101,7 +103,14 @@ export function fixItemExample(item: { text: string; marker: string | null }, kp
 
 /** 家长看不懂的写法：能改的改，剩下的报出来 */
 const JARGON = ['词尾', '后缀', '前缀', '名词', '动词', '形容词', '副词', '介词', '代词', '冠词', '单复数', '复数形式', '第三人称', '时态', '语法', '词性', '过去式', '原形']
-export function fixParentJargon(text: string): { text: string; left: string[] } {
+/** 语文、数学家长版里仍然读不顺的专业说法（英语的词尾、词性之类不适用） */
+const JARGON_BY_SUBJECT = {
+  chinese: ['语素', '实词', '虚词', '句法', '意象', '通假字', '平仄', '主谓宾', '偏正结构'],
+  math: ['被除数', '公约数', '因式', '集合论', '映射', '一元一次', '代数式', '不等式']
+}
+export function fixParentJargon(text: string, subject?: unknown): { text: string; left: string[] } {
+  const sub = asSubject(subject)
+  if (sub !== 'english') return { text, left: JARGON_BY_SUBJECT[sub].filter(w => text.includes(w)) }
   // 「加 -es」→「加 es」（横线像减号）
   const t = text.replace(/(^|[\s加变成是用写读])-(es|ies|ed|ing|s)(?![A-Za-z])/g, '$1$2')
   const left = JARGON.filter(w => t.includes(w))
@@ -111,9 +120,9 @@ export function fixParentJargon(text: string): { text: string; left: string[] } 
 }
 
 /** 开头问候：考试类型按卷子来写（期中 / 期末 / 单元测验……），不知道就不写，不能写死「期末」 */
-export function parentGreeting(exam?: string | null): string {
+export function parentGreeting(exam?: string | null, subject?: unknown): string {
   const e = (exam ?? '').replace(/(?:考试|测试|试卷|卷)$/, '').trim()
-  return `各位家长好，这次${e ? `${e}` : ''}英语${e ? '' : '考试'}有这几个小地方孩子容易错，在家几分钟就能帮上：`
+  return `各位家长好，这次${e ? `${e}` : ''}${SUBJECTS[asSubject(subject)].name}${e ? '' : '考试'}有这几个小地方孩子容易错，在家几分钟就能帮上：`
 }
 export const PARENT_GREETING = parentGreeting('')
 
@@ -126,6 +135,11 @@ export function stripItemTitle(text: string): string {
   if (/^\s*(?:例|易错|注意|孩子|常|在家|做|问|说|写|读|记|练)[^，。：:]{0,6}[：:]/.test(text) && !/^\s*\*\*/.test(text)) return text.trim()
   return text.replace(/^\s*\*\*[^*\n]{1,20}\*\*\s*[：:]\s*/, '').replace(/^\s*[^，。,.！？!?：:\sA-Za-z（）()“”是的了在要会让把有]{2,8}[：:]\s*(?=\S)/, '').trim()
 }
+
+/** 语文 / 数学的「例：……」片段（不要求英文开头），超字数时整句去掉 */
+const EXAMPLE_GENERIC = /\s*例(?:句|如|子)?\s*[：:][^。！？\n]*[。！？]?/
+
+const EXAMPLE_GENERIC_G = new RegExp(EXAMPLE_GENERIC.source, 'g')
 
 const SENT_END = /[。！？!?）)”"]$/
 /** 末尾是汉字 / 字母 / 数字（没有标点收尾，像电报）→ 补一个句号。只补标点，不改句子内容。 */
@@ -147,12 +161,12 @@ const EXAMPLE_PART = /例(?:句)?\s*[：:][^（(\n]*[（(][^）)\n]*[）)]/g
  *  - 「问 can not，答 can't」这种电报式的做法（家长不知道怎么做）
  *  - 「A 和 B：」「A、B：」这种名词直接堆在一起的小标题（去掉标题之后还留在句子里的）
  */
-export function itemProblems(text: string): string[] {
+export function itemProblems(text: string, subject?: unknown): string[] {
   const t = text.trim()
   const out: string[] = []
   if (!SENT_END.test(t) && !/[.]$/.test(t)) out.push('句末没有标点，像电报或没写完')
   if (/[，,：:、的和与]$/.test(t)) out.push('句子没写完')
-  const plain = t.replace(EXAMPLE_PART, '')
+  const plain = t.replace(asSubject(subject) === 'english' ? EXAMPLE_PART : EXAMPLE_GENERIC_G, '')
   const segs = plain.split(/[。！？\n]/).map(x => x.trim()).filter(x => /[\u4e00-\u9fa5]/.test(x))
   const zh = (x: string) => (x.match(/[\u4e00-\u9fa5]/g) ?? []).length
   if (!segs.some(x => zh(x) >= 4 && PREDICATE.test(x))) out.push('没有一句完整的话（缺少动作，或太短）')
@@ -169,21 +183,24 @@ export interface ParentFixResult { text: string; warnings: string[]; replaced: n
  * 后处理只做三件事：删整句（超字数时去掉一条的例句）、把例句整句换成知识点自带的、删整条；绝不截断句子、不拼接。
  * wechatLen = 复制到微信的字数函数（由调用方传，避免循环依赖）。
  */
-export function fixParent(md: string, kps: KpEvidence[], wechatLen: (md: string) => number, limit = 300, exam?: string | null): ParentFixResult {
+export function fixParent(md: string, kps: KpEvidence[], wechatLen: (md: string) => number, limit = 300, exam?: string | null, subject?: unknown): ParentFixResult {
+  const sub = asSubject(subject)
+  const english = sub === 'english'
   const { head, items, tail } = splitParent(md)
   const warnings: string[] = []
   let replaced = 0, dropped = 0, brokenItems = 0
   const fixed = items.map(it => {
     const titled = { ...it, text: stripItemTitle(it.text) }
-    const r = fixItemExample(titled, kps)
+    // 例句校对只对英语开：语文、数学的例子不是「英文句子 + 中文意思」，没法按英文词对照
+    const r = english ? fixItemExample(titled, kps) : { text: titled.text, action: 'none' as const }
     if (r.action === 'replace') replaced++
     if (r.action === 'drop') dropped++
-    const j = fixParentJargon(r.text)
+    const j = fixParentJargon(r.text, sub)
     return { text: j.text, left: j.left }
   })
   // 整条校验：有问题的整条删掉（宁可少一条，也不留半句话）
   const good = fixed.filter(f => {
-    const pr = itemProblems(f.text)
+    const pr = itemProblems(f.text, sub)
     if (pr.length) { brokenItems++; warnings.push(`家长版有一条不通顺（${pr.join('；')}），已整条去掉，不够 3 条时请重新生成`) }
     return pr.length === 0
   })
@@ -193,7 +210,7 @@ export function fixParent(md: string, kps: KpEvidence[], wechatLen: (md: string)
   const tailLines = tail.map(endWithPeriod)
   const build = (its: string[]): string => {
     const out: string[] = []
-    out.push(...(hasGreeting ? greetingLines : [parentGreeting(exam), ...greetingLines]))
+    out.push(...(hasGreeting ? greetingLines : [parentGreeting(exam, sub), ...greetingLines]))
     its.forEach((t, i) => out.push(`${i + 1}. ${t}`))
     out.push(...tailLines)
     return out.join('\n\n') + '\n'
@@ -202,8 +219,8 @@ export function fixParent(md: string, kps: KpEvidence[], wechatLen: (md: string)
   let text = build(texts)
   // 超过字数：先从最后一条起去掉例句（整句），还超就整条去掉最后一条（至少留 2 条）
   for (let i = texts.length - 1; i >= 0 && wechatLen(text) > limit; i--) {
-    const stripped = endWithPeriod(texts[i].replace(EXAMPLE_RE, '').replace(/\s*[。.]\s*$/, '。').trim())
-    if (stripped !== texts[i] && itemProblems(stripped).length === 0) { texts = [...texts.slice(0, i), stripped, ...texts.slice(i + 1)]; text = build(texts) }
+    const stripped = endWithPeriod(texts[i].replace(english ? EXAMPLE_RE : EXAMPLE_GENERIC, '').replace(/\s*[。.]\s*$/, '。').trim())
+    if (stripped !== texts[i] && itemProblems(stripped, sub).length === 0) { texts = [...texts.slice(0, i), stripped, ...texts.slice(i + 1)]; text = build(texts) }
   }
   while (texts.length > 2 && wechatLen(text) > limit) { texts = texts.slice(0, -1); text = build(texts); warnings.push('家长版超过 300 字，已去掉最后一条') }
   if (replaced) warnings.push(`家长版里有 ${replaced} 条的例句和要点对不上，已换成这个知识点自带的例句`)

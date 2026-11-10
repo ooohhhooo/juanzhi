@@ -10,13 +10,14 @@ import { parseBlocks, parseInline, trickFields } from './markdown.ts'
 import type { Inline } from './markdown.ts'
 import { CITATION_RE } from './citation.ts'
 import { MARK_RE } from './factcheck.ts'
+import { asSubject, SUBJECTS } from './subject.ts'
 
 export type ReportReader = 'boss' | 'parent' | 'teacher' | 'full'
 export const READERS: ReportReader[] = ['boss', 'parent', 'teacher', 'full']
 export const READER_LABEL: Record<ReportReader, string> = { boss: '老板版', parent: '家长版', teacher: '老师版', full: '完整数据版' }
 export const READER_HINT: Record<ReportReader, string> = {
   boss: '开头三句话结论，然后是教研重点、课程卖点和风险；不铺表格、不出代码。给老板看。',
-  parent: '300 字以内的大白话：孩子要练什么、为什么、在家怎么陪练，每点一个例句。老师核对后可以复制到微信。',
+  parent: '300 字以内的大白话：孩子要练什么、为什么、在家怎么陪练，每点一个例子。老师核对后可以复制到微信。',
   teacher: '易错题集 + 易错知识点 + 做题方法 + 口诀卡 + 3 道同类变形题（答题卡）+ 学习进步建议。口诀和答题卡可以存成图片发给家长。',
   full: '完整的数据报告：分布、题型、难度、重难点、易错点、年度变化。给运营和教研核对数字用。'
 }
@@ -316,7 +317,7 @@ export function markdownToWechat(md: string, opts: { keepMarks?: boolean; spaced
 const GRADE_CN = ['', '一', '二', '三', '四', '五', '六']
 
 export interface TitleInput {
-  filter: { grade?: string; semester?: string; exam_type?: string; sample?: boolean; paperIds?: string[] }
+  filter: { grade?: string; semester?: string; exam_type?: string; sample?: boolean; paperIds?: string[]; subject?: string }
   /** 实际计入的份数（指定了具体几份卷子时标题写「选中的 N 份试卷」） */
   paperCount?: number
   /** 范围里实际有的年级 / 学期 / 考试类型 / 学年起始（取自数据；筛选里指定了的以筛选为准） */
@@ -342,6 +343,9 @@ export function reportTitle(t: TitleInput): string {
   if (t.filter.paperIds?.length) parts.push(`选中的 ${t.paperCount ?? t.filter.paperIds.length} 份试卷`)
   const g = t.filter.grade ? gradeText([t.filter.grade]) : gradeText(t.grades)
   if (g) parts.push(g)
+  // 英语沿用原来的标题（不带学科名），语文、数学写上学科
+  const sub = asSubject(t.filter.subject)
+  if (sub !== 'english') parts.push(SUBJECTS[sub].name)
   const sem = t.filter.semester ? [t.filter.semester] : [...new Set(t.semesters)]
   if (sem.length === 1) parts.push(`${sem[0]}学期`)
   if (t.years.length) {

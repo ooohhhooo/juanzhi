@@ -4,6 +4,7 @@
  * 第二次独立解答的比对（compareAnswers）也在这里：答案不一致的题标 flagged，不进答题卡，除非老师逐题核对后仍然使用。
  */
 import { hasOverclaim, parseJsonLoose } from './teacher-sections.ts'
+import { asSubject } from '../../shared/subject.ts'
 
 export type VariantType = 'choice' | 'blank'
 
@@ -26,9 +27,11 @@ const clean = (s: unknown): string => (typeof s === 'string' ? s : '').replace(/
 const LETTERS = ['A', 'B', 'C', 'D']
 
 /** 词集：英文单词按小写词算，中文按单字算 */
-export function tokensOf(text: string): Set<string> {
+export function tokensOf(text: string, withNumbers = false): Set<string> {
   const s = new Set<string>()
   for (const m of text.toLowerCase().matchAll(/[a-z]+(?:'[a-z]+)?/g)) s.add(m[0])
+  // 数学题只差几个数字就是另一道题：数字也算词（英语沿用原来的算法，不带数字）
+  if (withNumbers) for (const m of text.matchAll(/\d+(?:\.\d+)?/g)) s.add(m[0])
   for (const m of text.matchAll(/[一-龥]/g)) s.add(m[0])
   return s
 }
@@ -74,11 +77,12 @@ const normAnswer = (s: string): string => s.toLowerCase().replace(/[\s.,!?;:'"�
  * @param ctx.originals 原卷里这些考点的题干 + 选项原文（只在本机用来查抄袭，不发给 AI）
  * @param ctx.vocab 词汇白名单
  */
-export function validateVariants(raw: string, ctx: { kpCodes: string[]; originals: string[]; vocab: Set<string>; max?: number }): { variants: DraftVariant[]; error: string | null } {
+export function validateVariants(raw: string, ctx: { kpCodes: string[]; originals: string[]; vocab: Set<string>; max?: number; /** 学科（缺省英语）：非英语不查英文词汇超纲、不查首字母提示，抄袭检查带上数字 */ subject?: unknown }): { variants: DraftVariant[]; error: string | null } {
   const j = parseJsonLoose(raw) as any
   const list: any[] = Array.isArray(j) ? j : Array.isArray(j?.questions) ? j.questions : []
   if (list.length === 0) return { variants: [], error: '模型没有给出可以读取的题目' }
-  const origSets = ctx.originals.map(tokensOf)
+  const english = asSubject(ctx.subject) === 'english'
+  const origSets = ctx.originals.map(o => tokensOf(o, !english))
   const out: DraftVariant[] = []
   const max = ctx.max ?? 3
   for (const q of list.slice(0, Math.max(max, 3) + 2)) {
@@ -106,14 +110,14 @@ export function validateVariants(raw: string, ctx: { kpCodes: string[]; original
       if (!answer) problems.push('填空题没有答案')
       if (!/_{2,}|＿{2,}|（\s*）|\(\s*\)/.test(stem)) problems.push('填空题的题干里没有空格（____）')
       // 题干括号里给的是首字母时，答案必须以它开头
-      const hint = /[（(]\s*([A-Za-z])\s*[）)]/.exec(stem)?.[1]
+      const hint = english ? /[（(]\s*([A-Za-z])\s*[）)]/.exec(stem)?.[1] : undefined
       if (hint && answer && answer[0].toLowerCase() !== hint.toLowerCase()) problems.push('答案和题干给的首字母对不上')
     }
     if (hasOverclaim(`${stem} ${options.join(' ')} ${explanation} ${changed}`)) problems.push('出现了价格 / 营销 / 夸大的说法')
     // 抄原卷：与任何一道原题的词集相似度 ≥ 0.8 就剔除
-    const mine = tokensOf(`${stem} ${options.join(' ')}`)
+    const mine = tokensOf(`${stem} ${options.join(' ')}`, !english)
     if (origSets.some(o => jaccard(mine, o) >= COPY_THRESHOLD)) problems.push('和原卷的题太像（疑似照抄）')
-    const oov = outOfVocab([stem, ...options], ctx.vocab)
+    const oov = english ? outOfVocab([stem, ...options], ctx.vocab) : []   // 词汇超纲只查英语
     if (oov.length) hints.push(`含超出范围的词：${oov.slice(0, 6).join('、')}`)
     if (explanation.length > 80) hints.push('讲解偏长')
     if (!explanation) hints.push('没有讲解')

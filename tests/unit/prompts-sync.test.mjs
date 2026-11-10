@@ -7,11 +7,17 @@ import { fileURLToPath } from 'node:url'
 import { KP_SEEDS_V1, QTYPE_SEEDS_V1 } from '../../src/main/seed/taxonomy.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+// 语文 / 数学（v6 / v7）：15 个提示词，输出文件名 <id>.<学科>.<part>.txt
+const SUBJECT_IDS = ['p1_text', 'p1_vision', 'p2_yoy', 'p2_kp', 'p3_report', 'p3_boss', 'p3_parent', 'p3_teacher', 'p3_tricks', 'p4_variant_gen', 'p4_variant_check', 'p5_course_cols', 'p5_course_match', 'p5_course_advice', 'p5_course_hint']
+const NUMS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五']
+const subjectIds = s => Object.fromEntries(NUMS.map((n, i) => [n, `${SUBJECT_IDS[i]}.${s}`]))
 const DOCS = [
   ['docs/prompts/v2-分读者与事实核对.md', { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' }],
   ['docs/prompts/v3-老师版升级.md', { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' }],
   ['docs/prompts/v4-文字归类.md', { 一: 'p6_classify_propose', 二: 'p6_classify_assign' }],
-  ['docs/prompts/v5-角色草稿.md', { 一: 'p7_role_draft' }]
+  ['docs/prompts/v5-角色草稿.md', { 一: 'p7_role_draft' }],
+  ['docs/prompts/v6-语文.md', subjectIds('chinese')],
+  ['docs/prompts/v7-数学.md', subjectIds('math')]
 ]
 
 // 与 scripts/extract-prompts.cjs 同样的规则，独立再实现一遍
