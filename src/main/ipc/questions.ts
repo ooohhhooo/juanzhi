@@ -1,4 +1,4 @@
-import { asSubject, SUBJECT_IDS } from '../../shared/subject.ts'
+import { asSubject, customRootPrefix, SUBJECT_IDS } from '../../shared/subject.ts'
 import { ipcMain } from 'electron'
 import crypto from 'node:crypto'
 import { z } from 'zod'
@@ -80,7 +80,9 @@ function getRow(id: string): QuestionRow {
 
 function setKps(questionId: string, main: string | null, secondary: string[]): void {
   const db = getDb()
-  const known = new Set((db.prepare('SELECT code FROM kps').all() as Array<{ code: string }>).map(k => k.code))
+  // 只认这道题所在卷子的学科的知识点（别的学科的代码一律当不存在）
+  const subject = asSubject((db.prepare('SELECT p.subject FROM questions q JOIN papers p ON p.id = q.paper_id WHERE q.id = ?').get(questionId) as any)?.subject)
+  const known = new Set((db.prepare('SELECT code FROM kps WHERE subject = ?').all(subject) as Array<{ code: string }>).map(k => k.code))
   if (main && !known.has(main)) throw new Error(`知识点代码不存在：${main}`)
   for (const s of secondary) if (!known.has(s)) throw new Error(`知识点代码不存在：${s}`)
   db.prepare('DELETE FROM question_kps WHERE question_id = ?').run(questionId)
@@ -138,7 +140,8 @@ export function registerQuestionIpc(): void {
     const p = PatchSchema.parse(rawPatch)
     const db = getDb()
     const cur = getRow(id)
-    if (p.qtype !== undefined && !db.prepare('SELECT 1 FROM qtypes WHERE code = ?').get(p.qtype)) throw new Error(`题型不存在：${p.qtype}`)
+    const paperSubject = asSubject((db.prepare('SELECT subject FROM papers WHERE id = ?').get(cur.paper_id) as any)?.subject)
+    if (p.qtype !== undefined && !db.prepare('SELECT 1 FROM qtypes WHERE code = ? AND subject = ?').get(p.qtype, paperSubject)) throw new Error(`题型不存在：${p.qtype}`)
 
     const sets: string[] = []
     const vals: any[] = []
@@ -323,21 +326,24 @@ export function registerQuestionIpc(): void {
     const db = getDb()
     let parent = body.parent_code ? (db.prepare('SELECT code, parent_code, level, sort FROM kps WHERE code = ?').get(body.parent_code) as any) : null
     if (body.parent_code && !parent) throw new Error('父节点不存在')
+    const paperSubj = asSubject((db.prepare('SELECT subject FROM papers WHERE id = ?').get(q.paper_id) as any)?.subject)
+    if (parent && asSubject((db.prepare('SELECT subject FROM kps WHERE code = ?').get(parent.code) as any)?.subject) !== paperSubj) throw new Error('父节点不是这份试卷所属学科的知识点')
     if (parent && parent.level >= 3) parent = parent.parent_code ? db.prepare('SELECT code, parent_code, level, sort FROM kps WHERE code = ?').get(parent.parent_code) : null
 
     db.exec('BEGIN')
     try {
       const pcode: string | null = parent?.code ?? null
-      const same = db.prepare('SELECT code FROM kps WHERE parent_code IS ? AND name = ? AND deprecated = 0').get(pcode, body.name) as { code: string } | undefined
+      const same = db.prepare('SELECT code FROM kps WHERE parent_code IS ? AND name = ? AND deprecated = 0 AND subject = ?').get(pcode, body.name, paperSubj) as { code: string } | undefined
       let code = same?.code
       if (!code) {
-        const prefix = pcode ?? 'U'
+        const subject = paperSubj   // 新节点的学科 = 这份卷子的学科（父节点已校验过同学科）
+        const prefix = pcode ?? customRootPrefix(subject)
         let n = 1
         while (db.prepare('SELECT 1 FROM kps WHERE code = ?').get(`${prefix}.U${n}`)) n++
         code = `${prefix}.U${n}`
-        const sort = parent ? parent.sort + n : ((db.prepare('SELECT MAX(sort) m FROM kps').get() as any).m ?? 0) + 10
-        db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, note, builtin) VALUES (?, ?, ?, ?, NULL, ?, 0, ?, 0)`)
-          .run(code, pcode, body.name, (parent?.level ?? 0) + 1, sort, `由老师采纳 AI 建议新增（题 ${flatKpText(String(q.no_label ?? '')).slice(0, 20)}）`)
+        const sort = parent ? parent.sort + n : ((db.prepare('SELECT MAX(sort) m FROM kps WHERE subject = ?').get(subject) as any).m ?? 0) + 10
+        db.prepare(`INSERT INTO kps (code, parent_code, name, level, intro_grade, sort, deprecated, note, builtin, subject) VALUES (?, ?, ?, ?, NULL, ?, 0, ?, 0, ?)`)
+          .run(code, pcode, body.name, (parent?.level ?? 0) + 1, sort, `由老师采纳 AI 建议新增（题 ${flatKpText(String(q.no_label ?? '')).slice(0, 20)}）`, subject)
       }
       const oldMain = (db.prepare('SELECT kp_code FROM question_kps WHERE question_id = ? AND is_primary = 1').get(id) as any)?.kp_code as string | undefined
       const secondary = (db.prepare('SELECT kp_code FROM question_kps WHERE question_id = ? AND is_primary = 0').all(id) as Array<{ kp_code: string }>).map(r => r.kp_code)

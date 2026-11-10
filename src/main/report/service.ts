@@ -22,6 +22,8 @@ import type { Draft } from '../ai/drafts'
 import { promptText, promptVersionFor, defaultVersionOf, PLACEHOLDERS } from '../ai/prompts'
 import type { PromptId } from '../ai/types'
 import { notifyDataChanged } from '../events'
+import { asSubject } from '../../shared/subject.ts'
+import { pruneReportHistory } from './history-prune'
 import { stripUnknownCitations } from '../../shared/citation'
 import type { CitationRef } from '../../shared/citation'
 import { stripMarks } from '../../shared/factcheck'
@@ -262,9 +264,9 @@ function itemOf(row: any, memo: Map<string, PreparedReport>): ReportItem {
   }
 }
 
-export function listReports(): ReportItem[] {
+export function listReports(subject?: unknown): ReportItem[] {
   const memo = new Map<string, PreparedReport>()
-  const rows = getDb().prepare(`SELECT * FROM reports WHERE kind = ? ORDER BY created_at DESC, rowid DESC`).all(KIND) as any[]
+  const rows = getDb().prepare(`SELECT * FROM reports WHERE kind = ? AND subject = ? ORDER BY created_at DESC, rowid DESC`).all(KIND, asSubject(subject)) as any[]
   return rows.map(r => itemOf(r, memo))
 }
 
@@ -566,11 +568,11 @@ export async function generateReport(filter: StatsFilter, reader: ReportReader, 
 
     const db = getDb()
     db.prepare(`INSERT INTO reports (id, kind, filter_json, markdown, model, title, refs_json, warnings_json, sample_warning, fingerprint, cache_key, template_sig, prompt_version, usage_json,
-        checked_rev, checked_sig, checked_json, reader, verify_json, options_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        checked_rev, checked_sig, checked_json, reader, verify_json, options_json, subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, KIND, JSON.stringify(normalizeFilter(filter)), fin.text, r.model, p.title, JSON.stringify(used), JSON.stringify(fin.warnings), warn === '无' ? null : warn, p.input.fingerprint, p.cacheKey, p.templateSig,
-        p.promptVersion, JSON.stringify(r.usage), p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), reader, JSON.stringify(fin.unverified), hasOptions(options) ? JSON.stringify(options) : null)
-    // 历史最多留 MAX_HISTORY 条
-    db.prepare(`DELETE FROM reports WHERE kind = ? AND id NOT IN (SELECT id FROM reports WHERE kind = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)`).run(KIND, KIND, MAX_HISTORY)
+        p.promptVersion, JSON.stringify(r.usage), p.rev, p.templateSig, JSON.stringify({ fresh: true, reasons: [], promptError: null, empty: false }), reader, JSON.stringify(fin.unverified), hasOptions(options) ? JSON.stringify(options) : null, filter.subject ?? 'english')
+    // 历史每个学科各最多留 MAX_HISTORY 条
+    pruneReportHistory(db, KIND, filter.subject ?? 'english', MAX_HISTORY)
     clearDraft(dkey)
     notifyDataChanged('reports')
     if (defs.length === 0) {

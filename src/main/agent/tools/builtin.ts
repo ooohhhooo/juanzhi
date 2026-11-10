@@ -3,6 +3,7 @@
  */
 import { z } from 'zod'
 import { stateIndex } from '../context.ts'
+import { sessionSubject } from '../store.ts'
 import type { ToolDef } from '../types.ts'
 
 export const updatePlan: ToolDef = {
@@ -88,7 +89,7 @@ export const historySearch: ToolDef = {
   schema: z.object({ query: z.string().max(80).default('').describe('关键词，空格分隔；留空 = 最近的对话'), limit: z.number().int().min(1).max(20).default(8) }),
   run: (args, ctx) => {
     const words = String(args.query ?? '').split(/\s+/).map((w: string) => w.trim()).filter(Boolean).slice(0, 6)
-    const sessions = ctx.db.prepare('SELECT id, title, role, updated_at FROM agent_sessions WHERE id <> ? ORDER BY updated_at DESC LIMIT 200').all(ctx.sessionId) as any[]
+    const sessions = ctx.db.prepare('SELECT id, title, role, updated_at FROM agent_sessions WHERE id <> ? AND subject = ? ORDER BY updated_at DESC LIMIT 200').all(ctx.sessionId, sessionSubject(ctx.db, ctx.sessionId)) as any[]
     const hits: string[] = []
     for (const s of sessions) {
       if (hits.length >= (args.limit ?? 8)) break
@@ -111,7 +112,7 @@ export const historyRead: ToolDef = {
   description: '读一段以前的对话：每一轮用户的问题和你的最终回答（不含中间查询过程）。sessionId 来自 history_search。',
   schema: z.object({ sessionId: z.string().min(1).max(80) }),
   run: (args, ctx) => {
-    const s = ctx.db.prepare('SELECT id, title, updated_at FROM agent_sessions WHERE id = ?').get(args.sessionId) as any
+    const s = ctx.db.prepare('SELECT id, title, updated_at FROM agent_sessions WHERE id = ? AND subject = ?').get(args.sessionId, sessionSubject(ctx.db, ctx.sessionId)) as any
     if (!s) return { text: '找不到这个对话，请先用 history_search 找编号。', count: 0 }
     const turns = turnsOf(ctx.db, s.id)
     let left = 12000

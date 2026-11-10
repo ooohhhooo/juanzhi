@@ -1,6 +1,6 @@
 ---
 name: juanzhi
-description: 调用「卷知」（小学英语试卷分析桌面软件）的命令行：导入校内英语试卷（pdf / 图片 / docx）、查看试卷和知识点统计、生成老板版 / 老师版 / 家长版 / 完整版考情分析报告并导出 md、docx、pdf。当用户要分析小学英语试卷、看考情、出报告、给家长发总结、或提到「卷知」「juanzhi」时使用。
+description: 调用「卷知」（小学试卷分析桌面软件，支持英语、语文、数学）的命令行：导入校内试卷（pdf / 图片 / docx）、查看试卷和知识点统计、生成老板版 / 老师版 / 家长版 / 完整版考情分析报告并导出 md、docx、pdf。当用户要分析小学试卷（英语、语文或数学）、看考情、出报告、给家长发总结、或提到「卷知」「juanzhi」时使用。
 ---
 
 # 卷知命令行（juanzhi）
@@ -37,17 +37,17 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 
 | 命令 | 作用 |
 |---|---|
-| `status` | 版本、数据目录、卷子数（按状态）、AI 是否已配置、OCR 是否可用 |
-| `import <文件…> [--wait]` | 导入并自动提取 + AI 解析；会一直等到每份进入「待审核」或失败（几分钟）；`--timeout <秒>` 限制最长等待 |
-| `papers list [--grade --semester --year --exam-type --textbook --region --status]` | 试卷列表 |
+| `status [--subject]` | 版本、数据目录、卷子数（按状态）、AI 是否已配置、OCR 是否可用 |
+| `import <文件…> [--wait] [--subject english\|chinese\|math]` | 导入并自动提取 + AI 解析；会一直等到每份进入「待审核」或失败（几分钟）；`--timeout <秒>` 限制最长等待 |
+| `papers list [--subject --grade --semester --year --exam-type --textbook --region --status]` | 试卷列表 |
 | `papers show <id>` | 一份试卷的题目、知识点、状态 |
 | `papers confirm <id> --i-reviewed` | 跳过人工审核直接确认整份试卷（**见下面的规则**） |
-| `stats overview` / `stats hot [--level 1\|2\|3]` / `stats compare --target <学年> [--base before\|<学年>]` | 统计；都支持筛选：`--grade 1-6 --semester 上\|下 --year <学年起始年> --exam-type 单元测试\|期中\|期末\|月考\|其他 --textbook --region --include-reviewing --include-duplicates` |
+| `stats overview` / `stats hot [--level 1\|2\|3]` / `stats compare --target <学年> [--base before\|<学年>]` | 统计；都支持筛选：`--subject english\|chinese\|math --grade 1-6 --semester 上\|下 --year <学年起始年> --exam-type 单元测试\|期中\|期末\|月考\|其他 --textbook --region --include-reviewing --include-duplicates` |
 | `report generate --reader boss\|teacher\|parent\|full [筛选] [--with-course <id[,id]>]` | 生成报告；`--with-course` 加入课程对照（体系要先 `course match`，否则退出码 15） |
 | `course list` | 课程体系列表（id、级别数、课数、是否草稿、匹配状态） |
 | `course import <文件> [--name --scene org\|school\|family\|other] [--i-reviewed]` | 导入课程表（xlsx / csv）。**不带 `--i-reviewed` 保存为草稿，不参与对照**（见下面的规则） |
 | `course match <id> [--only-new] [--estimate-only] [--yes]` | 把知识点匹配到课程体系的课次（调用 AI，花用量，返回 `usage`）。`--estimate-only` 只估算；预计用量超过约 20 万 token 不加 `--yes` 会报退出码 8：**先告诉用户、他同意再加 `--yes`** |
-| `report list` / `report show <id>` | 报告列表 / 详情 |
+| `report list [--subject]` / `report show <id>` | 报告列表 / 详情 |
 | `report export <id> --format md\|docx\|pdf --out <路径>` | 导出文件 |
 | `diagnostics --out <文件.zip> [--overwrite]` | 导出诊断信息（版本、系统、脱敏设置、队列、日志；不含学生数据和密钥）。用户遇到问题时帮他生成，让他自己作为附件发到反馈页，不会自动上传 |
 
@@ -63,6 +63,8 @@ description: 调用「卷知」（小学英语试卷分析桌面软件）的命�
 6. `juanzhi report export <id> --format docx --out <路径> --json`：导出，把文件路径告诉用户。
 
 ## 必须遵守的规则
+
+- **先确认学科再导入、再出报告。** 卷知分英语、语文、数学三个学科，数据互相隔开。用户没说是哪一科时先问；`import`、`stats`、`report generate` 都要带 `--subject english|chinese|math`（不带则用窗口里当前选的学科，没选过就是英语），不要拿一个学科的统计去解读另一个学科的卷子。
 
 - **`papers confirm` 不能替用户做决定。** 它会跳过人工审核，AI 的错会直接进入统计和报告。只有用户明确说了「我已经审核过了」，才加 `--i-reviewed` 运行。用户没说，就让他到卷知窗口里审核，不要自己加这个参数。
 - **家长版不能直接发给家长。** 家长版只要老师没在窗口里点「我已核对」，`report generate`、`report show` 返回 `parentDraft: true`，`report export` 的文件开头有「AI 草稿 · 未经老师核对，请勿直接发给家长」，JSON 里 `draft: true`。你没有任何命令能替老师点「我已核对」。把文件交给用户时要说清楚：这是草稿，需要老师读一遍、在卷知窗口里点「我已核对」后才能发给家长。

@@ -25,12 +25,14 @@ export const T_SAME_META = 0.5
 export const T_SAME_TITLE = 0.3
 
 /** 一道题的比对键：题干 + 选项规范化后合在一起（OCR 把选项放进题干还是放进选项，不影响比对）；太短（< 8 个字符）的不当依据 */
-export function questionKey(stem: string | null | undefined, options: string[] | string | null | undefined): string | null {
+export function questionKey(stem: string | null | undefined, options: string[] | string | null | undefined, subject: string = 'english'): string | null {
   let opts: string[] = []
   if (Array.isArray(options)) opts = options
   else if (typeof options === 'string' && options) { try { const j = JSON.parse(options); if (Array.isArray(j)) opts = j.map(String) } catch { opts = [options] } }
   const raw = `${stem ?? ''} ${opts.join(' ')}`
-  const key = raw.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').replace(/^\d+(?=\p{L})/u, '')
+  // 数学题「3+5=」和「3×5=」只差运算符：数学卷保留运算符和比较符号，不然会被当成同一道题
+  const strip = subject === 'math' ? /[^\p{L}\p{N}+\-−×÷*/=<>≤≥≠%]+/gu : /[^\p{L}\p{N}]+/gu
+  const key = raw.normalize('NFKC').toLowerCase().replace(strip, '').replace(/^\d+(?=\p{L})/u, '')
   return key.length >= MIN_KEY_CHARS ? key : null
 }
 
@@ -40,6 +42,8 @@ export interface SimPaper {
   grade: string | null
   school_year_start: number | null
   keys: Set<string>
+  /** 学科：不同学科的卷子互不比对（缺省 = 不限制，兼容旧调用） */
+  subject?: string
   /** 导入先后（created_at + rowid，字符串比较）：包含度一样时标后导入的那份 */
   seq?: string
 }
@@ -51,6 +55,7 @@ export interface SimilarHit { of: SimPaper; /** 新卷里有多大比例的题�
 /** a 被 b 包含到什么程度、算不算疑似（a 是被包含的那份）；达不到判定线返回 null */
 export function pairHit(a: SimPaper, b: SimPaper): SimilarHit | null {
   if (a.keys.size < MIN_QUESTIONS || a.id === b.id || b.keys.size === 0) return null
+  if (a.subject && b.subject && a.subject !== b.subject) return null
   let inter = 0
   for (const k of a.keys) if (b.keys.has(k)) inter++
   const ratio = inter / a.keys.size
@@ -96,13 +101,13 @@ export function similarText(title: string, ratio: number, reverse: number): stri
 
 type Db = any
 
-function loadSim(db: Db, row: { id: string; title: string; grade: string | null; school_year_start: number | null; created_at?: string; rid?: number }): SimPaper {
+function loadSim(db: Db, row: { id: string; title: string; grade: string | null; school_year_start: number | null; created_at?: string; rid?: number; subject?: string }): SimPaper {
   const keys = new Set<string>()
   for (const q of db.prepare('SELECT stem, options FROM questions WHERE paper_id = ?').all(row.id) as any[]) {
-    const k = questionKey(q.stem, q.options)
+    const k = questionKey(q.stem, q.options, row.subject)
     if (k) keys.add(k)
   }
-  return { id: row.id, title: row.title || '', grade: row.grade, school_year_start: row.school_year_start, keys, seq: `${row.created_at ?? ''}|${String(row.rid ?? 0).padStart(12, '0')}` }
+  return { id: row.id, subject: row.subject ?? 'english', title: row.title || '', grade: row.grade, school_year_start: row.school_year_start, keys, seq: `${row.created_at ?? ''}|${String(row.rid ?? 0).padStart(12, '0')}` }
 }
 
 export interface DetectResult {
@@ -118,10 +123,10 @@ export interface DetectResult {
  * @param opts.olderOnly 只和导入得更早的卷子比（升级后整库扫描时按导入先后依次处理，结果和当时一份份导入一样）
  */
 export function detectSimilar(db: Db, paperId: string, opts: { olderOnly?: boolean } = {}): DetectResult | null {
-  const me = db.prepare('SELECT id, title, grade, school_year_start, created_at, rowid AS rid, is_sample, similar_state FROM papers WHERE id = ?').get(paperId) as any
+  const me = db.prepare('SELECT id, title, grade, school_year_start, created_at, rowid AS rid, is_sample, similar_state, subject FROM papers WHERE id = ?').get(paperId) as any
   if (!me || me.is_sample === 1) return null
   const target = loadSim(db, me)
-  const rows = db.prepare(`SELECT id, title, grade, school_year_start, created_at, rowid AS rid, similar_state FROM papers WHERE id <> ? AND is_sample = 0 AND status IN ('reviewing', 'done')`).all(paperId) as any[]
+  const rows = db.prepare(`SELECT id, title, grade, school_year_start, created_at, rowid AS rid, similar_state, subject FROM papers WHERE id <> ? AND is_sample = 0 AND subject = ? AND status IN ('reviewing', 'done')`).all(paperId, me.subject ?? 'english') as any[]
   let self: SimilarHit | null = null
   const flaggedOthers: DetectResult['flaggedOthers'] = []
   for (const r of rows) {
@@ -160,18 +165,18 @@ export interface ScanResult { checked: number; suspects: number }
  * 因更新的完整卷而被标的旧卷，这一轮看不到那份更新的卷，也不会被当成过期标记清掉。
  */
 function* scanGen(db: Db): Generator<ScanProgress, ScanResult> {
-  const rows = db.prepare(`SELECT id, title, grade, school_year_start, created_at, rowid AS rid, similar_state, similar_to FROM papers
+  const rows = db.prepare(`SELECT id, title, grade, school_year_start, created_at, rowid AS rid, similar_state, similar_to, subject FROM papers
     WHERE is_sample = 0 AND status IN ('reviewing', 'done') ORDER BY created_at, rowid`).all() as any[]
   const keys = new Map<string, Set<string>>()
-  for (const q of db.prepare(`SELECT q.paper_id AS pid, q.stem, q.options FROM questions q JOIN papers p ON p.id = q.paper_id
+  for (const q of db.prepare(`SELECT q.paper_id AS pid, q.stem, q.options, p.subject AS subject FROM questions q JOIN papers p ON p.id = q.paper_id
     WHERE p.is_sample = 0 AND p.status IN ('reviewing', 'done')`).all() as any[]) {
-    const k = questionKey(q.stem, q.options)
+    const k = questionKey(q.stem, q.options, q.subject)
     if (!k) continue
     let set = keys.get(q.pid)
     if (!set) keys.set(q.pid, (set = new Set()))
     set.add(k)
   }
-  const sims: SimPaper[] = rows.map(r => ({ id: r.id, title: r.title || '', grade: r.grade, school_year_start: r.school_year_start, keys: keys.get(r.id) ?? new Set<string>(), seq: `${r.created_at ?? ''}|${String(r.rid ?? 0).padStart(12, '0')}` }))
+  const sims: SimPaper[] = rows.map(r => ({ id: r.id, subject: r.subject ?? 'english', title: r.title || '', grade: r.grade, school_year_start: r.school_year_start, keys: keys.get(r.id) ?? new Set<string>(), seq: `${r.created_at ?? ''}|${String(r.rid ?? 0).padStart(12, '0')}` }))
   const bySeq = new Map(sims.map(x => [x.id, x]))
   const init = new Map<string, { state: string | null; to: string | null; ratio: number | null }>(rows.map(r => [r.id, { state: r.similar_state ?? null, to: r.similar_to ?? null, ratio: null }]))
   const cur = new Map(init)

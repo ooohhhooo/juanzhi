@@ -11,7 +11,10 @@ import { collectEvidence } from '../../stats/evidence.ts'
 import { checkRules } from '../../../shared/factcheck.ts'
 import { isMainMap } from '../../course/match.ts'
 import { lessonName } from '../../course/map.ts'
-import type { ToolDef } from '../types.ts'
+import type { ToolDef, ToolCtx } from '../types.ts'
+import { sessionSubject } from '../store.ts'
+import { subjectName } from '../../../shared/subject.ts'
+import type { SubjectId } from '../../../shared/subject.ts'
 import { READER_LABEL, stripInternalCodes } from '../../../shared/report-post.ts'
 import type { ReportReader } from '../../../shared/report-post.ts'
 
@@ -31,8 +34,10 @@ const FilterShape = {
   include_reviewing: z.boolean().optional().describe('是否把还没审核完的试卷也算进来，默认不算')
 }
 type FilterArgs = { grade?: StatsFilter['grade']; semester?: StatsFilter['semester']; school_year_start?: number; exam_type?: StatsFilter['exam_type']; textbook?: string; region?: string; include_reviewing?: boolean }
-const toFilter = (a: FilterArgs): StatsFilter => {
-  const f: StatsFilter = {}
+/** 筛选里的学科由会话决定，模型不能自己改：所有统计都强制带上会话的学科 */
+const subjectOf = (ctx: ToolCtx): SubjectId => sessionSubject(ctx.db, ctx.sessionId)
+const toFilter = (a: FilterArgs, subject: SubjectId = 'english'): StatsFilter => {
+  const f: StatsFilter = { subject }
   if (a.grade) f.grade = a.grade
   if (a.semester) f.semester = a.semester
   if (a.school_year_start) f.school_year_start = a.school_year_start
@@ -54,10 +59,12 @@ const describeFilter = (a: FilterArgs): string => {
 }
 
 /** 把模型给的「知识点」（代码或中文名）找到对应的知识点；可能有多个候选 */
-export function resolveKp(db: any, input: string): Array<{ code: string; name: string }> {
+export function resolveKp(db: any, input: string, subject: SubjectId = 'english'): Array<{ code: string; name: string }> {
   const t = input.trim()
   if (!t) return []
-  const kps = loadKps(db)
+  // 只在本学科的知识点里找（别的学科的同名节点不算）
+  const mine = new Set((db.prepare('SELECT code FROM kps WHERE subject = ?').all(subject) as Array<{ code: string }>).map(r => r.code))
+  const kps = loadKps(db).filter(k => mine.has(k.code))
   const byCode = kps.filter(k => k.code.toLowerCase() === t.toLowerCase())
   if (byCode.length) return byCode.map(k => ({ code: k.code, name: k.name }))
   const exact = kps.filter(k => k.name === t)
@@ -66,8 +73,8 @@ export function resolveKp(db: any, input: string): Array<{ code: string; name: s
   return kps.filter(k => k.name.toLowerCase().includes(lower) || lower.includes(k.name.toLowerCase()) && k.name.length >= 2).slice(0, 6).map(k => ({ code: k.code, name: k.name }))
 }
 
-const pickKp = (db: any, input: string): { kp: { code: string; name: string } } | { text: string; count: number } => {
-  const c = resolveKp(db, input)
+const pickKp = (db: any, input: string, subject: SubjectId): { kp: { code: string; name: string } } | { text: string; count: number } => {
+  const c = resolveKp(db, input, subject)
   if (c.length === 0) return { text: `没有找到叫「${input}」的知识点。可以先用 stats_overview 看看有哪些常考的知识点，再用它的名字重试。`, count: 0 }
   if (c.length > 1) return { text: `「${input}」可能是下面几个知识点之一，请用准确的名字或代码重新调用：\n${c.map(k => `- ${k.name}（代码 ${k.code}）`).join('\n')}`, count: c.length }
   return { kp: c[0] }
@@ -81,7 +88,7 @@ export const statsOverview: ToolDef = {
   schema: z.object({ ...FilterShape, top: z.number().int().min(1).max(15).default(6).describe('最常考 / 最易错各列几个，默认 6') }),
   run: (a, ctx) => {
     const db = ctx.db
-    const scope = paperScope(toFilter(a))
+    const scope = paperScope(toFilter(a, subjectOf(ctx)))
     const c = scopeCounts(db, scope)
     const head = `范围：${describeFilter(a)}（只含老师已审核的试卷${a.include_reviewing ? '和待审核的试卷' : ''}）\n卷子 ${c.papers} 份，题目 ${c.questions} 道`
     if (c.papers === 0) return { text: `${head}\n这个范围里还没有可以统计的试卷。`, count: 0 }
@@ -120,10 +127,10 @@ export const kpQuestions: ToolDef = {
     ...FilterShape
   }),
   run: (a, ctx) => {
-    const p = pickKp(ctx.db, a.kp)
+    const p = pickKp(ctx.db, a.kp, subjectOf(ctx))
     if ('text' in p) return p
     const limit = a.limit ?? 8
-    const cards = questionsOfKp(ctx.db, paperScope(toFilter(a)), p.kp.code, limit + 1)
+    const cards = questionsOfKp(ctx.db, paperScope(toFilter(a, subjectOf(ctx))), p.kp.code, limit + 1)
     if (cards.length === 0) return { text: `在「${describeFilter(a)}」里，没有考「${p.kp.name}」的题。`, count: 0 }
     const shown = cards.slice(0, limit)
     const lines = shown.map((q, i) => `${i + 1}. [[q:${q.id}]] 《${oneLine(q.paperTitle, 30)}》第 ${q.no} 题（${q.qtypeName}）：${oneLine(q.stem, 60) || '（题干未识别）'}${q.error_prone ? `｜易错：${oneLine(q.error_reason, 50) || '（未写原因）'}` : ''}`)
@@ -140,19 +147,19 @@ export const courseForKp: ToolDef = {
   schema: z.object({ kp: z.string().min(1).max(80).describe('知识点的中文名或代码') }),
   run: (a, ctx) => {
     const db = ctx.db
-    const p = pickKp(db, a.kp)
+    const p = pickKp(db, a.kp, subjectOf(ctx))
     if ('text' in p) return p
-    const outlines = db.prepare("SELECT COUNT(*) c FROM course_outlines WHERE active = 1 AND status = 'active'").get().c as number
+    const outlines = db.prepare("SELECT COUNT(*) c FROM course_outlines WHERE active = 1 AND status = 'active' AND subject = ?").get(subjectOf(ctx)).c as number
     if (!outlines) return { text: '软件里还没有导入（或启用）课程大纲，无法查对应的课。', count: 0 }
     const rows = db.prepare(`WITH RECURSIVE ${CLOSURE_CTE}
       SELECT m.kp_code, m.lesson_id, m.confidence, m.state, m.reason, l.seq, l.no_label, l.title, lv.name AS level_name, o.name AS outline_name
       FROM closure c JOIN course_kp_map m ON m.kp_code = c.code
       JOIN course_lessons l ON l.id = m.lesson_id JOIN course_levels lv ON lv.id = l.level_id
-      JOIN course_outlines o ON o.id = m.outline_id AND o.active = 1 AND o.status = 'active'
+      JOIN course_outlines o ON o.id = m.outline_id AND o.active = 1 AND o.status = 'active' AND o.subject = '${subjectOf(ctx)}'
       WHERE c.anc = ? ORDER BY o.name, lv.sort, l.seq`).all(p.kp.code) as any[]
     const main = rows.filter(isMainMap)
     if (main.length === 0) {
-      const checked = (db.prepare("SELECT COUNT(*) c FROM course_kp_check k JOIN course_outlines o ON o.id = k.outline_id WHERE k.kp_code = ? AND o.active = 1").get(p.kp.code) as any).c as number
+      const checked = (db.prepare("SELECT COUNT(*) c FROM course_kp_check k JOIN course_outlines o ON o.id = k.outline_id WHERE k.kp_code = ? AND o.active = 1 AND o.subject = ?").get(p.kp.code, subjectOf(ctx)) as any).c as number
       return { text: `「${p.kp.name}」在课程大纲里${checked ? '没有找到对应的课（已经检查过）' : '暂时没有对应的课（可能还没做课程匹配）'}。`, count: 0 }
     }
     const conf: Record<string, string> = { high: '把握高', medium: '把握中', low: '把握低' }
@@ -168,7 +175,7 @@ export const factCheck: ToolDef = {
   description: '把一段讲解文字（尤其是语法规则的说法）拿去和已审核的题目解释、知识点释义核对。找出「与题目解释矛盾」和「查不到依据」的句子。通过只表示和软件里审核过的资料一致，不代表一定正确。',
   schema: z.object({ text: z.string().min(1).max(4000).describe('要核对的文字') }),
   run: (a, ctx) => {
-    const ev = collectEvidence(ctx.db, paperScope({}), {})
+    const ev = collectEvidence(ctx.db, paperScope({ subject: subjectOf(ctx) }), {})
     const found = checkRules(a.text, ev.statements)
     if (found.length === 0) return { text: '没有发现和软件里审核过的资料矛盾的规则句（也可能这段话里没有规则句）。', count: 0 }
     const kind = { conflict: '与题目解释矛盾', unverified: '查不到依据' } as const
@@ -185,8 +192,8 @@ export const papersList: ToolDef = {
   schema: z.object({ ...FilterShape, limit: z.number().int().min(1).max(100).default(40).describe('最多列几份，默认 40') }),
   run: (a, ctx) => {
     const db = ctx.db
-    const conds: string[] = ['p.is_sample = 0']
-    const params: unknown[] = []
+    const conds: string[] = ['p.is_sample = 0', 'p.subject = ?']
+    const params: unknown[] = [subjectOf(ctx)]
     for (const k of ['grade', 'semester', 'school_year_start', 'exam_type', 'textbook', 'region'] as const) if (a[k] !== undefined) { conds.push(`p.${k} = ?`); params.push(a[k]) }
     const all = db.prepare(`SELECT p.id, p.title, p.grade, p.semester, p.school_year_start, p.exam_type, p.school, p.status, (SELECT COUNT(*) FROM questions q WHERE q.paper_id = p.id) AS qn
       FROM papers p WHERE ${conds.join(' AND ')} ORDER BY p.created_at DESC`).all(...params) as any[]
@@ -207,9 +214,9 @@ export const courseCoverage: ToolDef = {
   schema: z.object({ ...FilterShape }),
   run: (a, ctx) => {
     const db = ctx.db
-    const outlines = db.prepare("SELECT id, name FROM course_outlines WHERE active = 1 AND status = 'active' ORDER BY name").all() as any[]
+    const outlines = db.prepare("SELECT id, name FROM course_outlines WHERE active = 1 AND status = 'active' AND subject = ? ORDER BY name").all(subjectOf(ctx)) as any[]
     if (!outlines.length) return { text: '软件里还没有导入（或启用）课程大纲。', count: 0 }
-    const scope = paperScope(toFilter(a))
+    const scope = paperScope(toFilter(a, subjectOf(ctx)))
     const c = scopeCounts(db, scope)
     const out = [`已启用的课程大纲：${outlines.map(o => `《${o.name}》`).join('、')}`, `范围：${describeFilter(a)}，已审核试卷 ${c.papers} 份`]
     for (const o of outlines) {
@@ -243,7 +250,7 @@ export const reportsList: ToolDef = {
   description: '列出「报告」页里已经生成的考情分析报告：编号、版本（老板版 / 家长版 / 老师版 / 完整数据版）、范围、生成时间、是否已由老师核对。读内容用 report_read。',
   schema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
   run: (a, ctx) => {
-    const rows = ctx.db.prepare("SELECT rowid AS n, id, reader, filter_json, created_at, confirmed_at, length(markdown) AS len FROM reports WHERE kind = 'report' ORDER BY created_at DESC, rowid DESC LIMIT ?").all(a.limit ?? 20) as any[]
+    const rows = ctx.db.prepare("SELECT rowid AS n, id, reader, filter_json, created_at, confirmed_at, length(markdown) AS len FROM reports WHERE kind = 'report' AND subject = ? ORDER BY created_at DESC, rowid DESC LIMIT ?").all(subjectOf(ctx), a.limit ?? 20) as any[]
     if (!rows.length) return { text: '还没有生成过报告（可以到「报告」页生成）。', count: 0 }
     const lines = rows.map(r => {
       let scope = ''
@@ -259,7 +266,7 @@ export const reportRead: ToolDef = {
   description: '读一份已生成报告的正文（Markdown）。reportId 来自 reports_list。长报告分段读：from 是起始字位置，一次最多 8000 字，nextFrom 不为空说明后面还有。',
   schema: z.object({ reportId: z.string().min(1).max(80), from: z.number().int().min(0).default(0) }),
   run: (a, ctx) => {
-    const r = ctx.db.prepare("SELECT id, reader, markdown, created_at, confirmed_at FROM reports WHERE kind = 'report' AND id = ?").get(a.reportId) as any
+    const r = ctx.db.prepare("SELECT id, reader, markdown, created_at, confirmed_at FROM reports WHERE kind = 'report' AND id = ? AND subject = ?").get(a.reportId, subjectOf(ctx)) as any
     if (!r) return { text: '找不到这份报告，请先用 reports_list 看编号。', count: 0 }
     const md = stripInternalCodes(String(r.markdown ?? ''))
     const from = Math.min(a.from ?? 0, md.length), end = Math.min(md.length, from + 8000)

@@ -168,6 +168,9 @@ export function registerPaperIpc(): void {
       (SELECT COUNT(*) FROM pages pg WHERE pg.paper_id = papers.id AND json_valid(pg.quality_json) AND json_extract(pg.quality_json, '$.low') = 1 AND json_extract(pg.quality_json, '$.why') <> 'low-conf' AND COALESCE(pg.recognizer, '') <> 'vision-model') AS rec_low
       FROM papers WHERE 1=1`
     const params: any[] = []
+    // 学科：不写就是英语（旧调用方、旧版本界面都不带）
+    const subject = filter ? PaperFilterSchema.parse(filter).subject ?? 'english' : 'english'
+    sql += ' AND subject = ?'; params.push(subject)
 
     if (filter) {
       const f = PaperFilterSchema.parse(filter)

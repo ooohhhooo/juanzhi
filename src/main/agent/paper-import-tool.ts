@@ -8,6 +8,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
 import { allowPath } from '../allowedPaths'
+import { getDb } from '../db'
+import { sessionSubject } from './store'
 import { registerImports } from '../pipeline/queue'
 import { imagesToPdf } from '../pipeline/images-to-pdf'
 import { sessionAttachSources } from './attachments'
@@ -77,7 +79,7 @@ export const paperImport: AgentTool<Args> = {
       if (g.items.length > 1) merged++
     }
     paths.forEach(allowPath)
-    const res = await registerImports(paths, { parseAfter: true })
+    const res = await registerImports(paths, { parseAfter: true, subject: sessionSubject(getDb(), ctx.sessionId) })
     const ok = res.filter(r => r.paperId)
     const dup = res.filter(r => r.code === 'duplicate')
     const bad = res.filter(r => r.error && r.code !== 'duplicate')

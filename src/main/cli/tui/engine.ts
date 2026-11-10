@@ -112,14 +112,17 @@ export class Engine {
 
   banner(): Banner {
     const db = getDb()
-    const c = (sql: string): number => (db.prepare(sql).get() as any).c as number
+    // 计数按界面上当前选的学科（没选过就是英语）
+    let subject = 'english'
+    try { const row = db.prepare("SELECT value_json FROM settings WHERE key = 'current_subject'").get() as { value_json: string } | undefined; if (row) { const v = JSON.parse(row.value_json); if (v === 'chinese' || v === 'math') subject = v } } catch { /* 用英语 */ }
+    const c = (sql: string): number => (db.prepare(sql).get(subject) as any).c as number
     let datasets = 0
     try { datasets = getStore().list().length } catch { /* 数据集目录还没有 */ }
     return {
       version: app.getVersion(), dataDir: shortHome(getDataDir()),
       model: this.aiReady ? this.effectiveModel : null,
-      papers: c('SELECT COUNT(*) c FROM papers WHERE is_sample = 0'),
-      parsed: c("SELECT COUNT(*) c FROM papers WHERE is_sample = 0 AND status IN ('reviewing','done')"),
+      papers: c('SELECT COUNT(*) c FROM papers WHERE is_sample = 0 AND subject = ?'),
+      parsed: c("SELECT COUNT(*) c FROM papers WHERE is_sample = 0 AND status IN ('reviewing','done') AND subject = ?"),
       datasets, role: this.roleLabel
     }
   }
