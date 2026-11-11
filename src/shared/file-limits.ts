@@ -17,9 +17,30 @@ export function formatBytes(n: number): string {
   return `${Math.max(1, Math.round(n / 1024))} KB`
 }
 
-/** 文件太大时的提示（带实际大小和上限）；没超返回 null */
-export function tooBigMessage(size: number, max = MAX_IMPORT_BYTES): string | null {
-  return size > max ? `文件太大了：${formatBytes(size)}，超过 ${formatBytes(max)} 的上限。可以先用 PDF 工具截取需要的页，或压缩后再上传` : null
+/** 只有 PDF 由渲染窗口分块读取；Word、Excel、图片要整份读进内存，上限小得多 */
+export const MAX_INMEMORY_BYTES = 100 * 1024 * 1024
+
+/** 按扩展名给出大小上限和叫法（试卷导入、课程大纲两边共用，口径一致） */
+export function importLimitOf(ext: string): { max: number; label: string } {
+  const e = ext.toLowerCase().replace(/^\./, '')
+  if (e === 'pdf') return { max: MAX_IMPORT_BYTES, label: 'PDF' }
+  if (e === 'docx' || e === 'doc') return { max: MAX_INMEMORY_BYTES, label: 'Word' }
+  if (['xlsx', 'xls', 'csv', 'tsv', 'txt'].includes(e)) return { max: MAX_INMEMORY_BYTES, label: '表格' }
+  if (['png', 'jpg', 'jpeg', 'heic'].includes(e)) return { max: MAX_INMEMORY_BYTES, label: '图片' }
+  return { max: MAX_INMEMORY_BYTES, label: '这类' }
+}
+
+/** 文件太大时的提示（带类型、实际大小和该类型的上限）；没超返回 null */
+export function tooBigMessage(size: number, max = MAX_IMPORT_BYTES, label = ''): string | null {
+  if (size <= max) return null
+  const hint = max < MAX_IMPORT_BYTES ? `（PDF 最大可到 ${formatBytes(MAX_IMPORT_BYTES)}）` : ''
+  return `${label ? `${label} ` : ''}文件太大了：${formatBytes(size)}，超过 ${formatBytes(max)} 的上限${hint}。可以先用工具截取需要的页或压缩后再上传`
+}
+
+/** 按扩展名检查文件大小；没超返回 null */
+export function tooBigForExt(size: number, ext: string): string | null {
+  const l = importLimitOf(ext)
+  return tooBigMessage(size, l.max, l.label)
 }
 
 /**

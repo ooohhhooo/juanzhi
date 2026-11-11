@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { OcrLine } from '../types'
 import { withTimeout } from './util'
-import { registerPdfSource, releasePdfSource } from './pdf-source'
+import { pdfFileSize, registerPdfSource, releasePdfSource, translatePdfError } from './pdf-source'
 
 export interface RenderedPage {
   index: number
@@ -84,13 +84,6 @@ function serialized<T>(task: () => Promise<T>): Promise<T> {
   return run
 }
 
-function translatePdfError(raw: string): string {
-  if (/password/i.test(raw)) return 'PDF 已加密，无法读取（请先去除密码保护）'
-  if (/invalid pdf|missing pdf|unexpected server response|formaterror/i.test(raw)) {
-    return '不是有效的 PDF 文件，或文件已损坏'
-  }
-  return `PDF 渲染失败：${raw}`
-}
 
 /**
  * 逐页渲染：每渲染完一页立即把 PNG 落盘并释放，避免整本文档的 base64 一次性回传。
@@ -129,10 +122,16 @@ async function openDoc(w: BrowserWindow, token: string, size: number): Promise<n
         (async () => {
           const url = 'ewb://pdfsrc/${token}';
           const size = ${size};
-          const get = async (b, e) => new Uint8Array(await (await fetch(url, { headers: { Range: 'bytes=' + b + '-' + (e - 1) } })).arrayBuffer());
+          window.__rangeError = '';
+          const get = async (b, e) => {
+            const res = await fetch(url, { headers: { Range: 'bytes=' + b + '-' + (e - 1) } });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return new Uint8Array(await res.arrayBuffer());
+          };
           const tr = new window.__pdfjs.PDFDataRangeTransport(size, await get(0, Math.min(size, 65536)));
-          tr.requestDataRange = (b, e) => { get(b, Math.min(e, size)).then(c => tr.onDataRange(b, c), () => {}); };
-          window.__doc = await window.__pdfjs.getDocument({
+          // 某一块读失败：记下原因并销毁文档 / 加载任务，让等着的调用马上失败，不是干等到超时
+          tr.requestDataRange = (b, e) => { get(b, Math.min(e, size)).then(c => tr.onDataRange(b, c), err => { window.__rangeError = String(err && err.message || err); try { (window.__doc || window.__task).destroy(); } catch (x) {} }); };
+          window.__task = window.__pdfjs.getDocument({
             range: tr,
             length: size,
             rangeChunkSize: ${SOURCE_CHUNK},
@@ -143,15 +142,23 @@ async function openDoc(w: BrowserWindow, token: string, size: number): Promise<n
             standardFontDataUrl: 'ewb://pdfjs/standard_fonts/',
             useSystemFonts: true,
             isEvalSupported: false
-          }).promise;
+          });
+          window.__doc = await window.__task.promise;
           return window.__doc.numPages;
         })()
       `),
       PAGE_TIMEOUT_MS, 'PDF 打开超时', () => destroyPdfRenderer()
     )
   } catch (e) {
-    throw new Error(translatePdfError((e as Error).message))
+    throw new Error(await rangeFailure(w) ?? translatePdfError((e as Error).message))
   }
+}
+
+/** 分块读文件失败过（文件被移走 / 占用 / 读盘出错）：给白话原因；没有就返回 null */
+async function rangeFailure(w: BrowserWindow): Promise<string | null> {
+  if (w.isDestroyed()) return null
+  const err = await w.webContents.executeJavaScript('window.__rangeError || ""').catch(() => '') as string
+  return err ? `读取 PDF 文件失败（${err}），文件可能被移动、占用或在读取时出错，请重试` : null
 }
 
 async function closeDoc(): Promise<void> {
@@ -160,13 +167,20 @@ async function closeDoc(): Promise<void> {
   }
 }
 
+/** 一次占锁最多渲染几页：长任务（教材 300 页）分批放锁，让试卷导入、课程读取、「看原书」这些短任务能插进来 */
+export const BATCH_PAGES = 20
+
+/** 进锁后、动手前检查取消：排队中被取消的任务轮到它时直接放弃，不再打开文档 */
+const checkAbort = (signal?: AbortSignal): void => { if (signal?.aborted) throw new PdfCancelledError() }
+
 /** 只数页数（不渲染） */
-export function countPdfPages(pdfPath: string): Promise<number> {
+export function countPdfPages(pdfPath: string, signal?: AbortSignal): Promise<number> {
   return serialized(async () => {
+    checkAbort(signal)
     const w = await ensureWindow()
     const token = registerPdfSource(pdfPath)
     try {
-      return await openDoc(w, token, fs.statSync(pdfPath).size)
+      return await openDoc(w, token, pdfFileSize(pdfPath))
     } finally {
       releasePdfSource(token)
       await closeDoc()
@@ -175,36 +189,44 @@ export function countPdfPages(pdfPath: string): Promise<number> {
 }
 
 /** @param opts 数字 = maxPages（旧用法）；也可传 RenderOptions */
-export function renderPdfPages(pdfPath: string, outputDir: string, opts?: number | RenderOptions): Promise<RenderedPage[]> {
+export async function renderPdfPages(pdfPath: string, outputDir: string, opts?: number | RenderOptions): Promise<RenderedPage[]> {
   const o: RenderOptions = typeof opts === 'number' ? { maxPages: opts } : opts ?? {}
-  return serialized(async () => {
-    const w = await ensureWindow()
-    const timeoutKill = () => destroyPdfRenderer()
-    const token = registerPdfSource(pdfPath)
-    const results: RenderedPage[] = []
-    try {
-      const numPages = await openDoc(w, token, fs.statSync(pdfPath).size)
-      const todo = o.pages ? o.pages.filter(n => n >= 1 && n <= numPages) : Array.from({ length: numPages }, (_, i) => i + 1)
-      if (o.maxPages != null && todo.length > o.maxPages) throw new PdfPageLimitError(todo.length, o.maxPages, numPages)
-      for (const [k, i] of todo.entries()) {
-        if (o.signal?.aborted) throw new PdfCancelledError()
-        const run = (withImage: boolean) => withTimeout(
-          w.webContents.executeJavaScript(`(${renderPageScript})(${i}, ${MAX_CANVAS_DIM}, ${withImage})`),
-          PAGE_TIMEOUT_MS, `渲染第 ${i} 页超时`, timeoutKill
-        ).catch((e: Error) => { throw new Error(translatePdfError(e.message)) }) as Promise<RenderedPage & { pngBase64: string }>
-        let page = await run(!o.needImage)
-        if (o.needImage && o.needImage(page.text)) page = await run(true)   // 第一遍只读文字；文字不可用才再出图（OCR 用）
-        if (page.pngBase64) fs.writeFileSync(path.join(outputDir, `page-${page.index}.png`), Buffer.from(page.pngBase64, 'base64'))
-        const { pngBase64: _drop, ...rest } = page
-        results.push(rest)
-        o.onPage?.(k + 1, todo.length)
+  const results: RenderedPage[] = []
+  const st: { todo: number[] | null } = { todo: null }
+  // 每批各占一次锁、各自重新打开文档（窗口里只有一个文档，别的任务插进来会换掉它）
+  for (let k = 0; st.todo === null || k < st.todo.length; k += BATCH_PAGES) {
+    await serialized(async () => {
+      checkAbort(o.signal)
+      const w = await ensureWindow()
+      const timeoutKill = () => destroyPdfRenderer()
+      const token = registerPdfSource(pdfPath)
+      try {
+        const numPages = await openDoc(w, token, pdfFileSize(pdfPath))
+        if (st.todo === null) {
+          st.todo = o.pages ? o.pages.filter(n => n >= 1 && n <= numPages) : Array.from({ length: numPages }, (_, i) => i + 1)
+          if (o.maxPages != null && st.todo.length > o.maxPages) throw new PdfPageLimitError(st.todo.length, o.maxPages, numPages)
+        }
+        const all = st.todo
+        for (const [j, i] of all.slice(k, k + BATCH_PAGES).entries()) {
+          checkAbort(o.signal)
+          const run = (withImage: boolean) => withTimeout(
+            w.webContents.executeJavaScript(`(${renderPageScript})(${i}, ${MAX_CANVAS_DIM}, ${withImage})`),
+            PAGE_TIMEOUT_MS, `渲染第 ${i} 页超时`, timeoutKill
+          ).catch(async (e: Error) => { throw new Error(await rangeFailure(w) ?? translatePdfError(e.message)) }) as Promise<RenderedPage & { pngBase64: string }>
+          let page = await run(!o.needImage)
+          if (o.needImage && o.needImage(page.text)) page = await run(true)   // 第一遍只读文字；文字不可用才再出图（OCR 用）
+          if (page.pngBase64) fs.writeFileSync(path.join(outputDir, `page-${page.index}.png`), Buffer.from(page.pngBase64, 'base64'))
+          const { pngBase64: _drop, ...rest } = page
+          results.push(rest)
+          o.onPage?.(k + j + 1, all.length)
+        }
+      } finally {
+        releasePdfSource(token)
+        await closeDoc()
       }
-    } finally {
-      releasePdfSource(token)
-      await closeDoc()
-    }
-    return results
-  })
+    })
+  }
+  return results
 }
 
 // 在隐藏窗口里执行的页面脚本。用 String.raw 保持反斜杠原样；脚本内不得使用模板字符串。
