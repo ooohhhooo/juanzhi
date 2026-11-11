@@ -2,7 +2,7 @@
 //   · 课程大纲页：添加学校教材（选版本 + 两册）→ 生成一份带「学校教材 · 内置」标记的教材，不需要 AI 匹配；机构课程和学校教材分开显示
 //   · 看板「课程对照」→「机构课程 vs 学校教材」：覆盖 / 未覆盖 / 机构课超前拓展的数字对得上；导出 CSV
 //   · 删除教材：回到空状态
-// 用法：node tests/e2e/run-textbook.cjs   （沙箱外运行；先 electron-vite build；PATH=/usr/bin:$PATH，去掉代理变量）
+// 用法：node tests/e2e/run-textbook-builtin.cjs   （沙箱外运行；先 electron-vite build；PATH=/usr/bin:$PATH，去掉代理变量）
 const M = require('./m4-lib.cjs')
 const { SPEC, seed } = require('./fixtures-m3.cjs')
 const { check, waitFor, fs, path, work, SECRET, pageImg, ctx, T, txt, goto, setFilter, cfgFor, saveCfg, startMock, open, closeApp, stubSave, L } = M
@@ -94,12 +94,12 @@ async function main() {
 }
 
 main().then(() => {
-  const failed = L.finish(path.join(__dirname, 'last-result-textbook.json'))
+  const failed = L.finish(path.join(__dirname, 'last-result-textbook-builtin.json'))
   process.exit(failed ? 1 : 0)
 }).catch(async e => {
   console.error(e)
   check('运行', '测试脚本异常退出', false, String(e && e.stack ? e.stack : e).slice(0, 400))
-  L.finish(path.join(__dirname, 'last-result-textbook.json'))
+  L.finish(path.join(__dirname, 'last-result-textbook-builtin.json'))
   try { await closeApp() } catch { /* 忽略 */ }
   process.exit(1)
 })
