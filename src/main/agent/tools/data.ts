@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { CLOSURE_CTE, paperScope } from '../../stats/filter.ts'
 import type { StatsFilter } from '../../stats/filter.ts'
 import { loadKps, nodeStats, questionsOfKp, scopeCounts } from '../../stats/core.ts'
+import { compareKps, papersByKps, overlapKind, OVERLAP_LABEL } from '../../stats/kp-compare.ts'
 import { collectEvidence } from '../../stats/evidence.ts'
 import { checkRules, checkRulesFor } from '../../../shared/factcheck.ts'
 import { isMainMap } from '../../course/match.ts'
@@ -210,6 +211,49 @@ export const papersList: ToolDef = {
   }
 }
 
+// ───────── papers_for_kp ─────────
+export const papersForKp: ToolDef = {
+  name: 'papers_for_kp', label: '按知识点找卷子',
+  level: 'read',
+  description: '反过来查：哪几份卷子考了某个（或某几个）知识点。每份卷子列出命中的知识点和题数。mode=any 列出考了其中任一个的卷子，mode=all 只列每个知识点都考了的卷子。选父节点（如「时态」）等于包含它下面所有子知识点。给了 compare=true 时，再给出这些卷子 × 这些知识点的并排对比（哪些考点几份卷子都考了、哪些只有一份考）。kps 可以写知识点的中文名或代码；只统计老师已审核的卷子。',
+  schema: z.object({
+    kps: z.array(z.string().min(1).max(80)).min(1).max(8).describe('知识点的中文名或代码，1 到 8 个'),
+    mode: z.enum(['any', 'all']).default('any').describe('any = 考了其中任一个；all = 每个都考了'),
+    compare: z.boolean().default(false).describe('是否附上并排对比'),
+    limit: z.number().int().min(1).max(40).default(15).describe('最多列几份卷子，默认 15'),
+    ...FilterShape
+  }),
+  run: (a, ctx) => {
+    const subject = subjectOf(ctx)
+    const picked: Array<{ code: string; name: string }> = []
+    for (const k of a.kps) {
+      const p = pickKp(ctx.db, k, subject)
+      if ('text' in p) return p
+      if (!picked.some(x => x.code === p.kp.code)) picked.push(p.kp)
+    }
+    const f = toFilter(a, subject)
+    const mode = a.mode ?? 'any'
+    const hits = papersByKps(ctx.db, f, picked.map(k => k.code), mode)
+    const head = `知识点：${picked.map(k => `${k.name}（代码 ${k.code}）`).join('、')}；${mode === 'all' ? '要求每个都考了' : '考了其中任一个即可'}；范围：${describeFilter(a)}（只含老师已审核的试卷${a.include_reviewing ? '和待审核的试卷' : ''}）`
+    if (hits.length === 0) return { text: `${head}\n没有卷子符合。`, count: 0 }
+    const info = new Map((ctx.db.prepare(`SELECT id, title, grade, semester, school_year_start, exam_type FROM papers WHERE id IN (SELECT value FROM json_each(?))`).all(JSON.stringify(hits.map(h => h.paperId))) as any[]).map(r => [r.id, r]))
+    const limit = a.limit ?? 15
+    hits.sort((x, y) => y.hits.reduce((n, h) => n + h.questions, 0) - x.hits.reduce((n, h) => n + h.questions, 0))
+    const lines = hits.slice(0, limit).map((h, i) => {
+      const p = info.get(h.paperId)
+      return `${i + 1}. 《${oneLine(p?.title, 40) || '（无标题）'}》${p?.grade ? ` ${p.grade} 年级` : ''}${p?.semester ? ` ${p.semester}学期` : ''}${p?.school_year_start ? ` ${p.school_year_start}学年` : ''}${p?.exam_type ? ` ${p.exam_type}` : ''}：${h.hits.map(x => `${x.name} ${x.questions} 题`).join('；')}`
+    })
+    const out = [head, `共 ${hits.length} 份卷子符合${hits.length > limit ? `，只列题数最多的 ${limit} 份` : ''}：`, ...lines]
+    if (a.compare) {
+      const cmp = compareKps(ctx.db, { ...f, paperIds: hits.slice(0, Math.min(limit, 40)).map(h => h.paperId) }, picked.map(k => k.code), mode)
+      const n = cmp.papers.length
+      out.push('', `并排对比（前 ${n} 份卷子）：`)
+      for (const k of cmp.kps) out.push(`- ${k.name}：${k.papers}/${n} 份考了（${OVERLAP_LABEL[overlapKind(k.papers, n)]}），共 ${k.questions} 题`)
+    }
+    return { text: out.join('\n'), count: hits.length }
+  }
+}
+
 // ───────── course_coverage ─────────
 export const courseCoverage: ToolDef = {
   name: 'course_coverage', label: '看课程覆盖',
@@ -278,4 +322,4 @@ export const reportRead: ToolDef = {
   }
 }
 
-export const DATA_TOOLS: ToolDef[] = [statsOverview, kpQuestions, courseForKp, factCheck, papersList, courseCoverage, reportsList, reportRead]
+export const DATA_TOOLS: ToolDef[] = [statsOverview, kpQuestions, papersForKp, courseForKp, factCheck, papersList, courseCoverage, reportsList, reportRead]

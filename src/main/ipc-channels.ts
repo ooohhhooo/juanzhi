@@ -46,7 +46,7 @@ export const READONLY_CHANNELS = new Set([
   'analysisReport:export', 'analysisReport:exportTable',   // 分析看板 / 名单导出：弹「另存为」后只写用户选的文件
   'report:export', 'report:get', 'report:list', 'report:preview', 'report:copyWechat', 'report:copyCourseAdvice', 'report:reveal', 'report:cardImage', 'report:cardTemplates', 'report:parentCard', 'report:parentCardPlan',   // copyWechat 只写系统剪贴板；reveal 只在文件管理器里显示；cardImage 只写剪贴板或用户在「另存为」里选的文件
   'settings:get', 'settings:getDataDir', 'settings:openDataDir',
-  'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
+  'stats:compare', 'stats:distribution', 'stats:exportMatrix', 'stats:filterOptions', 'stats:hot', 'stats:kpCompare', 'stats:kpPapers', 'stats:matrix', 'stats:notes', 'stats:overview', 'stats:questions',
   'taxonomy:tree',
   'update:state', 'update:check', 'update:download', 'update:cancel', 'update:install', 'update:skip', 'update:openReleasePage',   // 应用内更新：只写临时目录和一个小状态文件，不动数据
   // 课程对照的读取类：列表 / 详情 / 看板 / 状态；pickFile、readFile、readText 只读用户选的文件到内存；template、exportGaps 只写用户选的位置；adviceCopy 只写剪贴板；matchCancel 只改内存

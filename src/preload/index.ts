@@ -103,6 +103,8 @@ const api = {
     notes: (filter?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('stats:notes', filter),
     questions: (filter: Record<string, unknown> | undefined, side: Record<string, unknown>, code: string, limit?: number): Promise<any[]> => ipcRenderer.invoke('stats:questions', filter, side, code, limit),
     filterOptions: (filter?: Record<string, unknown>): Promise<any> => (filter === undefined ? ipcRenderer.invoke('stats:filterOptions') : ipcRenderer.invoke('stats:filterOptions', filter)),
+    kpPapers: (filter: Record<string, unknown> | undefined, codes: string[], mode: 'all' | 'any'): Promise<any[]> => ipcRenderer.invoke('stats:kpPapers', filter, codes, mode),
+    kpCompare: (filter: Record<string, unknown> | undefined, codes: string[], mode: 'all' | 'any', level?: number): Promise<any> => ipcRenderer.invoke('stats:kpCompare', filter, codes, mode, level),
     exportMatrix: (filter: Record<string, unknown> | undefined, level: number): Promise<{ saved: boolean; path?: string; bytes?: number }> => ipcRenderer.invoke('stats:exportMatrix', filter, level),
   },
   analysisReport: {

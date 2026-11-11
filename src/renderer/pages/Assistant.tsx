@@ -31,7 +31,7 @@ import '../design/page-library.css'
 import '../design/page-assistant.css'
 
 const TOOL_LABEL: Record<string, string> = {
-  stats_overview: '看整体情况', kp_questions: '查考这个知识点的题', course_for_kp: '查对应的课', fact_check: '核对讲解', load_playbook: '读取分析步骤', ...TOOL_LABELS
+  stats_overview: '看整体情况', kp_questions: '查考这个知识点的题', papers_for_kp: '按知识点找卷子', course_for_kp: '查对应的课', fact_check: '核对讲解', load_playbook: '读取分析步骤', ...TOOL_LABELS
 }
 /** 计划和提问有自己的显示方式，不重复列在工具步骤里 */
 const HIDDEN_TOOLS = new Set(['update_plan', 'ask_user', 'session_state'])

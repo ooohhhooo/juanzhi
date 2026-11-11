@@ -188,3 +188,19 @@
 .ewb-ana-flatbtn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border-radius: var(--ewb-r-pill); }
 .ewb-ana-flatbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ewb-ana-flatbtn:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 4px; }
+
+/* ───────────── 知识点 ↔ 试卷 并排对比 ───────────── */
+.ewb-kpc-wrap { overflow: auto; max-height: 70vh; border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-md); }
+.ewb-kpc { border-collapse: separate; border-spacing: 0; width: 100%; font-size: var(--ewb-fs-md); font-variant-numeric: tabular-nums; }
+.ewb-kpc th, .ewb-kpc td { padding: 8px 12px; border-bottom: 1px solid var(--ewb-line); text-align: left; vertical-align: middle; background: var(--ewb-paper); }
+.ewb-kpc thead th { position: sticky; top: 0; z-index: 2; font-weight: 700; background: var(--ewb-note); }
+.ewb-kpc__kp { position: sticky; left: 0; z-index: 1; min-width: 150px; font-weight: 600; }
+.ewb-kpc thead .ewb-kpc__kp { z-index: 3; }
+.ewb-kpc__hit { white-space: nowrap; min-width: 120px; }
+.ewb-kpc__paper { min-width: 150px; max-width: 220px; }
+.ewb-kpc__paper > span { display: block; }
+.ewb-kpc__group td { font-weight: 700; color: var(--ewb-ink-2); background: var(--ewb-note); font-size: var(--ewb-fs-sm); }
+.ewb-kpc__cell { white-space: nowrap; }
+.ewb-kpc__btn { all: unset; box-sizing: border-box; cursor: pointer; color: var(--ewb-primary); padding: 2px 6px; border-radius: var(--ewb-r-sm); }
+.ewb-kpc__btn:hover { background: var(--ewb-primary-soft); }
+.ewb-kpc__btn:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }

@@ -71,6 +71,8 @@ interface ElectronAPI {
     overview(filter?: StatsFilter): Promise<OverviewResult>
     distribution(filter?: StatsFilter): Promise<Distribution>
     matrix(filter: StatsFilter | undefined, level: number): Promise<MatrixResult>
+    kpPapers(filter: StatsFilter | undefined, codes: string[], mode: 'all' | 'any'): Promise<import('../main/stats/kp-compare').PaperHits[]>
+    kpCompare(filter: StatsFilter | undefined, codes: string[], mode: 'all' | 'any', level?: number): Promise<import('../main/stats/kp-compare').KpCompareResult>
     hot(filter: StatsFilter | undefined, level: number): Promise<HotResult>
     compare(filter: StatsFilter | undefined, target: number, base: 'before' | number, level?: number, align?: boolean): Promise<CompareResult>
     notes(filter?: StatsFilter): Promise<ScopeNotes>
