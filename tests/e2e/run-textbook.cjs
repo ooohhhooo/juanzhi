@@ -74,7 +74,7 @@ async function main() {
     const note = await txt('course-textbook-note').catch(() => '')
     check(L1, '第 1 步说明：共 38 页、认出版本年级学期、单元数 = AI 调用次数、可以取消', /共 38 页，处理 38 页/.test(note) && /人教版 三年级上册/.test(note) && /单元数 = 调用次数/.test(note) && /取消/.test(note), note)
     check(L1, '文字版：不提示 OCR 很慢', !/扫描版/.test(note), note)
-    check(L1, '内置目录没有登记 → 不出现「用内置目录」的提示', (await T('course-catalog-hint').count()) === 0)
+    check(L1, '内置目录里有这一册（英语 人教PEP 三年级上册）→ 出现「用内置目录」的提示', (await T('course-catalog-hint').count()) === 1 && /内置/.test(await txt('course-catalog-hint')))
     await shotT('step1')
     await T('course-name').fill('体系-教材')
     mock.quirks = { course: { textbookInvent: true } }
