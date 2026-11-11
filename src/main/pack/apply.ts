@@ -485,8 +485,8 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
   const report: ImportReport = { mode: 'overwrite', papersAdded: 0, papersSkipped: 0, sameFileAsExisting: 0, questionsAdded: 0, kpsAdded: 0, kpsRemapped: 0, reportsAdded: 0, missingPageImages: 0, promptsImported: 0, promptsKeptLocal: 0, warnings: [] }
   const m = deps.manifest
   // 只带了部分内容的包（某个学科 / 选中的卷子 / 没带试卷）：覆盖会把本机其余的数据一并清掉，不允许，请用合并
-  if (m && isPartialScope(m)) throw new PackError('partial_pack', '这个数据包只包含部分内容（只导了某个学科、选中的卷子，或没有带试卷），不能用「覆盖」导入，否则本机其余的数据会被清掉。请改用「合并」')
-  const keepReports = m?.contents?.reports === false   // 包里没带报告：不动本机的报告
+  if (m && isPartialScope(m)) throw new PackError('partial_pack', '这个数据包只包含部分内容（只导了某个学科、选中的卷子，或没有带试卷 / 报告），不能用「覆盖」导入，否则本机其余的数据会被清掉。请改用「合并」')
+  const keepReports = false   // 没带报告的包已在上面按部分包拒绝，覆盖时报告和分析缓存一律按包里的替换
   const legacy = !m?.contents                          // 新版本导出的包不带用量和草稿：覆盖时不清本机的
   const now = (deps.now ?? (() => new Date()))()
   const importId = crypto.randomUUID()

@@ -195,8 +195,10 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
     } catch (e) { rmAll(snap.file); throw new PackError('io', `导出失败：整理数据页内容时出错（${(e as Error).message.slice(0, 100)}）`) }
   }
   const dbSize = fs.statSync(snap.file).size
+  // 带 extras 或只带了部分内容：写 2，让没有「部分包不能覆盖」守卫的旧版软件直接拒绝（否则它覆盖导入会清掉本机其余数据）
+  const partial = !!sel.paperIds || sel.subject !== 'all' || !sel.papers || !sel.reports || !sel.course
   const manifest: Manifest = {
-    format: PACK_FORMAT, formatVersion: extras.length ? PACK_FORMAT_VERSION : PACK_BASE_VERSION, schemaVersion: snap.schemaVersion, appVersion: deps.appVersion,
+    format: PACK_FORMAT, formatVersion: extras.length || partial ? PACK_FORMAT_VERSION : PACK_BASE_VERSION, schemaVersion: snap.schemaVersion, appVersion: deps.appVersion,
     exportedAt: now.toISOString(), paperCount: snap.papers, questionCount: snap.questions, pageCount: snap.pages, fileCount: files.length,
     platform: deps.platform ?? process.platform, courseCount: snap.courses, courseIncluded: sel.course,
     contents: { papers: sel.papers, reports: sel.reports, course: sel.course, datasets: sel.datasets, documents: sel.documents, assets: sel.assets, chats: sel.chats },

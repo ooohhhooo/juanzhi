@@ -11,7 +11,7 @@ const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remo
 
 /**
  * 导出数据包：自己选带哪些。范围（全部 / 某个学科 / 试卷库里选中的卷子）+ 内容勾选，每项显示数量。
- * 学员真名永远不进数据包：表格里姓名、手机号等敏感列换成代号，代号对照表不带走。
+ * 表格里姓名、手机号等敏感列只带代号，代号对照表不带走；其他内容里的姓名按本机表格里出现过的名单换成代号（没有名单就换不了）。
  * paperIds 有值 = 从试卷库「导出选中的卷子」进来：范围固定为这几份卷子，不带报告。
  */
 export default function ExportPackModal({ open, onClose, onResult, paperIds }: {
@@ -48,7 +48,7 @@ export default function ExportPackModal({ open, onClose, onResult, paperIds }: {
     try {
       const r = await window.api.data.exportPack({
         subject: selected ? 'all' : subject, paperIds: selected ? paperIds : undefined,
-        papers: on('papers', n('papers')), reports: !selected && on('reports', n('reports')), course: on('course', n('courses')),
+        papers: sel.papers, reports: !selected && sel.reports, course: sel.course,   // 数量为 0 也按勾选状态传：没有就是空的，不算「部分内容」
         datasets: on('datasets', n('datasets')), documents: on('documents', n('documents')), assets: on('assets', n('skills') + n('roles')), chats: on('chats', n('chats'))
       })
       if (r.saved) {
@@ -61,7 +61,7 @@ export default function ExportPackModal({ open, onClose, onResult, paperIds }: {
         if (m?.counts?.skills) parts.push(`${m.counts.skills} 个 Skill`)
         if (m?.counts?.roles) parts.push(`${m.counts.roles} 个角色`)
         if (m?.counts?.chats) parts.push(`${m.counts.chats} 段助手对话`)
-        onResult({ type: 'success', text: `已导出：${r.path}（${mb(r.bytes ?? 0)}）。带了：${parts.join('、')}。数据包里没有 API 密钥，换电脑后需要重新填写；学员真名没有导出。` })
+        onResult({ type: 'success', text: `已导出：${r.path}（${mb(r.bytes ?? 0)}）。带了：${parts.join('、')}。数据包里没有 API 密钥，换电脑后需要重新填写；数据页表格里只带代号。` })
         onClose()
       }
     } catch (e) { onResult({ type: 'error', text: clean(e) }); onClose() } finally { setBusy(false); setProgress('') }
@@ -89,9 +89,12 @@ export default function ExportPackModal({ open, onClose, onResult, paperIds }: {
           {row('datasets', '数据页表格', n('datasets'), <span data-testid="export-datasets-hint">只带代号，不带学员真名：姓名、手机号、编号等敏感列的值换成代号，代号对照表不会导出。</span>)}
           {row('documents', '数据页文档', n('documents'), <span data-testid="export-documents-hint">手机号、身份证号会去掉；姓名只能按数据页表格里出现过的换成代号，文档里其他地方出现的姓名认不出来，请确认文档里没有不该带走的信息。</span>)}
           {row('assets', '助手的 Skill 和角色', n('skills') + n('roles'), `${n('skills')} 个 Skill、${n('roles')} 个角色`, 'assets')}
-          {row('chats', '助手对话记录', n('chats'), '对话里的姓名同样换成代号。', 'chats')}
+          {row('chats', '助手对话记录', n('chats'), '对话里的姓名按表格里出现过的名单换成代号。', 'chats')}
         </div>
-        <Alert type="info" showIcon message="学员真名永远不会进数据包；API 密钥、AI 服务设置、用量记录、示例数据也不带。" />
+        {((sel.chats && n('chats') > 0) || (sel.documents && n('documents') > 0)) && n('datasetsAll') === 0 && (
+          <Alert type="warning" showIcon data-testid="export-no-roster-warn" message="没有学员名单，对话 / 文档里的姓名无法自动替换，请确认里面没有学员真名。" />
+        )}
+        <Alert type="info" showIcon message="数据页表格里的学员真名只带代号；其他内容里的姓名，按表格里出现过的名单换成代号（报告、课程大纲、提示词不做替换）。手机号、身份证号会去掉。API 密钥、AI 服务设置、用量记录、示例数据不带。" />
         {busy && progress && <span style={{ color: 'var(--ewb-primary)' }} data-testid="pack-progress">{progress}</span>}
       </Space>
     </Modal>

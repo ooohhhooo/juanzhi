@@ -106,20 +106,51 @@ const readJson = (f: string): any => { try { return JSON.parse(fs.readFileSync(f
 const writeJsonAtomic = (f: string, data: unknown) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const tmp = f + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(data, null, 1)); fs.renameSync(tmp, f) }
 const COL_TYPES = ['integer', 'real', 'date', 'datetime', 'boolean', 'text', 'select', 'multi']
 
-/** 目录条目的结构检查：不合格返回 null（整个数据集不导入） */
-function checkDatasetMeta(m: any, tableNames: Set<string>): any | null {
+const ident = (v: unknown, n = 200): v is string => typeof v === 'string' && v.length > 0 && v.length <= n && !/[\u0000-\u001f]/.test(v)
+const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d)
+const strs = (v: unknown, max: number, len: number): string[] => (Array.isArray(v) ? v.slice(0, max).map(x => clipS(x, len)) : [])
+
+/** 列概况：按字段白名单重建，字符串限长 */
+function cleanProfile(p: any): any {
+  const o: any = { nonNull: num(p?.nonNull), nullRate: num(p?.nullRate), distinct: num(p?.distinct), examples: strs(p?.examples, 10, 200), hints: strs(p?.hints, 10, 100) }
+  for (const k of ['min', 'max']) if (typeof p?.[k] === 'number' || typeof p?.[k] === 'string') o[k] = typeof p[k] === 'string' ? p[k].slice(0, 100) : p[k]
+  for (const k of ['mean', 'p25', 'p50', 'p75', 'avgLen']) if (typeof p?.[k] === 'number' && Number.isFinite(p[k])) o[k] = p[k]
+  if (Array.isArray(p?.top)) o.top = p.top.slice(0, 10).map((t: any) => ({ value: clipS(t?.value, 200), count: num(t?.count), share: num(t?.share) }))
+  if (p?.multi && typeof p.multi === 'object') o.multi = { separators: strs(p.multi.separators, 8, 10), optionCount: num(p.multi.optionCount) }
+  return o
+}
+
+/**
+ * 目录条目：按字段白名单重建（不透传包里多出来的东西），字符串限长；多选 / 派生视图只保留数据库里真实存在的。
+ * 不合格返回 null（整个数据集不导入）。objs = 数据库里真实存在的 { 表和视图名 }。
+ */
+function checkDatasetMeta(m: any, tableNames: Set<string>, viewNames: Set<string>): any | null {
   if (!m || typeof m !== 'object' || typeof m.id !== 'string' || !UUID_RE.test(m.id)) return null
   if (!Array.isArray(m.tables) || m.tables.length === 0 || m.tables.length > 60) return null
+  const tables: any[] = []
   for (const t of m.tables) {
-    if (!t || typeof t.name !== 'string' || !tableNames.has(t.name) || typeof t.sheet !== 'string' || !Number.isInteger(t.rows) || t.rows < 0) return null
+    if (!t || !ident(t.name) || !tableNames.has(t.name) || typeof t.sheet !== 'string' || !Number.isInteger(t.rows) || t.rows < 0) return null
     if (!Array.isArray(t.columns) || t.columns.length > 400) return null
-    for (const c of t.columns) if (!c || typeof c.name !== 'string' || typeof c.label !== 'string' || !COL_TYPES.includes(c.type) || typeof c.sqlType !== 'string' || !c.profile || typeof c.profile !== 'object') return null
-    if (!Array.isArray(t.views)) t.views = []
-    if (!Array.isArray(t.notes)) t.notes = []
+    const columns: any[] = []
+    for (const c of t.columns) {
+      if (!c || !ident(c.name) || typeof c.label !== 'string' || !COL_TYPES.includes(c.type) || !['INTEGER', 'REAL', 'TEXT'].includes(c.sqlType) || !c.profile || typeof c.profile !== 'object') return null
+      const col: any = { name: c.name, label: clipS(c.label, 100), type: c.type, sqlType: c.sqlType, sensitive: !!c.sensitive, sensitiveAuto: !!c.sensitiveAuto, profile: cleanProfile(c.profile) }
+      if (c.sensitive) col.sensitiveKind = ['person', 'id', 'phone', 'idcard', 'email', 'address', 'other'].includes(c.sensitiveKind) ? c.sensitiveKind : 'other'
+      if (c.derived) col.derived = true
+      columns.push(col)
+    }
+    const out: any = {
+      name: t.name, sheet: clipS(t.sheet, 100), rows: t.rows, headerRow: Number.isInteger(t.headerRow) && t.headerRow >= 0 ? t.headerRow : 0, columns,
+      views: (Array.isArray(t.views) ? t.views : []).filter((v: any) => v && ident(v.column) && ident(v.view) && viewNames.has(v.view) && columns.some(c => c.name === v.column)).map((v: any) => ({ column: v.column, view: v.view })),
+      notes: strs(t.notes, 20, 300)
+    }
+    if (ident(t.derivedTable) && tableNames.has(t.derivedTable)) out.derivedTable = t.derivedTable
+    if (ident(t.derivedView) && viewNames.has(t.derivedView)) out.derivedView = t.derivedView
+    tables.push(out)
   }
   return {
-    ...m, name: clipS(m.name, 60) || '数据集', sourceFile: clipS(m.sourceFile, 200), importedAt: clipS(m.importedAt, 40) || new Date().toISOString(),
-    note: clipS(m.note, 2000), subject: asContentSubject(m.subject)
+    id: m.id, name: clipS(m.name, 60) || '数据集', sourceFile: clipS(m.sourceFile, 200), importedAt: clipS(m.importedAt, 40) || new Date().toISOString(),
+    note: clipS(m.note, 2000), sizeBytes: 0, tables, subject: asContentSubject(m.subject)
   }
 }
 
@@ -144,15 +175,23 @@ function importDatasets(dataDir: string, extrasDir: string, r: ExtrasReport): vo
       fs.copyFileSync(src, part)
       const db = new DatabaseSync(part)
       let names: Set<string>
+      let views: Set<string>
       try {
         db.exec('PRAGMA trusted_schema = OFF')
         const ic = db.prepare('PRAGMA integrity_check').all() as any[]
         if (ic.length !== 1 || String(Object.values(ic[0])[0]) !== 'ok') throw new Error('数据库没有通过完整性检查')
-        for (const o of db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as any[]) db.exec(`DROP TRIGGER IF EXISTS "${String(o.name).replace(/"/g, '""')}"`)
+        const wantViews = new Set<string>()
+        for (const t of Array.isArray(raw.tables) ? raw.tables : []) { for (const v of Array.isArray(t?.views) ? t.views : []) if (typeof v?.view === 'string') wantViews.add(v.view); if (typeof t?.derivedView === 'string') wantViews.add(t.derivedView) }
+        // 触发器一律删；视图只留目录里登记的（多选拆分、派生列合并），其余一律删
+        for (const o of db.prepare("SELECT type, name FROM sqlite_master WHERE type IN ('trigger', 'view')").all() as any[]) {
+          if (o.type === 'view' && wantViews.has(String(o.name))) continue
+          db.exec(`DROP ${o.type === 'view' ? 'VIEW' : 'TRIGGER'} IF EXISTS "${String(o.name).replace(/"/g, '""')}"`)
+        }
         names = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as any[]).map(x => String(x.name)))
+        views = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'view'").all() as any[]).map(x => String(x.name)))
         db.exec('PRAGMA journal_mode = DELETE')
       } finally { db.close() }
-      const meta = checkDatasetMeta(raw, names)
+      const meta = checkDatasetMeta(raw, names, views)
       if (!meta) throw new Error('目录信息不完整')
       fs.renameSync(part, dst)
       meta.sizeBytes = fs.statSync(dst).size
