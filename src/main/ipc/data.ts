@@ -120,6 +120,7 @@ export function registerDataIpc(): void {
     return {
       papers, questions,
       reports: ids ? 0 : one(`SELECT COUNT(*) c FROM reports WHERE COALESCE(filter_json, '') NOT LIKE '%"sample":true%'${subject === 'all' ? '' : ' AND subject = ?'}`, ...(subject === 'all' ? [] : [subject])),
+      datasetsAll: getStore().list().length,
       courses: bySubject('course_outlines'), chats: bySubject('agent_sessions'), ...ex
     }
   })

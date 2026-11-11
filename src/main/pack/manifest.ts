@@ -57,5 +57,5 @@ export interface ExportSelection {
   chats: boolean
 }
 export const DEFAULT_SELECTION: ExportSelection = { subject: 'all', papers: true, reports: true, course: true, datasets: false, documents: false, assets: false, chats: false }
-export const isPartialScope = (m: { scope?: { subject?: string; selectedPapers?: boolean }; contents?: { papers?: boolean } }): boolean =>
-  !!m.scope?.selectedPapers || (!!m.scope?.subject && m.scope.subject !== 'all') || m.contents?.papers === false
+export const isPartialScope = (m: { scope?: { subject?: string; selectedPapers?: boolean }; contents?: { papers?: boolean; reports?: boolean } }): boolean =>
+  !!m.scope?.selectedPapers || (!!m.scope?.subject && m.scope.subject !== 'all') || m.contents?.papers === false || m.contents?.reports === false

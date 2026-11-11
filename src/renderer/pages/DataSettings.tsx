@@ -110,7 +110,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
 
   const s = pick?.summary
   const mf = pick?.manifest
-  const partial = !!mf && (!!mf.scope?.selectedPapers || (!!mf.scope?.subject && mf.scope.subject !== 'all') || mf.contents?.papers === false)
+  const partial = !!mf && (!!mf.scope?.selectedPapers || (!!mf.scope?.subject && mf.scope.subject !== 'all') || mf.contents?.papers === false || mf.contents?.reports === false)
   const cnt = mf?.counts
   return (
     <>
@@ -136,7 +136,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
           <Btn tone="secondary" icon={Upload} data-testid="pack-import" loading={picking} onClick={doPick}>导入数据包…</Btn>
           {progress && picking && <span className="ewb-rep-note" style={{ color: 'var(--ewb-primary)' }} data-testid="pack-progress">{progress}</span>}
         </Space>
-        <p className="ewb-rep-note" style={{ marginTop: 8 }}>导出时可以自己选带哪些：全部学科或某个学科，试卷、报告、课程大纲、数据页的表格和文档、助手的 Skill / 角色 / 对话记录。默认带试卷、报告和课程大纲。<b>学员真名不会导出</b>（表格里只带代号），也不含 API 密钥——换电脑后要在「AI 服务」里重新填写。示例数据不会进数据包。导入时可以选「合并」（保留本机已有的，只加新的）或「覆盖」（用数据包替换本机全部试卷数据，会先自动备份；只带了部分内容的数据包只能合并）。</p>
+        <p className="ewb-rep-note" style={{ marginTop: 8 }}>导出时可以自己选带哪些：全部学科或某个学科，试卷、报告、课程大纲、数据页的表格和文档、助手的 Skill / 角色 / 对话记录。默认带试卷、报告和课程大纲。<b>数据页表格里的学员真名只带代号</b>，也不含 API 密钥——换电脑后要在「AI 服务」里重新填写。示例数据不会进数据包。导入时可以选「合并」（保留本机已有的，只加新的）或「覆盖」（用数据包替换本机全部试卷数据，会先自动备份；只带了部分内容的数据包只能合并）。</p>
         {packMsg && <Alert data-testid={packMsg.type === 'error' ? 'pack-error' : 'pack-done'} style={{ marginTop: 8 }} type={packMsg.type} showIcon message={packMsg.text} closable onClose={() => setPackMsg(null)} />}
         {info && info.backups.length > 0 && (
           <div style={{ marginTop: 10 }} data-testid="backup-list">
@@ -193,7 +193,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
               <Descriptions.Item label="和本机比较">本机现有 {s.livePapers} 份真实试卷；数据包里有 <b>{s.papersExisting}</b> 份本机已经有了（同一条记录），<b>{s.papersNew}</b> 份是新的{s.sameFileAsExisting ? `（其中 ${s.sameFileAsExisting} 份和本机另一份是同一个文件，统计时只算一份）` : ''}</Descriptions.Item>
             </Descriptions>
             {(cnt?.datasets || cnt?.documents || cnt?.skills || cnt?.roles || cnt?.chats) ? <UsageNote kind="tip" data-testid="pack-extras-note">{`数据包里还带了：${[cnt.datasets ? `${cnt.datasets} 个数据页表格` : '', cnt.documents ? `${cnt.documents} 份数据页文档` : '', cnt.skills ? `${cnt.skills} 个 Skill` : '', cnt.roles ? `${cnt.roles} 个角色` : '', cnt.chats ? `${cnt.chats} 段助手对话` : ''].filter(Boolean).join('、')}。导入时只加入本机没有的（同一个编号 / 同名的保持本机的）。表格里的学员信息是代号，没有对应的真名。`}</UsageNote> : null}
-            {partial && <UsageNote kind="caution" data-testid="pack-partial-note">这个数据包只包含部分内容（只导了某个学科、选中的卷子，或没有带试卷），只能用「合并」导入。</UsageNote>}
+            {partial && <UsageNote kind="caution" data-testid="pack-partial-note">这个数据包只包含部分内容（只导了某个学科、选中的卷子，或没有带试卷 / 报告），只能用「合并」导入。</UsageNote>}
             {pick.info.kpTextFolded > 0 && <UsageNote kind="tip" data-testid="pack-kp-folded">{`有 ${pick.info.kpTextFolded} 个知识点的名称或说明里含换行、竖线或看不见的字符（旧版本允许输入），导入时已自动整理成一行`}</UsageNote>}
             {s.samplesIgnored > 0 && <UsageNote kind="tip">{`数据包里有 ${s.samplesIgnored} 份示例试卷，会被忽略`}</UsageNote>}
             {s.missingPageImages > 0 && <UsageNote kind="caution">{`有 ${s.missingPageImages} 页的页面图在数据包里找不到，对应的截图会显示为空`}</UsageNote>}

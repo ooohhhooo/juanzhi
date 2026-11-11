@@ -39,6 +39,8 @@ NAMES.forEach((n, i) => lines.push(`${n},${20230001 + i},${13900000000 + i},老�
 const store = new DatasetStore(A.dataDir)
 const ds = await store.importBuffer(Buffer.from(lines.join('\n')), '成绩单.csv')
 store.setSubject(ds.id, 'chinese')
+// 第二个数据集：自己没有姓名列，但备注里写着第一个数据集里的学员名（导出时要按全部数据集的名单换掉）
+const ds2 = await store.importBuffer(Buffer.from(['项目,备注', ...NAMES.slice(0, 40).map((n, i) => `活动${i},${n}今天迟到了`)].join('\n')), '活动.csv')
 const realName = NAMES[3]
 const docs = new DocumentStore(A.dataDir)
 const doc = docs.add('家访记录', 'text', `${realName}的家长电话 13900000003，说孩子最近情况不错。`, 'general')
@@ -111,7 +113,9 @@ let fullZip
   const { out, res } = await exportOf('full', { selection: { datasets: true, documents: true, assets: true, chats: true } })
   fullZip = out
   assert.equal(res.manifest.formatVersion, 2)
-  assert.deepEqual(res.manifest.counts, { reports: 2, chats: 2, datasets: 1, documents: 1, skills: 1, roles: 1 })
+  const ds2db = openDb(path.join(A.dir, 'peek-full-pre.sqlite'), {}) // 占位（下面真正检查在解包之后）
+  ds2db.close()
+  assert.deepEqual(res.manifest.counts, { reports: 2, chats: 2, datasets: 2, documents: 1, skills: 1, roles: 1 })
   const names = await zipNames(out)
   assert.ok(!names.some(n => /codes/.test(n)), '代号对照表不进包')
   for (const n of names) assert.ok(classifyEntry(n), `条目名合规：${n}`)
@@ -120,6 +124,10 @@ let fullZip
   // db.sqlite 里的卷子、课程等和这些无关；一旦命中就是泄露
   const snippet = bad.map(f => { const s = fs.readFileSync(f, 'utf8'); const m = new RegExp(`${NAMES.slice(0, 20).join('|')}|1390000\\d{4}|2023000\\d`).exec(s); return m ? `${f}: …${s.slice(Math.max(0, m.index - 100), m.index + 40)}` : f })
   assert.deepEqual(bad, [], '真名 / 手机号 / 学号不能出现在包里：' + snippet.join('\n'))
+  const ds2Db = openDb(path.join(ex.dbPath, '..', 'extras', 'datasets', `${ds2.id}.sqlite`), { readOnly: true })
+  const ds2Rows = JSON.stringify(ds2Db.prepare(`SELECT * FROM "${ds2.tables[0].name}"`).all())
+  assert.ok(!NAMES.some(n => ds2Rows.includes(n)), '另一个数据集文字列里的学员名也按全部数据集的名单换掉：' + ds2Rows.slice(0, 120))
+  ds2Db.close()
   const dsDb = openDb(path.join(ex.dbPath, '..', 'extras', 'datasets', `${ds.id}.sqlite`), { readOnly: true })
   const t = ds.tables[0]
   const first = dsDb.prepare(`SELECT * FROM "${t.name}" ORDER BY _row LIMIT 1`).get()
@@ -141,11 +149,11 @@ const B = makeEnv('selB')
   const r = applyMerge({ ...B.deps, manifest: ex.manifest }, { dbPath: ex.dbPath, filesDir: ex.filesDir })
   assert.equal(r.papersAdded, 4)
   assert.equal(r.chatsAdded, 2)
-  assert.deepEqual([r.extras.datasetsAdded, r.extras.documentsAdded, r.extras.skillsAdded, r.extras.rolesAdded], [1, 1, 1, 1], JSON.stringify(r.warnings))
+  assert.deepEqual([r.extras.datasetsAdded, r.extras.documentsAdded, r.extras.skillsAdded, r.extras.rolesAdded], [2, 1, 1, 1], JSON.stringify(r.warnings))
   assert.equal(count(B.db, 'SELECT COUNT(*) c FROM agent_steps'), 2)
   assert.equal(count(B.db, 'SELECT COUNT(*) c FROM ai_usage'), 0)
   const sb = new DatasetStore(B.dataDir)
-  assert.equal(sb.list().length, 1)
+  assert.equal(sb.list().length, 2)
   assert.ok(!fs.existsSync(path.join(B.dataDir, 'datasets', `${ds.id}.codes.json`)), 'B 上没有代号对照表')
   const prev = sb.preview(ds.id, ds.tables[0].name, 3)
   assert.ok(prev.rows.flat().every(v => !NAMES.includes(String(v))), '导入后表格里只有代号')
@@ -158,7 +166,7 @@ const B = makeEnv('selB')
   const r2 = applyMerge({ ...B.deps, manifest: ex2.manifest }, { dbPath: ex2.dbPath, filesDir: ex2.filesDir })
   assert.equal(r2.papersAdded, 0)
   assert.equal(r2.chatsAdded, 0)
-  assert.deepEqual([r2.extras.datasetsSkipped, r2.extras.documentsSkipped, r2.extras.skillsSkipped, r2.extras.rolesSkipped], [1, 1, 1, 1])
+  assert.deepEqual([r2.extras.datasetsSkipped, r2.extras.documentsSkipped, r2.extras.skillsSkipped, r2.extras.rolesSkipped], [2, 1, 1, 1])
 }
 
 // ── 6. 覆盖：部分内容的包拒绝；完整的包覆盖时不清本机的用量记录；extras 按合并加入 ──
@@ -183,7 +191,24 @@ const B = makeEnv('selB')
   assert.equal(r.papersAdded, 4)
   assert.equal(count(C.db, "SELECT COUNT(*) c FROM ai_usage WHERE kind = 'mine'"), 1, '新版本的包覆盖时不清本机用量记录')
   assert.equal(r.chatsAdded, 2)
-  assert.equal(r.extras.datasetsAdded, 1)
+  assert.equal(r.extras.datasetsAdded, 2)
+}
+
+// ── 6b. 部分内容的包写 formatVersion 2（旧版软件直接拒绝）；没带报告的包也不能覆盖 ──
+{
+  for (const [name, sel] of [['v-subject', { subject: 'chinese' }], ['v-picked', { paperIds: [E1] }], ['v-noreports', { reports: false }], ['v-nocourse', { course: false }], ['v-nopapers', { papers: false }]]) {
+    const { res } = await exportOf(name, { selection: sel })
+    assert.equal(res.manifest.formatVersion, 2, `${name} 是部分包，写 2`)
+  }
+  assert.equal((await exportOf('v-full')).res.manifest.formatVersion, 1, '完整的包仍写 1')
+  const nr = await exportOf('noreports', { selection: { reports: false } })
+  const E = makeEnv('selE')
+  paperWithFiles(E, { title: '本机卷', year: 2025, grade: '4', hash: 'y1', questions: [{ kp: 'GR.TENSE.PAST.REG', qtype: 'MC', score: 2 }] }, 1)
+  E.db.prepare("INSERT INTO reports (id, kind, filter_json, markdown, subject) VALUES ('mine', 'report', '{}', 'x', 'english')").run()
+  const ex = await extractPack(nr.out, path.join(E.dir, 'stage'))
+  prep(ex.dbPath)
+  assert.throws(() => applyOverwrite({ ...E.deps, manifest: ex.manifest }, { dbPath: ex.dbPath, filesDir: ex.filesDir }), e => e.code === 'partial_pack')
+  assert.equal(count(E.db, 'SELECT COUNT(*) c FROM reports'), 1, '被拒绝后本机报告还在')
 }
 
 // ── 7. 旧包（没有 contents 的 manifest）照常导入：按旧行为，不带对话、不拒绝覆盖 ──

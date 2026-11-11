@@ -503,7 +503,8 @@ export class DatasetStore {
     fs.rmSync(destFile, { force: true })
     fs.copyFileSync(this.dbFile(id), destFile)
     const book = this.book(id)
-    const m = this.model([id])
+    const m = this.model(this.list().map(x => x.id))   // 姓名表用本机全部数据集的（和文档 / 对话同一口径）
+    const meta: DatasetMeta = JSON.parse(JSON.stringify(d))   // 改名只改这份副本，不动本机的目录
     const db = new DatabaseSync(destFile)
     try {
       db.exec('PRAGMA secure_delete = ON; PRAGMA journal_mode = DELETE')
@@ -528,6 +529,12 @@ export class DatasetStore {
         const has = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(dt)
         if (has) for (const col of db.prepare(`PRAGMA table_info(${q(dt)})`).all() as Array<{ name: string; type: string }>) if (col.name !== '_row' && /TEXT|CHAR|^$/i.test(col.type ?? '')) remap(dt, col.name, v => (typeof v === 'string' ? scrubPII(m.text(v)) : null))
       }
+      // 内部列名里夹着姓名（比如列标题就是学员名）：连同 SQLite 里的列一起改名
+      for (const t of meta.tables) for (const c of t.columns) {
+        if (c.derived) continue
+        const nn = scrubPII(m.text(c.name))
+        if (nn !== c.name && /^[\w\u4e00-\u9fff]+$/.test(nn)) { try { db.exec(`ALTER TABLE ${q(t.name)} RENAME COLUMN ${q(c.name)} TO ${q(nn)}`); for (const v of t.views) if (v.column === c.name) v.column = nn; c.name = nn } catch { /* 改不了就保持原样 */ } }
+      }
       // 触发器不带走（数据集库里本来就没有）；整理空闲页，保证被改掉的真名不残留在文件里
       for (const o of db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as Array<{ name: string }>) db.exec(`DROP TRIGGER IF EXISTS ${q(o.name)}`)
       db.exec('VACUUM')
@@ -535,12 +542,11 @@ export class DatasetStore {
     book.flush(); m.flush()
     const safe = (x: string) => scrubPII(m.text(String(x ?? '')))
     const deep = (v: unknown): unknown => (typeof v === 'string' ? safe(v) : Array.isArray(v) ? v.map(deep) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)])) : v)
-    const meta: DatasetMeta = JSON.parse(JSON.stringify(d))
     meta.name = safe(meta.name); meta.sourceFile = safe(meta.sourceFile); meta.note = safe(meta.note)
     meta.sizeBytes = fs.statSync(destFile).size
     for (const t of meta.tables) {
       t.sheet = safe(t.sheet); t.notes = (t.notes ?? []).map(safe)
-      for (const c of t.columns) { c.profile = deep(c.profile) as typeof c.profile; if (c.sensitive) { c.profile.examples = []; for (const k of ['min', 'max', 'mean', 'p25', 'p50', 'p75', 'top'] as const) delete c.profile[k] } }   // 敏感列的最小 / 最大值（学号）和高频取值也是原值，不带走
+      for (const c of t.columns) { c.label = safe(c.label);  c.profile = deep(c.profile) as typeof c.profile; if (c.sensitive) { c.profile.examples = []; for (const k of ['min', 'max', 'mean', 'p25', 'p50', 'p75', 'top'] as const) delete c.profile[k] } }   // 敏感列的最小 / 最大值（学号）和高频取值也是原值，不带走
     }
     return meta
   }
