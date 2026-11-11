@@ -82,7 +82,7 @@ export default function PaperLibrary() {
   // 按知识点筛选：选了知识点后，主进程按统计口径（已确认 / 去重 / 学科）算每份卷子命中的知识点和题数；没算进统计的卷子（待审核、疑似重复）不会出现
   const [kpCodes, setKpCodes] = useState<string[]>([])
   const [kpMode, setKpMode] = useState<KpMode>('any')
-  const { data: kpHits } = useQuery({
+  const { data: kpHits, isFetching: kpLoading, isError: kpError, refetch: kpRetry } = useQuery({
     queryKey: ['papers', 'kp-hits', subject, kpCodes, kpMode, !!statsFilter.includeReviewing, !!statsFilter.includeDuplicates, rawPapers.length],
     enabled: kpCodes.length > 0,
     queryFn: async () => {
@@ -91,7 +91,9 @@ export default function PaperLibrary() {
       return hitMap(real, sample)
     }
   })
-  const hitsMap = kpCodes.length > 0 ? (kpHits ?? new Map()) : null
+  // 加载中或失败时不筛（保持原列表），免得空 Map 把列表闪成「没有找到」
+  const hitsMap = kpCodes.length > 0 && kpHits && !kpError ? kpHits : null
+  const kpPending = kpCodes.length > 0 && !hitsMap
 
   // 输入稍停一下再过滤；用输入法打字（拼音还没选字）时一律不过滤
   useEffect(() => {
@@ -464,7 +466,7 @@ export default function PaperLibrary() {
             onCompositionEnd={e => { composing.current = false; setDraft(e.currentTarget.value); setQuery(e.currentTarget.value) }}
             onPressEnter={() => { if (!composing.current) setQuery(draft) }}
           />
-          <span className="ewb-lib-count" data-testid="lib-count">{query.trim() || kpCodes.length ? `找到 ${visible.length} 份，共 ${papers.length} 份` : `共 ${papers.length} 份`}</span>
+          <span className="ewb-lib-count" data-testid="lib-count">{query.trim() || hitsMap ? `找到 ${visible.length} 份，共 ${papers.length} 份` : `共 ${papers.length} 份`}</span>
         </div>
       )}
       {papers.length > 0 && (
@@ -473,11 +475,13 @@ export default function PaperLibrary() {
           <KpPickMulti testId="kp-filter-select" value={kpCodes} onChange={setKpCodes} />
           {kpCodes.length > 1 && <KpModeSwitch testId="kp-filter-mode" value={kpMode} onChange={setKpMode} />}
           {kpCodes.length > 0 && (
-            <Btn tone="secondary" size="small" icon={Columns3} data-testid="kp-compare-visible" disabled={visible.length === 0} title="把筛出来的卷子和这些知识点并排放在一起看" onClick={() => compareSelection(visible.map(p => p.id), kpCodes)}>并排对比这 {visible.length} 份</Btn>
+            <Btn tone="secondary" size="small" icon={Columns3} data-testid="kp-compare-visible" disabled={kpPending || visible.length === 0} title="把筛出来的卷子和这些知识点并排放在一起看" onClick={() => compareSelection(visible.map(p => p.id), kpCodes)}>并排对比这 {visible.length} 份</Btn>
           )}
         </div>
       )}
-      {kpCodes.length > 0 && <div className="ewb-lib-count" style={{ marginBottom: 'var(--ewb-sp-3)' }} data-testid="kp-filter-note">只列已确认、计入统计的卷子（{statsFilter.includeReviewing ? '含待审核的' : '待审核的、疑似重复的不在其中'}）。选大类等于包含它下面的全部知识点。</div>}
+      {kpCodes.length > 0 && kpError && <div className="ewb-lib-count" style={{ marginBottom: 'var(--ewb-sp-3)' }} data-testid="kp-filter-error">按知识点查找失败了，下面显示的是全部试卷。<Btn tone="quiet" size="small" data-testid="kp-filter-retry" onClick={() => void kpRetry()}>重试</Btn></div>}
+      {kpCodes.length > 0 && kpLoading && !kpError && <div className="ewb-lib-count" style={{ marginBottom: 'var(--ewb-sp-3)' }} data-testid="kp-filter-loading">正在查找考了这些知识点的卷子……</div>}
+      {hitsMap && <div className="ewb-lib-count" style={{ marginBottom: 'var(--ewb-sp-3)' }} data-testid="kp-filter-note">只列已确认、计入统计的卷子（{statsFilter.includeReviewing ? '含待审核的' : '待审核的、疑似重复的不在其中'}）。选大类等于包含它下面的全部知识点。</div>}
 
       {selected.length > 0 && (
         <div className="ewb-lib-selbar" data-testid="select-bar" role="region" aria-label="批量操作">
@@ -513,10 +517,10 @@ export default function PaperLibrary() {
           ),
           getCheckboxProps: (p: Paper) => ({ 'aria-label': `选中：${p.title || p.file_name}`, 'data-testid': `select-row-${p.id}` } as any)
         }}
-        locale={query.trim() || kpCodes.length ? {
+        locale={query.trim() || hitsMap ? {
           emptyText: (
             <div data-testid="lib-search-empty">
-              <EmptyState inline title="没有找到这样的试卷" description={kpCodes.length ? '已确认的试卷里没有符合这些知识点的。可以改成「考了其中任一个」、少选几个知识点，或清除知识点筛选。' : `标题和学校里都没有「${query.trim()}」。换个词试试，或者清除搜索看全部试卷。`}
+              <EmptyState inline title="没有找到这样的试卷" description={hitsMap ? '已确认的试卷里没有符合这些知识点的。可以改成「考了其中任一个」、少选几个知识点，或清除知识点筛选。' : `标题和学校里都没有「${query.trim()}」。换个词试试，或者清除搜索看全部试卷。`}
                 action={<Btn tone="secondary" size="small" onClick={() => { setDraft(''); setQuery(''); setKpCodes([]) }}>清除筛选</Btn>} />
             </div>
           )

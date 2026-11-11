@@ -67,8 +67,8 @@ export default function KpCompareTab() {
 
   // 分组：一级大类
   const groups = useMemo(() => {
-    const m = new Map<string, { name: string; kps: typeof shownKps }>()
-    for (const k of shownKps) { const g = m.get(k.groupCode) ?? { name: k.group, kps: [] }; g.kps.push(k); m.set(k.groupCode, g) }
+    const m = new Map<string, { code: string; name: string; kps: typeof shownKps }>()
+    for (const k of shownKps) { const g = m.get(k.groupCode) ?? { code: k.groupCode, name: k.group, kps: [] }; g.kps.push(k); m.set(k.groupCode, g) }
     return [...m.values()]
   }, [shownKps])
 
@@ -118,7 +118,7 @@ export default function KpCompareTab() {
                   </thead>
                   <tbody>
                     {groups.map(g => (
-                      <React.Fragment key={g.name}>
+                      <React.Fragment key={g.code}>
                         <tr className="ewb-kpc__group"><td colSpan={2 + r.papers.length}>{g.name}</td></tr>
                         {g.kps.map(k => {
                           const kind = overlapKind(k.papers, n)
