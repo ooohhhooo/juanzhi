@@ -166,9 +166,13 @@ interface ElectronAPI {
     confirmDraft(id: string): Promise<boolean>
     remove(id: string): Promise<boolean>
     /** 弹出选择对话框并读取；取消返回 null */
-    pickFile(): Promise<{ sources: CourseSource[]; errors: string[] } | null>
+    pickFile(opts?: CourseReadOpts): Promise<{ sources: CourseSource[]; errors: string[] } | null>
     /** 拖入的文件（路径必须由 getPathForFile 登记过） */
-    readFile(path: string): Promise<CourseSource>
+    readFile(path: string, opts?: CourseReadOpts): Promise<CourseSource>
+    /** 教材整理好之后：每个单元的页码、小节标题和 AI 挑的知识点；看原书某一页；用软件内置的这一册目录 */
+    textbookUnits(sessionId: string): Promise<{ units: CourseTextbookUnit[]; via: 'toc' | 'heading' | 'blocks' | null; builtin: boolean }>
+    textbookPage(sessionId: string, page: number): Promise<{ text: string; image: string | null }>
+    useBuiltinCatalog(sessionId: string): Promise<{ items: Record<string, CourseSuggestItem>; model: string; source?: CourseSource }>
     readText(text: string): Promise<CourseSource>
     /** mode：ai = 让 AI 认列（课程内容会发给用户配置的 AI 服务）；guess = 只按表头文字猜；manual = 全部留空 */
     suggest(req: { sessionId: string; mode: 'ai' | 'guess' | 'manual' }): Promise<{ items: Record<string, CourseSuggestItem>; model: string; source?: CourseSource }>
@@ -734,7 +738,11 @@ type CourseLevelDraft = import('../main/course/map').ParsedLevel
 type CourseDashboard = import('../main/course/stats').CourseDashboard
 type CourseRow = import('../main/course/stats').CourseRow
 type CourseLessonRef = import('../main/course/stats').LessonRef
-interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual'; /** 学科（整理任务开始时锁定） */ subject?: import('../shared/subject').SubjectId; progress?: { done: number; total: number; unit: string } | null }
+interface CourseJob { id: string; sessionId: string; fileName: string; status: 'queued' | 'running' | 'ready' | 'failed'; error: string; name: string; scene: string; termNote: string; replaceId: string | null; mode: 'ai' | 'manual'; /** 学科（整理任务开始时锁定） */ subject?: import('../shared/subject').SubjectId; progress?: { done: number; total: number; unit: string; note?: string } | null }
+/** 读文件的选项：课程表 / 教材课本、页码范围（如 1-60）、学科 */
+interface CourseReadOpts { kind?: 'course' | 'textbook'; pageRange?: string; subject?: import('../shared/subject').SubjectId }
+interface CourseTextbookUnit { id: number; title: string; pageStart: number; pageEnd: number; headings: string[]; kps: Array<{ code: string; confidence: string; quote: string; reason: string }>; needsReview: boolean }
+interface CourseUnitKpSave { seq: number; kps: Array<{ code: string; confidence: string; quote: string; reason: string; confirmed: boolean; manual: boolean }> }
 type CourseSource = import('../main/course/service').SourceInfo
 type CourseSuggestItem = import('../main/course/service').SuggestItem
 type CourseMatchProgress = import('../main/course/service').MatchProgress
@@ -755,6 +763,9 @@ interface CourseSaveRequest {
   warnings?: Array<{ kind: string; sheet: string; row: number; text: string }>
   mappings?: Record<string, CourseSheetMapping | null>
   aiModel?: string
+  kind?: 'course' | 'textbook'
+  /** 教材：每个单元（课次 = 单元序号）的知识点 */
+  unitKps?: CourseUnitKpSave[]
 }
 type HotRow = import('../main/stats/core').HotRow
 type CompareResult = import('../main/stats/core').CompareResult

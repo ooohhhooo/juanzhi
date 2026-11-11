@@ -31,6 +31,8 @@ export interface OutlineInput {
   levels: ParsedLevel[]
   /** 学科（缺省英语） */
   subject?: string
+  /** 课程表 / 教材课本；course_outlines 有 kind 列（v15）才写，没有这一列的库忽略 */
+  kind?: 'course' | 'textbook'
 }
 
 /** 读库里的 JSON 文本：解析失败、或形状和 fallback 不一样（该是数组却是对象 / 字符串……）一律用 fallback——数据包里来的内容不能把界面搞崩 */
@@ -54,6 +56,49 @@ function insertLessons(db: Db, outlineId: string, levelId: number, levelName: st
 }
 
 /** 新建课程体系（一个事务）。返回 id */
+/** course_outlines 有没有 kind 列（另一个子任务的迁移 v15 加；还没合并时没有） */
+export function hasKindColumn(db: Db): boolean {
+  try { return (db.prepare('PRAGMA table_info(course_outlines)').all() as any[]).some(c => c.name === 'kind') } catch { return false }
+}
+/** TODO(v15)：kind 列由「内置教材目录与对比」子任务的迁移加上；列存在时才写，不存在就跳过，保证两边合并前后都不报错 */
+export function setOutlineKind(db: Db, id: string, kind: 'course' | 'textbook' | undefined): void {
+  if (!kind || !hasKindColumn(db)) return
+  db.prepare('UPDATE course_outlines SET kind = ? WHERE id = ?').run(kind, id)
+}
+
+export interface UnitKpInput { seq: number; kps: Array<{ code: string; confidence: string; quote: string; reason: string; /** 老师确认过 / 手工加的：锁定 */ confirmed: boolean; manual: boolean }> }
+
+/**
+ * 教材整理的结果落库：每个单元（课次 = 单元序号）对应的知识点写进 course_kp_map，方式和课程匹配一致（同样的列、同样记一条 course_kp_check）。
+ * AI 挑的 = source ai / state suggested；老师确认 / 手工加的 = confirmed + 锁定。代码不在知识点树里的、课次对不上的一律跳过。
+ * overwrite = false（替换已有体系时）：已存在的对应（尤其是老师锁定的）不动。返回写了几条。
+ */
+export function applyTextbookMaps(db: Db, outlineId: string, units: UnitKpInput[], meta: { model: string; promptVersion: string }, overwrite = true): number {
+  const o = db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(outlineId) as any
+  if (!o) return 0
+  const lessonOf = db.prepare('SELECT id FROM course_lessons WHERE outline_id = ? AND seq = ? ORDER BY id LIMIT 1')
+  const valid = db.prepare('SELECT 1 FROM kps WHERE code = ?')
+  const ins = db.prepare(`INSERT OR ${overwrite ? 'REPLACE' : 'IGNORE'} INTO course_kp_map (outline_id, kp_code, lesson_id, confidence, reason, quote, source, state, locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  const chk = db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, 'matched', ?, '', ?, ?)`)
+  let n = 0
+  db.exec('BEGIN')
+  try {
+    for (const u of units) {
+      const l = lessonOf.get(outlineId, u.seq) as any
+      if (!l) continue
+      for (const k of u.kps.slice(0, 12)) {
+        if (!valid.get(k.code)) continue
+        const conf = k.confidence === 'high' || k.confidence === 'medium' ? k.confidence : 'low'
+        const locked = k.confirmed || k.manual
+        const r = ins.run(outlineId, k.code, l.id, conf, (k.manual ? '老师手工指定' : k.reason ?? '').slice(0, 200), (k.quote ?? '').slice(0, 200), k.manual ? 'manual' : 'ai', locked ? 'confirmed' : 'suggested', locked ? 1 : 0)
+        if (Number(r.changes) > 0) { chk.run(outlineId, k.code, o.rev, meta.model, meta.promptVersion); n++ }
+      }
+    }
+    db.exec('COMMIT')
+  } catch (err) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw err }
+  return n
+}
+
 export function createOutline(db: Db, input: OutlineInput): string {
   const total = input.levels.reduce((n, l) => n + l.lessons.length, 0)
   if (input.levels.length > MAX_LEVELS) throw new Error(`级别太多（最多 ${MAX_LEVELS} 个）`)
@@ -63,6 +108,7 @@ export function createOutline(db: Db, input: OutlineInput): string {
   try {
     db.prepare(`INSERT INTO course_outlines (id, name, scene, term_note, source_name, source_hash, status, active, rev, mapping_json, warnings_json, ai_model, subject)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?)`).run(id, input.name, input.scene, input.termNote, input.sourceName, input.sourceHash, input.status, JSON.stringify(input.mapping ?? null), JSON.stringify(input.warnings), input.aiModel, asSubject(input.subject))
+    setOutlineKind(db, id, input.kind)
     const insLv = db.prepare('INSERT INTO course_levels (outline_id, name, sort) VALUES (?, ?, ?)')
     input.levels.forEach((lv, i) => {
       const r = insLv.run(id, lv.name, i)

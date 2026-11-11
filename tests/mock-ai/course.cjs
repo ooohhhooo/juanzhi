@@ -9,6 +9,9 @@
 //   matchBadJson  —— 匹配回答不是 JSON（这一批不保存）
 //   extractBad    —— 文字整理（p5_course_extract）的回答不是 JSON
 //   extractInvent —— 文字整理时多编一课原文里没有的（应被程序核对后去掉）
+//   textbookBadFor —— 教材挑知识点：单元标题里含这个字样的单元回答不是 JSON（这个单元整理失败，其余照常；用来测“只重试失败的单元”）
+//   textbookInvent —— 教材挑知识点：每个单元多给一个知识点树里没有的代码（应被丢弃）
+//   textbookFake   —— 教材挑知识点：每个单元的引用原文都换成原文里没有的句子（应降为低把握）
 //   advicePrice   —— 话术里混进价格 / 优惠 / 保证提分（应整句删除）
 //   adviceShort   —— 话术只有几十个字（应判失败）
 //   adviceLong    —— 话术远超 200 字（应告警，不裁剪）
@@ -19,8 +22,9 @@ const MATCH_RE = /请判断每个考点在大纲的哪几课里讲到/
 const ADVICE_RE = /要写一段能直接发给家长的话（150–200 字/
 const EXTRACT_RE = /请把其中的「每一课」整理成表格的行/
 const HINT_RE = /要给家长版报告写结尾处的一句课程建议/
+const TEXTBOOK_RE = /请从候选里挑出这个单元主要教的知识点/
 
-const kindOf = (sys) => COLS_RE.test(sys) ? 'cols' : MATCH_RE.test(sys) ? 'match' : ADVICE_RE.test(sys) ? 'advice' : HINT_RE.test(sys) ? 'hint' : EXTRACT_RE.test(sys) ? 'extract' : null
+const kindOf = (sys) => COLS_RE.test(sys) ? 'cols' : MATCH_RE.test(sys) ? 'match' : ADVICE_RE.test(sys) ? 'advice' : HINT_RE.test(sys) ? 'hint' : EXTRACT_RE.test(sys) ? 'extract' : TEXTBOOK_RE.test(sys) ? 'textbook' : null
 
 const FIELD_RULES = [
   ['textbook_ref', /对标|教材|课本/], ['level', /级别|等级/], ['seq', /课次|课序|序号/], ['title', /标题|课名/], ['theme', /主题|话题/],
@@ -102,7 +106,28 @@ function buildExtract(user, quirks) {
   return JSON.stringify({ lessons })
 }
 
+/**
+ * 教材：从 user 里读出单元标题、小节标题和候选知识点（「代码 | 名称」）。和真实模型一样只解读输入：
+ * 名称出现在标题 / 小节标题里的候选就挑出来（引用 = 那一小段原文）；名称对不上的单元，按单元序号从候选里确定性地挑 3 个，引用取第一个小节标题（模拟「凭主题推测」）；
+ * 标题里带 Review 的单元什么都不挑（应被标成需核对）。
+ */
+function buildTextbook(user, quirks) {
+  const title = /^单元：(.*?)（第 (\d+) \/ (\d+) 个单元/m.exec(user)
+  const unitTitle = title?.[1] ?? '', no = Number(title?.[2] ?? 1)
+  if (quirks.textbookBadFor && unitTitle.includes(quirks.textbookBadFor)) return '好的，我来看看这个单元……'
+  const heads = (/【这个单元的小节标题和栏目名】\n([\s\S]*?)\n\n【开头的几行文字】/.exec(user)?.[1] ?? '').split('\n').filter(x => x && !x.startsWith('（'))
+  const cands = (/【候选知识点】[^\n]*\n([\s\S]*?)\n\n请按 system/.exec(user)?.[1] ?? '').split('\n').filter(Boolean).map(l => { const [code, path] = l.split(' | '); return { code, name: (path ?? '').split(' / ').pop() } })
+  if (/review/i.test(unitTitle) || !cands.length) return JSON.stringify({ kps: [] })
+  const hay = [unitTitle, ...heads].join('\n')
+  let kps = cands.filter(c => c.name && c.name.length >= 2 && hay.includes(c.name)).slice(0, 4).map(c => ({ code: c.code, confidence: 'high', quote: c.name }))
+  if (!kps.length) kps = [0, 1, 2].map(j => ({ code: cands[(no * 3 + j) % cands.length].code, confidence: j === 0 ? 'medium' : 'low', quote: heads[0] ?? unitTitle }))
+  if (quirks.textbookFake) kps = kps.map(k => ({ ...k, confidence: 'high', quote: '这一句书里根本没有' }))
+  if (quirks.textbookInvent) kps.push({ code: 'ZZ.NOT.IN.TREE', confidence: 'high', quote: unitTitle })
+  return JSON.stringify({ kps })
+}
+
 function build(kind, user, quirks = {}) {
+  if (kind === 'textbook') return buildTextbook(user, quirks)
   if (kind === 'extract') return quirks.extractBad ? '好的，我来整理……' : buildExtract(user, quirks)
   if (kind === 'cols') {
     if (quirks.colsBad) return '好的，我来看看这张表……'

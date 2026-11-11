@@ -13,10 +13,11 @@ import { isParseActive, maybeAutoParse, recoverInterruptedParsing } from '../par
 import type { ImportResult } from '../types'
 import { asSubject, subjectName } from '../../shared/subject.ts'
 import type { SubjectId } from '../../shared/subject.ts'
+import { MAX_IMPORT_BYTES, tooBigMessage } from '../../shared/file-limits.ts'
 
 const SUPPORTED_EXT = ['.pdf', '.jpg', '.jpeg', '.png', '.heic', '.docx']
 // PDF 整本以 base64 塞进 executeJavaScript 字符串，V8 字符串有上限，所以不能放太大的文件
-const MAX_FILE_BYTES = 150 * 1024 * 1024
+const MAX_FILE_BYTES = MAX_IMPORT_BYTES
 
 const waiting: string[] = []
 let running = false
@@ -95,7 +96,7 @@ async function checkImportable(filePath: string): Promise<string> {
 
   const st = await fsp.stat(resolved).catch(() => null)
   if (!st || !st.isFile()) throw new Error('文件不存在或不是普通文件')
-  if (st.size > MAX_FILE_BYTES) throw new Error(`文件超过 ${MAX_FILE_BYTES / 1024 / 1024}MB，已拒绝`)
+  if (st.size > MAX_FILE_BYTES) throw new Error(tooBigMessage(st.size, MAX_FILE_BYTES)!)
   return ext
 }
 

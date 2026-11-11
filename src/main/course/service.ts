@@ -25,7 +25,7 @@ import type { ChunkEvent, UnverifiedItem } from '../ai/chunk'
 import { stripMarks } from '../../shared/factcheck'
 import { fixBackticks, stripInternalCodes } from '../../shared/report-post'
 import { stripCodes } from '../../shared/code-guard'
-import { asSubject } from '../../shared/subject'
+import { COURSE_FIELD_LABELS, SUBJECTS, asSubject } from '../../shared/subject'
 import type { SubjectId } from '../../shared/subject'
 import { collectEvidence } from '../stats/evidence'
 import { paperScope } from '../stats/filter'
@@ -35,10 +35,16 @@ import { cacheKeys, describeFilter, fillTemplate, normalizeFilter } from '../sta
 import { p3SampleWarning } from '../stats/p3'
 import { createGate, mapLimit } from './map-limit'
 import { CourseFileError, buildXlsx, readTable } from './table-read'
-import { EXTRACT_MAPPING, KIND_LABEL, MAX_FILE_BYTES, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
+import { EXTRACT_MAPPING, KIND_LABEL, MAX_FILE_BYTES, MAX_INMEMORY_BYTES, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
+import { tooBigMessage } from '../../shared/file-limits'
+import { TEXTBOOK_MAPPING, estimateCalls, estimateOcrPages, kpCandidateLines, ocrMinutes, pageRangeText, parseUnitKpResponse, textbookToSheet, unitNeedsReview } from './textbook'
+import type { UnitKp, UnitPlan, UnitSource } from './textbook'
+import { findBuiltinCatalog, getCatalogProvider } from './textbook-edition'
+import { listKps } from '../ai/taxonomy'
 import type { ExtractParse } from './doc-extract'
 import type { RichKind } from './doc-extract'
-import { readRichFile } from './doc-read'
+import { planTextbook, readRichFile, readTextbookUnits, textbookPagePreview } from './doc-read'
+import type { ReadOpts, TextbookPlan } from './doc-read'
 import type { TableRead } from './table-read'
 import { applyMapping, buildOutline, guessMapping } from './map'
 import type { MapWarning, ParsedLevel, ParsedOutline, SheetMapping } from './map'
@@ -59,7 +65,9 @@ type Db = any
 // ───────────────────────── 读文件：会话 ─────────────────────────
 
 /** Word / PDF / 图片没有现成表格时：读出的文字等 AI 整理成表（done 之后 read.sheets 里就有那张表）；extraWarnings = 整理时去掉了哪些找不到原文的课 */
-interface ExtractState { kind: RichKind; numbered: string; lines: string[]; pages: number; done: boolean; extraWarnings: MapWarning[] }
+interface ExtractState { kind: RichKind; numbered: string; lines: string[]; pages: number; done: boolean; extraWarnings: MapWarning[]; textbook?: TextbookState }
+/** 教材 / 整本书：先找目录切单元、再一个单元一次 AI 小调用挑知识点（后台任务里做）；整理好的单元留在这里，失败的单元重试时只重做它们 */
+interface TextbookState { plan: TextbookPlan; units: UnitPlan[] | null; via: UnitSource | null; results: Map<number, UnitKp[]>; errors: Map<number, string>; edition?: { label: string; catalog: { id: string; label: string } | null } | null; builtin?: boolean }
 interface Session { /** 学科（向导里选的，缺省英语） */ subject?: string; name: string; hash: string; read: TableRead; at: number; ctl: AbortController | null; parsed: ParsedOutline | null; /** 后台整理任务还在用它：不能被挤掉 */ keep?: boolean; extract?: ExtractState; fromDoc?: RichKind }
 const sessions = new Map<string, Session>()
 const MAX_SESSIONS = 40
@@ -71,7 +79,7 @@ export interface SourceInfo {
   sheets: Array<{ name: string; hidden: boolean; rows: number; cols: number; mergedFilled: boolean; /** 前 14 行，给「列识别条」显示 */ head: string[][] }>
   warnings: string[]
   /** 来自 Word / PDF / 图片（界面据此提示「请核对」）；aiOrganised = 表是 AI 从文字里整理出来的；pending = 还没整理（点“下一步”时才调用 AI） */
-  fromDoc?: { label: string; aiOrganised: boolean; pending: boolean; pages: number; chars: number }
+  fromDoc?: { label: string; aiOrganised: boolean; pending: boolean; pages: number; chars: number; /** 教材课本：总页数、选中的页数、是否扫描版、文字识别大约要几分钟、认出的版本（有内置目录时带 catalog） */ textbook?: { totalPages: number; selectedPages: number; scanned: boolean; ocrMinutes: number; edition: { label: string; catalog: { id: string; label: string } | null } | null } }
 }
 
 export function sourceInfo(sessionId: string, s: Session): SourceInfo {
@@ -80,7 +88,7 @@ export function sourceInfo(sessionId: string, s: Session): SourceInfo {
   return {
     sessionId, name: s.name, hash: s.hash, warnings: read.warnings,
     sheets: read.sheets.map(x => ({ name: x.name, hidden: x.hidden, rows: x.rows.length, cols: x.rows.reduce((m, r) => Math.max(m, r.length), 0), mergedFilled: x.mergedFilled, head: x.rows.slice(0, 14) })),
-    ...(s.fromDoc ? { fromDoc: { label: KIND_LABEL[s.fromDoc], aiOrganised: !!e, pending: !!e && !e.done, pages: e?.pages ?? 1, chars: e?.numbered.length ?? 0 } } : {})
+    ...(s.fromDoc ? { fromDoc: { label: KIND_LABEL[s.fromDoc], aiOrganised: !!e, pending: !!e && !e.done, pages: e?.pages ?? 1, chars: e?.numbered.length ?? 0, ...(e?.textbook ? { textbook: { totalPages: e.textbook.plan.totalPages, selectedPages: e.textbook.plan.pageList.length, scanned: e.textbook.plan.scanned, ocrMinutes: ocrMinutes(estimateOcrPages(e.textbook.plan.pageList.length)), edition: e.textbook.edition ?? null } } : {}) } } : {})
   }
 }
 
@@ -96,18 +104,37 @@ function remember(name: string, hash: string, read: TableRead, rich?: { kind: Ri
   return sourceInfo(sessionId, sessions.get(sessionId)!)
 }
 
-/** 读文件（路径必须是对话框返回或拖入时登记过的）；文件名只用来判断格式和作为默认的体系名，不进日志 */
-export async function readSourceFile(filePath: string): Promise<SourceInfo> {
+/** 保存时的类型：教材课本 / 课程表（给 course_outlines.kind 用；v15 之前的库没有这一列，store 里会忽略） */
+export function sessionKind(id: string | undefined): 'course' | 'textbook' | undefined {
+  const s = id ? sessions.get(id) : undefined
+  return s ? (s.extract?.textbook ? 'textbook' : 'course') : undefined
+}
+
+/** 读文件（路径必须是对话框返回或拖入时登记过的）；文件名只用来判断格式和作为默认的体系名，不进日志。opts：课程表 / 教材课本、页码范围 */
+export async function readSourceFile(filePath: string, opts: ReadOpts & { subject?: string } = {}): Promise<SourceInfo> {
   if (!isPathAllowed(filePath)) throw new CourseFileError('这个文件没有经过选择对话框或拖入，不能读取')
-  let buf: Buffer
-  try { buf = fs.readFileSync(filePath) } catch { throw new CourseFileError('读不了这个文件，可能被其他程序占用或没有权限') }
-  if (buf.length > MAX_FILE_BYTES) throw new CourseFileError('文件太大了（超过 30 MB），课程表一般没有这么大')
+  let size: number
+  try { size = fs.statSync(filePath).size } catch { throw new CourseFileError('读不了这个文件，可能被其他程序占用或没有权限') }
   const name = filePath.replace(/^.*[\\/]/, '')
   const kind = richKindOf(/\.([A-Za-z0-9]+)$/.exec(name)?.[1] ?? '')
+  const tooBig = tooBigMessage(size, kind === 'pdf' ? MAX_FILE_BYTES : MAX_INMEMORY_BYTES)
+  if (tooBig) throw new CourseFileError(tooBig)
+  const base = name.replace(/\.[^.]+$/, '')
+  // PDF 不读进内存：哈希用流式，文字由渲染窗口按需分块读
+  const hashOf = (): Promise<string> => new Promise((resolve, reject) => { const h = crypto.createHash('sha1'); const st = fs.createReadStream(filePath); st.on('data', c => h.update(c)); st.on('error', reject); st.on('end', () => resolve(h.digest('hex'))) })
+  if (kind === 'pdf') {
+    const hash = await hashOf().catch(() => { throw new CourseFileError('读不了这个文件，可能被其他程序占用或没有权限') })
+    if (opts.kind === 'textbook') return rememberTextbook(base, hash, kind, await planTextbook(filePath, kind, opts, name), opts.subject)
+    const r = await readRichFile(filePath, null, kind, opts)
+    const t = r.text!
+    return remember(base, hash, { sheets: [], warnings: [] }, { kind, extract: { kind, numbered: t.numbered, lines: t.lines, pages: t.pages, done: false, extraWarnings: [] } })
+  }
+  let buf: Buffer
+  try { buf = fs.readFileSync(filePath) } catch { throw new CourseFileError('读不了这个文件，可能被其他程序占用或没有权限') }
   if (kind) {
     const hash = crypto.createHash('sha1').update(buf).digest('hex')
-    const r = await readRichFile(filePath, buf, kind)
-    const base = name.replace(/\.[^.]+$/, '')
+    if (opts.kind === 'textbook' && kind === 'docx') return rememberTextbook(base, hash, kind, await planTextbook(filePath, kind, opts, name), opts.subject)
+    const r = await readRichFile(filePath, buf, kind, opts)
     if (r.table) return remember(base, hash, r.table, { kind })
     const t = r.text!
     return remember(base, hash, { sheets: [], warnings: [] }, { kind, extract: { kind, numbered: t.numbered, lines: t.lines, pages: t.pages, done: false, extraWarnings: [] } })
@@ -115,6 +142,22 @@ export async function readSourceFile(filePath: string): Promise<SourceInfo> {
   const read = await readTable(buf, name)
   log.info('course', '读取课程表', { sheets: read.sheets.length, rows: read.sheets.reduce((n, s) => n + s.rows.length, 0) })
   return remember(name.replace(/\.[^.]+$/, ''), crypto.createHash('sha1').update(buf).digest('hex'), read)
+}
+
+function rememberTextbook(base: string, hash: string, kind: RichKind, plan: TextbookPlan, subject?: string): SourceInfo {
+  log.info('course', '读取教材', { kind, pages: plan.pageList.length, total: plan.totalPages, scanned: plan.scanned })
+  const extract: ExtractState = { kind, numbered: '', lines: [], pages: plan.pageList.length || 1, done: false, extraWarnings: [], textbook: { plan, units: null, via: null, results: new Map(), errors: new Map(), edition: plan.edition ? { label: plan.edition.label, catalog: null } : null } }
+  const info = remember(base, hash, { sheets: [], warnings: [] }, { kind, extract })
+  if (!subject) return info
+  setSessionSubject(info.sessionId, subject)   // 学科定了才能查内置目录
+  return sourceInfo(info.sessionId, sessions.get(info.sessionId)!)
+}
+
+/** 认出版本后，学科确定了才能查内置目录（会话学科在向导里设置） */
+function editionOf(s: Session): { label: string; catalog: { id: string; label: string } | null } | null {
+  const plan = s.extract?.textbook?.plan
+  if (!plan?.edition) return null
+  return { label: plan.edition.label, catalog: findBuiltinCatalog(asSubject(s.subject), plan.edition) }
 }
 
 /** 粘贴的表格文字（从 Excel 复制出来是制表符分隔） */
@@ -127,7 +170,7 @@ export async function readSourceText(text: string): Promise<SourceInfo> {
 /** 后台整理任务占用 / 释放读取会话 */
 export function keepSession(id: string, keep: boolean): void { const s = sessions.get(id); if (s) s.keep = keep }
 /** 记下这份文件属于哪个学科（认列的提示词、表头猜测都按它） */
-export function setSessionSubject(id: string, subject: unknown): void { const s = sessions.get(id); if (s) s.subject = asSubject(subject) }
+export function setSessionSubject(id: string, subject: unknown): void { const s = sessions.get(id); if (s) { s.subject = asSubject(subject); if (s.extract?.textbook) s.extract.textbook.edition = editionOf(s) } }
 export function dropSession(id: string): void { const s = sessions.get(id); if (!s) return; s.ctl?.abort(); sessions.delete(id) }
 
 export function sessionOf(id: string): Session {
@@ -176,7 +219,7 @@ export function cancelSuggest(sessionId: string): boolean {
   return true
 }
 
-export type SuggestProgress = (done: number, total: number, unit: string) => void
+export type SuggestProgress = (done: number, total: number, unit: string, note?: string) => void
 
 export async function suggestMappings(sessionId: string, mode: 'ai' | 'guess' | 'manual', onProgress?: SuggestProgress): Promise<SuggestResult> {
   const s = sessionOf(sessionId)
@@ -198,6 +241,7 @@ function childAbort(parent: AbortSignal): { signal: AbortSignal; abort: () => vo
 
 async function organiseText(sessionId: string, s: Session, signal: AbortSignal, onProgress?: SuggestProgress): Promise<SuggestResult> {
   const e = s.extract!
+  if (e.textbook) return organiseTextbook(sessionId, s, signal, onProgress)
   const cfg = loadConfig()
   const model = parseModelOf(cfg)
   if (!e.done) {
@@ -247,6 +291,114 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal, 
   }
   const sheet = s.read.sheets[0]
   return { items: { [sheet.name]: { mapping: EXTRACT_MAPPING, problems: [], source: 'ai' } }, model, source: sourceInfo(sessionId, s) }
+}
+
+/**
+ * 教材 / 整本书：找目录切成单元（不用 AI）→ 每个单元取标题、小节标题和一小段开头，一次小调用让 AI 从当前学科的知识点树里挑 2–8 个代码 → 一个单元一行。
+ * 各单元并发（上限 3）；整理好的单元留在会话里，有单元失败时整个任务按失败处理，点“重试”只重做失败的单元；取消时所有在途调用一起中止。
+ */
+async function organiseTextbook(sessionId: string, s: Session, signal: AbortSignal, onProgress?: SuggestProgress): Promise<SuggestResult> {
+  const e = s.extract!
+  const tb = e.textbook!
+  const cfg = loadConfig()
+  const model = parseModelOf(cfg)
+  if (!e.done) {
+    if (!aiReady()) throw new CourseFileError('教材要先交给 AI 挑知识点：请先在“AI 服务”里配置，或者改传 Excel')
+    const subj = asSubject(s.subject)
+    const cands = kpCandidateLines(listKps(false, subj))
+    if (!cands.codes.size) throw new CourseFileError('这个学科的知识点树里还没有可选的知识点，请先在“设置 → 知识点”里添加，或导入试卷')
+    if (!tb.units) {
+      const r = await readTextbookUnits(tb.plan, (d, t, u) => onProgress?.(d, t, u), signal)
+      if (!r.units.length) throw new CourseFileError('没有从这本教材里读到文字。如果是扫描版，请确认电脑上的文字识别可用；也可以换一个文件')
+      tb.units = r.units; tb.via = r.via
+      log.info('course', '教材切单元', { units: r.units.length, via: r.via })
+    }
+    const units = tb.units
+    const todo = units.filter(u => !tb.results.has(u.id))
+    const note = `共 ${units.length} 个单元，约 ${estimateCalls(todo)} 次 AI 调用`
+    let finished = units.length - todo.length
+    onProgress?.(finished, units.length, '个单元', note)
+    const sub = childAbort(signal)
+    await mapLimit(todo, 3, async (u): Promise<void> => {
+      if (sub.signal.aborted) throw new AiError('aborted', '已取消')
+      try {
+        const user = fillTemplate(promptText('p5_course_textbook', 'user'), {
+          SUBJECT_NAME: SUBJECTS[subj].name, UNIT_TITLE: u.title, UNIT_NO: String(u.id), UNIT_TOTAL: String(units.length), PAGE_RANGE: pageRangeText(u).replace(/^第 | 页$/g, ''),
+          UNIT_HEADINGS: u.headings.length ? u.headings.join('\n') : '（没有读到小节标题）', UNIT_OPENING: u.opening.length ? u.opening.join('\n') : '（没有读到正文）', KP_CANDIDATES: cands.text
+        })
+        const r = await jsonCall({ kind: 'course-textbook', model, system: promptText('p5_course_textbook', 'system'), user, signal: sub.signal, maxTokens: 2000 })
+        const parsed = parseUnitKpResponse(r.content, cands.codes, u.sourceLines)
+        if (!parsed.ok) throw new CourseFileError('AI 的回答格式不对')
+        tb.results.set(u.id, parsed.kps)
+        tb.errors.delete(u.id)
+      } catch (err) {
+        if (err instanceof AiError && err.code === 'aborted') throw err
+        tb.errors.set(u.id, err instanceof CourseFileError ? err.message : friendlyAiError(err).message)
+      } finally {
+        onProgress?.(++finished, units.length, '个单元', note)
+      }
+    }).catch(err => { sub.abort(); throw err }).finally(() => sub.dispose())
+    const failed = units.filter(u => !tb.results.has(u.id))
+    if (failed.length) {
+      const ids = failed.slice(0, 5).map(u => u.id).join('、') + (failed.length > 5 ? ' 等' : '')
+      throw new CourseFileError(`第 ${ids} 个单元没整理成功（${tb.errors.get(failed[0].id) ?? '未知原因'}）。已整理好的 ${units.length - failed.length} 个单元已保留，点“重试”只重做失败的`)
+    }
+    finishTextbook(s, units)
+    log.info('course', '教材整理成表', { units: units.length, review: units.filter(u => unitNeedsReview(tb.results.get(u.id) ?? [])).length })
+  }
+  const sheet = s.read.sheets[0]
+  return { items: { [sheet.name]: { mapping: TEXTBOOK_MAPPING, problems: [], source: 'ai' } }, model, source: sourceInfo(sessionId, s) }
+}
+
+/** 单元整理完（AI 或内置目录）：成一张表，提示放进警告 */
+function finishTextbook(s: Session, units: UnitPlan[]): void {
+  const e = s.extract!
+  const tb = e.textbook!
+  const sheet = textbookToSheet(s.name, units)
+  const warn: string[] = []
+  if (tb.builtin) warn.push('这是软件内置的这一册教材目录，请对照手上的书核对单元和知识点')
+  else if (tb.via === 'blocks') warn.push('没有找到目录，也没有认出单元标题，已按每几页一块整理，单元名是页码范围，请核对')
+  else if (tb.via === 'heading') warn.push('没有找到目录页，单元是按正文里的单元标题切的，请核对有没有漏单元')
+  const review = units.filter(u => unitNeedsReview(tb.results.get(u.id) ?? [])).length
+  if (review) warn.push(`有 ${review} 个单元把握不高（没挑出知识点或都是推测），已标出，请重点核对`)
+  s.read = { sheets: [sheet], warnings: [] }
+  e.extraWarnings = warn.map(text => ({ kind: 'unverified' as const, sheet: sheet.name, row: 0, text }))
+  e.done = true
+}
+
+export interface TextbookUnitView {
+  id: number; title: string; pageStart: number; pageEnd: number; headings: string[]
+  kps: Array<{ code: string; confidence: string; quote: string; reason: string }>
+  needsReview: boolean
+}
+/** 核对界面用：每个单元的页码、小节标题和挑出的知识点 */
+export function textbookUnitsOf(sessionId: string): { units: TextbookUnitView[]; via: UnitSource | null; builtin: boolean } {
+  const tb = sessionOf(sessionId).extract?.textbook
+  if (!tb?.units) throw new CourseFileError('这份教材还没有整理好')
+  return { via: tb.via, builtin: !!tb.builtin, units: tb.units.map(u => { const kps = tb.results.get(u.id) ?? []; return { id: u.id, title: u.title, pageStart: u.pageStart, pageEnd: u.pageEnd, headings: u.headings, kps, needsReview: unitNeedsReview(kps) } }) }
+}
+/** 核对界面看原书：某一页的文字和缩略图 */
+export async function textbookPageOf(sessionId: string, page: number): Promise<{ text: string; image: string | null }> {
+  const tb = sessionOf(sessionId).extract?.textbook
+  if (!tb) throw new CourseFileError('这不是教材')
+  return textbookPagePreview(tb.plan, page)
+}
+/** 认出版本且软件里有这一册的目录：直接用内置的（单元和知识点来自内置目录，不再调用 AI） */
+export function useBuiltinCatalog(sessionId: string): SuggestResult {
+  const s = sessionOf(sessionId)
+  const e = s.extract
+  const tb = e?.textbook
+  const prov = getCatalogProvider()
+  const hit = tb ? editionOf(s)?.catalog : null
+  if (!e || !tb || !prov || !hit) throw new CourseFileError('软件里没有这一册教材的内置目录')
+  const valid = new Set(listKps(false, asSubject(s.subject)).map(k => k.code))
+  const src = prov.units(hit.id)
+  tb.units = src.map((u, i) => ({ id: i + 1, key: `catalog:${i + 1}`, title: u.title, pageStart: u.pageStart ?? 0, pageEnd: u.pageEnd ?? u.pageStart ?? 0, headings: [], opening: [], sourceLines: [u.title] }))
+  tb.results = new Map(src.map((u, i): [number, UnitKp[]] => [i + 1, u.kps.filter(c => valid.has(c)).slice(0, 8).map(code => ({ code, confidence: 'high' as const, quote: '', reason: '软件内置的教材目录' }))]))
+  tb.errors.clear(); tb.via = 'toc'; tb.builtin = true
+  finishTextbook(s, tb.units)
+  const sheet = s.read.sheets[0]
+  return { items: { [sheet.name]: { mapping: TEXTBOOK_MAPPING, problems: [], source: 'ai' } }, model: '', source: sourceInfo(sessionId, s) }
 }
 
 async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' | 'manual', signal: AbortSignal, onProgress?: SuggestProgress): Promise<SuggestResult> {

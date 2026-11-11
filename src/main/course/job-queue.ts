@@ -17,7 +17,7 @@ export interface JobInput {
   /** 学科（缺省英语）：认列用对应学科的提示词和表头规则 */
   subject?: string
 }
-export interface JobProgress { done: number; total: number; unit: string }
+export interface JobProgress { done: number; total: number; unit: string; /** 补充说明，如“共 12 个单元，约 12 次 AI 调用” */ note?: string }
 export interface Job<R> extends JobInput {
   id: string
   status: JobStatus
@@ -30,7 +30,7 @@ export interface Job<R> extends JobInput {
 
 export interface JobQueueOptions<R> {
   /** 真正干活；signal 被取消时应尽快停下（已被移除的任务结果会被忽略） */
-  run: (job: Job<R>, signal: AbortSignal, report: (done: number, total: number, unit: string) => void) => Promise<R>
+  run: (job: Job<R>, signal: AbortSignal, report: (done: number, total: number, unit: string, note?: string) => void) => Promise<R>
   concurrency?: number
   onChange?: () => void
   /** 任务被移除（取消 / 用户移除 / 保存完）时调用，用来释放读取会话 */
@@ -51,9 +51,9 @@ export function createJobQueue<R>(o: JobQueueOptions<R>) {
 
   const start = async (j: Job<R>, ctl: AbortController): Promise<void> => {
     try {
-      const report = (done: number, total: number, unit: string) => {
+      const report = (done: number, total: number, unit: string, note?: string) => {
         if (jobs.get(j.id) !== j || ctls.get(j.id) !== ctl || j.status !== 'running') return
-        j.progress = { done, total, unit }; changed()
+        j.progress = { done, total, unit, ...(note ? { note } : {}) }; changed()
       }
       const r = await o.run(j, ctl.signal, report)
       if (jobs.get(j.id) !== j || ctls.get(j.id) !== ctl) return   // 已被取消 / 移除 / 重试覆盖

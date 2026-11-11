@@ -50,7 +50,7 @@ export const READONLY_CHANNELS = new Set([
   'taxonomy:tree',
   'update:state', 'update:check', 'update:download', 'update:cancel', 'update:install', 'update:skip', 'update:openReleasePage',   // 应用内更新：只写临时目录和一个小状态文件，不动数据
   // 课程对照的读取类：列表 / 详情 / 看板 / 状态；pickFile、readFile、readText 只读用户选的文件到内存；template、exportGaps 只写用户选的位置；adviceCopy 只写剪贴板；matchCancel 只改内存
-  'course:list', 'course:get', 'course:maps', 'course:search', 'course:pickFile', 'course:readFile', 'course:readText', 'course:preview', 'course:diff', 'course:template',
+  'course:list', 'course:get', 'course:maps', 'course:search', 'course:pickFile', 'course:readFile', 'course:textbookUnits', 'course:textbookPage', 'course:useBuiltinCatalog', 'course:readText', 'course:preview', 'course:diff', 'course:template',
   'course:suggestCancel', 'course:jobs', 'course:jobTake', 'course:jobCancel', 'course:jobRemove', 'course:jobRetry', 'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:adviceState', 'course:adviceCopy',
   // 数据集的读取类：pick 只弹对话框；list / profile / preview / profileText 只读
   'datasets:pick', 'datasets:list', 'datasets:documents', 'datasets:documentText', 'datasets:sources', 'datasets:profile', 'datasets:preview', 'datasets:profileText',
