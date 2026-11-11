@@ -17,7 +17,7 @@ const subjectDoc = (file, subject) => ({ file, ids: Object.fromEntries(NUMS.map(
 const DOCS = [
   { file: 'docs/prompts/v2-分读者与事实核对.md', ids: { 三: 'p1_text', 四: 'p1_vision', 五: 'p2_yoy', 六: 'p3_report', 七: 'p3_boss', 八: 'p3_parent', 九: 'p3_teacher', 十: 'p2_kp' } },
   { file: 'docs/prompts/v3-老师版升级.md', ids: { 一: 'p3_teacher', 二: 'p3_tricks', 三: 'p4_variant_gen', 四: 'p4_variant_check' } },
-  { file: 'docs/prompts/v3-课程对照.md', ids: { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint', 五: 'p5_course_extract' } },
+  { file: 'docs/prompts/v3-课程对照.md', ids: { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint', 五: 'p5_course_extract', 六: 'p5_course_textbook' } },
   { file: 'docs/prompts/v4-文字归类.md', ids: { 一: 'p6_classify_propose', 二: 'p6_classify_assign' } },
   { file: 'docs/prompts/v5-角色草稿.md', ids: { 一: 'p7_role_draft' } },
   subjectDoc('docs/prompts/v6-语文.md', 'chinese'),

@@ -28,7 +28,7 @@ export interface RoleDef {
 /** 所有角色都有的基础工具（计划、提问、剧本） */
 export const BASE_TOOLS = ['update_plan', 'ask_user', 'load_playbook', 'session_state', 'history_search', 'history_read', 'delegate_tasks']
 /** 现有试卷数据的只读工具 */
-export const EXAM_TOOLS = ['stats_overview', 'kp_questions', 'course_for_kp', 'fact_check', 'papers_list', 'course_coverage', 'reports_list', 'report_read']
+export const EXAM_TOOLS = ['stats_overview', 'kp_questions', 'papers_for_kp', 'course_for_kp', 'fact_check', 'papers_list', 'course_coverage', 'reports_list', 'report_read']
 /** 数据分析工具：数据集、统计、文字归类、看板、产出、连接器（运营、辅导老师用） */
 export const DATA_TOOLS = [
   'list_datasets', 'dataset_profile', 'run_query', 'column_values', 'read_document',

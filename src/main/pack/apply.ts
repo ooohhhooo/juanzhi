@@ -16,7 +16,10 @@ import crypto from 'node:crypto'
 import { PackError } from './errors.ts'
 import { MARKER_KEY, clearJournal, revertSwap, writeJournal } from './journal.ts'
 import type { ImportJournal } from './journal.ts'
-import { PACK_SETTING_KEYS } from './manifest.ts'
+import { PACK_SETTING_KEYS, isPartialScope } from './manifest.ts'
+import type { Manifest } from './manifest.ts'
+import { importExtras } from './extras.ts'
+import type { ExtrasReport } from './extras.ts'
 import { UUID_RE } from './names.ts'
 import { renameRetry } from './fsretry.ts'
 import { checkPackSetting } from './settings-rules.ts'
@@ -27,6 +30,8 @@ export interface ApplyDeps {
   dataDir: string
   filesDir: string
   now?: () => Date
+  /** 数据包的 manifest（导入哪些内容、是不是部分内容的包）；不给 = 旧行为（当作老版本的包） */
+  manifest?: Manifest
   /** 测试用的故障注入：'after-db' = 写完库、改名之前；'after-swap' = 改完名、提交之前 */
   fault?: string | null
 }
@@ -59,6 +64,10 @@ export interface ImportReport {
   promptsImported: number
   /** 包里有自定义提示词、但本机已经有自己的（保持本机的）：包里的条数 */
   promptsKeptLocal: number
+  /** 新增的助手对话数（包里带了对话记录才有） */
+  chatsAdded?: number
+  /** 数据页表格 / 文档、Skill、角色的导入结果（包里带了才有） */
+  extras?: ExtrasReport
   warnings: string[]
   backup?: { dir: string; dbFile: string; filesDir: string; bytes: number }
 }
@@ -208,7 +217,7 @@ function safeJson(v: unknown, kind: 'array' | 'object', fix: (x: any) => unknown
 }
 const cleanOutline = (o: any) => ({
   ...o, name: clip(o.name, 60) || '导入的课程', scene: pick(o.scene, ['org', 'school', 'family', 'other'], 'other'), term_note: clip(o.term_note, 100), source_name: clip(o.source_name, 200), source_hash: clip(o.source_hash, 64),
-  status: pick(o.status, ['active', 'draft'], 'draft'), active: o.active ? 1 : 0, rev: int(o.rev, 1, 1), ai_model: clip(o.ai_model, 120),
+  status: pick(o.status, ['active', 'draft'], 'draft'), active: o.active ? 1 : 0, rev: int(o.rev, 1, 1), ai_model: clip(o.ai_model, 120), kind: pick(o.kind, ['course', 'textbook'], 'course'), builtin_id: clip(o.builtin_id, 80) || null,
   mapping_json: safeJson(o.mapping_json, 'object', x => x), warnings_json: safeJson(o.warnings_json, 'array', (x: any[]) => x.slice(0, 300).map(w => ({ kind: clip(w?.kind, 30), sheet: clip(w?.sheet, 80), row: int(w?.row, 0), text: clip(w?.text, 300) })))
 })
 const cleanLevel = (l: any) => ({ ...l, name: clip(l.name, 60) || '级别', sort: int(l.sort, 0, 0, 100000), grade_hint: clip(l.grade_hint, 40) })
@@ -219,7 +228,7 @@ const cleanLesson = (l: any) => ({
   search_text: clip(l.search_text, 20000), text_hash: clip(l.text_hash, 40)
 })
 const cleanCheck = (c: any) => ({ ...c, result: pick(c.result, ['matched', 'none', 'user_none'], 'none'), outline_rev: int(c.outline_rev, 0, 0), kp_sig: clip(c.kp_sig, 40), model: clip(c.model, 120), prompt_version: clip(c.prompt_version, 80) })
-const cleanMap = (m: any) => ({ ...m, confidence: pick(m.confidence, ['high', 'medium', 'low'], 'low'), state: pick(m.state, ['suggested', 'confirmed', 'rejected'], 'suggested'), source: pick(m.source, ['ai', 'manual'], 'ai'), locked: m.locked ? 1 : 0, reason: clip(m.reason, 200), quote: clip(m.quote, 200) })
+const cleanMap = (m: any) => ({ ...m, confidence: pick(m.confidence, ['high', 'medium', 'low'], 'low'), state: pick(m.state, ['suggested', 'confirmed', 'rejected'], 'suggested'), source: pick(m.source, ['ai', 'manual', 'builtin'], 'ai'), locked: m.locked ? 1 : 0, reason: clip(m.reason, 200), quote: clip(m.quote, 200) })
 
 /**
  * 课程大纲随包导入（course_* 表）。级别 / 课次的自增 id 在两边不通用，所以逐个体系复制并重新编号：
@@ -270,6 +279,22 @@ function copyCourse(db: any, kpMap: Map<string, string>, mode: 'merge' | 'overwr
     }
   }
   return { added, updated }
+}
+
+/** 助手对话记录：只加本机没有的对话（同 id 的保持本机的）；data_rev 置空（那是别的电脑当时的数据修订号） */
+function copyChats(db: any): number {
+  if (colsOf(db, 'pk', 'agent_sessions').length === 0 || colsOf(db, 'pk', 'agent_steps').length === 0) return 0
+  db.exec('DROP TABLE IF EXISTS temp.imp_sess; CREATE TEMP TABLE imp_sess (id TEXT PRIMARY KEY)')
+  const have = new Set((db.prepare('SELECT id FROM main.agent_sessions').all() as any[]).map(r => r.id as string))
+  const ins = db.prepare('INSERT OR IGNORE INTO temp.imp_sess VALUES (?)')
+  let n = 0
+  for (const r of db.prepare('SELECT id FROM pk.agent_sessions').all() as any[]) {
+    if (typeof r.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(r.id) || have.has(r.id) || n >= 100_000) continue
+    ins.run(r.id); n++
+  }
+  copyRows(db, 'agent_sessions', { where: 's.id IN (SELECT id FROM temp.imp_sess)', force: { data_rev: 'NULL' } })
+  copyRows(db, 'agent_steps', { where: 's.session_id IN (SELECT id FROM temp.imp_sess)' })
+  return n
 }
 
 function bumpRev(db: any): void { db.exec('UPDATE main.data_rev SET rev = rev + 1 WHERE id = 1') }
@@ -399,6 +424,7 @@ export function applyMerge(deps: ApplyDeps, staged: Staged, opts: { updateCourse
     report.reportsAdded = copyReports(db, true)
     const cc = copyCourse(db, kp.map, 'merge', !!opts.updateCourses)
     report.coursesAdded = cc.added; report.coursesUpdated = cc.updated
+    if (deps.manifest?.contents?.chats === true) report.chatsAdded = copyChats(db)
     normalizeImported(db)
     bumpRev(db)
     report.missingPageImages = countMissingPageImages(db, staged.filesDir)
@@ -419,6 +445,7 @@ export function applyMerge(deps: ApplyDeps, staged: Staged, opts: { updateCourse
     if (deps.fault === 'after-swap') throw new Error('测试注入的故障：改名之后')
     db.exec('COMMIT'); inTx = false
     report.newPaperIds = newIds
+    applyExtras(deps, staged, report)
     return report
   } catch (e) {
     if (inTx) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } }
@@ -426,7 +453,7 @@ export function applyMerge(deps: ApplyDeps, staged: Staged, opts: { updateCourse
     if (e instanceof PackError) throw e
     throw new PackError('apply_failed', `导入失败，已全部撤销，现有数据没有变化：${(e as Error).message}`)
   } finally {
-    try { db.exec('DROP TABLE IF EXISTS temp.imp_papers; DROP TABLE IF EXISTS temp.imp_q; DROP TABLE IF EXISTS temp.kpmap; DROP TABLE IF EXISTS temp.local_builtin') } catch { /* 忽略 */ }
+    try { db.exec('DROP TABLE IF EXISTS temp.imp_papers; DROP TABLE IF EXISTS temp.imp_q; DROP TABLE IF EXISTS temp.kpmap; DROP TABLE IF EXISTS temp.local_builtin; DROP TABLE IF EXISTS temp.imp_sess') } catch { /* 忽略 */ }
     detach(db)
   }
 }
@@ -456,6 +483,11 @@ export function listBackups(dataDir: string): Array<{ name: string; dir: string;
 export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
   const db = deps.db
   const report: ImportReport = { mode: 'overwrite', papersAdded: 0, papersSkipped: 0, sameFileAsExisting: 0, questionsAdded: 0, kpsAdded: 0, kpsRemapped: 0, reportsAdded: 0, missingPageImages: 0, promptsImported: 0, promptsKeptLocal: 0, warnings: [] }
+  const m = deps.manifest
+  // 只带了部分内容的包（某个学科 / 选中的卷子 / 没带试卷）：覆盖会把本机其余的数据一并清掉，不允许，请用合并
+  if (m && isPartialScope(m)) throw new PackError('partial_pack', '这个数据包只包含部分内容（只导了某个学科、选中的卷子，或没有带试卷），不能用「覆盖」导入，否则本机其余的数据会被清掉。请改用「合并」')
+  const keepReports = m?.contents?.reports === false   // 包里没带报告：不动本机的报告
+  const legacy = !m?.contents                          // 新版本导出的包不带用量和草稿：覆盖时不清本机的
   const now = (deps.now ?? (() => new Date()))()
   const importId = crypto.randomUUID()
   const backupDir = path.join(backupsRoot(deps.dataDir), `pre-import-${stamp(now)}-${importId.slice(0, 4)}`)
@@ -487,7 +519,9 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     db.exec('INSERT INTO temp.local_builtin SELECT code FROM main.kps WHERE builtin = 1')
     const lacking = count(db, 'SELECT COUNT(*) c FROM temp.local_builtin WHERE code NOT IN (SELECT code FROM pk.kps)')
     if (lacking > 0) throw new PackError('bad_content', `数据包里的知识点树缺少 ${lacking} 个内置节点（数据包不完整或被改过），为了不丢掉本机的知识点树，已拒绝覆盖导入`)
-    db.exec(`DELETE FROM main.papers; DELETE FROM main.reports; DELETE FROM main.ai_analyses; DELETE FROM main.ai_drafts; DELETE FROM main.ai_usage; DELETE FROM main.kps; DELETE FROM main.qtypes;`)
+    db.exec(`DELETE FROM main.papers; DELETE FROM main.kps; DELETE FROM main.qtypes;`)
+    if (!keepReports) db.exec('DELETE FROM main.reports; DELETE FROM main.ai_analyses;')
+    if (legacy) db.exec('DELETE FROM main.ai_drafts; DELETE FROM main.ai_usage;')
     // 课程大纲：包里带了才替换；导出时取消了「带课程大纲」的包不会把本机的课程清空
     if (colsOf(db, 'pk', 'course_outlines').length && count(db, 'SELECT COUNT(*) c FROM pk.course_outlines') > 0) db.exec('DELETE FROM main.course_outlines; DELETE FROM main.course_advice;')
 
@@ -496,12 +530,13 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     report.papersAdded = copyRows(db, 'papers', { where: 's.id IN (SELECT id FROM temp.imp_papers)', force: { is_sample: '0' } })
     const ch = copyChildren(db, new Map())
     report.questionsAdded = ch.questions
-    copyRows(db, 'ai_usage', { skip: ['id'] })
-    report.reportsAdded = copyReports(db, false)
+    if (legacy) copyRows(db, 'ai_usage', { skip: ['id'] })
+    if (!keepReports) report.reportsAdded = copyReports(db, false)
     report.coursesAdded = copyCourse(db, new Map(), 'overwrite').added
     // 知识点树整棵换了：本机留下的课程对应 / 检查结果（包里没带课程时）如果指向已经不存在的知识点，一并清掉，保持一致
     db.exec('DELETE FROM main.course_kp_map WHERE kp_code NOT IN (SELECT code FROM main.kps); DELETE FROM main.course_kp_check WHERE kp_code NOT IN (SELECT code FROM main.kps);')
-    copyRows(db, 'ai_analyses', { where: `COALESCE(s.scope_json, '') NOT LIKE '%"sample":true%'`, force: { checked_rev: 'NULL', checked_sig: 'NULL', checked_json: 'NULL' } })
+    if (!keepReports) copyRows(db, 'ai_analyses', { where: `COALESCE(s.scope_json, '') NOT LIKE '%"sample":true%'`, force: { checked_rev: 'NULL', checked_sig: 'NULL', checked_json: 'NULL' } })
+    if (m?.contents?.chats === true) report.chatsAdded = copyChats(db)
     importSettings(db, report)
     normalizeImported(db)
     db.prepare('INSERT OR REPLACE INTO main.settings (key, value_json) VALUES (?, ?)').run(MARKER_KEY, JSON.stringify(importId))
@@ -538,6 +573,7 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     }
     try { report.backup.bytes = dirBytes(backupDir) } catch { /* 只是显示用 */ }
     try { pruneBackups(deps.dataDir, 2) } catch { /* 旧备份留着也无妨 */ }
+    applyExtras(deps, staged, report)
     return report
   } catch (e) {
     if (committed) return report   // 保险：理论上提交之后不会走到这里
@@ -554,9 +590,19 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     if (e instanceof PackError) throw e
     throw new PackError('apply_failed', `导入失败，已全部撤销，现有数据没有变化：${(e as Error).message}${undo ? `。${undo}` : ''}`)
   } finally {
-    try { db.exec('DROP TABLE IF EXISTS temp.imp_papers; DROP TABLE IF EXISTS temp.imp_q; DROP TABLE IF EXISTS temp.kpmap; DROP TABLE IF EXISTS temp.local_builtin') } catch { /* 忽略 */ }
+    try { db.exec('DROP TABLE IF EXISTS temp.imp_papers; DROP TABLE IF EXISTS temp.imp_q; DROP TABLE IF EXISTS temp.kpmap; DROP TABLE IF EXISTS temp.local_builtin; DROP TABLE IF EXISTS temp.imp_sess') } catch { /* 忽略 */ }
     detach(db)
   }
+}
+
+/** 提交之后：把数据页表格 / 文档、Skill、角色并进数据目录（文件操作，不在数据库事务里；出错只记提示） */
+function applyExtras(deps: ApplyDeps, staged: Staged, report: ImportReport): void {
+  const dir = path.join(path.dirname(staged.dbPath), 'extras')
+  if (!fs.existsSync(dir)) return
+  try {
+    report.extras = importExtras(deps.dataDir, dir)
+    report.warnings.push(...report.extras.warnings)
+  } catch (e) { report.warnings.push(`导入数据页表格 / 文档 / Skill / 角色时出错：${(e as Error).message.slice(0, 100)}`) }
 }
 
 function dirBytes(dir: string): number {

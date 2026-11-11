@@ -103,10 +103,11 @@ interface MultiProps {
   onChange: (codes: string[]) => void
   max?: number
   disabled?: boolean
+  placeholder?: string
 }
 
 /** 多选知识点（还顺带考到的，最多 max 个） */
-export function KpMultiSelect({ kps, value, onChange, max = 3, disabled }: MultiProps) {
+export function KpMultiSelect({ kps, value, onChange, max = 3, disabled, placeholder }: MultiProps) {
   const tree = useKpTree(kps)
   return (
     <TreeSelect
@@ -118,7 +119,7 @@ export function KpMultiSelect({ kps, value, onChange, max = 3, disabled }: Multi
       treeData={tree}
       value={value}
       onChange={v => onChange((v as string[]).slice(0, max))}
-      placeholder={`还顺带考到的知识点（最多 ${max} 个）`}
+      placeholder={placeholder ?? `还顺带考到的知识点（最多 ${max} 个）`}
       maxCount={max}
       disabled={disabled}
       maxTagCount="responsive"

@@ -480,6 +480,71 @@ export class DatasetStore {
     return t
   }
 
+  // ───────────── 导出数据包用 ─────────────
+
+  /** 目录缓存作废（数据包导入直接改了 catalog.json 之后调用） */
+  reload(): void { this.cache = null; this.books.clear(); for (const k of [...this.indexes.keys()]) this.indexes.delete(k) }
+
+  /** 一个「文字 → 去掉真名和个人信息」的函数：按给定数据集里出现过的姓名 / 编号 / 手机号等换成代号，再去掉手机号等。用完调 done() 把新分配的代号存盘 */
+  scrubber(datasetIds: string[]): { text: (s: string) => string; done: () => void } {
+    const ids = datasetIds.filter(i => !!this.find(i))
+    if (!ids.length) return { text: s => scrubPII(String(s ?? '')), done: () => undefined }
+    const m = this.model(ids)
+    return { text: s => scrubPII(m.text(String(s ?? ''))), done: () => m.flush() }
+  }
+
+  /**
+   * 做一份可以放进数据包的数据集副本：数据库里敏感列（姓名、手机号、编号……）的值全部换成代号，文字列里夹着的真名也换掉；
+   * 代号映射表（<id>.codes.json）不复制、不带走。返回处理过的目录条目（名称、来源文件名、备注、列概况里的文字同样过了一遍）。
+   */
+  exportCopy(id: string, destFile: string): DatasetMeta {
+    const d = this.get(id)
+    fs.mkdirSync(path.dirname(destFile), { recursive: true })
+    fs.rmSync(destFile, { force: true })
+    fs.copyFileSync(this.dbFile(id), destFile)
+    const book = this.book(id)
+    const m = this.model([id])
+    const db = new DatabaseSync(destFile)
+    try {
+      db.exec('PRAGMA secure_delete = ON; PRAGMA journal_mode = DELETE')
+      const remap = (table: string, col: string, fn: (v: unknown) => string | null) => {
+        const vals = (db.prepare(`SELECT DISTINCT ${q(col)} AS v FROM ${q(table)} WHERE ${q(col)} IS NOT NULL`).all() as Array<{ v: unknown }>).map(r => r.v)
+        db.exec('DROP TABLE IF EXISTS temp.__map; CREATE TEMP TABLE __map (orig PRIMARY KEY, code)')
+        const ins = db.prepare('INSERT OR IGNORE INTO temp.__map VALUES (?, ?)')
+        let any = false
+        db.exec('BEGIN')
+        for (const v of vals) { if (typeof v === 'bigint' || typeof v === 'string' || typeof v === 'number') { const c = fn(v); if (c !== null && c !== String(v)) { ins.run(v, c); any = true } } }
+        db.exec('COMMIT')
+        if (any) db.exec(`UPDATE ${q(table)} SET ${q(col)} = (SELECT code FROM temp.__map WHERE orig = ${q(table)}.${q(col)}) WHERE ${q(col)} IN (SELECT orig FROM temp.__map)`)
+        db.exec('DROP TABLE IF EXISTS temp.__map')
+      }
+      for (const t of d.tables) {
+        for (const c of t.columns) {
+          if (c.derived) continue
+          if (c.sensitive) remap(t.name, c.name, v => book.code(c.sensitiveKind ?? 'other', String(v)))
+          else if (c.type === 'text' || c.type === 'select' || c.type === 'multi') remap(t.name, c.name, v => (typeof v === 'string' ? scrubPII(m.text(v)) : null))
+        }
+        const dt = `${t.name}__derived`
+        const has = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(dt)
+        if (has) for (const col of db.prepare(`PRAGMA table_info(${q(dt)})`).all() as Array<{ name: string; type: string }>) if (col.name !== '_row' && /TEXT|CHAR|^$/i.test(col.type ?? '')) remap(dt, col.name, v => (typeof v === 'string' ? scrubPII(m.text(v)) : null))
+      }
+      // 触发器不带走（数据集库里本来就没有）；整理空闲页，保证被改掉的真名不残留在文件里
+      for (const o of db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as Array<{ name: string }>) db.exec(`DROP TRIGGER IF EXISTS ${q(o.name)}`)
+      db.exec('VACUUM')
+    } finally { try { db.close() } catch { /* 忽略 */ } }
+    book.flush(); m.flush()
+    const safe = (x: string) => scrubPII(m.text(String(x ?? '')))
+    const deep = (v: unknown): unknown => (typeof v === 'string' ? safe(v) : Array.isArray(v) ? v.map(deep) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)])) : v)
+    const meta: DatasetMeta = JSON.parse(JSON.stringify(d))
+    meta.name = safe(meta.name); meta.sourceFile = safe(meta.sourceFile); meta.note = safe(meta.note)
+    meta.sizeBytes = fs.statSync(destFile).size
+    for (const t of meta.tables) {
+      t.sheet = safe(t.sheet); t.notes = (t.notes ?? []).map(safe)
+      for (const c of t.columns) { c.profile = deep(c.profile) as typeof c.profile; if (c.sensitive) { c.profile.examples = []; for (const k of ['min', 'max', 'mean', 'p25', 'p50', 'p75', 'top'] as const) delete c.profile[k] } }   // 敏感列的最小 / 最大值（学号）和高频取值也是原值，不带走
+    }
+    return meta
+  }
+
   // ───────────── 查询 ─────────────
 
   /** 「可用的表和列」说明，给模型写 SQL 用。表名前带别名 d1、d2…… */

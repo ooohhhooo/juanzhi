@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { OcrLine } from '../types'
 import { withTimeout } from './util'
+import { registerPdfSource, releasePdfSource } from './pdf-source'
 
 export interface RenderedPage {
   index: number
@@ -95,65 +96,119 @@ function translatePdfError(raw: string): string {
  * 逐页渲染：每渲染完一页立即把 PNG 落盘并释放，避免整本文档的 base64 一次性回传。
  */
 export class PdfPageLimitError extends Error {
-  constructor(public pages: number, public max: number) { super(`PDF 有 ${pages} 页，超过 ${max} 页的上限`) }
+  /** @param pages 要处理的页数（选了页码范围就是选中的页数）；total = 文件总页数 */
+  constructor(public pages: number, public max: number, public total: number = pages) { super(`PDF 有 ${pages} 页，超过 ${max} 页的上限`) }
+}
+export class PdfCancelledError extends Error {
+  constructor() { super('已取消') }
 }
 
-/** @param maxPages 可选：页数一知道就超限的话立刻抛 PdfPageLimitError，不渲染（考卷导入不传 = 行为不变） */
-export function renderPdfPages(pdfPath: string, outputDir: string, maxPages?: number): Promise<RenderedPage[]> {
+export interface RenderOptions {
+  /** 要处理的页数超限就立刻抛 PdfPageLimitError，不渲染（考卷导入不传 = 不限） */
+  maxPages?: number
+  /** 只处理这些页（1 起，已排序去重）；不传 = 全部 */
+  pages?: number[]
+  /** 取消：每页之前检查，已渲染的页保留在磁盘上由调用方清理 */
+  signal?: AbortSignal
+  /** 每处理完一页回调（done / total） */
+  onPage?: (done: number, total: number) => void
+  /**
+   * 只读文字、不出图：文本层可用（返回 false = 不需要图）的页跳过画布渲染和 PNG 落盘，速度和内存都小得多。
+   * 不传 = 每页都出图（考卷导入要展示页面图）
+   */
+  needImage?: (pageText: string) => boolean
+}
+
+const SOURCE_CHUNK = 1 << 20
+
+/** 登记文件 → 在窗口里用 Range 分块读（pdf.js 的 PDFDataRangeTransport），返回页数；窗口里不出现整本文件 */
+async function openDoc(w: BrowserWindow, token: string, size: number): Promise<number> {
+  try {
+    return await withTimeout(
+      w.webContents.executeJavaScript(`
+        (async () => {
+          const url = 'ewb://pdfsrc/${token}';
+          const size = ${size};
+          const get = async (b, e) => new Uint8Array(await (await fetch(url, { headers: { Range: 'bytes=' + b + '-' + (e - 1) } })).arrayBuffer());
+          const tr = new window.__pdfjs.PDFDataRangeTransport(size, await get(0, Math.min(size, 65536)));
+          tr.requestDataRange = (b, e) => { get(b, Math.min(e, size)).then(c => tr.onDataRange(b, c), () => {}); };
+          window.__doc = await window.__pdfjs.getDocument({
+            range: tr,
+            length: size,
+            rangeChunkSize: ${SOURCE_CHUNK},
+            disableAutoFetch: true,
+            disableStream: true,
+            cMapUrl: 'ewb://pdfjs/cmaps/',
+            cMapPacked: true,
+            standardFontDataUrl: 'ewb://pdfjs/standard_fonts/',
+            useSystemFonts: true,
+            isEvalSupported: false
+          }).promise;
+          return window.__doc.numPages;
+        })()
+      `),
+      PAGE_TIMEOUT_MS, 'PDF 打开超时', () => destroyPdfRenderer()
+    )
+  } catch (e) {
+    throw new Error(translatePdfError((e as Error).message))
+  }
+}
+
+async function closeDoc(): Promise<void> {
+  if (win && !win.isDestroyed()) {
+    await win.webContents.executeJavaScript('if(window.__doc){window.__doc.destroy();window.__doc=null;}').catch(() => {})
+  }
+}
+
+/** 只数页数（不渲染） */
+export function countPdfPages(pdfPath: string): Promise<number> {
   return serialized(async () => {
     const w = await ensureWindow()
-    const b64 = fs.readFileSync(pdfPath).toString('base64')
-    const timeoutKill = () => destroyPdfRenderer()
-
-    let numPages: number
+    const token = registerPdfSource(pdfPath)
     try {
-      numPages = await withTimeout(
-        w.webContents.executeJavaScript(`
-          (async () => {
-            const raw = atob(${JSON.stringify(b64)});
-            const data = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) data[i] = raw.charCodeAt(i);
-            window.__doc = await window.__pdfjs.getDocument({
-              data,
-              cMapUrl: 'ewb://pdfjs/cmaps/',
-              cMapPacked: true,
-              standardFontDataUrl: 'ewb://pdfjs/standard_fonts/',
-              useSystemFonts: true,
-              isEvalSupported: false
-            }).promise;
-            return window.__doc.numPages;
-          })()
-        `),
-        PAGE_TIMEOUT_MS, 'PDF 打开超时', timeoutKill
-      )
-    } catch (e) {
-      throw new Error(translatePdfError((e as Error).message))
+      return await openDoc(w, token, fs.statSync(pdfPath).size)
+    } finally {
+      releasePdfSource(token)
+      await closeDoc()
     }
+  })
+}
 
+/** @param opts 数字 = maxPages（旧用法）；也可传 RenderOptions */
+export function renderPdfPages(pdfPath: string, outputDir: string, opts?: number | RenderOptions): Promise<RenderedPage[]> {
+  const o: RenderOptions = typeof opts === 'number' ? { maxPages: opts } : opts ?? {}
+  return serialized(async () => {
+    const w = await ensureWindow()
+    const timeoutKill = () => destroyPdfRenderer()
+    const token = registerPdfSource(pdfPath)
     const results: RenderedPage[] = []
     try {
-      if (maxPages != null && numPages > maxPages) throw new PdfPageLimitError(numPages, maxPages)
-      for (let i = 1; i <= numPages; i++) {
-        const page = await withTimeout(
-          w.webContents.executeJavaScript(`(${renderPageScript})(${i}, ${MAX_CANVAS_DIM})`),
+      const numPages = await openDoc(w, token, fs.statSync(pdfPath).size)
+      const todo = o.pages ? o.pages.filter(n => n >= 1 && n <= numPages) : Array.from({ length: numPages }, (_, i) => i + 1)
+      if (o.maxPages != null && todo.length > o.maxPages) throw new PdfPageLimitError(todo.length, o.maxPages, numPages)
+      for (const [k, i] of todo.entries()) {
+        if (o.signal?.aborted) throw new PdfCancelledError()
+        const run = (withImage: boolean) => withTimeout(
+          w.webContents.executeJavaScript(`(${renderPageScript})(${i}, ${MAX_CANVAS_DIM}, ${withImage})`),
           PAGE_TIMEOUT_MS, `渲染第 ${i} 页超时`, timeoutKill
-        ).catch((e: Error) => { throw new Error(translatePdfError(e.message)) }) as RenderedPage & { pngBase64: string }
-
-        fs.writeFileSync(path.join(outputDir, `page-${page.index}.png`), Buffer.from(page.pngBase64, 'base64'))
+        ).catch((e: Error) => { throw new Error(translatePdfError(e.message)) }) as Promise<RenderedPage & { pngBase64: string }>
+        let page = await run(!o.needImage)
+        if (o.needImage && o.needImage(page.text)) page = await run(true)   // 第一遍只读文字；文字不可用才再出图（OCR 用）
+        if (page.pngBase64) fs.writeFileSync(path.join(outputDir, `page-${page.index}.png`), Buffer.from(page.pngBase64, 'base64'))
         const { pngBase64: _drop, ...rest } = page
         results.push(rest)
+        o.onPage?.(k + 1, todo.length)
       }
     } finally {
-      if (win && !win.isDestroyed()) {
-        await win.webContents.executeJavaScript('if(window.__doc){window.__doc.destroy();window.__doc=null;}').catch(() => {})
-      }
+      releasePdfSource(token)
+      await closeDoc()
     }
     return results
   })
 }
 
 // 在隐藏窗口里执行的页面脚本。用 String.raw 保持反斜杠原样；脚本内不得使用模板字符串。
-const renderPageScript = String.raw`async function (pageNo, maxDim) {
+const renderPageScript = String.raw`async function (pageNo, maxDim, withImage) {
   const pdfjs = window.__pdfjs;
   const doc = window.__doc;
   const page = await doc.getPage(pageNo);
@@ -162,18 +217,20 @@ const renderPageScript = String.raw`async function (pageNo, maxDim) {
   const vp = page.getViewport({ scale: scale });
 
   const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
-  canvas.width = Math.round(vp.width);
-  canvas.height = Math.round(vp.height);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  await page.render({ canvasContext: ctx, viewport: vp }).promise;
-
-  const blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
-  const bytes = new Uint8Array(await blob.arrayBuffer());
   let bin = '';
-  for (let j = 0; j < bytes.length; j += 8192) {
-    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(j, Math.min(j + 8192, bytes.length))));
+  if (withImage) {
+    const ctx = canvas.getContext('2d');
+    canvas.width = Math.round(vp.width);
+    canvas.height = Math.round(vp.height);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    for (let j = 0; j < bytes.length; j += 8192) {
+      bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(j, Math.min(j + 8192, bytes.length))));
+    }
   }
 
   // 文本层 -> 行（按基线分组），坐标来自 PDF 本身
@@ -221,8 +278,8 @@ const renderPageScript = String.raw`async function (pageNo, maxDim) {
     pngBase64: btoa(bin),
     text: outLines.map(function (l) { return l.text; }).join('\n'),
     lines: outLines,
-    width: canvas.width,
-    height: canvas.height
+    width: Math.round(vp.width),
+    height: Math.round(vp.height)
   };
 }`
 
@@ -233,16 +290,14 @@ const renderPageScript = String.raw`async function (pageNo, maxDim) {
 export function normalizeImage(srcPath: string, destPngPath: string): Promise<{ width: number; height: number }> {
   return serialized(async () => {
     const w = await ensureWindow()
-    const b64 = fs.readFileSync(srcPath).toString('base64')
+    const token = registerPdfSource(srcPath)   // 图片也经协议读，不再整份 base64 塞进脚本
     let out: { pngBase64: string; width: number; height: number }
     try {
       out = await withTimeout(
         w.webContents.executeJavaScript(`
           (async () => {
-            const raw = atob(${JSON.stringify(b64)});
-            const bytes = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-            const bmp = await createImageBitmap(new Blob([bytes]), { imageOrientation: 'from-image' });
+            const blob0 = await (await fetch('ewb://pdfsrc/${token}')).blob();
+            const bmp = await createImageBitmap(blob0, { imageOrientation: 'from-image' });
             const k = Math.min(1, ${MAX_CANVAS_DIM} / Math.max(bmp.width, bmp.height));
             const canvas = document.getElementById('c');
             canvas.width = Math.round(bmp.width * k);
@@ -263,6 +318,8 @@ export function normalizeImage(srcPath: string, destPngPath: string): Promise<{ 
       )
     } catch (e) {
       throw new Error(`无法解码该图片（${(e as Error).message}）`)
+    } finally {
+      releasePdfSource(token)
     }
     fs.writeFileSync(destPngPath, Buffer.from(out.pngBase64, 'base64'))
     return { width: out.width, height: out.height }

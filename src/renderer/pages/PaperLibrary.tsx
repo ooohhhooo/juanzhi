@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { inSubject } from '../subject/papers'
 import { Modal, Form, Select, InputNumber, Input, App, Dropdown, Checkbox } from 'antd'
-import { BarChart3, ClipboardCheck, Eye, FolderOpen, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
+import { BarChart3, Columns3, ClipboardCheck, Download, Eye, FolderOpen, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { paperKind, paperTag } from '../status'
@@ -14,6 +14,7 @@ import Onboarding from '../components/Onboarding'
 import RoleGuide from '../components/RoleGuide'
 import BetaWelcome from '../components/BetaWelcome'
 import BatchEditModal from '../components/BatchEditModal'
+import ExportPackModal from '../components/ExportPackModal'
 import { useStatsFilter } from '../stats/StatsFilter'
 import { MAX_SCOPE_PAPERS, chunk, filterPapers, isBusyStatus, plainError, scopeFromSelection, summarizeBatch, titleList } from '../../shared/library-select'
 import type { BatchResult } from '../../shared/library-select'
@@ -22,6 +23,9 @@ import { ImportTarget, MathVisionHint } from '../components/ImportTarget'
 import { useSubject } from '../subject/SubjectContext'
 import { SubjectHintBar, useChangeSubject } from '../components/SubjectHint'
 import { hintOf } from '../subject/autoRoute'
+import { KpModeSwitch, KpPickMulti } from '../components/KpPaperFilter'
+import type { KpMode } from '../components/KpPaperFilter'
+import { filterByHits, hitMap, hitText, MAX_COMPARE_PAPERS } from '../../shared/kp-filter'
 
 const gradeOptions = ['1', '2', '3', '4', '5', '6'].map(v => ({ label: `${v}年级`, value: v }))
 const semesterOptions = [{ label: '上学期', value: '上' }, { label: '下学期', value: '下' }]
@@ -58,6 +62,7 @@ export default function PaperLibrary() {
   const [query, setQuery] = useState('')
   const composing = useRef(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [exportOpen, setExportOpen] = useState(false)
   const [batchEditOpen, setBatchEditOpen] = useState(false)
   const [batchBusy, setBatchBusy] = useState(false)
 
@@ -74,6 +79,20 @@ export default function PaperLibrary() {
   })
   const papers = useMemo(() => inSubject(rawPapers, subject), [rawPapers, subject])
 
+  // 按知识点筛选：选了知识点后，主进程按统计口径（已确认 / 去重 / 学科）算每份卷子命中的知识点和题数；没算进统计的卷子（待审核、疑似重复）不会出现
+  const [kpCodes, setKpCodes] = useState<string[]>([])
+  const [kpMode, setKpMode] = useState<KpMode>('any')
+  const { data: kpHits } = useQuery({
+    queryKey: ['papers', 'kp-hits', subject, kpCodes, kpMode, !!statsFilter.includeReviewing, !!statsFilter.includeDuplicates, rawPapers.length],
+    enabled: kpCodes.length > 0,
+    queryFn: async () => {
+      const base = { subject, includeReviewing: statsFilter.includeReviewing, includeDuplicates: statsFilter.includeDuplicates }
+      const [real, sample] = await Promise.all([window.api.stats.kpPapers(base, kpCodes, kpMode), window.api.stats.kpPapers({ ...base, sample: true }, kpCodes, kpMode)])
+      return hitMap(real, sample)
+    }
+  })
+  const hitsMap = kpCodes.length > 0 ? (kpHits ?? new Map()) : null
+
   // 输入稍停一下再过滤；用输入法打字（拼音还没选字）时一律不过滤
   useEffect(() => {
     if (composing.current || draft === query) return
@@ -82,7 +101,7 @@ export default function PaperLibrary() {
   }, [draft, query])
 
   // 过滤在本地做：试卷列表本来就是整份取回来的（几百份也只是几百行），不必再走一趟主进程
-  const visible = useMemo(() => filterPapers(papers, query), [papers, query])
+  const visible = useMemo(() => filterByHits(filterPapers(papers, query), hitsMap), [papers, query, hitsMap])
   // 选中的只保留还看得到的：搜索词变了、或试卷被删了，看不见的就不再算选中，批量操作不会碰看不见的卷子
   useEffect(() => {
     const ok = new Set(visible.map(p => p.id))
@@ -298,6 +317,15 @@ export default function PaperLibrary() {
     navigate('/overview')
   }
 
+  const compareSelection = (ids: string[], codes: string[]) => {
+    if (ids.length > MAX_COMPARE_PAPERS) { message.warning(`并排对比一次最多 ${MAX_COMPARE_PAPERS} 份，请先缩小范围`); return }
+    const sc = scopeFromSelection(papers.filter(p => ids.includes(p.id)))
+    if (sc.dropped > 0) message.info(`里面有 ${sc.dropped} 份示例卷，示例数据不和真实数据一起对比，已经去掉。`)
+    if (sc.paperIds.length === 0) return
+    selectPapers(sc.paperIds, sc.sample)
+    navigate('/dashboard', { state: { tab: 'kpcompare', codes } })
+  }
+
   const columns = [
     {
       title: '试卷',
@@ -320,6 +348,7 @@ export default function PaperLibrary() {
               <span>{record.exam_type ?? '类型 -'}</span>
               <span>{record.page_count} 页</span>
             </div>
+            {hitsMap && hitsMap.get(record.id) && <div className="ewb-lib-hits" data-testid="kp-hits" data-paper={record.id}>考了：{hitText(hitsMap.get(record.id))}</div>}
           </div>
         )
       }
@@ -435,9 +464,20 @@ export default function PaperLibrary() {
             onCompositionEnd={e => { composing.current = false; setDraft(e.currentTarget.value); setQuery(e.currentTarget.value) }}
             onPressEnter={() => { if (!composing.current) setQuery(draft) }}
           />
-          <span className="ewb-lib-count" data-testid="lib-count">{query.trim() ? `找到 ${visible.length} 份，共 ${papers.length} 份` : `共 ${papers.length} 份`}</span>
+          <span className="ewb-lib-count" data-testid="lib-count">{query.trim() || kpCodes.length ? `找到 ${visible.length} 份，共 ${papers.length} 份` : `共 ${papers.length} 份`}</span>
         </div>
       )}
+      {papers.length > 0 && (
+        <div className="ewb-lib-tools" data-testid="kp-filter">
+          <span className="ewb-lib-count">按知识点找卷子</span>
+          <KpPickMulti testId="kp-filter-select" value={kpCodes} onChange={setKpCodes} />
+          {kpCodes.length > 1 && <KpModeSwitch testId="kp-filter-mode" value={kpMode} onChange={setKpMode} />}
+          {kpCodes.length > 0 && (
+            <Btn tone="secondary" size="small" icon={Columns3} data-testid="kp-compare-visible" disabled={visible.length === 0} title="把筛出来的卷子和这些知识点并排放在一起看" onClick={() => compareSelection(visible.map(p => p.id), kpCodes)}>并排对比这 {visible.length} 份</Btn>
+          )}
+        </div>
+      )}
+      {kpCodes.length > 0 && <div className="ewb-lib-count" style={{ marginBottom: 'var(--ewb-sp-3)' }} data-testid="kp-filter-note">只列已确认、计入统计的卷子（{statsFilter.includeReviewing ? '含待审核的' : '待审核的、疑似重复的不在其中'}）。选大类等于包含它下面的全部知识点。</div>}
 
       {selected.length > 0 && (
         <div className="ewb-lib-selbar" data-testid="select-bar" role="region" aria-label="批量操作">
@@ -447,7 +487,9 @@ export default function PaperLibrary() {
           <div className="ewb-lib-selbar__ops">
             <Btn tone="secondary" size="small" icon={Pencil} data-testid="batch-edit-open" onClick={() => setBatchEditOpen(true)}>批量改信息</Btn>
             <Btn tone="secondary" size="small" icon={RotateCw} data-testid="batch-reparse" title="让 AI 重新读这几份卷子" onClick={() => void batchReparse()}>重新解析</Btn>
+            <Btn tone="secondary" size="small" icon={Columns3} data-testid="compare-selected" title="把选中的卷子并排放在一起，看哪些知识点几份卷子都考了" onClick={() => compareSelection(selected.map(p => p.id), kpCodes)}>知识点对比</Btn>
             <Btn tone="secondary" size="small" icon={BarChart3} data-testid="scope-selected" title="统计、看板、报告只按选中的卷子算" onClick={scopeToSelection}>只看这几份的统计</Btn>
+            <Btn tone="secondary" size="small" icon={Download} data-testid="export-selected" title="只把选中的卷子导出成数据包" onClick={() => setExportOpen(true)}>导出数据包</Btn>
             <Btn tone="danger" size="small" icon={Trash2} data-testid="batch-delete" onClick={batchDelete}>删除</Btn>
           </div>
         </div>
@@ -471,17 +513,18 @@ export default function PaperLibrary() {
           ),
           getCheckboxProps: (p: Paper) => ({ 'aria-label': `选中：${p.title || p.file_name}`, 'data-testid': `select-row-${p.id}` } as any)
         }}
-        locale={query.trim() ? {
+        locale={query.trim() || kpCodes.length ? {
           emptyText: (
             <div data-testid="lib-search-empty">
-              <EmptyState inline title="没有找到这样的试卷" description={`标题和学校里都没有「${query.trim()}」。换个词试试，或者清除搜索看全部试卷。`}
-                action={<Btn tone="secondary" size="small" onClick={() => { setDraft(''); setQuery('') }}>清除搜索</Btn>} />
+              <EmptyState inline title="没有找到这样的试卷" description={kpCodes.length ? '已确认的试卷里没有符合这些知识点的。可以改成「考了其中任一个」、少选几个知识点，或清除知识点筛选。' : `标题和学校里都没有「${query.trim()}」。换个词试试，或者清除搜索看全部试卷。`}
+                action={<Btn tone="secondary" size="small" onClick={() => { setDraft(''); setQuery(''); setKpCodes([]) }}>清除筛选</Btn>} />
             </div>
           )
         } : undefined}
       />
 
       {changeSubject.holder}
+      <ExportPackModal open={exportOpen} onClose={() => setExportOpen(false)} paperIds={selected.map(p => p.id)} onResult={r => { if (r) (r.type === 'success' ? message.success(r.text, 8) : message.error(r.text)) }} />
       <BatchEditModal
         open={batchEditOpen}
         papers={selected.map(p => ({ id: p.id, ai: aiFieldsOf(p) }))}

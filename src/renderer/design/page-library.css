@@ -112,3 +112,6 @@
 .ewb-lib-batchwarn { margin: var(--ewb-sp-3) 0 0; font-size: var(--ewb-fs-sm); color: var(--ewb-red-ink); }
 .ewb-lib-batchgrid { display: grid; gap: var(--ewb-sp-3); }
 .ewb-lib-batchrow { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: var(--ewb-sp-3); }
+
+/* 按知识点筛选后，每份卷子下面一行：命中的知识点和题数 */
+.ewb-lib-hits { margin-top: 4px; font-size: var(--ewb-fs-sm); color: var(--ewb-primary); font-variant-numeric: tabular-nums; }

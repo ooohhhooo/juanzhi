@@ -57,7 +57,7 @@ async function phasePack() {
   // ── 导出（走界面）──
   const zip = path.join(work, '换电脑.ewb.zip')
   await stubSave(zip)
-  await T('pack-export').click()
+  await T('pack-export').click(); await T('export-confirm').click()
   const done = await waitFor(async () => (await T('pack-done').count()) > 0, 60000)
   check('数据包 导出', '设置页点「导出数据包」→ 提示已导出，文件存在，文件名以 .ewb.zip 结尾，提示里写明「不包含 API 密钥」', done && fs.existsSync(zip) && /\.ewb\.zip$/.test(zip) && new RegExp(`${NP} 份试卷、${NQ} 道题`).test(await txt('pack-done')) && /API 密钥/.test(await txt('data-pack')), done ? await txt('pack-done') : '')
   await shot('06-pack-export')
@@ -81,7 +81,7 @@ async function phasePack() {
     })
     const failZip = path.join(work, '会失败.ewb.zip')
     await stubSave(failZip)
-    await T('pack-export').click()
+    await T('pack-export').click(); await T('export-confirm').click()
     const failed = await waitFor(async () => (await T('pack-error').count()) > 0, 30000)
     const failTxt = failed ? await txt('pack-error') : ''
     const uncaught = await ctx.app.evaluate(() => globalThis.__uncaught)
@@ -90,7 +90,7 @@ async function phasePack() {
     // 失败之后锁没有残留：再导出一次成功，选这个包导入也能走到摘要（不会被「正在导出 / 正在…」挡住）
     const again = path.join(work, '失败后重导.ewb.zip')
     await stubSave(again)
-    await T('pack-export').click()
+    await T('pack-export').click(); await T('export-confirm').click()
     const doneAgain = await waitFor(async () => (await T('pack-done').count()) > 0, 60000)
     await stubOpen(again)
     const pk = await api(async () => { try { const r = await window.api.data.pickPack(); if (r.picked) await window.api.data.discardPack(r.token); return r.picked ? 'picked' : 'not' } catch (e) { return e.message } })

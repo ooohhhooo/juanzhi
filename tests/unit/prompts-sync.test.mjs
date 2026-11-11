@@ -46,7 +46,7 @@ assert.ok(/做题方法/.test(blocks['p3_teacher.system']) && !/备课建议/.te
 // 课程对照的四个提示词（v3-课程对照.md）：资源文件逐字一致；占位符与程序登记的一致
 {
   const md3 = fs.readFileSync(path.join(root, 'docs/prompts/v3-课程对照.md'), 'utf8').replace(/\r\n/g, '\n').split('\n')
-  const IDS3 = { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint', 五: 'p5_course_extract' }
+  const IDS3 = { 一: 'p5_course_cols', 二: 'p5_course_match', 三: 'p5_course_advice', 四: 'p5_course_hint', 五: 'p5_course_extract', 六: 'p5_course_textbook' }
   const b3 = {}
   let c3 = null, p3 = null, fence = false, buf3 = []
   for (const line of md3) {
@@ -65,7 +65,7 @@ assert.ok(/做题方法/.test(blocks['p3_teacher.system']) && !/备课建议/.te
   }
   // 用户提示词里的占位符 == 程序登记的占位符（prompts.ts 里的 PLACEHOLDERS）
   const reg = fs.readFileSync(path.join(root, 'src/main/ai/prompts.ts'), 'utf8')
-  for (const id of ['p5_course_cols', 'p5_course_match', 'p5_course_advice', 'p5_course_hint', 'p5_course_extract']) {
+  for (const id of ['p5_course_cols', 'p5_course_match', 'p5_course_advice', 'p5_course_hint', 'p5_course_extract', 'p5_course_textbook']) {
     const used = [...new Set([...b3[`${id}.user`].matchAll(/\{\{([A-Z_]+)\}\}/g)].map(m => m[1]))].sort()
     const line = new RegExp(`${id}: \\[([^\\]]*)\\]`).exec(reg)?.[1] ?? ''
     const registered = [...line.matchAll(/'([A-Z_]+)'/g)].map(m => m[1]).sort()

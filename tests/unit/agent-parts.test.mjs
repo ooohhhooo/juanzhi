@@ -37,7 +37,7 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
 // ───── 注册表 ─────
 {
   const r = createRegistry()
-  assert.deepEqual(r.names().sort(), ['ask_user', 'course_coverage', 'course_for_kp', 'delegate_tasks', 'fact_check', 'history_read', 'history_search', 'kp_questions', 'load_playbook', 'papers_list', 'report_read', 'reports_list', 'session_state', 'stats_overview', 'update_plan'])
+  assert.deepEqual(r.names().sort(), ['ask_user', 'course_coverage', 'course_for_kp', 'delegate_tasks', 'fact_check', 'history_read', 'history_search', 'kp_questions', 'load_playbook', 'papers_for_kp', 'papers_list', 'report_read', 'reports_list', 'session_state', 'stats_overview', 'update_plan'])
   const specs = r.specs(['update_plan', 'nope'])
   assert.equal(specs.length, 1); assert.equal(specs[0].type, 'function'); assert.equal(specs[0].function.name, 'update_plan'); assert.equal(specs[0].function.parameters.type, 'object')
   assert.throws(() => r.register(r.get('update_plan')), /重名/)

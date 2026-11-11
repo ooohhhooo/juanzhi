@@ -8,6 +8,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, UsageNote } from '../../design'
 import { sessionJobIds } from '../../components/GlobalNotices'
 import { clean } from '../../components/CourseMatch'
+import TextbookReview from './TextbookReview'
+import type { UnitKpState } from './TextbookReview'
 import { SCENE_LABEL, wordsOf } from './format'
 import type { Scene } from './format'
 import '../../design/page-course.css'
@@ -54,6 +56,14 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
   const [edited, setEdited] = useState(false)   // 预览里手改过格子：保存时才把整理结果带回主进程；没改过就只带 sessionId + 列映射
   const [collide, setCollide] = useState<CourseOutlineCard | null>(null)
   const [saving, setSaving] = useState(false)
+  // 教材课本：文件类型、页码范围、「像是教材」的提示、核对时的单元和知识点
+  const [kindPick, setKindPick] = useState<'auto' | 'course' | 'textbook'>('auto')
+  const [pageRange, setPageRange] = useState('')
+  const [suggest, setSuggest] = useState<{ pages: number; path: string } | null>(null)
+  const [tbUnits, setTbUnits] = useState<CourseTextbookUnit[] | null>(null)
+  const [unitKps, setUnitKps] = useState<UnitKpState>({})
+  const [confirmedUnits, setConfirmedUnits] = useState<Set<number>>(new Set())
+  const [skipCatalog, setSkipCatalog] = useState(false)
   const { data: cards } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject), enabled: open })
   const { data: ai } = useQuery({ queryKey: ['ai', 'config'], queryFn: () => window.api.ai.getConfig(), enabled: open })
   const seq = useRef(0)
@@ -62,6 +72,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     if (!open) return
     setStep(1); setSrc(null); setSrcs([]); setPasteText(''); setName(replace?.name ?? ''); setScene((replace?.scene as Scene) ?? 'org'); setTermNote(replace?.termNote ?? ''); setMode('ai')
     setEdited(false); setMappings({}); setSugg({}); setParsed(null); setSheetName(''); setLevelIdx(0); setDiff(null); setCollide(null)
+    setKindPick('auto'); setPageRange(''); setSuggest(null); setTbUnits(null); setUnitKps({}); setConfirmedUnits(new Set()); setSkipCatalog(false)
   }, [open, replace?.id, job?.id])
 
   // 打开的是后台整理好的任务：取出结果，直接到第 2 步
@@ -85,6 +96,34 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     return () => { dead = true; setBusy(false) }   // 关闭 / 换任务时 finally 不会执行，这里无条件清掉转圈
   }, [open, job?.id])
 
+  // 教材：进入核对时取各单元的页码、小节标题和 AI 挑的知识点
+  const isTb = !!src?.fromDoc?.textbook
+  useEffect(() => {
+    if (step !== 2 || !src || !isTb) return
+    let dead = false
+    window.api.course.textbookUnits(src.sessionId).then(r => {
+      if (dead) return
+      setTbUnits(r.units)
+      setUnitKps(Object.fromEntries(r.units.map(u => [u.id, u.kps.map(k => ({ ...k, manual: false }))])))
+      setConfirmedUnits(new Set())
+    }, e => message.error(clean(e)))
+    return () => { dead = true }
+  }, [step, src?.sessionId])
+
+  const readOpts = (): CourseReadOpts => ({ ...(kindPick === 'auto' ? {} : { kind: kindPick }), ...(pageRange.trim() ? { pageRange: pageRange.trim() } : {}), subject })
+  /** 读文件时报「像是一整本教材」（页数超过课程表上限、又没选类型）：不当错误弹，改成提示让用户选 */
+  const takeError = (m: string): boolean => {
+    const x = /TEXTBOOK_SUGGEST\|(\d+)\|(.+?)\|/.exec(m)
+    if (!x) return false
+    setSuggest({ pages: Number(x[1]), path: x[2] })
+    return true
+  }
+  const readAsTextbook = () => guard(async () => {
+    const path = suggest!.path
+    setSuggest(null); setKindPick('textbook')
+    return [await window.api.course.readFile(path, { ...readOpts(), kind: 'textbook' })]
+  })
+
   const takeSources = (list: CourseSource[]) => {
     if (!list.length) return
     setSrcs(list)
@@ -97,9 +136,10 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     try { takeSources(await fn()) } catch (e) { message.error(clean(e)) } finally { setReading(false) }
   }
   const pick = () => guard(async () => {
-    const r = await window.api.course.pickFile()
+    setSuggest(null)
+    const r = await window.api.course.pickFile(readOpts())
     if (!r) return []
-    for (const m of r.errors) message.error(m)
+    for (const m of r.errors) if (!takeError(m)) message.error(m)
     return replace ? r.sources.slice(0, 1) : r.sources
   })
   const onDrop = (e: React.DragEvent) => {
@@ -112,7 +152,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
       for (const f of files) {
         const p = window.api.getPathForFile(f)
         if (!p) { message.error('没有取到文件路径，请用“选择文件”按钮'); continue }
-        try { out.push(await window.api.course.readFile(p)) } catch (err) { message.error(clean(err)) }
+        try { out.push(await window.api.course.readFile(p, readOpts())) } catch (err) { if (!takeError(String((err as Error)?.message ?? err))) message.error(clean(err)) }
       }
       return out
     })
@@ -162,6 +202,24 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     } catch (e) { message.error(clean(e)) } finally { setBusy(false) }
   }
 
+  /** 认出版本且软件里有这一册的目录：直接用内置的（不再读书、不调用 AI） */
+  const useCatalog = async () => {
+    const s0 = srcs[0]
+    if (!s0) return
+    if (!name.trim()) { message.warning('请先给课程体系起个名字'); return }
+    setBusy(true)
+    try {
+      const r = await window.api.course.useBuiltinCatalog(s0.sessionId)
+      const s1 = r.source ?? s0
+      setSrc(s1); setSheetName(s1.sheets.find(x => !x.hidden)?.name ?? '')
+      setSugg(r.items); setAiModel('')
+      const m: Mappings = Object.fromEntries(Object.entries(r.items).map(([k, v]) => [k, v.mapping]))
+      setMappings(m)
+      await reparse(m, s0.sessionId)
+      setStep(2)
+    } catch (e) { message.error(clean(e)) } finally { setBusy(false) }
+  }
+
   const sheet = src?.sheets.find(s => s.name === sheetName)
   const curMap = mappings[sheetName] ?? null
   const setMap = (patch: (m: CourseSheetMapping) => CourseSheetMapping) => {
@@ -195,7 +253,11 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     setSaving(true)
     try {
       const r = await window.api.course.save({
-        sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, ...(edited ? { levels: ls } : {}), warnings: parsed.warnings.slice(0, 300), mappings: payloadMappings(), aiModel, confirmLockedLoss, subject: job?.subject ?? subject
+        sessionId: src.sessionId, name: asName ?? name.trim(), scene, termNote, replaceId, ...(edited ? { levels: ls } : {}), warnings: parsed.warnings.slice(0, 300), mappings: payloadMappings(), aiModel, confirmLockedLoss, subject: job?.subject ?? subject,
+        ...(isTb ? {
+          kind: 'textbook' as const,
+          unitKps: Object.entries(unitKps).filter(([id]) => ls.some(l => l.lessons.some(x => x.seq === Number(id)))).map(([id, kps]) => ({ seq: Number(id), kps: kps.map(k => ({ code: k.code, confidence: k.confidence, quote: k.quote, reason: k.reason, manual: k.manual, confirmed: confirmedUnits.has(Number(id)) })) }))
+        } : {})
       })
       if (job) void window.api.course.jobRemove(job.id).catch(() => undefined)
       message.success(replaceId ? `已替换：新增 ${r.added} 课、修改 ${r.changed} 课、删除 ${r.removed} 课` : '已保存课程体系')
@@ -253,11 +315,47 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
 
       {step === 1 && (
         <div data-testid="course-step1">
+          <div className="ewb-crs-form" style={{ marginBottom: 8 }}>
+            <div className="ewb-crs-field">
+              <span className="ewb-crs-field__label">文件是</span>
+              <Radio.Group data-testid="course-kind" value={kindPick} onChange={e => setKindPick(e.target.value)}>
+                <Radio value="auto" data-testid="course-kind-auto">自动判断</Radio>
+                <Radio value="course" data-testid="course-kind-course">课程表（一行一课）</Radio>
+                <Radio value="textbook" data-testid="course-kind-textbook">教材课本（整本书）</Radio>
+              </Radio.Group>
+              <span className="ewb-rep-note">课程表最多 20 页；教材课本最多 300 页，按目录切成单元，每个单元对应几个知识点，整本书最后只有十几到几十行。扫描版教材要文字识别，很慢。</span>
+            </div>
+            <div className="ewb-crs-field">
+              <label htmlFor="course-page-range">页码范围（可选）</label>
+              <Input id="course-page-range" data-testid="course-page-range" value={pageRange} maxLength={200} onChange={e => setPageRange(e.target.value)} placeholder="例如 1-60；多段用逗号：1-30,45,80-100；不填 = 全部页" style={{ maxWidth: 420 }} />
+              <span className="ewb-rep-note">只对 PDF 有效。先填好再选文件；超过页数上限时，也可以用它只处理一部分。</span>
+            </div>
+          </div>
+          {suggest && (
+            <UsageNote kind="caution" data-testid="course-textbook-suggest" title="这像是一整本教材">
+              这份 PDF 有 {suggest.pages} 页，比课程表（最多 20 页）长得多。要按「教材课本」整理吗？按单元分块，每个单元一次 AI 小调用，最后整本书只有十几到几十行，由你核对。
+              <div className="ewb-rep-row" style={{ marginTop: 6 }}>
+                <Btn tone="primary" size="small" loading={reading} data-testid="course-textbook-yes" onClick={() => void readAsTextbook()}>按教材课本整理</Btn>
+                <Btn tone="secondary" size="small" data-testid="course-textbook-no" onClick={() => { setSuggest(null); setKindPick('course'); message.info('请在上面填页码范围（不超过 20 页），再重新选择文件') }}>当课程表，我只选一部分页码</Btn>
+              </div>
+            </UsageNote>
+          )}
+          {srcs.length === 1 && srcs[0].fromDoc?.textbook?.edition?.catalog && !skipCatalog && (
+            <UsageNote kind="tip" data-testid="course-catalog-hint" title="软件里有这一册">
+              认出这是「{srcs[0].fromDoc.textbook.edition.label}」，软件里已经内置了这一册的目录，直接用内置的？
+              <div className="ewb-rep-row" style={{ marginTop: 6 }}>
+                <Btn tone="primary" size="small" loading={busy} data-testid="course-catalog-use" onClick={() => void useCatalog()}>用内置目录</Btn>
+                <Btn tone="secondary" size="small" data-testid="course-catalog-skip" onClick={() => setSkipCatalog(true)}>仍按这本书整理</Btn>
+              </div>
+            </UsageNote>
+          )}
           <div className="ewb-crs-drop" data-over={over} data-testid="course-drop"
             onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
             <FileSpreadsheet size={28} aria-hidden />
             {srcs.length === 1
-              ? <><b data-testid="course-file-name">已读取：{srcs[0].name}</b>{srcs[0].fromDoc?.pending
+              ? <><b data-testid="course-file-name">已读取：{srcs[0].name}</b>{srcs[0].fromDoc?.textbook
+                ? <span className="ewb-rep-note" data-testid="course-textbook-note">教材课本{srcs[0].fromDoc.textbook.edition ? `（认出：${srcs[0].fromDoc.textbook.edition.label}）` : ''}：{srcs[0].fromDoc.textbook.totalPages ? `共 ${srcs[0].fromDoc.textbook.totalPages} 页，处理 ${srcs[0].fromDoc.textbook.selectedPages} 页。` : ''}点“开始整理”后先找目录、切成单元，再一个单元一次 AI 调用（单元数 = 调用次数，通常十几到几十次），可以随时取消。{srcs[0].fromDoc.textbook.scanned ? `这是扫描版：只对目录页和每个单元的前 2 页做文字识别，大约需要 ${srcs[0].fromDoc.textbook.ocrMinutes} 分钟以上；想更快可以在上面填页码范围，只处理一部分。` : ''}</span>
+                : srcs[0].fromDoc?.pending
                 ? <span className="ewb-rep-note" data-testid="course-doc-note">{srcs[0].fromDoc.label}，{srcs[0].fromDoc.pages > 1 ? `${srcs[0].fromDoc.pages} 页，` : ''}约 {srcs[0].fromDoc.chars} 字。点“开始整理”后由 AI 整理成表格，需要你核对。</span>
                 : <span className="ewb-rep-note">{srcs[0].sheets.filter(s => !s.hidden).length} 张{srcs[0].fromDoc ? '表格' : '工作表'}{srcs[0].sheets.some(s => s.hidden) ? `（另有 ${srcs[0].sheets.filter(s => s.hidden).length} 张隐藏的，已跳过）` : ''}，共 {srcs[0].sheets.reduce((n, s) => n + s.rows, 0)} 行</span>}</>
               : multi
@@ -301,7 +399,9 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
               </Radio.Group>
             </div>}
           </div>
-          <UsageNote kind="caution" title="隐私">{srcs.some(x => x.fromDoc?.aiOrganised)
+          <UsageNote kind="caution" title="隐私">{srcs.some(x => x.fromDoc?.textbook)
+            ? '每个单元的标题、小节标题和开头几行文字，以及当前学科的知识点名称，会发送给你在“AI 服务”里设置的模型，用来挑知识点；不会发给卷知开发者。AI 只能从知识点树里选，不在树里的会被丢掉。'
+            : srcs.some(x => x.fromDoc?.aiOrganised)
             ? '文件里的文字会发送给你在“AI 服务”里设置的模型来整理成表格；不会发给卷知开发者。AI 只能照抄原文，找不到原文的课会被去掉。'
             : '课程内容会发送给你在“AI 服务”里设置的模型来帮忙整理；不会发给卷知开发者。AI 只判断哪一列是什么，不会改写表格里的内容。不想发送：选“手动指定每一列”。'}</UsageNote>
           <div className="ewb-rep-row" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
@@ -323,6 +423,8 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
             </UsageNote>
           )}
 
+          {isTb ? (tbUnits ? <TextbookReview sessionId={src.sessionId} subject={job?.subject ?? subject} units={tbUnits} kpState={unitKps} setKpState={fn => setUnitKps(fn)} confirmed={confirmedUnits} setConfirmed={fn => setConfirmedUnits(fn)}
+            keep={new Set(levels.flatMap(l => l.lessons.map(x => x.seq)))} onDelete={id => edit(ls => ls.map(l => ({ ...l, lessons: l.lessons.filter(x => x.seq !== id) })))} /> : <p className="ewb-rep-note">正在载入各单元……</p>) : <>
           <h4 style={{ margin: '12px 0 4px' }}>每一列是什么</h4>
           <div className="ewb-rep-row" style={{ marginBottom: 6 }}>
             {src.sheets.filter(s => !s.hidden).length > 1 && (
@@ -390,6 +492,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
               </div>
             </div>
           )}
+          </>}
           <div className="ewb-rep-row" style={{ justifyContent: 'space-between', marginTop: 16 }}>
             {job ? <span /> : <Btn tone="secondary" onClick={() => setStep(1)}>上一步</Btn>}
             <Btn tone="primary" loading={saving} disabled={totalLessons === 0} data-testid="course-save" onClick={save}>{replace ? '替换并保存' : '保存课程体系'}</Btn>

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { newDb, migrations, addPaper } from './helpers/db.mjs'
 import { createOutline, listOutlines, removeOutline, editMap } from '../../src/main/course/store.ts'
-import { addBuiltinTextbook, refreshBuiltinTextbook } from '../../src/main/course/textbook.ts'
+import { addBuiltinTextbook, refreshBuiltinTextbook } from '../../src/main/course/textbook-builtin.ts'
 import { CATALOG, findEdition } from '../../src/main/course/catalog.ts'
 import { courseDashboard } from '../../src/main/course/stats.ts'
 import { compareCourseTextbook, compareToCsv, compareToText } from '../../src/main/course/compare.ts'

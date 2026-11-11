@@ -7,6 +7,7 @@ import { describeFilter } from '../stats/p2'
 import { getDb } from '../db'
 import { StatsFilterSchema, LevelSchema, paperScope } from '../stats/filter'
 import * as S from '../stats/core'
+import { compareKps, papersByKps, MAX_KP_CODES } from '../stats/kp-compare'
 import { analysisState, cancelAnalysis, generateAnalysis } from '../stats/analysis'
 import { cancelReport } from '../report/service'
 import { cancelKpAnalysis, generateKpAnalysis, kpAnalysisState } from '../stats/kp-analysis'
@@ -72,6 +73,11 @@ export function registerStatsIpc(): void {
     }
     return { saved: true, path: r.filePath, bytes: Buffer.byteLength(csv) }
   })
+  // 知识点 ↔ 试卷：试卷库按知识点筛卷子（all = 都考了；any = 任一个）、并排对比（卷子 × 知识点）
+  const KpCodes = z.array(CodeSchema).max(MAX_KP_CODES)
+  const HitMode = z.enum(['all', 'any']).default('any')
+  ipcMain.handle('stats:kpPapers', async (_e, filter: unknown, codes: unknown, mode?: unknown) => papersByKps(db(), FilterArg.parse(filter ?? {}), KpCodes.parse(codes), HitMode.parse(mode)))
+  ipcMain.handle('stats:kpCompare', async (_e, filter: unknown, codes: unknown, mode?: unknown, level?: unknown) => compareKps(db(), FilterArg.parse(filter ?? {}), KpCodes.parse(codes ?? []), HitMode.parse(mode), LevelSchema.default(2).parse(level)))
   ipcMain.handle('stats:filterOptions', async (_e, filter?: unknown) => S.filterOptions(db(), filter === undefined ? undefined : FilterArg.parse(filter)))
 
   /** 抽屉里的题目卡片：某知识点（含子树）在目标侧 / 基线侧 / 当前筛选范围内的题目 */
