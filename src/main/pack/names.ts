@@ -11,13 +11,23 @@ export type EntryClass =
   | { kind: 'db' }
   | { kind: 'file'; paperId: string; rel: string }
   | { kind: 'dir' }
+  | { kind: 'extra'; group: ExtraGroup; name: string }
+
+/** extras/ 下的分组：数据页表格、数据页文档、Skill、角色 */
+export type ExtraGroup = 'datasets' | 'documents' | 'skills' | 'roles'
+const EXTRA_RES: Array<[ExtraGroup, RegExp]> = [
+  ['datasets', /^extras\/datasets\/(catalog\.json|[0-9a-f-]{36}\.sqlite)$/],
+  ['documents', /^extras\/documents\/(catalog\.json|doc-[0-9a-f-]{1,40}\.txt)$/],
+  ['skills', /^extras\/skills\/(skill-\d{1,4}\.md)$/],
+  ['roles', /^extras\/roles\/(c-[a-z0-9]{3,24}\.json)$/]
+]
 
 const FILE_RES: RegExp[] = [
   /^files\/([0-9a-f-]{36})\/(original\.(?:pdf|jpg|jpeg|png|heic|docx))$/,
   /^files\/([0-9a-f-]{36})\/(page-\d{1,4}\.png)$/,
   /^files\/([0-9a-f-]{36})\/(media\/\d{1,4}\.(?:png|jpg|gif))$/
 ]
-const DIR_RES: RegExp[] = [/^files\/$/, /^files\/[0-9a-f-]{36}\/$/, /^files\/[0-9a-f-]{36}\/media\/$/]
+const DIR_RES: RegExp[] = [/^extras\/$/, /^extras\/(?:datasets|documents|skills|roles)\/$/, /^files\/$/, /^files\/[0-9a-f-]{36}\/$/, /^files\/[0-9a-f-]{36}\/media\/$/]
 
 /** 返回条目的分类；不合法返回 null */
 export function classifyEntry(name: string): EntryClass | null {
@@ -34,6 +44,10 @@ export function classifyEntry(name: string): EntryClass | null {
     const m = /^files\/([0-9a-f-]{36})\//.exec(name)
     if (m && !UUID_RE.test(m[1])) return null
     return { kind: 'dir' }
+  }
+  for (const [group, re] of EXTRA_RES) {
+    const m = re.exec(name)
+    if (m) return { kind: 'extra', group, name: m[1] }
   }
   for (const re of FILE_RES) {
     const m = re.exec(name)

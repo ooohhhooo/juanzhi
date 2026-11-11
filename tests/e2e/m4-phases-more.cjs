@@ -190,7 +190,7 @@ async function phaseSample() {
   const zip2 = path.join(work, 'with-sample.ewb.zip')
   await gotoSettings()
   await stubSave(zip2)
-  await T('pack-export').click()
+  await T('pack-export').click(); await T('export-confirm').click()
   await waitFor(async () => (await T('pack-done').count()) > 0, 60000)
   const JSZip = require('jszip')
   const z = await JSZip.loadAsync(fs.readFileSync(zip2))

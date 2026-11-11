@@ -5,7 +5,7 @@
 //   · 看板四块：丢分考点 → 课程（数字对得上数据库）、体系 × 级别、常考但没覆盖（含 CSV）、家长沟通建议
 //   · 人工修正：点“不对”立即生效，重新匹配不恢复；“我知道是哪一课”；“其实没有”
 //   · 家长沟通建议：价格 / 优惠整句删除；未点“我已核对”不能复制；数据变了标“已过期”不能复制
-//   · 数据包：默认带课程，勾选“不带课程大纲”则不带；删除体系后回到空状态；草稿的确认
+//   · 数据包：默认带课程，导出对话框里取消勾选「课程大纲」则不带；删除体系后回到空状态；草稿的确认
 //   · 命令行：course import（草稿 / --i-reviewed）、course list、course match（草稿拒绝）、report generate --with-course 未匹配 → 退出码 15
 //   · 浅色 / 深色截图 docs/screenshots/m10a-*.png
 // 报告里的课程对照（M9 §1.9）：老师版 / 完整版 / 家长版（截图 docs/screenshots/m10c-*.png）。
@@ -402,18 +402,18 @@ async function main() {
     await T('data-pack').scrollIntoViewIfNeeded()
     const withZip = path.join(work, 'with-course.ewb.zip'), noZip = path.join(work, 'no-course.ewb.zip')
     await stubSave(withZip)
-    await T('pack-export').click()
+    await T('pack-export').click(); await T('export-confirm').click()
     await T('pack-done').waitFor({ timeout: 60000 })
     const m1 = JSON.parse(await (await JSZip.loadAsync(fs.readFileSync(withZip))).file('manifest.json').async('string'))
-    check('数据包', '默认导出带课程大纲：manifest 里 courseIncluded = true、courseCount = 1', m1.courseIncluded === true && m1.courseCount === 1 && /带了 1 个课程体系/.test(await txt('pack-done')), JSON.stringify(m1))
-    await T('pack-skip-course').click()
+    check('数据包', '默认导出带课程大纲：manifest 里 courseIncluded = true、courseCount = 1', m1.courseIncluded === true && m1.courseCount === 1 && /1 个课程体系/.test(await txt('pack-done')), JSON.stringify(m1))
+    await T('pack-export').click()   // 上面那次点完「导出」后对话框已关；这次在对话框里取消勾选「课程大纲」
+    await T('export-course').click()
     await stubSave(noZip)
-    await T('pack-export').click()
+    await T('export-confirm').click()
     await waitFor(() => fs.existsSync(noZip), 60000)
     await sleep(500)
     const m2 = JSON.parse(await (await JSZip.loadAsync(fs.readFileSync(noZip))).file('manifest.json').async('string'))
-    check('数据包', '勾选“不带课程大纲”：manifest 里 courseIncluded = false、courseCount = 0', m2.courseIncluded === false && m2.courseCount === 0, JSON.stringify(m2))
-    await T('pack-skip-course').click()
+    check('数据包', '取消勾选「课程大纲」：manifest 里 courseIncluded = false、courseCount = 0', m2.courseIncluded === false && m2.courseCount === 0, JSON.stringify(m2))
   }
 
   // ───────────────────────── 9. 草稿、停用、删除 ─────────────────────────
