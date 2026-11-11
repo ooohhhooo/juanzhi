@@ -138,7 +138,8 @@ const api = {
   },
   data: {
     info: (): Promise<any> => ipcRenderer.invoke('data:info'),
-    exportPack: (opts?: { withCourse?: boolean }): Promise<any> => ipcRenderer.invoke('data:exportPack', opts),
+    exportPack: (opts?: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('data:exportPack', opts),
+    exportOptions: (subject?: string, paperIds?: string[]): Promise<any> => ipcRenderer.invoke('data:exportOptions', subject, paperIds),
     pickPack: (): Promise<any> => ipcRenderer.invoke('data:pickPack'),
     importPack: (token: string, mode: 'merge' | 'overwrite', opts?: { updateCourses?: boolean }): Promise<any> => ipcRenderer.invoke('data:importPack', token, mode, opts),
     discardPack: (token: string): Promise<boolean> => ipcRenderer.invoke('data:discardPack', token),

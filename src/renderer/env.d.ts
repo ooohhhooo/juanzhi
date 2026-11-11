@@ -119,7 +119,8 @@ interface ElectronAPI {
   data: {
     info(): Promise<DataInfo>
     /** withCourse 默认 true：数据包里带上课程大纲；取消勾选传 false */
-    exportPack(opts?: { withCourse?: boolean }): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
+    exportOptions(subject?: string, paperIds?: string[]): Promise<{ papers: number; questions: number; reports: number; courses: number; chats: number; datasets: number; documents: number; skills: number; roles: number }>
+    exportPack(opts?: { withCourse?: boolean; subject?: string; paperIds?: string[]; papers?: boolean; reports?: boolean; course?: boolean; datasets?: boolean; documents?: boolean; assets?: boolean; chats?: boolean }): Promise<{ saved: boolean; path?: string; bytes?: number; entries?: number; manifest?: PackManifest }>
     pickPack(): Promise<{ picked: false } | { picked: true; token: string; fileName: string; manifest: PackManifest; info: { originalVersion: number; migrated: boolean; papers: number; questions: number; pages: number; samplePapers: number; kpTextFolded: number }; summary: PackSummary }>
     importPack(token: string, mode: 'merge' | 'overwrite', opts?: { updateCourses?: boolean }): Promise<ImportReport>
     discardPack(token: string): Promise<boolean>
@@ -935,6 +936,9 @@ interface PackManifest {
   platform?: string
   courseCount?: number
   courseIncluded?: boolean
+  contents?: Partial<Record<'papers' | 'reports' | 'course' | 'datasets' | 'documents' | 'assets' | 'chats', boolean>>
+  scope?: { subject?: string; selectedPapers?: boolean }
+  counts?: Partial<Record<'reports' | 'datasets' | 'documents' | 'skills' | 'roles' | 'chats', number>>
 }
 interface PackSummary {
   coursesInPack?: number
@@ -965,6 +969,8 @@ interface ImportReport {
   missingPageImages: number
   promptsImported: number
   promptsKeptLocal: number
+  chatsAdded?: number
+  extras?: { datasetsAdded: number; datasetsSkipped: number; documentsAdded: number; documentsSkipped: number; skillsAdded: number; skillsSkipped: number; rolesAdded: number; rolesSkipped: number }
   warnings: string[]
   backup?: { dir: string; dbFile: string; filesDir: string; bytes: number }
 }

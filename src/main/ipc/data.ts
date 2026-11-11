@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { z } from 'zod'
+import { SUBJECT_IDS } from '../../shared/subject'
 import { LATEST_SCHEMA, configuredDir, defaultDir, getDataDir, getDb, getFilesDir, takeStartupNotice, openSqlite, runMigrations } from '../db'
 import { getMainWindow } from '../window'
 import { notifyDataChanged } from '../events'
@@ -19,6 +20,9 @@ import { prepareStagedDb } from '../pack/stage-db'
 import { refineImported } from '../parse/refine-run'
 import { applyMerge, applyOverwrite, backupsRoot, listBackups, summarizePack } from '../pack/apply'
 import { buildPack } from '../pack/exporter'
+import { countExtras } from '../pack/extras'
+import { getStore } from '../analysis/datasets'
+import { getDocumentStore } from '../analysis/documents'
 import { PACK_FORMAT_VERSION } from '../pack/manifest'
 import type { Manifest } from '../pack/manifest'
 import { MIGRATING_MARK, checkTargetDir, copyDirSync, dirSizeSync, hasDataLayout, isInside, writeConfig } from '../datadir'
@@ -89,8 +93,38 @@ export function registerDataIpc(): void {
   })
 
   // ───────── 导出 ─────────
+  const SelectionSchema = z.object({
+    withCourse: z.boolean().optional(),
+    subject: z.enum(['all', ...SUBJECT_IDS]).default('all'),
+    paperIds: z.array(z.string().uuid()).max(100_000).optional(),
+    papers: z.boolean().default(true), reports: z.boolean().default(true), course: z.boolean().default(true),
+    datasets: z.boolean().default(false), documents: z.boolean().default(false), assets: z.boolean().default(false), chats: z.boolean().default(false)
+  }).default({})
+  // 导出对话框里每一项的数量（按学科 / 选中的卷子）：只读
+  ipcMain.handle('data:exportOptions', async (_e, rawSubject?: unknown, rawPaperIds?: unknown) => {
+    const subject = z.enum(['all', ...SUBJECT_IDS]).default('all').parse(rawSubject ?? undefined)
+    const ids = z.array(z.string().uuid()).max(100_000).optional().parse(rawPaperIds ?? undefined)
+    const db = getDb()
+    const one = (sql: string, ...p: any[]) => (db.prepare(sql).get(...p) as any).c as number
+    const bySubject = (t: string) => (subject === 'all' ? one(`SELECT COUNT(*) c FROM ${t}`) : one(`SELECT COUNT(*) c FROM ${t} WHERE subject = ?`, subject))
+    const ex = countExtras({ dataDir: getDataDir(), datasets: getStore(), documents: getDocumentStore() }, ids ? 'all' : subject)
+    let papers: number, questions: number
+    if (ids) {
+      const ph = ids.map(() => '?').join(',') || "''"
+      papers = one(`SELECT COUNT(*) c FROM papers WHERE is_sample = 0 AND id IN (${ph})`, ...ids)
+      questions = one(`SELECT COUNT(*) c FROM questions WHERE paper_id IN (SELECT id FROM papers WHERE is_sample = 0 AND id IN (${ph}))`, ...ids)
+    } else {
+      papers = one(`SELECT COUNT(*) c FROM papers WHERE is_sample = 0${subject === 'all' ? '' : ' AND subject = ?'}`, ...(subject === 'all' ? [] : [subject]))
+      questions = one(`SELECT COUNT(*) c FROM questions WHERE paper_id IN (SELECT id FROM papers WHERE is_sample = 0${subject === 'all' ? '' : ' AND subject = ?'})`, ...(subject === 'all' ? [] : [subject]))
+    }
+    return {
+      papers, questions,
+      reports: ids ? 0 : one(`SELECT COUNT(*) c FROM reports WHERE COALESCE(filter_json, '') NOT LIKE '%"sample":true%'${subject === 'all' ? '' : ' AND subject = ?'}`, ...(subject === 'all' ? [] : [subject])),
+      courses: bySubject('course_outlines'), chats: bySubject('agent_sessions'), ...ex
+    }
+  })
   ipcMain.handle('data:exportPack', async (_e, rawOpts?: unknown) => withOp('导出数据包', async () => {
-    const opts0 = z.object({ withCourse: z.boolean().default(true) }).default({}).parse(rawOpts ?? {})
+    const opts0 = SelectionSchema.parse(rawOpts ?? {})
     // 后台还在提取 / 解析的试卷，文件可能写到一半：等处理完再导，保证数据包里的页面图和库是一致的
     const busy = busyReason()
     if (busy) throw new Error(busy)
@@ -106,10 +140,18 @@ export function registerDataIpc(): void {
     const tmpDir = path.join(os.tmpdir(), `ewb-export-${crypto.randomBytes(5).toString('hex')}`)
     setExporting(true)   // 导出期间主进程拒绝会改写试卷文件的请求
     try {
-      const res = await buildPack({
-        db: getDb(), openDb: openSqlite, filesDir: getFilesDir(), outPath: out, tmpDir, appVersion: app.getVersion(), withCourse: opts0.withCourse,
-        onProgress: p => progress({ op: 'export', ...p })
-      })
+      const store = getStore()
+      let res: Awaited<ReturnType<typeof buildPack>>
+      const sc = store.scrubber(store.list().map(d => d.id))   // 对话记录里的真名按数据页表格里出现过的姓名换成代号
+      try {
+        const { withCourse, ...selection } = opts0
+        res = await buildPack({
+          db: getDb(), openDb: openSqlite, filesDir: getFilesDir(), outPath: out, tmpDir, appVersion: app.getVersion(), withCourse,
+          selection: { ...selection, course: withCourse === false ? false : selection.course },
+          extras: { dataDir: getDataDir(), datasets: store, documents: getDocumentStore() }, scrub: sc.text,
+          onProgress: p => progress({ op: 'export', ...p })
+        })
+      } finally { sc.done() }
       return { saved: true, path: res.path, bytes: res.bytes, entries: res.entries, manifest: res.manifest }
     } catch (e) {
       throw toError(e)
@@ -157,11 +199,12 @@ export function registerDataIpc(): void {
     if (!pending || pending.token !== token) throw new Error('这个数据包的读取结果已经失效，请重新选择数据包')
     const busy = busyReason()
     if (busy) throw new Error(busy)
-    const deps = { db: getDb(), dataDir: getDataDir(), filesDir: getFilesDir(), fault: process.env.EWB_TEST_FAULT || null }
+    const deps = { db: getDb(), dataDir: getDataDir(), filesDir: getFilesDir(), fault: process.env.EWB_TEST_FAULT || null, manifest: pending.manifest }
     const staged = { dbPath: pending.dbPath, filesDir: pending.filesDir }
     try {
       const report = mode === 'merge' ? applyMerge(deps, staged, opts) : applyOverwrite(deps, staged)
       discardPending()
+      try { getStore().reload() } catch { /* 数据页仓库还没初始化就算了 */ }
       // 导入进来的卷子也要走同一套截图框修正（别的机器解析出来的框没有留白，PAD = 0 之后会裁得偏紧）；后台做，不挡导入结果
       void refineImported(mode === 'merge' ? (report.newPaperIds ?? []) : 'all').catch(e => console.warn(`[crop] 导入后修框失败：${(e as Error).message}`))
       notifyDataChanged('papers', 'questions', 'pages', 'materials', 'assets', 'taxonomy', 'analysis', 'reports', 'prompts', 'usage', 'queue')

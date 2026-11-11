@@ -40,7 +40,7 @@ export const READONLY_CHANNELS = new Set([
   'papers:scanSimilarStatus', 'ai:kpAnalysis', 'ai:cancel', 'ai:compareAnalysis', 'ai:getConfig', 'ai:presets', 'ai:modelProfile', 'ai:prompts', 'ai:usage', 'ai:modelHint', 'ai:balance', 'ai:openConsole', 'ai:getPrices', 'ai:getCustomBalance', 'ai:diagnose', 'ai:costEstimate', 'ai:lastSpend', 'ai:usageByKind', 'papers:diag', 'os:openLanguageSettings', 'os:openOcrTutorial',
   'papers:expandPaths', 'dialog:openFolder', 'diagnostics:preview', 'diagnostics:export', 'diagnostics:short', 'feedback:url', 'feedback:open',
   'app:info', 'app:restart', 'app:takeStartupNotice', 'dialog:openFiles', 'ocr:status',
-  'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:info', 'data:openBackup', 'data:sampleStatus',
+  'data:chooseDir', 'data:discardPack', 'data:exportPack', 'data:exportOptions', 'data:info', 'data:openBackup', 'data:sampleStatus',
   'papers:assets', 'papers:get', 'papers:list', 'papers:pages', 'parse:cancel',
   'questions:list', 'questions:summary', 'queue:pause', 'queue:state',
   'analysisReport:export', 'analysisReport:exportTable',   // 分析看板 / 名单导出：弹「另存为」后只写用户选的文件

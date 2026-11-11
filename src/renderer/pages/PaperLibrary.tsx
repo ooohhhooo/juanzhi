@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { inSubject } from '../subject/papers'
 import { Modal, Form, Select, InputNumber, Input, App, Dropdown, Checkbox } from 'antd'
-import { BarChart3, Columns3, ClipboardCheck, Eye, FolderOpen, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
+import { BarChart3, Columns3, ClipboardCheck, Download, Eye, FolderOpen, Inbox, MoreHorizontal, Pencil, Plus, RotateCw, Search, Trash2, X, Zap } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { paperKind, paperTag } from '../status'
@@ -14,6 +14,7 @@ import Onboarding from '../components/Onboarding'
 import RoleGuide from '../components/RoleGuide'
 import BetaWelcome from '../components/BetaWelcome'
 import BatchEditModal from '../components/BatchEditModal'
+import ExportPackModal from '../components/ExportPackModal'
 import { useStatsFilter } from '../stats/StatsFilter'
 import { MAX_SCOPE_PAPERS, chunk, filterPapers, isBusyStatus, plainError, scopeFromSelection, summarizeBatch, titleList } from '../../shared/library-select'
 import type { BatchResult } from '../../shared/library-select'
@@ -61,6 +62,7 @@ export default function PaperLibrary() {
   const [query, setQuery] = useState('')
   const composing = useRef(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [exportOpen, setExportOpen] = useState(false)
   const [batchEditOpen, setBatchEditOpen] = useState(false)
   const [batchBusy, setBatchBusy] = useState(false)
 
@@ -487,6 +489,7 @@ export default function PaperLibrary() {
             <Btn tone="secondary" size="small" icon={RotateCw} data-testid="batch-reparse" title="让 AI 重新读这几份卷子" onClick={() => void batchReparse()}>重新解析</Btn>
             <Btn tone="secondary" size="small" icon={Columns3} data-testid="compare-selected" title="把选中的卷子并排放在一起，看哪些知识点几份卷子都考了" onClick={() => compareSelection(selected.map(p => p.id), kpCodes)}>知识点对比</Btn>
             <Btn tone="secondary" size="small" icon={BarChart3} data-testid="scope-selected" title="统计、看板、报告只按选中的卷子算" onClick={scopeToSelection}>只看这几份的统计</Btn>
+            <Btn tone="secondary" size="small" icon={Download} data-testid="export-selected" title="只把选中的卷子导出成数据包" onClick={() => setExportOpen(true)}>导出数据包</Btn>
             <Btn tone="danger" size="small" icon={Trash2} data-testid="batch-delete" onClick={batchDelete}>删除</Btn>
           </div>
         </div>
@@ -521,6 +524,7 @@ export default function PaperLibrary() {
       />
 
       {changeSubject.holder}
+      <ExportPackModal open={exportOpen} onClose={() => setExportOpen(false)} paperIds={selected.map(p => p.id)} onResult={r => { if (r) (r.type === 'success' ? message.success(r.text, 8) : message.error(r.text)) }} />
       <BatchEditModal
         open={batchEditOpen}
         papers={selected.map(p => ({ id: p.id, ai: aiFieldsOf(p) }))}

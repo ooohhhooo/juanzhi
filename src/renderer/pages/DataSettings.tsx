@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { requireRestart } from '../stats/restartStore'
 import { useStatsFilter } from '../stats/StatsFilter'
+import ExportPackModal from '../components/ExportPackModal'
+import type { ExportOutcome } from '../components/ExportPackModal'
 import { Btn, Panel, UsageNote } from '../design'
 import '../design/page-report.css'
 
@@ -55,16 +57,9 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
   }
 
   // ───── 数据包 ─────
-  const [exporting, setExporting] = useState(false)
-  const [skipCourse, setSkipCourse] = useState(false)   // 默认带上课程大纲；勾上“不带课程大纲”才不带
+  const [exportOpen, setExportOpen] = useState(false)
   const [packMsg, setPackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const doExport = async () => {
-    setExporting(true); setPackMsg(null); setProgress('')
-    try {
-      const r = await window.api.data.exportPack({ withCourse: !skipCourse })
-      if (r.saved) setPackMsg({ type: 'success', text: `已导出：${r.path}（${mb(r.bytes ?? 0)}，${r.manifest?.paperCount ?? 0} 份试卷、${r.manifest?.questionCount ?? 0} 道题）。数据包里没有 API 密钥，换电脑后需要重新填写。${r.manifest?.courseIncluded === false ? '没有带课程大纲。' : r.manifest?.courseCount ? `带了 ${r.manifest.courseCount} 个课程体系。` : ''}` })
-    } catch (e) { setPackMsg({ type: 'error', text: clean(e) }) } finally { setExporting(false); setProgress('') }
-  }
+  const onExportResult = (r: ExportOutcome) => setPackMsg(r)
   const [pick, setPick] = useState<PickResult | null>(null)
   const [mode, setMode] = useState<'merge' | 'overwrite'>('merge')
   const [ack, setAck] = useState(false)
@@ -114,6 +109,9 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
   }
 
   const s = pick?.summary
+  const mf = pick?.manifest
+  const partial = !!mf && (!!mf.scope?.selectedPapers || (!!mf.scope?.subject && mf.scope.subject !== 'all') || mf.contents?.papers === false)
+  const cnt = mf?.counts
   return (
     <>
       {part !== 'common' && <div className="ewb-set-panel"><Panel title="数据存储" data-testid="data-storage">
@@ -134,12 +132,11 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
 
       {part !== 'common' && <div className="ewb-set-panel"><Panel title="数据包（换电脑 / 备份）" data-testid="data-pack">
         <Space wrap>
-          <Btn tone="secondary" icon={Download} data-testid="pack-export" loading={exporting} onClick={doExport}>导出数据包…</Btn>
+          <Btn tone="secondary" icon={Download} data-testid="pack-export" onClick={() => { setPackMsg(null); setExportOpen(true) }}>导出数据包…</Btn>
           <Btn tone="secondary" icon={Upload} data-testid="pack-import" loading={picking} onClick={doPick}>导入数据包…</Btn>
-          {progress && (exporting || picking) && <span className="ewb-rep-note" style={{ color: 'var(--ewb-primary)' }} data-testid="pack-progress">{progress}</span>}
+          {progress && picking && <span className="ewb-rep-note" style={{ color: 'var(--ewb-primary)' }} data-testid="pack-progress">{progress}</span>}
         </Space>
-        <div style={{ marginTop: 8 }}><Checkbox data-testid="pack-skip-course" checked={skipCourse} onChange={e => setSkipCourse(e.target.checked)}>不带课程大纲（默认会带上：课程大纲是你自己的业务数据）</Checkbox></div>
-        <p className="ewb-rep-note" style={{ marginTop: 8 }}>数据包（.ewb.zip）里有全部试卷、题目、标注、页面图和报告。<b>不包含 API 密钥</b>——换电脑后要在「AI 服务」里重新填写。示例数据不会进数据包。导入时可以选「合并」（保留本机已有的，只加新的）或「覆盖」（用数据包替换本机全部数据，会先自动备份）。</p>
+        <p className="ewb-rep-note" style={{ marginTop: 8 }}>导出时可以自己选带哪些：全部学科或某个学科，试卷、报告、课程大纲、数据页的表格和文档、助手的 Skill / 角色 / 对话记录。默认带试卷、报告和课程大纲。<b>学员真名不会导出</b>（表格里只带代号），也不含 API 密钥——换电脑后要在「AI 服务」里重新填写。示例数据不会进数据包。导入时可以选「合并」（保留本机已有的，只加新的）或「覆盖」（用数据包替换本机全部试卷数据，会先自动备份；只带了部分内容的数据包只能合并）。</p>
         {packMsg && <Alert data-testid={packMsg.type === 'error' ? 'pack-error' : 'pack-done'} style={{ marginTop: 8 }} type={packMsg.type} showIcon message={packMsg.text} closable onClose={() => setPackMsg(null)} />}
         {info && info.backups.length > 0 && (
           <div style={{ marginTop: 10 }} data-testid="backup-list">
@@ -165,6 +162,8 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
           {sample?.loaded && <Btn tone="quiet" onClick={() => nav('/overview')}>去看板</Btn>}
         </Space>
       </Panel></div>}
+
+      <ExportPackModal open={exportOpen} onClose={() => setExportOpen(false)} onResult={onExportResult} />
 
       <Modal open={!!dir} title="更改数据目录" onCancel={() => !busyDir && setDir(null)} maskClosable={false} destroyOnHidden
         okText={dir?.kind === 'existing-data' ? '使用这个数据目录' : '复制数据并切换'} cancelText="取消" okButtonProps={{ disabled: !dir?.ok, loading: busyDir, 'data-testid': 'dd-confirm' } as any}
@@ -193,13 +192,15 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
               <Descriptions.Item label="内容">{s.papersInPack} 份试卷、{s.questionsInPack} 道题、{s.pagesInPack} 页{s.customKps ? `、${s.customKps} 个自建知识点` : ''}{s.coursesInPack ? `、${s.coursesInPack} 个课程体系（本机还没有的 ${s.coursesNew ?? 0} 个会加进来）` : ''}</Descriptions.Item>
               <Descriptions.Item label="和本机比较">本机现有 {s.livePapers} 份真实试卷；数据包里有 <b>{s.papersExisting}</b> 份本机已经有了（同一条记录），<b>{s.papersNew}</b> 份是新的{s.sameFileAsExisting ? `（其中 ${s.sameFileAsExisting} 份和本机另一份是同一个文件，统计时只算一份）` : ''}</Descriptions.Item>
             </Descriptions>
+            {(cnt?.datasets || cnt?.documents || cnt?.skills || cnt?.roles || cnt?.chats) ? <UsageNote kind="tip" data-testid="pack-extras-note">{`数据包里还带了：${[cnt.datasets ? `${cnt.datasets} 个数据页表格` : '', cnt.documents ? `${cnt.documents} 份数据页文档` : '', cnt.skills ? `${cnt.skills} 个 Skill` : '', cnt.roles ? `${cnt.roles} 个角色` : '', cnt.chats ? `${cnt.chats} 段助手对话` : ''].filter(Boolean).join('、')}。导入时只加入本机没有的（同一个编号 / 同名的保持本机的）。表格里的学员信息是代号，没有对应的真名。`}</UsageNote> : null}
+            {partial && <UsageNote kind="caution" data-testid="pack-partial-note">这个数据包只包含部分内容（只导了某个学科、选中的卷子，或没有带试卷），只能用「合并」导入。</UsageNote>}
             {pick.info.kpTextFolded > 0 && <UsageNote kind="tip" data-testid="pack-kp-folded">{`有 ${pick.info.kpTextFolded} 个知识点的名称或说明里含换行、竖线或看不见的字符（旧版本允许输入），导入时已自动整理成一行`}</UsageNote>}
             {s.samplesIgnored > 0 && <UsageNote kind="tip">{`数据包里有 ${s.samplesIgnored} 份示例试卷，会被忽略`}</UsageNote>}
             {s.missingPageImages > 0 && <UsageNote kind="caution">{`有 ${s.missingPageImages} 页的页面图在数据包里找不到，对应的截图会显示为空`}</UsageNote>}
             <Radio.Group value={mode} onChange={e => { setMode(e.target.value); setAck(false) }} data-testid="pack-mode">
               <Space direction="vertical">
                 <Radio value="merge" data-testid="pack-mode-merge"><b>合并</b>（推荐）：保留本机现有的全部数据，只加入数据包里本机还没有的 {s.papersNew} 份试卷；同一份卷子不会重复。</Radio>
-                <Radio value="overwrite" data-testid="pack-mode-overwrite"><b>覆盖</b>：用数据包替换本机现有的全部数据（试卷、题目、标注、知识点树、报告）。会先自动备份当前数据，出错会自动恢复。</Radio>
+                <Radio value="overwrite" data-testid="pack-mode-overwrite" disabled={partial}><b>覆盖</b>：用数据包替换本机现有的全部数据（试卷、题目、标注、知识点树、报告）。会先自动备份当前数据，出错会自动恢复。</Radio>
               </Space>
             </Radio.Group>
             {mode === 'merge' && (s.coursesNewer ?? 0) > 0 && (
@@ -216,7 +217,7 @@ export default function DataSettings({ part }: { part?: 'common' | 'admin' } = {
       <Modal open={!!report} title="导入完成" footer={<Btn tone="primary" data-testid="pack-result-ok" onClick={() => setReport(null)}>知道了</Btn>} onCancel={() => setReport(null)} destroyOnHidden>
         {report && (
           <Space direction="vertical" size={6} data-testid="pack-result">
-            <div data-testid="pack-result-text">{report.mode === 'merge' ? '合并' : '覆盖'}导入完成：新增 {report.papersAdded} 份试卷、{report.questionsAdded} 道题{report.mode === 'merge' ? `；跳过 ${report.papersSkipped} 份已存在的` : ''}{report.kpsAdded ? `；知识点树新增 ${report.kpsAdded} 个` : ''}{report.kpsRemapped ? `（其中 ${report.kpsRemapped} 个因编号撞车换了新编号，题目标注已跟着换）` : ''}{report.reportsAdded ? `；报告 ${report.reportsAdded} 份` : ''}{report.coursesAdded ? `；课程体系 ${report.coursesAdded} 个` : ''}{report.coursesUpdated ? `；更新了 ${report.coursesUpdated} 个课程体系` : ''}。</div>
+            <div data-testid="pack-result-text">{report.mode === 'merge' ? '合并' : '覆盖'}导入完成：新增 {report.papersAdded} 份试卷、{report.questionsAdded} 道题{report.mode === 'merge' ? `；跳过 ${report.papersSkipped} 份已存在的` : ''}{report.kpsAdded ? `；知识点树新增 ${report.kpsAdded} 个` : ''}{report.kpsRemapped ? `（其中 ${report.kpsRemapped} 个因编号撞车换了新编号，题目标注已跟着换）` : ''}{report.reportsAdded ? `；报告 ${report.reportsAdded} 份` : ''}{report.coursesAdded ? `；课程体系 ${report.coursesAdded} 个` : ''}{report.coursesUpdated ? `；更新了 ${report.coursesUpdated} 个课程体系` : ''}{report.chatsAdded ? `；助手对话 ${report.chatsAdded} 段` : ''}{report.extras && (report.extras.datasetsAdded + report.extras.documentsAdded + report.extras.skillsAdded + report.extras.rolesAdded) ? `；数据页表格 ${report.extras.datasetsAdded} 个、文档 ${report.extras.documentsAdded} 份、Skill ${report.extras.skillsAdded} 个、角色 ${report.extras.rolesAdded} 个` : ''}。</div>
             {report.sameFileAsExisting > 0 && <UsageNote kind="tip">{`${report.sameFileAsExisting} 份和本机另一份是同一个文件：已标为重复，统计时只算一份`}</UsageNote>}
             {report.promptsImported > 0 && <UsageNote kind="tip" data-testid="pack-prompts-note">{`导入了 ${report.promptsImported} 条自定义提示词，之后的 AI 分析和报告会按它们来写；想恢复默认，到「设置 → 提示词」里逐条恢复。`}</UsageNote>}
             {report.promptsKeptLocal > 0 && <UsageNote kind="tip" data-testid="pack-prompts-kept">{`数据包里有 ${report.promptsKeptLocal} 条自定义提示词，本机已经有自己的设置，保持不变（没有覆盖）。`}</UsageNote>}

@@ -189,13 +189,14 @@ async function doExtract(zipPath: string, staging: string, lim: PackLimits, opts
           }
           if (cls.kind === 'dir') { entries++; z.readEntry(); return }
 
-          const cap = cls.kind === 'manifest' ? lim.maxManifestBytes : cls.kind === 'db' ? lim.maxDbBytes : lim.maxFileBytes
+          const cap = cls.kind === 'manifest' ? lim.maxManifestBytes : cls.kind === 'db' || (cls.kind === 'extra' && cls.name.endsWith('.sqlite')) ? lim.maxDbBytes : lim.maxFileBytes
           // 头部声明的大小只用来快速拒绝；真正的限制按实际解出来的字节数算（下面的 limiter）
           if (entry.uncompressedSize > cap) throw new PackError('too_big', `数据包里的文件「${name}」太大（${mb(entry.uncompressedSize)}），已拒绝导入`)
 
           let dest: string
           if (cls.kind === 'manifest') dest = path.join(staging, 'manifest.json')
           else if (cls.kind === 'db') dest = path.join(staging, 'db.sqlite')
+          else if (cls.kind === 'extra') dest = path.join(staging, 'extras', cls.group, cls.name)
           else { dest = path.join(staging, 'files', cls.paperId, ...cls.rel.split('/')); paperDirs.add(cls.paperId) }
           const resolved = path.resolve(dest)
           if (!resolved.startsWith(staging + path.sep)) throw new PackError('bad_entry', '数据包里的路径越出了允许的范围，已拒绝导入')
