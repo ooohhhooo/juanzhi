@@ -35,8 +35,8 @@ import { cacheKeys, describeFilter, fillTemplate, normalizeFilter } from '../sta
 import { p3SampleWarning } from '../stats/p3'
 import { createGate, mapLimit } from './map-limit'
 import { CourseFileError, buildXlsx, readTable } from './table-read'
-import { EXTRACT_MAPPING, KIND_LABEL, MAX_FILE_BYTES, MAX_INMEMORY_BYTES, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
-import { tooBigMessage } from '../../shared/file-limits'
+import { EXTRACT_MAPPING, KIND_LABEL, lessonsToSheet, parseExtractResponse, richKindOf } from './doc-extract'
+import { tooBigForExt } from '../../shared/file-limits'
 import { TEXTBOOK_MAPPING, estimateCalls, estimateOcrPages, kpCandidateLines, ocrMinutes, pageRangeText, parseUnitKpResponse, textbookToSheet, unitNeedsReview } from './textbook'
 import type { UnitKp, UnitPlan, UnitSource } from './textbook'
 import { findBuiltinCatalog, getCatalogProvider } from './textbook-edition'
@@ -124,7 +124,7 @@ export async function readSourceFile(filePath: string, opts: ReadOpts & { subjec
   try { size = fs.statSync(filePath).size } catch { throw new CourseFileError('读不了这个文件，可能被其他程序占用或没有权限') }
   const name = filePath.replace(/^.*[\\/]/, '')
   const kind = richKindOf(/\.([A-Za-z0-9]+)$/.exec(name)?.[1] ?? '')
-  const tooBig = tooBigMessage(size, kind === 'pdf' ? MAX_FILE_BYTES : MAX_INMEMORY_BYTES)
+  const tooBig = tooBigForExt(size, /\.([A-Za-z0-9]+)$/.exec(name)?.[1] ?? '')
   if (tooBig) throw new CourseFileError(tooBig)
   const base = name.replace(/\.[^.]+$/, '')
   // PDF 不读进内存：哈希用流式，文字由渲染窗口按需分块读

@@ -171,4 +171,46 @@ assert.equal(parseRange('bytes=1000-', 1000), 'bad'); assert.equal(parseRange('b
 assert.equal(parseRange(null, 1000), null); assert.equal(parseRange('items=1-2', 1000), null)
 const tok = registerPdfSource('/tmp/x.pdf'); assert.equal(pdfSourcePath(tok), '/tmp/x.pdf'); releasePdfSource(tok); assert.equal(pdfSourcePath(tok), null)
 
+// ───── 令牌过期（10 分钟没人访问就失效；登记新令牌时顺手清理） ─────
+{
+  const { PDF_SOURCE_TTL_MS, pdfSourceCount } = await import('../../src/main/pipeline/pdf-source.ts')
+  const t0 = 1_000_000
+  const a = registerPdfSource('/tmp/a.pdf', t0)
+  assert.equal(pdfSourcePath(a, t0 + PDF_SOURCE_TTL_MS - 1), '/tmp/a.pdf', '没到期能取')
+  assert.equal(pdfSourcePath(a, t0 + 2 * PDF_SOURCE_TTL_MS - 2), '/tmp/a.pdf', '每次访问都延长有效期')
+  const b = registerPdfSource('/tmp/b.pdf', t0)
+  assert.equal(pdfSourcePath(b, t0 + PDF_SOURCE_TTL_MS + 1), null, '超过 10 分钟没访问就失效')
+  const c = registerPdfSource('/tmp/c.pdf', t0)
+  const n0 = pdfSourceCount()
+  registerPdfSource('/tmp/d.pdf', t0 + 5 * PDF_SOURCE_TTL_MS)   // 登记新令牌时清掉所有过期的
+  assert.equal(pdfSourceCount(), 1, `过期的被清理（清理前 ${n0} 个）`)
+  assert.equal(pdfSourcePath(c, t0 + 5 * PDF_SOURCE_TTL_MS), null)
+}
+
+// ───── Range / 读取失败的白话提示 ─────
+{
+  const { translatePdfError, pdfFileSize } = await import('../../src/main/pipeline/pdf-source.ts')
+  assert.match(translatePdfError('HTTP 404'), /读取 PDF 文件失败.*移动或占用/, '分块读取失败（!res.ok）给白话原因')
+  assert.match(translatePdfError('HTTP 416'), /读取 PDF 文件失败/)
+  assert.match(translatePdfError('Invalid PDF structure'), /不是有效的 PDF/)
+  assert.match(translatePdfError('PasswordException'), /已加密/)
+  assert.throws(() => pdfFileSize('/不存在的目录/x.pdf'), /读取 PDF 文件失败.*找不到或被占用/)
+  assert.deepEqual(parseRange('bytes=2000-', 1000), 'bad', '越界的 Range 回 416，pdf.js 会收到错误而不是一直等')
+}
+
+// ───── 按类型的大小上限：只有 PDF 500 MB，Word / 表格 / 图片 100 MB，提示里说清是哪类 ─────
+{
+  const { importLimitOf, tooBigForExt, MAX_INMEMORY_BYTES } = await import('../../src/shared/file-limits.ts')
+  const MB = 1024 * 1024
+  assert.equal(MAX_INMEMORY_BYTES, 100 * MB)
+  assert.equal(importLimitOf('.pdf').max, 500 * MB); assert.equal(importLimitOf('PDF').label, 'PDF')
+  for (const e of ['.docx', '.xlsx', '.csv', '.png', '.jpg', '.heic']) assert.equal(importLimitOf(e).max, 100 * MB, e)
+  assert.equal(tooBigForExt(300 * MB, '.pdf'), null, 'PDF 300 MB 可以')
+  assert.match(tooBigForExt(150 * MB, '.docx'), /^Word 文件太大了：150 MB，超过 100 MB 的上限（PDF 最大可到 500 MB）/)
+  assert.match(tooBigForExt(120 * MB, '.png'), /^图片 文件太大了.*120 MB.*100 MB/)
+  assert.match(tooBigForExt(120 * MB, '.xlsx'), /^表格 文件太大了/)
+  assert.match(tooBigForExt(501 * MB, '.pdf'), /^PDF 文件太大了：501 MB，超过 500 MB 的上限。/)
+  assert.equal(tooBigForExt(100 * MB, '.docx'), null, '正好 100 MB 可以')
+}
+
 console.log('course-textbook.test ✓（目录 / 单元切分 / 摘要 / 只挑树里的代码 / 页码范围 / 上限 / 版本识别 / Range）')

@@ -107,7 +107,7 @@ export interface TextbookPlan {
 const toTextLines = (page: number, lines: Array<{ text: string; h?: number }>): TextLine[] => lines.filter(l => l.text.trim()).map(l => ({ page, text: l.text, h: l.h }))
 
 /** 打开教材：数页数、套页码范围、检查上限、抽样判断是不是扫描版、认版本。不读全文（在后台整理任务里读，可取消、有进度） */
-export async function planTextbook(file: string, kind: RichKind, opts: ReadOpts, fileName = ''): Promise<TextbookPlan> {
+export async function planTextbook(file: string, kind: RichKind, opts: ReadOpts, fileName = '', signal?: AbortSignal): Promise<TextbookPlan> {
   if (kind === 'docx') {
     let lines: string[]
     try { lines = await wordText(file) } catch { throw new CourseFileError('这个 Word 文档打不开，可能已损坏，或者不是 .docx') }
@@ -115,7 +115,7 @@ export async function planTextbook(file: string, kind: RichKind, opts: ReadOpts,
     return { fileKind: 'docx', file, pageList: [], totalPages: 0, scanned: false, docLines: lines, edition: detectEdition(`${fileName}\n${lines.slice(0, 60).join('\n')}`) }
   }
   if (kind !== 'pdf') throw new CourseFileError('教材课本只支持 PDF 和 Word 文件')
-  const total = await countPdfPages(file).catch(e => { throw new CourseFileError((e as Error).message) })
+  const total = await countPdfPages(file, signal).catch(e => { throw new CourseFileError((e as Error).message) })
   const sel = pagesOf(opts.pageRange, total) ?? Array.from({ length: total }, (_, i) => i + 1)
   if (sel.length > TEXTBOOK_MAX_PAGES) throw new CourseFileError(tooManyPagesMessage(sel.length, TEXTBOOK_MAX_PAGES, total))
   // 抽样：均匀 5 页看文字层（半数以上没有就当扫描版），再加开头 3 页、结尾 1 页认版本
@@ -123,7 +123,7 @@ export async function planTextbook(file: string, kind: RichKind, opts: ReadOpts,
   const picks = [...new Set([...spread, ...sel.slice(0, 3), sel[sel.length - 1]])].sort((a, b) => a - b)
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-course-'))
   try {
-    const sample = await renderPdfPages(file, dir, { pages: picks, needImage: () => false })
+    const sample = await renderPdfPages(file, dir, { pages: picks, needImage: () => false, signal })
     const spreadSet = new Set(spread)
     const judged = sample.filter(p => spreadSet.has(p.index))
     const bad = judged.filter(p => !judgeTextLayer(p.text).usable).length
