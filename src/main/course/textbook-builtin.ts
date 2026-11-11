@@ -123,7 +123,8 @@ function writeMaps(db: Db, outlineId: string, subject: SubjectId, books: Catalog
   const rev = (db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(outlineId) as any).rev as number
   const lessonId = new Map<string, number>()
   for (const r of db.prepare('SELECT l.id, l.seq, lv.name lvName FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id WHERE l.outline_id = ?').all(outlineId) as any[]) lessonId.set(`${r.lvName}|${r.seq}`, r.id)
-  db.exec('BEGIN')
+  const own = !db.isTransaction
+  if (own) db.exec('BEGIN')
   try {
     db.prepare('DELETE FROM course_kp_map WHERE outline_id = ?').run(outlineId)
     db.prepare('DELETE FROM course_kp_check WHERE outline_id = ?').run(outlineId)
@@ -143,9 +144,16 @@ function writeMaps(db: Db, outlineId: string, subject: SubjectId, books: Catalog
     // 这个学科的所有知识点都记为「已检查」：教材目录讲到的 = matched，其余 = none（教材里没有）
     const up = db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, ?, ?, '', 'builtin', '')`)
     for (const r of kpRows) up.run(outlineId, r.code, mapped.has(r.code) ? 'matched' : 'none', rev)
-    db.exec('COMMIT')
+    if (own) db.exec('COMMIT')
     return { maps, kps: mapped.size }
-  } catch (e) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw e }
+  } catch (e) { if (own) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } } throw e }
+}
+
+/** 在一个事务里做完 fn；已经在事务里就直接做（由外层提交 / 回滚） */
+function inTransaction<T>(db: Db, fn: () => T): T {
+  if (db.isTransaction) return fn()
+  db.exec('BEGIN')
+  try { const r = fn(); db.exec('COMMIT'); return r } catch (e) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw e }
 }
 
 const baseInput = (ed: CatalogEdition, levels: ParsedLevel[]) => ({
@@ -159,9 +167,12 @@ export function addBuiltinTextbook(db: Db, ed: CatalogEdition, keys: string[]): 
   const bid = builtinId(ed, books)
   if (db.prepare('SELECT 1 FROM course_outlines WHERE builtin_id = ?').get(bid)) throw new Error('这几册已经添加过了，要更新请在列表里点「重新从内置更新」')
   const levels = books.map(b => levelOf(ed, b))
-  const id = createOutline(db, { ...baseInput(ed, levels), name: builtinName(ed, books), scene: 'school', termNote: '', status: 'active', subject: ed.subject, kind: 'textbook', builtinId: bid })
-  const r = writeMaps(db, id, ed.subject, books)
-  return { id, lessons: levels.reduce((n, l) => n + l.lessons.length, 0), maps: r.maps }
+  // 整个添加放进一个事务：中途出错（比如写对应时）什么都不留，不会剩下一份空教材挡住下一次添加
+  return inTransaction(db, () => {
+    const id = createOutline(db, { ...baseInput(ed, levels), name: builtinName(ed, books), scene: 'school', termNote: '', status: 'active', subject: ed.subject, kind: 'textbook', builtinId: bid })
+    const r = writeMaps(db, id, ed.subject, books)
+    return { id, lessons: levels.reduce((n, l) => n + l.lessons.length, 0), maps: r.maps }
+  })
 }
 
 /** 重新从内置更新：按这份大纲记下的内置来源重新读目录（目录随软件版本更新后用）。老师手工加的对应会被目录结果覆盖 */
@@ -173,11 +184,14 @@ export function refreshBuiltinTextbook(db: Db, id: string, editions: CatalogEdit
   if (!ed) throw new Error('这个版本已经不在内置目录里了')
   const books = pickBooks(ed, p.keys)
   if (!books.length) throw new Error('内置目录里已经没有这几册了')
-  db.prepare('DELETE FROM course_kp_map WHERE outline_id = ?').run(id)
   const levels = books.map(b => levelOf(ed, b))
-  replaceOutline(db, id, { ...baseInput(ed, levels), confirmLockedLoss: true })
-  const r = writeMaps(db, id, ed.subject, books)
-  return { lessons: levels.reduce((n, l) => n + l.lessons.length, 0), maps: r.maps }
+  // 同一个事务：删对应、换内容、重写对应，任何一步出错都回到更新前的样子
+  return inTransaction(db, () => {
+    db.prepare('DELETE FROM course_kp_map WHERE outline_id = ?').run(id)
+    replaceOutline(db, id, { ...baseInput(ed, levels), confirmLockedLoss: true })
+    const r = writeMaps(db, id, ed.subject, books)
+    return { lessons: levels.reduce((n, l) => n + l.lessons.length, 0), maps: r.maps }
+  })
 }
 
 // ───────────────────────── 接「整本书上传」的内置目录提示 ─────────────────────────

@@ -202,7 +202,7 @@ interface ElectronAPI {
     exportGaps(scope: CourseScope): Promise<{ saved: boolean; path?: string; rows?: number }>
     catalog(subject?: import('../shared/subject').SubjectId): Promise<CourseCatalogEdition[]>
     addBuiltin(req: { editionId: string; books: string[] }): Promise<{ id: string; lessons: number; maps: number }>
-    refreshBuiltin(id: string): Promise<{ lessons: number; maps: number }>
+    refreshBuiltin(id: string, confirm: boolean): Promise<{ lessons: number; maps: number }>
     compare(scope: CourseCompareScope): Promise<CourseCompareResult>
     compareCopy(scope: CourseCompareScope): Promise<{ text: string; chars: number }>
     compareExport(scope: CourseCompareScope): Promise<{ saved: boolean; path?: string; rows?: number }>

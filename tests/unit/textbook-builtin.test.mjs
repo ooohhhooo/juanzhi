@@ -1,7 +1,7 @@
 // 内置教材：迁移 v15、添加 / 更新 / 删除、对比计算（用内存库 + 虚构夹具）。
 import assert from 'node:assert/strict'
 import { newDb, migrations, addPaper } from './helpers/db.mjs'
-import { createOutline, listOutlines, removeOutline, editMap } from '../../src/main/course/store.ts'
+import { createOutline, listOutlines, removeOutline, editMap, applyTextbookMaps } from '../../src/main/course/store.ts'
 import { addBuiltinTextbook, refreshBuiltinTextbook } from '../../src/main/course/textbook-builtin.ts'
 import { CATALOG, findEdition } from '../../src/main/course/catalog.ts'
 import { courseDashboard } from '../../src/main/course/stats.ts'
@@ -108,12 +108,44 @@ const added = addBuiltinTextbook(db, pep, ['4上', '3上'])
   editMap(db, { op: 'add', outlineId: courseId, kp: 'GR.NOUN.PLURAL', lessonId: lid.Plurals })
   const r2 = compareCourseTextbook(db, {}, courseId, [added.id])
   assert.equal(r2.summary.covered, 1, '祖先层级的对应也算讲到')
+  const k2 = r2.units.flatMap(u => u.kps).find(k => k.code === 'GR.NOUN.PLURAL.REG')
+  assert.equal(k2.coarseOnly, true, '只有大类对应：标成较粗')
+  assert.equal(k2.lessons[0].coarse, true)
+  assert.equal(r.units.flatMap(u => u.kps).find(k => k.code === 'GR.NOUN.PLURAL.REG').coarseOnly, false, '直接对应不标粗')
+  const csv2 = compareToCsv(r2, { filterDesc: '全部卷子' })
+  assert.match(csv2, /对应精细度/); assert.match(csv2, /大类对应，较粗/)
   // 状态不对时给白话原因，不抛错
   assert.equal(compareCourseTextbook(db, {}, 'nope', [added.id]).ready, false)
   assert.equal(compareCourseTextbook(db, {}, courseId, []).ready, false)
   assert.equal(compareCourseTextbook(db, {}, added.id, [added.id]).ready, false, '教材不能当机构课程')
   const fresh = createOutline(db, { name: '没匹配的课', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: 'X', lessons: [lesson(1, 'x')] }] })
   assert.match(compareCourseTextbook(db, {}, fresh, [added.id]).reason, /还没有把知识点对应到课/)
+}
+
+// ── 原子性：中途出错什么都不留 / 保持原样 ──
+{
+  const ed2 = { ...FIX, books: [FIX.books[0]] }
+  db.exec("CREATE TRIGGER boom BEFORE INSERT ON course_kp_map BEGIN SELECT RAISE(ABORT, 'boom'); END")
+  const nOut = q1(db, 'SELECT COUNT(*) c FROM course_outlines').c
+  assert.throws(() => addBuiltinTextbook(db, ed2, ['3上']), /boom/)
+  assert.equal(q1(db, 'SELECT COUNT(*) c FROM course_outlines').c, nOut, '添加失败不留空教材')
+  assert.equal(db.isTransaction, false)
+  db.exec('DROP TRIGGER boom')
+  const ok = addBuiltinTextbook(db, ed2, ['3上'])   // 之后还能正常添加（不会提示已经添加过）
+  const snap = () => JSON.stringify([db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(ok.id), db.prepare('SELECT kp_code, lesson_id FROM course_kp_map WHERE outline_id = ? ORDER BY 1, 2').all(ok.id), db.prepare('SELECT seq, title FROM course_lessons WHERE outline_id = ? ORDER BY seq').all(ok.id)])
+  const before = snap()
+  const changed = { ...ed2, books: [{ ...ed2.books[0], units: [U(1, 'Hello!!', ['PH.LETTER'])] }] }
+  db.exec("CREATE TRIGGER boom BEFORE INSERT ON course_kp_map BEGIN SELECT RAISE(ABORT, 'boom'); END")
+  assert.throws(() => refreshBuiltinTextbook(db, ok.id, [changed]), /boom/)
+  assert.equal(snap(), before, '刷新失败：对应、课次、修订号都保持原样')
+  assert.equal(db.isTransaction, false)
+  db.exec('DROP TRIGGER boom')
+  removeOutline(db, ok.id)
+  // 界面传来的知识点代码要属于本学科
+  const eng = createOutline(db, { name: '英语课', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', subject: 'english', levels: [{ name: 'L', lessons: [lesson(1, 'x')] }] })
+  const n = applyTextbookMaps(db, eng, [{ seq: 1, kps: [{ code: 'MA.NUM.INT.COUNT', confidence: 'high', quote: '', reason: '', confirmed: false, manual: false }, { code: 'PH.LETTER', confidence: 'high', quote: '', reason: '', confirmed: false, manual: false }] }], { model: 'm', promptVersion: 'v' })
+  assert.equal(n, 1, '别的学科的代码被丢弃，只写入英语的 PH.LETTER')
+  assert.deepEqual(db.prepare('SELECT kp_code FROM course_kp_map WHERE outline_id = ?').all(eng).map(r => r.kp_code), ['PH.LETTER'])
 }
 
 // ── 重新从内置更新：对应被重写；删除级联 ──

@@ -78,7 +78,8 @@ export function applyTextbookMaps(db: Db, outlineId: string, units: UnitKpInput[
   const o = db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(outlineId) as any
   if (!o) return 0
   const lessonOf = db.prepare('SELECT id FROM course_lessons WHERE outline_id = ? AND seq = ? ORDER BY id LIMIT 1')
-  const valid = db.prepare('SELECT 1 FROM kps WHERE code = ?')
+  const subject = (db.prepare('SELECT subject FROM course_outlines WHERE id = ?').get(outlineId) as any)?.subject ?? 'english'
+  const valid = db.prepare('SELECT 1 FROM kps WHERE code = ? AND subject = ?')   // 只认本学科的代码，不让界面传来的别的学科代码写进来
   const ins = db.prepare(`INSERT OR ${overwrite ? 'REPLACE' : 'IGNORE'} INTO course_kp_map (outline_id, kp_code, lesson_id, confidence, reason, quote, source, state, locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
   const chk = db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, 'matched', ?, '', ?, ?)`)
   let n = 0
@@ -88,7 +89,7 @@ export function applyTextbookMaps(db: Db, outlineId: string, units: UnitKpInput[
       const l = lessonOf.get(outlineId, u.seq) as any
       if (!l) continue
       for (const k of u.kps.slice(0, 12)) {
-        if (!valid.get(k.code)) continue
+        if (!valid.get(k.code, subject)) continue
         const conf = k.confidence === 'high' || k.confidence === 'medium' ? k.confidence : 'low'
         const locked = k.confirmed || k.manual
         const r = ins.run(outlineId, k.code, l.id, conf, (k.manual ? '老师手工指定' : k.reason ?? '').slice(0, 200), (k.quote ?? '').slice(0, 200), k.manual ? 'manual' : 'ai', locked ? 'confirmed' : 'suggested', locked ? 1 : 0)
@@ -105,7 +106,8 @@ export function createOutline(db: Db, input: OutlineInput): string {
   if (input.levels.length > MAX_LEVELS) throw new Error(`级别太多（最多 ${MAX_LEVELS} 个）`)
   if (total > MAX_LESSONS) throw new Error(`课次太多（最多 ${MAX_LESSONS} 课）`)
   const id = uuid()
-  db.exec('BEGIN')
+  const own = !db.isTransaction   // 外层（如添加内置教材）已经开了事务就跟着它，由它统一提交 / 回滚
+  if (own) db.exec('BEGIN')
   try {
     db.prepare(`INSERT INTO course_outlines (id, name, scene, term_note, source_name, source_hash, status, active, rev, mapping_json, warnings_json, ai_model, subject, kind, builtin_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, ?, ?)`).run(id, input.name, input.scene, input.termNote, input.sourceName, input.sourceHash, input.status, JSON.stringify(input.mapping ?? null), JSON.stringify(input.warnings), input.aiModel, asSubject(input.subject), asKind(input.kind), input.builtinId ?? null)
@@ -114,8 +116,8 @@ export function createOutline(db: Db, input: OutlineInput): string {
       const r = insLv.run(id, lv.name, i)
       insertLessons(db, id, Number(r.lastInsertRowid), lv.name, lv.lessons)
     })
-    db.exec('COMMIT')
-  } catch (e) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw e }
+    if (own) db.exec('COMMIT')
+  } catch (e) { if (own) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } } throw e }
   return id
 }
 
@@ -159,7 +161,8 @@ export function replaceOutline(db: Db, id: string, input: Pick<OutlineInput, 'so
   const cnt = db.prepare('SELECT COUNT(*) c FROM course_kp_map WHERE lesson_id = ? AND locked = 0')
   let affected = 0
   for (const t of [...plan.changed.map(c => c.id), ...plan.removedIds]) affected += (cnt.get(t) as any).c   // 先数（删级别会级联删课次和对应）
-  db.exec('BEGIN')
+  const own = !db.isTransaction
+  if (own) db.exec('BEGIN')
   try {
     // 级别：同名沿用，新名新建，不在新表里的删掉
     const lvRows = db.prepare('SELECT id, name FROM course_levels WHERE outline_id = ?').all(id) as any[]
@@ -199,9 +202,9 @@ export function replaceOutline(db: Db, id: string, input: Pick<OutlineInput, 'so
     const changedAny = counts.added + counts.changed + counts.removed > 0
     db.prepare(`UPDATE course_outlines SET source_name = ?, source_hash = ?, mapping_json = ?, warnings_json = ?, ai_model = ?, status = 'active', rev = rev + ?, updated_at = datetime('now','localtime') WHERE id = ?`)
       .run(input.sourceName, input.sourceHash, JSON.stringify(input.mapping ?? null), JSON.stringify(input.warnings), input.aiModel, changedAny ? 1 : 0, id)
-    db.exec('COMMIT')
+    if (own) db.exec('COMMIT')
     return { ...counts, affectedMaps: affected, ...impact }
-  } catch (e) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw e }
+  } catch (e) { if (own) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } } throw e }
 }
 
 export function removeOutline(db: Db, id: string): boolean {

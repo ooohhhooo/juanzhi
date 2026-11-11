@@ -18,7 +18,8 @@ import { lessonName } from './map.ts'
 
 type Db = any
 
-export interface CompareLesson { lessonId: number; levelName: string; label: string }
+/** coarse = 机构课只挂在更大的类别（教材知识点的祖先）上，靠祖先关系算「讲到」，比较粗 */
+export interface CompareLesson { lessonId: number; levelName: string; label: string; coarse: boolean }
 export interface CompareKp {
   code: string; name: string; plain: string
   /** 在几份卷子里出现（子树汇总）/ 范围内总份数 */
@@ -28,6 +29,8 @@ export interface CompareKp {
   frequent: boolean
   /** 机构课程里讲到它的课；空 = 没讲到 */
   lessons: CompareLesson[]
+  /** 讲到了，但每一课都只是大类对应（较粗） */
+  coarseOnly: boolean
 }
 export interface CompareUnit {
   outlineId: string; outlineName: string; levelName: string; lessonId: number; label: string; title: string
@@ -93,9 +96,9 @@ export function compareCourseTextbook(db: Db, filter: StatsFilter, courseId: str
 
   // 机构课：知识点 → 课
   const cLessons = new Map((db.prepare('SELECT l.id, l.seq, l.no_label, l.title, lv.name level_name FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id WHERE l.outline_id = ?').all(course.id) as any[]).map(l => [l.id as number, l]))
-  const refOf = (lid: number): CompareLesson | null => {
+  const refOf = (lid: number, coarse = false): CompareLesson | null => {
     const l = cLessons.get(lid)
-    return l ? { lessonId: lid, levelName: l.level_name, label: lessonName({ seq: l.seq, noLabel: l.no_label ?? '', title: l.title ?? '' }) } : null
+    return l ? { lessonId: lid, levelName: l.level_name, label: lessonName({ seq: l.seq, noLabel: l.no_label ?? '', title: l.title ?? '' }), coarse } : null
   }
   const courseByKp = new Map<string, Set<number>>()
   for (const m of mainMaps(db, [course.id])) {
@@ -110,9 +113,11 @@ export function compareCourseTextbook(db: Db, filter: StatsFilter, courseId: str
   }
   /** 机构课里讲到这个教材知识点的课（自己、子孙、祖先） */
   const coursesFor = (code: string): CompareLesson[] => {
-    const ids = new Set<number>()
-    for (const c of [...(sub.get(code) ?? [code]), ...ancestors(code)]) for (const l of courseByKp.get(c) ?? []) ids.add(l)
-    return [...ids].map(refOf).filter((x): x is CompareLesson => !!x).sort((a, b) => (a.levelName < b.levelName ? -1 : a.levelName > b.levelName ? 1 : 0) || a.lessonId - b.lessonId)
+    const direct = new Set<number>()
+    for (const c of sub.get(code) ?? [code]) for (const l of courseByKp.get(c) ?? []) direct.add(l)
+    const coarse = new Set<number>()
+    for (const c of ancestors(code)) for (const l of courseByKp.get(c) ?? []) if (!direct.has(l)) coarse.add(l)
+    return [...direct.values()].map(l => refOf(l, false)).concat([...coarse].map(l => refOf(l, true))).filter((x): x is CompareLesson => !!x).sort((a, b) => (a.levelName < b.levelName ? -1 : a.levelName > b.levelName ? 1 : 0) || a.lessonId - b.lessonId)
   }
 
   // 教材：单元 → 知识点
@@ -124,7 +129,9 @@ export function compareCourseTextbook(db: Db, filter: StatsFilter, courseId: str
     if (!k) {
       const st = stat.get(code)
       const papers = st?.papers ?? 0
-      k = { code, name: nameOf(code), plain: String(kpRows.get(code)?.plain ?? ''), papers, paperTotal: counts.papers, errorCount: st?.errorCount ?? 0, frequent: !smallSample && papers >= minPapers, lessons: coursesFor(code) }
+      k = { code, name: nameOf(code), plain: String(kpRows.get(code)?.plain ?? ''), papers, paperTotal: counts.papers, errorCount: st?.errorCount ?? 0, frequent: !smallSample && papers >= minPapers, lessons: [], coarseOnly: false }
+      k.lessons = coursesFor(code)
+      k.coarseOnly = k.lessons.length > 0 && k.lessons.every(l => l.coarse)
       kpCache.set(code, k)
     }
     return k
@@ -185,11 +192,11 @@ export function compareToCsv(r: CompareResult, head: { filterDesc: string }): st
   const lines: Array<Array<string | number>> = [
     ['说明', '机构课程与学校教材的知识点对比（AI 匹配的结果，请教研核对）'],
     ['范围', head.filterDesc], ['机构课程', r.course?.name ?? ''], ['学校教材', r.textbooks.map(t => t.name).join('、')], [],
-    ['教材', '年级学期', '单元', '知识点', '机构课程', '讲到的课', '出现份数', '总份数', '学校常考', 'AI 估计易错题数']
+    ['教材', '年级学期', '单元', '知识点', '机构课程', '讲到的课', '对应精细度', '出现份数', '总份数', '学校常考', 'AI 估计易错题数']
   ]
   for (const u of r.units) {
-    if (!u.kps.length) lines.push([u.outlineName, u.levelName, u.label, '（这个单元没有对应的知识点）', '', '', '', '', '', ''])
-    for (const k of u.kps) lines.push([u.outlineName, u.levelName, u.label, k.name, k.lessons.length ? '讲到' : '没讲到', k.lessons.map(l => `${l.levelName} ${l.label}`).join('；'), k.papers, k.papers ? k.paperTotal : r.papers, k.frequent ? '是' : '', k.errorCount])
+    if (!u.kps.length) lines.push([u.outlineName, u.levelName, u.label, '（这个单元没有对应的知识点）', '', '', '', '', '', '', ''])
+    for (const k of u.kps) lines.push([u.outlineName, u.levelName, u.label, k.name, k.lessons.length ? '讲到' : '没讲到', k.lessons.map(l => `${l.levelName} ${l.label}${l.coarse ? '（大类）' : ''}`).join('；'), !k.lessons.length ? '' : k.coarseOnly ? '大类对应，较粗' : '直接对应', k.papers, k.papers ? k.paperTotal : r.papers, k.frequent ? '是' : '', k.errorCount])
   }
   lines.push([], ['机构课程讲了、所选教材里没有的（超前 / 拓展）'], ['年级 / 级别', '课', '知识点'])
   for (const e of r.extra) lines.push([e.levelName, e.label, e.kps.map(k => k.name).join('、')])

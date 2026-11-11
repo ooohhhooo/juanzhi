@@ -111,7 +111,7 @@ export default function CourseSettings() {
                   {c.status === 'draft' && <Btn tone="primary" size="small" data-testid="course-confirm-draft" onClick={() => run(() => window.api.course.confirmDraft(c.id), '已确认，现在可以参与对照了')}>确认使用</Btn>}
                   <Btn tone="secondary" size="small" data-testid="course-view" onClick={() => setDetail(c.id)}>查看</Btn>
                   {c.builtinId
-                    ? <Popconfirm title="重新从内置目录更新？" description="单元和知识点对应会按当前内置目录重写；你手工改过的对应会被覆盖。" okText="更新" cancelText="取消" onConfirm={() => run(() => window.api.course.refreshBuiltin(c.id), '已重新从内置更新')}>
+                    ? <Popconfirm title="重新从内置目录更新？" description="单元和知识点对应会按当前内置目录重写；你手工改过的对应会被覆盖。" okText="更新" cancelText="取消" onConfirm={() => run(() => window.api.course.refreshBuiltin(c.id, true), '已重新从内置更新')}>
                       <Btn tone="secondary" size="small" data-testid="course-refresh-builtin">重新从内置更新</Btn>
                     </Popconfirm>
                     : <Btn tone="secondary" size="small" data-testid="course-reupload" onClick={() => setWizard({ open: true, replace: c })}>重新上传（替换）</Btn>}
