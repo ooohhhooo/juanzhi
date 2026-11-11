@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, EmptyState, Panel, UsageNote } from '../../design'
 import MatchBox, { MATCH_LABEL, clean } from '../../components/CourseMatch'
 import CourseWizard from './CourseWizard'
+import TextbookAdd from './TextbookAdd'
 import LessonPicker from './LessonPicker'
 import { CONF_LABEL, SCENE_LABEL, lessonText, wordsOf } from './format'
 import '../../design/page-report.css'
@@ -18,6 +19,7 @@ export default function CourseSettings() {
   const { subject } = useSubject()
   const [wizard, setWizard] = useState<{ open: boolean; replace?: CourseOutlineCard; job?: CourseJob }>({ open: false })
   const [detail, setDetail] = useState<string | null>(null)
+  const [addBook, setAddBook] = useState(false)
   const { data: cards } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject) })
   // 后台整理的任务（主进程内存里）：有排队 / 整理中的就隔几秒刷新一次
   const { data: jobs } = useQuery({
@@ -31,7 +33,10 @@ export default function CourseSettings() {
   return (
     <div className="ewb-set-panel">
       <Panel title="我的课程大纲" data-testid="course-settings"
-        aside={<Btn tone="secondary" size="small" icon={Plus} data-testid="course-add" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>}>
+        aside={<span className="ewb-rep-row" style={{ gap: 8 }}>
+          <Btn tone="secondary" size="small" icon={Plus} data-testid="course-add-textbook" onClick={() => setAddBook(true)}>添加学校教材</Btn>
+          <Btn tone="secondary" size="small" icon={Plus} data-testid="course-add" onClick={() => setWizard({ open: true })}>添加课程大纲</Btn>
+        </span>}>
         <p className="ewb-rep-note" style={{ marginBottom: 12 }}>
           课程表只存在这台电脑上；整理和匹配时，内容会发给你在“AI 服务”里设置的模型，不会发给卷知开发者。
         </p>
@@ -64,13 +69,17 @@ export default function CourseSettings() {
               </div>
             </article>
           ))}
-          {(cards ?? []).map(c => {
+          {[...(cards ?? [])].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'course' ? -1 : 1)).map((c, i, arr) => {
             const w = wordsOf(c.scene)
+            const both = arr.some(x => x.kind === 'course') && arr.some(x => x.kind === 'textbook')
+            const head = both && (i === 0 || arr[i - 1].kind !== c.kind)
             return (
-              <article key={c.id} className="ewb-crs-card" data-testid={`course-card-${c.id}`} data-draft={c.status === 'draft'} data-match={c.match.state}>
+              <React.Fragment key={c.id}>
+              {head && <h4 className="ewb-crs-group" data-testid={`course-group-${c.kind}`}>{c.kind === 'course' ? '机构课程' : '学校教材'}（{arr.filter(x => x.kind === c.kind).length}）</h4>}
+              <article className="ewb-crs-card" data-testid={`course-card-${c.id}`} data-draft={c.status === 'draft'} data-match={c.match.state}>
                 <div className="ewb-crs-card__head">
                   <span className="ewb-crs-card__name" data-testid="course-card-name">{c.name}</span>
-                  <span className="ewb-ana-pill ewb-ana-pill--quiet">{SCENE_LABEL[c.scene as keyof typeof SCENE_LABEL] ?? '其他'}</span>
+                  <span className="ewb-ana-pill ewb-ana-pill--quiet" data-testid="course-kind-tag" data-kind={c.kind}>{c.kind === 'textbook' ? (c.builtinId ? '学校教材 · 内置' : '学校教材') : (SCENE_LABEL[c.scene as keyof typeof SCENE_LABEL] ?? '机构课程')}</span>
                   {c.status === 'draft' && <span className="ewb-ana-pill ewb-ana-pill--warn" data-testid="course-draft-tag">草稿 · 还没确认，不参与对照</span>}
                 </div>
                 <div className="ewb-crs-card__meta">
@@ -82,7 +91,7 @@ export default function CourseSettings() {
                 {c.status === 'draft' ? (
                   <UsageNote kind="caution">这是用命令行导入的草稿：AI 认列的结果还没有人核对过。请点“查看”核对课次，没问题就点“确认使用”。</UsageNote>
                 ) : (
-                  <MatchBox card={c} />
+                  c.builtinId ? <p className="ewb-rep-note" style={{ margin: 0 }}>知识点对应来自内置目录，不需要 AI 匹配。</p> : <MatchBox card={c} />
                 )}
                 <div className="ewb-crs-card__actions">
                   {c.status === 'active' && (
@@ -90,17 +99,23 @@ export default function CourseSettings() {
                   )}
                   {c.status === 'draft' && <Btn tone="primary" size="small" data-testid="course-confirm-draft" onClick={() => run(() => window.api.course.confirmDraft(c.id), '已确认，现在可以参与对照了')}>确认使用</Btn>}
                   <Btn tone="secondary" size="small" data-testid="course-view" onClick={() => setDetail(c.id)}>查看</Btn>
-                  <Btn tone="secondary" size="small" data-testid="course-reupload" onClick={() => setWizard({ open: true, replace: c })}>重新上传（替换）</Btn>
+                  {c.builtinId
+                    ? <Popconfirm title="重新从内置目录更新？" description="单元和知识点对应会按当前内置目录重写；你手工改过的对应会被覆盖。" okText="更新" cancelText="取消" onConfirm={() => run(() => window.api.course.refreshBuiltin(c.id), '已重新从内置更新')}>
+                      <Btn tone="secondary" size="small" data-testid="course-refresh-builtin">重新从内置更新</Btn>
+                    </Popconfirm>
+                    : <Btn tone="secondary" size="small" data-testid="course-reupload" onClick={() => setWizard({ open: true, replace: c })}>重新上传（替换）</Btn>}
                   <Popconfirm title={`删除「${c.name}」？`} description="课次和知识点对应会一起删除，不影响试卷；已经生成的报告里的课程文字是当时的快照。" okText="删除" okButtonProps={{ danger: true, 'data-testid': 'course-delete-ok' } as never} cancelText="取消"
                     onConfirm={() => run(() => window.api.course.remove(c.id), '已删除')}>
                     <Btn tone="danger" size="small" data-testid="course-delete">删除</Btn>
                   </Popconfirm>
                 </div>
               </article>
+              </React.Fragment>
             )
           })}
         </div>
       </Panel>
+      <TextbookAdd open={addBook} onClose={() => setAddBook(false)} />
       <CourseWizard open={wizard.open} replace={wizard.replace} job={wizard.job} onClose={() => setWizard({ open: false })} />
       <CourseDetail id={detail} onClose={() => setDetail(null)} />
     </div>

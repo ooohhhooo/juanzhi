@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, clipboard } from 'electron'
 import fs from 'node:fs'
 import { z } from 'zod'
 import { getDb } from '../db'
@@ -14,7 +14,10 @@ import { withSpend } from './cost'
 import { CourseFileError } from '../course/table-read'
 import { COL_FIELDS } from '../course/map'
 import { courseDashboard, gapsToCsv } from '../course/stats'
-import { SCENES, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
+import { compareCourseTextbook, compareToCsv, compareToText } from '../course/compare'
+import { CATALOG, findEdition } from '../course/catalog'
+import { addBuiltinTextbook, catalogInfo, refreshBuiltinTextbook } from '../course/textbook'
+import { SCENES, asKind, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
   cancelSuggest, setJobHooks, setSessionSubject, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
@@ -67,7 +70,9 @@ const SaveSchema = z.object({
   /** 替换会删掉老师确认 / 手工指定的对应时，用户在确认框里明确同意 */
   confirmLockedLoss: z.boolean().default(false),
   /** 新建体系属于哪个学科（缺省英语）；替换时以原体系为准 */
-  subject: SubjectArg
+  subject: SubjectArg,
+  /** 机构课程（缺省）/ 学校教材（整本书上传时带 'textbook'）；替换时以原体系为准 */
+  kind: z.enum(['course', 'textbook']).optional()
 })
 
 const ScopeSchema = z.object({ filter: FilterArg, outlineIds: OutlineIds })
@@ -223,7 +228,7 @@ export function registerCourseIpc(): void {
       notifyDataChanged('course')
       return { id: p.replaceId, replaced: true, ...r }
     }
-    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(src?.subject ?? p.subject) })   // 学科以整理会话里锁定的为准，其次才是界面传来的
+    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(src?.subject ?? p.subject), kind: asKind(p.kind) })   // 学科以整理会话里锁定的为准，其次才是界面传来的
     log.info('course', '保存课程体系', { levels: levels.length, lessons: levels.reduce((n, l) => n + l.lessons.length, 0) })
     notifyDataChanged('course')
     return { id, replaced: false }
@@ -288,6 +293,51 @@ export function registerCourseIpc(): void {
       throw new Error(code === 'EBUSY' || code === 'EPERM' || code === 'EACCES' ? '文件正被其他程序占用（比如 Excel 里还开着它）或没有写入权限，请关闭后重试' : `保存失败：${(e as Error).message}`)
     }
     return { saved: true, path: r.filePath, rows: d.gaps.rows.length }
+  })
+
+  // ───── 学校教材：内置目录、添加 / 更新、和机构课程对比 ─────
+  ipcMain.handle('course:catalog', async (_e, subject?: unknown) => catalogInfo(CATALOG, SubjectArg.parse(subject ?? undefined) ?? 'english'))
+  ipcMain.handle('course:addBuiltin', async (_e, raw: unknown) => {
+    const p = z.object({ editionId: z.string().max(40), books: z.array(z.string().max(10)).min(1).max(30) }).parse(raw)
+    const ed = findEdition(p.editionId)
+    if (!ed) throw new Error('没有这个内置版本')
+    const r = addBuiltinTextbook(db(), ed, p.books)
+    log.info('course', '添加内置教材', { edition: ed.id, books: p.books.length, lessons: r.lessons })
+    notifyDataChanged('course')
+    return r
+  })
+  ipcMain.handle('course:refreshBuiltin', async (_e, id: unknown) => {
+    const oid = IdSchema.parse(id)
+    if (outlineBusy(oid)) throw new Error('这份教材正在使用中，请稍后再更新')
+    const r = refreshBuiltinTextbook(db(), oid, CATALOG)
+    notifyDataChanged('course')
+    return r
+  })
+  const CompareScope = z.object({ filter: FilterArg, courseId: IdSchema, textbookIds: OutlineIds })
+  ipcMain.handle('course:compare', async (_e, raw: unknown) => {
+    const s = CompareScope.parse(raw)
+    return compareCourseTextbook(db(), s.filter, s.courseId, s.textbookIds)
+  })
+  ipcMain.handle('course:compareCopy', async (_e, raw: unknown) => {
+    const s = CompareScope.parse(raw)
+    const text = compareToText(compareCourseTextbook(db(), s.filter, s.courseId, s.textbookIds))
+    clipboard.writeText(text)
+    return { text, chars: text.length }
+  })
+  ipcMain.handle('course:compareExport', async (_e, raw: unknown) => {
+    const s = CompareScope.parse(raw)
+    const r0 = compareCourseTextbook(db(), s.filter, s.courseId, s.textbookIds)
+    if (!r0.ready) throw new Error(r0.reason)
+    const csv = compareToCsv(r0, { filterDesc: describeFilter(s.filter, 0) })
+    const win = getMainWindow()
+    const opts: Electron.SaveDialogOptions = { title: '导出机构课程与学校教材的对比', defaultPath: '机构课程与学校教材对比.csv', filters: [{ name: 'CSV 表格', extensions: ['csv'] }] }
+    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (r.canceled || !r.filePath) return { saved: false }
+    try { fs.writeFileSync(r.filePath, csv, 'utf8') } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code
+      throw new Error(code === 'EBUSY' || code === 'EPERM' || code === 'EACCES' ? '文件正被其他程序占用（比如 Excel 里还开着它）或没有写入权限，请关闭后重试' : `保存失败：${(e as Error).message}`)
+    }
+    return { saved: true, path: r.filePath, rows: r0.units.reduce((n, u) => n + Math.max(1, u.kps.length), 0) }
   })
 
   // ───── 家长沟通建议（流式走 ai:chunk，取消用 ai:cancel） ─────

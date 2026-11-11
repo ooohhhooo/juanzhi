@@ -697,6 +697,21 @@ export const MIGRATIONS: Array<(db: any) => void> = [
     addCol('papers', 'subject_hint', 'TEXT')
     // subject_confirmed = 1：用户已经明确选过学科（在提醒里选了「放到…」「保持…」，或手动改过学科），之后不再自动核对、不再提醒
     addCol('papers', 'subject_confirmed', 'INTEGER NOT NULL DEFAULT 0')
+  },
+  // v14 → v15：课程大纲分「机构课程」和「学校教材」，教材可以来自内置目录。只加列、加索引，旧数据全部是机构课程
+  //  - course_outlines.kind：'course'（机构课程，缺省）/ 'textbook'（学校教材）；
+  //  - course_outlines.builtin_id：内置来源（如 'math-renjiao:1上,1下'）；空 = 用户自己上传的。
+  (db) => {
+    const addCol = (table: string, col: string, ddl: string) => {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c: any) => c.name)
+      if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`)
+    }
+    // 只改课程表，不碰有修订号触发器的表；仍照 v13 的做法在末尾还原修订号，保证它不会虚增
+    const revBefore = (db.prepare('SELECT rev FROM data_rev WHERE id = 1').get() as { rev: number } | undefined)?.rev
+    addCol('course_outlines', 'kind', "TEXT NOT NULL DEFAULT 'course'")
+    addCol('course_outlines', 'builtin_id', 'TEXT')
+    db.exec('CREATE INDEX IF NOT EXISTS idx_course_outlines_kind ON course_outlines(subject, kind)')
+    if (revBefore !== undefined) db.prepare('UPDATE data_rev SET rev = ? WHERE id = 1').run(revBefore)
   }
 ]
 

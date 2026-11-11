@@ -1,0 +1,1968 @@
+{
+  "id": "math-bsd",
+  "subject": "math",
+  "edition": "北师大版",
+  "textbookValue": "北师大版",
+  "checkedAt": "2026-11-11",
+  "sources": [
+    {
+      "title": "国家中小学智慧教育平台·同步课目录树（新教材/旧教材标签）",
+      "url": "https://basic.smartedu.cn/syncClassroom"
+    },
+    {
+      "title": "国家中小学智慧教育平台·电子教材（各册目录页）",
+      "url": "https://basic.smartedu.cn/tchMaterial"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": null,
+          "label": "准备课",
+          "title": "我上学啦",
+          "lessons": [
+            "可爱的校园",
+            "认识新同学",
+            "我们的操场",
+            "好玩的游戏",
+            "收获的季节"
+          ],
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.GEO.POS.DIRECTION"
+          ],
+          "note": "入学准备，按课题名推断"
+        },
+        {
+          "no": 1,
+          "title": "生活中的数",
+          "lessons": [
+            "走进美丽乡村",
+            "玩具",
+            "小猫钓鱼",
+            "文具",
+            "数鸡蛋",
+            "快乐的午餐",
+            "动物乐园"
+          ],
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.COMPARE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "5以内数加与减",
+          "lessons": [
+            "一共有多少",
+            "还剩下多少",
+            "可爱的小猫"
+          ],
+          "kps": [
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "介绍我的教室",
+          "lessons": [
+            "观察教室",
+            "介绍教室",
+            "校园开放日"
+          ],
+          "kps": [
+            "MA.GEO.POS.DIRECTION",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按课题名推断"
+        },
+        {
+          "no": 3,
+          "title": "整理与分类",
+          "lessons": [
+            "整理房间",
+            "一起来分类"
+          ],
+          "kps": [
+            "MA.STAT.DATA.CLASSIFY"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "10以内数加与减",
+          "lessons": [
+            "猜数游戏",
+            "背土豆",
+            "课间",
+            "小鸡吃食",
+            "乘车",
+            "挖红薯",
+            "可爱的企鹅",
+            "做个加法表",
+            "做个减法表"
+          ],
+          "kps": [
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB",
+            "MA.NUM.INT.COUNT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "一起做游戏"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "有趣的立体图形",
+          "lessons": [
+            "认识图形",
+            "我说你做",
+            "怎样搭得高"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.BASIC"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "记录我的一天",
+          "lessons": [
+            "淘气的一天",
+            "记录我的一天",
+            "分享我的一天"
+          ],
+          "kps": [
+            "MA.MEAS.TIME.CLOCK",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按课题名推断，可能涉及认钟表"
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB",
+            "MA.STAT.DATA.CLASSIFY",
+            "MA.GEO.SOLID.BASIC"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "20以内数与加法",
+          "lessons": [
+            "古人计数（一）",
+            "古人计数（二）",
+            "搭积木",
+            "开心农场",
+            "一起做家务",
+            "小兔子安家",
+            "做个加法表"
+          ],
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.PLACE",
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "图形大变身（一）",
+          "lessons": [
+            "做一做",
+            "找一找",
+            "影子剧场"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.BASIC",
+            "MA.GEO.SOLID.BASIC"
+          ],
+          "note": "从立体图形的面认识平面图形，按课题名推断"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "设计教室装饰图",
+          "lessons": [
+            "装饰图中的奥秘",
+            "设计装饰图",
+            "装饰图展示会"
+          ],
+          "kps": [
+            "MA.ALG.PATTERN.SHAPE",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "20以内数与减法",
+          "lessons": [
+            "买文具",
+            "捉迷藏",
+            "凑数游戏",
+            "开会啦",
+            "跳伞表演",
+            "美丽的田园",
+            "做个减法表"
+          ],
+          "kps": [
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "100以内数的认识",
+          "lessons": [
+            "身边的数",
+            "数一数",
+            "数豆子",
+            "谁的红果多",
+            "小小养殖场",
+            "做个百数表"
+          ],
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.COMPARE",
+            "MA.ALG.PATTERN.NUM"
+          ],
+          "note": "含百数表"
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "填数游戏"
+          ],
+          "kps": [
+            "MA.THINK.LOGIC"
+          ],
+          "note": "填数游戏"
+        },
+        {
+          "no": 5,
+          "title": "100以内数加与减（一）",
+          "lessons": [
+            "小兔请客",
+            "采松果",
+            "青蛙吃虫子",
+            "算一算",
+            "有趣的算式",
+            "回收废品"
+          ],
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "有趣的平面图形（一）",
+          "lessons": [
+            "认识图形",
+            "动手做（一）",
+            "动手做（二）",
+            "动手做（三）",
+            "拼图大挑战"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.BASIC"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "画数学连环画",
+          "lessons": [
+            "连环画中的数学故事",
+            "画出我的数学故事",
+            "数学连环画故事会"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.ADD.WITHIN20",
+            "MA.CALC.ADD.WITHIN100",
+            "MA.NUM.INT.COUNT",
+            "MA.GEO.SHAPE.BASIC",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "100以内数加与减（二）",
+          "lessons": [
+            "图书角",
+            "摘苹果",
+            "借阅图书",
+            "收玉米",
+            "跳绳",
+            "套圈游戏"
+          ],
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.PROB.BASIC.ADDSUB",
+            "MA.PROB.BASIC.MULTI"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "猜数游戏",
+          "lessons": [],
+          "kps": [
+            "MA.THINK.LOGIC"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "测量（一）",
+          "lessons": [
+            "教室有多长",
+            "课桌有多长",
+            "1米有多长"
+          ],
+          "kps": [
+            "MA.MEAS.UNIT.LEN",
+            "MA.MEAS.UNIT.FIT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "数一数与乘法",
+          "lessons": [
+            "小小清点员",
+            "儿童乐园",
+            "点子图中的乘法",
+            "动物聚会",
+            "快乐的动物"
+          ],
+          "kps": [
+            "MA.CALC.MUL.TABLE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "乘法口诀（一）",
+          "lessons": [
+            "文物中的乘法口诀",
+            "做家务",
+            "需要几个轮子",
+            "回家路上"
+          ],
+          "kps": [
+            "MA.CALC.MUL.TABLE",
+            "MA.PROB.BASIC.MULDIV"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "画校园路线图",
+          "lessons": [
+            "认识东南西北",
+            "画校园路线图",
+            "路线图展示会"
+          ],
+          "kps": [
+            "MA.GEO.POS.DIRECTION",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "认识东南西北在这里"
+        },
+        {
+          "no": 5,
+          "title": "分一分与除法",
+          "lessons": [
+            "分物游戏",
+            "分水果",
+            "分糖果",
+            "分香蕉",
+            "小熊开店",
+            "花园"
+          ],
+          "kps": [
+            "MA.CALC.DIV.TABLE",
+            "MA.PROB.BASIC.MULDIV"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "图形的运动（一）",
+          "lessons": [
+            "折一折，做一做",
+            "好玩的华容道"
+          ],
+          "kps": [
+            "MA.GEO.POS.SYM",
+            "MA.GEO.POS.MOVE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "乘法口诀（二）",
+          "lessons": [
+            "有多少张贴画",
+            "《西游记》中的乘法口诀",
+            "有多少无人机",
+            "做个乘法表"
+          ],
+          "kps": [
+            "MA.CALC.MUL.TABLE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "乘除法的应用（一）",
+          "lessons": [
+            "长颈鹿与小鸟",
+            "农家小院"
+          ],
+          "kps": [
+            "MA.PROB.BASIC.MULDIV",
+            "MA.CALC.DIV.TABLE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "参加欢乐购物活动",
+          "lessons": [
+            "筹备购物活动",
+            "模拟购物活动",
+            "开展购物活动",
+            "分享购物经验"
+          ],
+          "kps": [
+            "MA.MEAS.MONEY",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "认识人民币在这里"
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.CALC.MUL.TABLE",
+            "MA.CALC.DIV.TABLE",
+            "MA.MEAS.UNIT.LEN",
+            "MA.PROB.BASIC.MULDIV"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "100以内数加与减（三）",
+          "lessons": [
+            "谁的得分高",
+            "去军营",
+            "星星合唱队"
+          ],
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.PROB.BASIC.ADDSUB",
+            "MA.PROB.BASIC.MULTI"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "图形大变身（二）",
+          "lessons": [
+            "校园一角",
+            "小蜗牛慢慢爬",
+            "蜗牛的家"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.BASIC",
+            "MA.GEO.SHAPE.BASIC"
+          ],
+          "note": "用纸折、卷出立体图形，长方体盒子的展开（已看电子教材第10–15页核实）"
+        },
+        {
+          "no": 3,
+          "title": "除法的应用",
+          "lessons": [
+            "搭一搭（一）",
+            "搭一搭（二）",
+            "分松果",
+            "租船"
+          ],
+          "kps": [
+            "MA.CALC.DIV.REMAINDER",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "有余数的除法在这里（已看电子教材第16–17页核实）"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "参加趣味运动会",
+          "lessons": [
+            "欢迎参加趣味运动会",
+            "时间有多长",
+            "记录我的比赛过程",
+            "晒晒我的比赛记录单"
+          ],
+          "kps": [
+            "MA.MEAS.TIME.CLOCK",
+            "MA.MEAS.TIME.UNIT",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按课题名推断：时间有多长"
+        },
+        {
+          "no": 4,
+          "title": "生活中的大数",
+          "lessons": [
+            "福建土楼",
+            "数一数（一）",
+            "数一数（二）",
+            "数说西藏",
+            "哪座山更高",
+            "有多少个字",
+            "有多厚"
+          ],
+          "kps": [
+            "MA.NUM.INT.THOUSAND",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.COMPARE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "有趣的平面图形（二）",
+          "lessons": [
+            "图形王国",
+            "动手做（一）",
+            "动手做（二）",
+            "百变七巧板"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.BASIC",
+            "MA.GEO.SHAPE.ANGLE"
+          ],
+          "note": "按课题名推断，是否含认识角待核实"
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "有趣的推理"
+          ],
+          "kps": [
+            "MA.THINK.LOGIC"
+          ],
+          "note": "有趣的推理"
+        },
+        {
+          "no": 6,
+          "title": "大数加与减（一）",
+          "lessons": [
+            "鱼菜共生",
+            "保护野生鸟类",
+            "保护野生哺乳动物",
+            "美丽滇池",
+            "算得对吗",
+            "有多远"
+          ],
+          "kps": [
+            "MA.CALC.ADD.MULTI",
+            "MA.CALC.ESTIMATE",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "分类",
+          "lessons": [
+            "怎样分组",
+            "水上乐园",
+            "分扣子"
+          ],
+          "kps": [
+            "MA.STAT.DATA.CLASSIFY",
+            "MA.STAT.DATA.TABLE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "发现身体上的尺子",
+          "lessons": [
+            "时刻携带的尺子",
+            "用身体上的尺子测量",
+            "测量结果交流会"
+          ],
+          "kps": [
+            "MA.MEAS.UNIT.LEN",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.CALC.DIV.REMAINDER",
+            "MA.NUM.INT.THOUSAND",
+            "MA.CALC.ADD.MULTI",
+            "MA.STAT.DATA.CLASSIFY"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "混合运算",
+          "lessons": [
+            "小熊购物",
+            "买文具",
+            "过河"
+          ],
+          "kps": [
+            "MA.CALC.MIX.ORDER",
+            "MA.PROB.BASIC.MULTI"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "测量（二）",
+          "lessons": [
+            "铅笔有多长",
+            "1千米有多长",
+            "旗杆有多高"
+          ],
+          "kps": [
+            "MA.MEAS.UNIT.LEN",
+            "MA.MEAS.UNIT.FIT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "记录我们的校园",
+          "lessons": [
+            "美丽的校园",
+            "校园里的八个方向",
+            "有趣的“几点钟方向”",
+            "介绍美丽的校园"
+          ],
+          "kps": [
+            "MA.GEO.POS.DIRECTION",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "八个方向在这里"
+        },
+        {
+          "no": 3,
+          "title": "大数加与减（二）",
+          "lessons": [
+            "捐书",
+            "小小养殖场",
+            "节余多少钱",
+            "身高的增长",
+            "里程表"
+          ],
+          "kps": [
+            "MA.CALC.ADD.MULTI",
+            "MA.CALC.ESTIMATE",
+            "MA.PROB.BASIC.ADDSUB"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "我们生活的空间（一）",
+          "lessons": [
+            "看一看（一）",
+            "看一看（二）",
+            "看一看（三）",
+            "看一看（四）"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.VIEW"
+          ],
+          "note": "按课题名「看一看」推断为观察物体"
+        },
+        {
+          "no": 5,
+          "title": "认识图形",
+          "lessons": [
+            "认识角",
+            "比一比",
+            "认识直角",
+            "长方形与正方形",
+            "欣赏与设计"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.ANGLE",
+            "MA.GEO.SHAPE.QUAD"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "搭配中的学问",
+          "lessons": [],
+          "kps": [
+            "MA.THINK.COMBO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "乘除法的应用（二）",
+          "lessons": [
+            "包饺子",
+            "需要多少钱",
+            "丰收了",
+            "植树"
+          ],
+          "kps": [
+            "MA.CALC.MUL.ONE_DIGIT",
+            "MA.CALC.DIV.ONE_DIGIT",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "按课题名推断：整十整百数乘除一位数及应用"
+        },
+        {
+          "no": 7,
+          "title": "认识小数",
+          "lessons": [
+            "水果店",
+            "量身高",
+            "货比三家",
+            "存零用钱",
+            "竹子的生长",
+            "生活中的小数"
+          ],
+          "kps": [
+            "MA.NUM.DEC.MEANING",
+            "MA.NUM.DEC.COMPARE",
+            "MA.CALC.DEC.ADDSUB",
+            "MA.MEAS.MONEY"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "调查与记录",
+          "lessons": [
+            "评选吉祥物",
+            "购买水果"
+          ],
+          "kps": [
+            "MA.STAT.DATA.TABLE",
+            "MA.STAT.DATA.CLASSIFY"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "探索年月日的秘密",
+          "lessons": [
+            "走进年月日",
+            "年月日知多少",
+            "一天有多长",
+            "畅谈年月日"
+          ],
+          "kps": [
+            "MA.MEAS.TIME.CALENDAR",
+            "MA.MEAS.TIME.UNIT",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.MIX.ORDER",
+            "MA.CALC.ADD.MULTI",
+            "MA.MEAS.UNIT.LEN",
+            "MA.GEO.SHAPE.ANGLE",
+            "MA.NUM.DEC.MEANING"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "note": "新版三下没有「面积」单元，新版四上也没有。面积放到哪一册还没核实，可能在新版四下",
+      "units": [
+        {
+          "no": 1,
+          "title": "整数乘法（一）",
+          "lessons": [
+            "武术表演",
+            "去游乐园",
+            "神奇的0",
+            "去奶奶家",
+            "饮品店",
+            "有多少名观众",
+            "怎样买最省钱"
+          ],
+          "kps": [
+            "MA.CALC.MUL.MULTI_DIGIT",
+            "MA.CALC.MUL.ONE_DIGIT",
+            "MA.CALC.ESTIMATE",
+            "MA.PROB.MODEL.PRICE"
+          ],
+          "note": "含「怎样买最省钱」"
+        },
+        {
+          "no": 2,
+          "title": "图形的运动（二）",
+          "lessons": [
+            "轴对称（一）",
+            "轴对称（二）",
+            "平移和旋转",
+            "能移回去吗",
+            "小小设计师"
+          ],
+          "kps": [
+            "MA.GEO.POS.SYM",
+            "MA.GEO.POS.MOVE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "周长",
+          "lessons": [
+            "什么是周长",
+            "长方形周长",
+            "相等的周长"
+          ],
+          "kps": [
+            "MA.GEO.PERI.RECT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "制作动物体重“说明书”",
+          "lessons": [
+            "动物有多重",
+            "动物体重我说明",
+            "动物体重我推算",
+            "我也来称象",
+            "动物体重介绍会"
+          ],
+          "kps": [
+            "MA.MEAS.UNIT.MASS",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "整数除法（一）",
+          "lessons": [
+            "分松果",
+            "家庭阅读",
+            "猴子的烦恼",
+            "集邮",
+            "算得对吗",
+            "买新书",
+            "讲故事"
+          ],
+          "kps": [
+            "MA.CALC.DIV.ONE_DIGIT",
+            "MA.PROB.BASIC.MULTI"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "动手做",
+          "lessons": [
+            "拆盒子",
+            "叠盒子"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.BASIC",
+            "MA.GEO.SOLID.CUBOID"
+          ],
+          "note": "拆盒子、叠盒子，按课题名推断为长方体的展开与折叠"
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "图书排序"
+          ],
+          "kps": [
+            "MA.THINK.LOGIC"
+          ],
+          "note": "图书排序，按课题名推断"
+        },
+        {
+          "no": 6,
+          "title": "关系与规律",
+          "lessons": [
+            "不计算城堡",
+            "相等城堡",
+            "欢庆节日"
+          ],
+          "kps": [
+            "MA.ALG.PATTERN.NUM",
+            "MA.CALC.MIX.LAW"
+          ],
+          "note": "「不计算城堡」「相等城堡」，按课题名推断为不计算判断大小、等式与运算规律，待核实"
+        },
+        {
+          "no": 7,
+          "title": "数据的整理与表示",
+          "lessons": [
+            "小小鞋店",
+            "小小护旗手",
+            "抓得住吗"
+          ],
+          "kps": [
+            "MA.STAT.DATA.TABLE",
+            "MA.STAT.DATA.CLASSIFY"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "制订我的家庭旅行计划",
+          "lessons": [
+            "策划家庭旅行",
+            "收集旅行信息",
+            "制订家庭旅行计划",
+            "分享家庭旅行计划"
+          ],
+          "kps": [
+            "MA.MEAS.TIME.UNIT",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.MUL.MULTI_DIGIT",
+            "MA.CALC.DIV.ONE_DIGIT",
+            "MA.GEO.PERI.RECT",
+            "MA.GEO.POS.SYM",
+            "MA.STAT.DATA.TABLE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "认识更大的数",
+          "lessons": [
+            "数说祖国",
+            "十万有多大",
+            "认识更大的数",
+            "人口普查",
+            "大豆产量",
+            "国庆庆典",
+            "从结绳计数说起"
+          ],
+          "kps": [
+            "MA.NUM.INT.LARGE",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.COMPARE",
+            "MA.NUM.INT.APPROX"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "编码",
+          "lessons": [
+            "生活中的编码",
+            "编码的奥秘",
+            "设计编码方案",
+            "选手编码交流会"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "线与角",
+          "lessons": [
+            "线的认识",
+            "相交与垂直",
+            "平移与平行",
+            "旋转与角",
+            "角的度量"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.LINE",
+            "MA.GEO.SHAPE.PARALLEL",
+            "MA.GEO.SHAPE.ANGLE",
+            "MA.GEO.SHAPE.ANGLE_MEASURE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "整数乘法（二）",
+          "lessons": [
+            "找规律",
+            "队列表演",
+            "卫星运行时间",
+            "神奇的计算工具",
+            "有趣的算式",
+            "电影院"
+          ],
+          "kps": [
+            "MA.CALC.MUL.MULTI_DIGIT",
+            "MA.CALC.ESTIMATE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "我们生活的空间（二）",
+          "lessons": [
+            "观察的范围",
+            "天安门广场"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.VIEW"
+          ],
+          "note": "按课题名推断为观察范围"
+        },
+        {
+          "no": 5,
+          "title": "运算律",
+          "lessons": [
+            "生态养殖",
+            "加法交换律和乘法交换律",
+            "加法结合律",
+            "乘法结合律",
+            "乘法分配律"
+          ],
+          "kps": [
+            "MA.CALC.MIX.LAW",
+            "MA.CALC.MIX.SIMPLE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数图形的学问",
+          "lessons": [],
+          "kps": [
+            "MA.THINK.COMBO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "图形的奥秘",
+          "lessons": [
+            "切开立体图形",
+            "搭建立体大楼",
+            "翻滚正方体"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.BASIC",
+            "MA.GEO.SOLID.CUBOID"
+          ],
+          "note": "切开立体图形、翻滚正方体，按课题名推断"
+        },
+        {
+          "no": 7,
+          "title": "运用数量关系解决问题",
+          "lessons": [
+            "总量与分量",
+            "单价、数量与总价",
+            "速度、时间与路程",
+            "相遇问题"
+          ],
+          "kps": [
+            "MA.ALG.REL",
+            "MA.PROB.MODEL.PRICE",
+            "MA.PROB.MODEL.TRAVEL"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "数据的表示和分析（一）",
+          "lessons": [
+            "同学的生日",
+            "获奖时的年龄"
+          ],
+          "kps": [
+            "MA.STAT.CHART.BAR",
+            "MA.STAT.DATA.TABLE"
+          ],
+          "note": "按课题名推断为条形统计图"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "导航给的时间准吗",
+          "lessons": [
+            "出行导航",
+            "模拟实验",
+            "实地研究",
+            "研究分享会"
+          ],
+          "kps": [
+            "MA.PROB.MODEL.TRAVEL",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.NUM.INT.LARGE",
+            "MA.CALC.MUL.MULTI_DIGIT",
+            "MA.CALC.MIX.LAW",
+            "MA.GEO.SHAPE.ANGLE_MEASURE",
+            "MA.ALG.REL",
+            "MA.STAT.CHART.BAR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2013",
+      "note": "2026–2027 学年下学期（2027 年春）按全国三年换完的节奏应启用新版下册，但截至 2026-11-11 国家中小学智慧教育平台上的这一册仍是旧版（2012 年审定、2013–2014 年起使用的版本），新版目录还没公开。这里先放旧版目录，新版公布后要替换",
+      "units": [
+        {
+          "no": 1,
+          "title": "小数的意义和加减法",
+          "lessons": [
+            "小数的意义（一）",
+            "小数的意义（二）",
+            "小数的意义（三）",
+            "比大小",
+            "买菜",
+            "比身高",
+            "歌手大赛"
+          ],
+          "kps": [
+            "MA.NUM.DEC.MEANING",
+            "MA.NUM.DEC.PROP",
+            "MA.NUM.DEC.COMPARE",
+            "MA.CALC.DEC.ADDSUB"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "认识三角形和四边形",
+          "lessons": [
+            "图形分类",
+            "三角形分类",
+            "探索与发现：三角形内角和",
+            "探索与发现：三角形边的关系",
+            "四边形分类"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.TRIANGLE",
+            "MA.GEO.SHAPE.QUAD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "小数乘法",
+          "lessons": [
+            "买文具",
+            "小数点搬家",
+            "街心广场",
+            "包装",
+            "蚕丝",
+            "手拉手"
+          ],
+          "kps": [
+            "MA.CALC.DEC.MUL",
+            "MA.NUM.DEC.SHIFT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "整理与复习",
+          "lessons": [],
+          "kps": [
+            "MA.NUM.DEC.MEANING",
+            "MA.CALC.DEC.ADDSUB",
+            "MA.CALC.DEC.MUL",
+            "MA.GEO.SHAPE.TRIANGLE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "观察物体",
+          "lessons": [
+            "看一看",
+            "我说你搭",
+            "搭一搭"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.VIEW"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "认识方程",
+          "lessons": [
+            "字母表示数",
+            "等量关系",
+            "方程",
+            "解方程（一）",
+            "解方程（二）",
+            "猜数游戏"
+          ],
+          "kps": [
+            "MA.ALG.LETTER.EXPR",
+            "MA.ALG.EQ.SOLVE",
+            "MA.ALG.EQ.APPLY"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "密铺",
+            "奥运中的数学",
+            "优化"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE",
+            "MA.THINK.OPTIMIZE"
+          ],
+          "note": "密铺、奥运中的数学、优化"
+        },
+        {
+          "no": 6,
+          "title": "数据的表示和分析",
+          "lessons": [
+            "生日",
+            "栽蒜苗（一）",
+            "栽蒜苗（二）",
+            "平均数"
+          ],
+          "kps": [
+            "MA.STAT.CHART.LINE",
+            "MA.STAT.CHART.BAR",
+            "MA.STAT.AVG"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.DEC.ADDSUB",
+            "MA.CALC.DEC.MUL",
+            "MA.GEO.SHAPE.TRIANGLE",
+            "MA.ALG.EQ.SOLVE",
+            "MA.STAT.AVG"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "小数的再认识和加减法",
+          "lessons": [
+            "小数的再认识",
+            "一起去买书",
+            "比大小",
+            "买菜",
+            "称体重",
+            "歌手大赛"
+          ],
+          "kps": [
+            "MA.NUM.DEC.MEANING",
+            "MA.NUM.DEC.PROP",
+            "MA.NUM.DEC.COMPARE",
+            "MA.CALC.DEC.ADDSUB"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "三角形的再认识",
+          "lessons": [
+            "探索三角形内角和",
+            "了解尺规作图",
+            "探索三角形三边关系",
+            "探索内角和的奥秘"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.TRIANGLE",
+            "MA.GEO.SHAPE.LINE"
+          ],
+          "note": "含尺规作图"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "小小设计师",
+          "lessons": [
+            "欣赏密铺作品",
+            "寻找密铺图形",
+            "设计密铺作品",
+            "小小设计师分享会"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "密铺"
+        },
+        {
+          "no": 3,
+          "title": "小数乘法",
+          "lessons": [
+            "买文具",
+            "街心广场",
+            "包装",
+            "蚕丝",
+            "手拉手",
+            "购物"
+          ],
+          "kps": [
+            "MA.CALC.DEC.MUL",
+            "MA.NUM.DEC.SHIFT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "用字母表示（一）",
+          "lessons": [
+            "青蛙歌",
+            "回声测距离",
+            "用字母表示数量关系",
+            "用字母表示规律",
+            "等式中的规律"
+          ],
+          "kps": [
+            "MA.ALG.LETTER.EXPR",
+            "MA.ALG.LETTER.EVAL",
+            "MA.ALG.PATTERN.NUM"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "多边形的面积",
+          "lessons": [
+            "比较图形的面积",
+            "认识底和高",
+            "探索平行四边形面积",
+            "探索三角形面积",
+            "探索梯形面积",
+            "组合图形的面积",
+            "公顷、平方千米",
+            "成长的脚印"
+          ],
+          "kps": [
+            "MA.GEO.AREA.POLYGON",
+            "MA.GEO.AREA.COMPOSITE",
+            "MA.MEAS.UNIT.AREA"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "鸡兔同笼",
+          "lessons": [],
+          "kps": [
+            "MA.THINK.CHICKEN"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "图形的位置与运动（一）",
+          "lessons": [
+            "确定位置",
+            "摆图案",
+            "国庆阅兵",
+            "可爱的小猫"
+          ],
+          "kps": [
+            "MA.GEO.POS.GRID",
+            "MA.GEO.POS.MOVE",
+            "MA.GEO.POS.SYM"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "倍数与因数",
+          "lessons": [
+            "倍数与因数",
+            "探索2,5的倍数特征",
+            "探索3的倍数特征",
+            "最大公因数和最小公倍数",
+            "质数与合数",
+            "寻找质数"
+          ],
+          "kps": [
+            "MA.NUM.FACTOR.MULT",
+            "MA.NUM.FACTOR.RULE",
+            "MA.NUM.FACTOR.PRIME",
+            "MA.NUM.FACTOR.GCD_LCM"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "可能性",
+          "lessons": [
+            "不确定性",
+            "谁先走",
+            "摸球游戏"
+          ],
+          "kps": [
+            "MA.STAT.CHANCE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "多少落叶能铺满",
+          "lessons": [
+            "校园的落叶",
+            "测量地面的面积",
+            "估测落叶面积",
+            "研究报告分享会"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE",
+            "MA.GEO.AREA.COMPOSITE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.DEC.ADDSUB",
+            "MA.CALC.DEC.MUL",
+            "MA.ALG.LETTER.EXPR",
+            "MA.GEO.AREA.POLYGON",
+            "MA.NUM.FACTOR.GCD_LCM",
+            "MA.STAT.CHANCE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2013",
+      "note": "2026–2027 学年下学期（2027 年春）按全国三年换完的节奏应启用新版下册，但截至 2026-11-11 国家中小学智慧教育平台上的这一册仍是旧版（2012 年审定、2013–2014 年起使用的版本），新版目录还没公开。这里先放旧版目录，新版公布后要替换",
+      "units": [
+        {
+          "no": 1,
+          "title": "分数加减法",
+          "lessons": [
+            "折纸",
+            "星期日的安排",
+            "“分数王国”与“小数王国”"
+          ],
+          "kps": [
+            "MA.CALC.FRAC.ADDSUB"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "长方体（一）",
+          "lessons": [
+            "长方体的认识",
+            "展开与折叠",
+            "长方体的表面积",
+            "露在外面的面"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.CUBOID"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "分数乘法",
+          "lessons": [
+            "分数乘法（一）",
+            "分数乘法（二）",
+            "分数乘法（三）",
+            "倒数"
+          ],
+          "kps": [
+            "MA.CALC.FRAC.MUL",
+            "MA.PROB.FRAC.PART"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "长方体（二）",
+          "lessons": [
+            "体积与容积",
+            "体积单位",
+            "长方体的体积",
+            "体积单位的换算",
+            "有趣的测量"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.CUBOID",
+            "MA.MEAS.UNIT.VOL"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "整理与复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.FRAC.ADDSUB",
+            "MA.CALC.FRAC.MUL",
+            "MA.GEO.SOLID.CUBOID"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "分数除法",
+          "lessons": [
+            "分数除法（一）",
+            "分数除法（二）",
+            "分数除法（三）"
+          ],
+          "kps": [
+            "MA.CALC.FRAC.DIV",
+            "MA.ALG.EQ.APPLY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "确定位置",
+          "lessons": [
+            "确定位置（一）",
+            "确定位置（二）"
+          ],
+          "kps": [
+            "MA.GEO.POS.DIRECTION"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "用方程解决问题",
+          "lessons": [
+            "邮票的张数",
+            "相遇问题"
+          ],
+          "kps": [
+            "MA.ALG.EQ.APPLY",
+            "MA.PROB.MODEL.TRAVEL"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "“象征性“长跑",
+            "有趣的折叠",
+            "包装的学问"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "数据的表示和分析",
+          "lessons": [
+            "复式条形统计图",
+            "复式折线统计图",
+            "平均数的再认识"
+          ],
+          "kps": [
+            "MA.STAT.CHART.BAR",
+            "MA.STAT.CHART.LINE",
+            "MA.STAT.AVG"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.FRAC.ADDSUB",
+            "MA.CALC.FRAC.MUL",
+            "MA.CALC.FRAC.DIV",
+            "MA.GEO.SOLID.CUBOID",
+            "MA.ALG.EQ.APPLY"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "note": "「分数除法」「分数的应用」两个单元同步课没有列出课题。分数除法按电子教材第2–4页补了前两个课题，后面的课题没核到",
+      "units": [
+        {
+          "no": 1,
+          "title": "分数除法",
+          "lessons": [
+            "分数除法（一）",
+            "分数除法（二）"
+          ],
+          "kps": [
+            "MA.CALC.FRAC.DIV",
+            "MA.PROB.FRAC.PART"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "圆",
+          "lessons": [
+            "车轮为什么是圆的",
+            "圆的认识",
+            "修复铜镜",
+            "欣赏与设计",
+            "圆的周长",
+            "圆周率的历史",
+            "圆的面积"
+          ],
+          "kps": [
+            "MA.GEO.SHAPE.CIRCLE",
+            "MA.GEO.PERI.CIRCLE",
+            "MA.GEO.AREA.CIRCLE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "用字母表示（二）",
+          "lessons": [
+            "用字母表示数量关系",
+            "探索规律",
+            "日历中的数量关系",
+            "花坛的周长"
+          ],
+          "kps": [
+            "MA.ALG.LETTER.EXPR",
+            "MA.ALG.PATTERN.NUM"
+          ]
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "制订节水方案",
+          "lessons": [
+            "水是生命之源",
+            "调查用水情况",
+            "滴水试验",
+            "制订节水方案",
+            "节水方案分享会"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "分数的应用",
+          "lessons": [],
+          "kps": [
+            "MA.PROB.FRAC.PART"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "比的认识",
+          "lessons": [
+            "生活中的比",
+            "比的化简",
+            "比例的认识"
+          ],
+          "kps": [
+            "MA.ALG.RATIO.RATIO",
+            "MA.ALG.RATIO.PROP"
+          ],
+          "note": "含比例的认识"
+        },
+        {
+          "no": 6,
+          "title": "确定位置",
+          "lessons": [
+            "象群北迁"
+          ],
+          "kps": [
+            "MA.GEO.POS.DIRECTION"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "五子棋",
+          "lessons": [],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "百分数的认识与应用（一）",
+          "lessons": [
+            "百分数的认识",
+            "合格率",
+            "餐桌上的百分数",
+            "储蓄中的百分数"
+          ],
+          "kps": [
+            "MA.NUM.PCT.MEANING",
+            "MA.NUM.PCT.CONVERT",
+            "MA.PROB.FRAC.PCT"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "观察物体（二）",
+          "lessons": [
+            "有趣的投影",
+            "搭积木"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.VIEW"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "数据的表示和分析（三）",
+          "lessons": [
+            "建设适老社会",
+            "身高的情况",
+            "身高的变化"
+          ],
+          "kps": [
+            "MA.STAT.CHART"
+          ],
+          "note": "用的是哪种统计图没核实，只标二级"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "制订营养食谱",
+          "lessons": [
+            "一日三餐",
+            "调查营养要求",
+            "分析一日三餐食谱",
+            "优化设计新食谱",
+            "一日食谱交流会"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE",
+            "MA.PROB.FRAC.PCT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [],
+          "kps": [
+            "MA.CALC.FRAC.DIV",
+            "MA.GEO.AREA.CIRCLE",
+            "MA.ALG.RATIO.RATIO",
+            "MA.PROB.FRAC.PCT",
+            "MA.GEO.SOLID.VIEW"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2013",
+      "note": "2026–2027 学年下学期（2027 年春）按全国三年换完的节奏应启用新版下册，但截至 2026-11-11 国家中小学智慧教育平台上的这一册仍是旧版（2012 年审定、2013–2014 年起使用的版本），新版目录还没公开。这里先放旧版目录，新版公布后要替换",
+      "units": [
+        {
+          "no": 1,
+          "title": "圆柱与圆锥",
+          "lessons": [
+            "面的旋转",
+            "圆柱的表面积",
+            "圆柱的体积",
+            "圆锥的体积"
+          ],
+          "kps": [
+            "MA.GEO.SOLID.CYLINDER",
+            "MA.GEO.SOLID.CONE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "比例",
+          "lessons": [
+            "比例的认识",
+            "比例的应用",
+            "比例尺",
+            "图形的放大和缩小"
+          ],
+          "kps": [
+            "MA.ALG.RATIO.PROP",
+            "MA.ALG.RATIO.SCALE",
+            "MA.GEO.POS.SCALE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "图形的运动",
+          "lessons": [
+            "图形的旋转（一）",
+            "图形的旋转（二）",
+            "卷纸有多长（一二）",
+            "图形的运动",
+            "欣赏与设计"
+          ],
+          "kps": [
+            "MA.GEO.POS.MOVE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "正比例与反比例",
+          "lessons": [
+            "变化的量",
+            "正比例",
+            "画一画",
+            "反比例",
+            "正比例和反比例"
+          ],
+          "kps": [
+            "MA.ALG.RATIO.DIRECT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "数学好玩",
+          "title": "数学好玩",
+          "lessons": [
+            "绘制校园平面图",
+            "神奇的莫比乌斯带",
+            "可爱的小猫"
+          ],
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "整理与复习",
+          "lessons": [],
+          "kps": [
+            "MA.GEO.SOLID.CYLINDER",
+            "MA.ALG.RATIO.PROP",
+            "MA.ALG.RATIO.DIRECT"
+          ]
+        },
+        {
+          "no": null,
+          "label": "复习",
+          "title": "总复习",
+          "lessons": [
+            "数的认识",
+            "数的运算",
+            "式与方程",
+            "正比例与反比例",
+            "常见的量",
+            "探索规律",
+            "图形的认识",
+            "图形与测量",
+            "图形的运动",
+            "图形与位置",
+            "统计",
+            "可能性",
+            "解决问题的策略"
+          ],
+          "kps": [
+            "MA.CALC.MIX",
+            "MA.ALG.EQ",
+            "MA.ALG.RATIO",
+            "MA.GEO.SOLID",
+            "MA.STAT.CHART",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "小学总复习，覆盖面太广，只标二级"
+        }
+      ]
+    }
+  ]
+}

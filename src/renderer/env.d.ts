@@ -193,6 +193,12 @@ interface ElectronAPI {
     mapEdit(edit: CourseMapEdit): Promise<boolean>
     dashboard(scope: CourseScope): Promise<CourseDashboard>
     exportGaps(scope: CourseScope): Promise<{ saved: boolean; path?: string; rows?: number }>
+    catalog(subject?: import('../shared/subject').SubjectId): Promise<CourseCatalogEdition[]>
+    addBuiltin(req: { editionId: string; books: string[] }): Promise<{ id: string; lessons: number; maps: number }>
+    refreshBuiltin(id: string): Promise<{ lessons: number; maps: number }>
+    compare(scope: CourseCompareScope): Promise<CourseCompareResult>
+    compareCopy(scope: CourseCompareScope): Promise<{ text: string; chars: number }>
+    compareExport(scope: CourseCompareScope): Promise<{ saved: boolean; path?: string; rows?: number }>
     adviceState(scope: CourseScope): Promise<CourseAdviceState>
     adviceGenerate(scope: CourseScope, requestId: string): Promise<AnalysisResult>
     /** 「我已核对」：acknowledged = 逐句确认无误的“未核实”句子；矛盾句必须重新生成 */
@@ -725,6 +731,9 @@ type DistNode = import('../main/stats/core').DistNode
 type MatrixResult = import('../main/stats/core').MatrixResult
 type HotResult = import('../main/stats/core').HotResult
 type CourseOutlineCard = import('../main/course/store').OutlineCard
+type CourseCatalogEdition = import('../main/course/textbook').CatalogInfo
+type CourseCompareResult = import('../main/course/compare').CompareResult
+interface CourseCompareScope { filter: StatsFilter; courseId: string; textbookIds: string[] }
 type CourseOutlineDetail = import('../main/course/store').OutlineDetail
 type CourseLessonRow = import('../main/course/store').LessonRow
 type CourseMapEdit = import('../main/course/store').MapEdit
@@ -755,6 +764,8 @@ interface CourseSaveRequest {
   warnings?: Array<{ kind: string; sheet: string; row: number; text: string }>
   mappings?: Record<string, CourseSheetMapping | null>
   aiModel?: string
+  /** 机构课程（缺省）/ 学校教材 */
+  kind?: 'course' | 'textbook'
 }
 type HotRow = import('../main/stats/core').HotRow
 type CompareResult = import('../main/stats/core').CompareResult

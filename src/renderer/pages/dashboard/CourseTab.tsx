@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { App, Drawer, Spin } from 'antd'
+import { App, Drawer, Segmented, Spin } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { keepSameSubject } from '../../subject/placeholder'
 import { useNavigate } from 'react-router-dom'
@@ -11,6 +11,7 @@ import CourseAdvice from '../../stats/CourseAdvice'
 import { useStatsFilter } from '../../stats/StatsFilter'
 import MatchBox, { clean } from '../../components/CourseMatch'
 import LessonPicker from '../course/LessonPicker'
+import CompareTextbook from './CompareTextbook'
 import { CONF_LABEL, lessonFull, lessonText, wordsOf } from '../course/format'
 import { Btn, EmptyState, HeatCell, UsageNote } from '../../design'
 import '../../design/page-analysis.css'
@@ -24,6 +25,17 @@ const pct = (x: number | null) => (x === null ? '—' : `${Math.round(x * 100)}%
  * “易错”指的是卷子上常见的易错点：软件里没有学生成绩，所以界面里说“容易出错”，不说“丢分”。
  */
 export default function CourseTab() {
+  const [view, setView] = useState<'main' | 'compare'>('main')
+  return (
+    <div data-testid="course-tab-root">
+      <Segmented value={view} onChange={v => setView(v as 'main' | 'compare')} style={{ marginBottom: 12 }} data-testid="course-view-switch"
+        options={[{ value: 'main', label: <span data-testid="course-view-main">课程对照</span> }, { value: 'compare', label: <span data-testid="course-view-compare">机构课程 vs 学校教材</span> }]} />
+      {view === 'main' ? <CourseMain /> : <CompareTextbook />}
+    </div>
+  )
+}
+
+function CourseMain() {
   const { filter } = useStatsFilter()
   const { message, modal } = App.useApp()
   const nav = useNavigate()

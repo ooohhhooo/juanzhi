@@ -1,0 +1,1149 @@
+{
+  "id": "english-yilin",
+  "subject": "english",
+  "edition": "译林版",
+  "textbookValue": "译林版",
+  "checkedAt": "2026-11-11",
+  "sources": [
+    {
+      "title": "电子课本网 · 译林版英语 各册目录（3a_2024 / 3b_2025 / 4a_2025 / 4b_2026 / 5a_2026 / 6a_2026 / 5b / 6b）",
+      "url": "http://www.dzkbw.com/books/yilin/yingyu/"
+    },
+    {
+      "title": "教习网 · 译林版（三起）（2024）各册目录（三上 3002330、三下 3002352、四上 3002353、四下 3003641、五上 3002354、六上 3002356）",
+      "url": "https://www.51jiaoxi.com/versions/163377/"
+    },
+    {
+      "title": "英语朗读宝 · 牛津译林版（新）三年级下册 Module 1 School life",
+      "url": "https://yyld.51jiaoxi.com/sanxia/njylb_danyuan01.html"
+    },
+    {
+      "title": "搜狐 · 2026 新译林版五年级上册英语教材解析",
+      "url": "https://www.sohu.com/a/1028247252_122831442"
+    },
+    {
+      "title": "搜狐 · 2026 译林版小学英语六年级上册电子课本",
+      "url": "https://www.sohu.com/a/1086429565_120904083"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Hello!",
+          "lessons": [
+            "Module 1 Getting to know each other",
+            "Big question: How do you greet people?",
+            "句型：Hello! / Hi, I'm … / Good morning.",
+            "字母 Aa–Dd"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.PERSONAL",
+            "PH.LETTER"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What's your name?",
+          "lessons": [
+            "Big question: How do you get to know someone's name?",
+            "句型：What's your name? My name is …",
+            "字母 Ee–Gg"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.POSS.ADJ",
+            "PH.LETTER"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Are you Su Hai?",
+          "lessons": [
+            "Big question: How do you get to know more about new friends?",
+            "句型：Are you …? Yes, I am. / No, I'm not."
+          ],
+          "kps": [
+            "GR.SENT.YESNO.BE",
+            "GR.VERB.BE",
+            "GR.SENT.NEG",
+            "PH.LETTER"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 This is my friend",
+          "lessons": [
+            "Big question: How do you introduce your friends?",
+            "句型：This is my friend …"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.DEMO",
+            "PH.LETTER"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 5,
+          "title": "Project 1 Making friends",
+          "lessons": [
+            "项目：交朋友，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.DIALOG"
+          ],
+          "note": "项目课"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 She's my mother",
+          "lessons": [
+            "Module 2 My family and me",
+            "Big question: What makes a family?",
+            "句型：He's/She's my …"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.PERSONAL",
+            "GR.PRON.POSS.ADJ",
+            "PH.LETTER"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Is he your grandpa?",
+          "lessons": [
+            "Big question: What do you think of a big family?",
+            "句型：Is he/she your …? Yes, he is. / No, she isn't."
+          ],
+          "kps": [
+            "GR.SENT.YESNO.BE",
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.POSS.ADJ"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Happy Birthday!",
+          "lessons": [
+            "Big question: What do you get from your birthdays?",
+            "句型：Happy birthday! / This is for you. Thank you."
+          ],
+          "kps": [
+            "FN.POLITE",
+            "GR.NUM.CARD",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 I can do this for you",
+          "lessons": [
+            "Big question: What can you do for your family?",
+            "句型：I can … for you."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.PHRASE.VERB",
+            "VO.TOPIC.FAMILY"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 10,
+          "title": "Project 2 My family poster",
+          "lessons": [
+            "项目：家庭海报，综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "WR.PICTURE"
+          ],
+          "note": "项目课"
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 School things",
+          "lessons": [
+            "Module 1 School life",
+            "话题：文具",
+            "句型（概括）：What's this? It's a … / Is this your …?"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.DEMO",
+            "GR.NOUN.ARTICLE.A_AN",
+            "GR.PRON.POSS.ADJ"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Clean our classroom",
+          "lessons": [
+            "话题：打扫教室（clean the blackboard, sweep the floor）",
+            "句型（概括）：Let's … / I can …"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.VERB.IMPER",
+            "FN.SUGGEST",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 School rules",
+          "lessons": [
+            "话题：校规",
+            "句型（概括）：Don't run. / Be quiet."
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Have fun after class",
+          "lessons": [
+            "话题：课后活动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN",
+            "FN.SUGGEST"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 5,
+          "title": "Project 1 A good student",
+          "lessons": [
+            "项目：做个好学生，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "FN.DIALOG"
+          ],
+          "note": "项目课；标题据英语朗读宝目录"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Fruit",
+          "lessons": [
+            "话题：水果",
+            "句型（概括）：Do you like …? / I like …s."
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.NOUN.PLURAL.REG",
+            "GR.SENT.YESNO.DO",
+            "GR.NOUN.ARTICLE.A_AN"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 On the farm",
+          "lessons": [
+            "话题：农场"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.PRON.DEMO",
+            "GR.NOUN.PLURAL",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Animals",
+          "lessons": [
+            "话题：动物及其特征"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE",
+            "GR.VERB.MODAL.CAN",
+            "FN.DESCRIBE"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 Colours",
+          "lessons": [
+            "话题：颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT",
+            "VO.FORM.CLASSIFY"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 10,
+          "title": "Project 2",
+          "lessons": [
+            "项目：综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "FN.DIALOG"
+          ],
+          "note": "项目课；标题未查到；Module 2 名称未查到"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Our school subjects",
+          "lessons": [
+            "话题：学科",
+            "句型（概括）：What subjects do you like? I like …"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.SENT.YESNO.DO"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My day",
+          "lessons": [
+            "话题：一日作息与钟点"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME",
+            "VO.PHRASE.VERB",
+            "GR.TENSE.PRES"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My week",
+          "lessons": [
+            "话题：星期与一周安排"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.PREP.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.TENSE.PRES"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 I like sport",
+          "lessons": [
+            "话题：运动喜好"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.SENT.YESNO.DO",
+            "GR.TENSE.PRES.AUX",
+            "GR.VERB.MODAL.CAN"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 5,
+          "title": "Project 1",
+          "lessons": [
+            "项目：综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "FN.DIALOG"
+          ],
+          "note": "项目课；标题未查到"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Different toys, same fun",
+          "lessons": [
+            "话题：玩具"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.PRON.POSS",
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHO"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Weather",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Seasons",
+          "lessons": [
+            "话题：季节与活动"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 What we wear",
+          "lessons": [
+            "话题：衣着"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.PRON.DEMO",
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHO"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 10,
+          "title": "Project 2",
+          "lessons": [
+            "项目：综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "FN.DIALOG"
+          ],
+          "note": "项目课；标题未查到"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 We're friends",
+          "lessons": [
+            "话题：朋友"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.ADJ.USE",
+            "GR.VERB.HAVE",
+            "GR.TENSE.PRES.THIRD"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Helping others at school",
+          "lessons": [
+            "话题：在学校帮助他人"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL",
+            "FN.POLITE",
+            "VO.PHRASE.VERB"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Road safety",
+          "lessons": [
+            "话题：交通安全"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "VO.TOPIC.PLACE"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Caring about others",
+          "lessons": [
+            "话题：关心他人"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "GR.SENT.WH.WHAT",
+            "VO.TOPIC.BODY"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 5,
+          "title": "Project 1 My school model",
+          "lessons": [
+            "项目：学校模型，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE"
+          ],
+          "note": "项目课"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Eating out",
+          "lessons": [
+            "话题：外出就餐"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.VERB.MODAL.WOULD",
+            "VO.TOPIC.FOOD"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Jobs",
+          "lessons": [
+            "话题：职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES.THIRD"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Doing chores at home",
+          "lessons": [
+            "话题：家务"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 In the kitchen",
+          "lessons": [
+            "话题：厨房与食物"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.THEREBE",
+            "GR.NOUN.COUNT.SOMEANY",
+            "GR.PREP.PLACE"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 10,
+          "title": "Project 2 A good helper",
+          "lessons": [
+            "项目：好帮手，综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "FN.DIALOG"
+          ],
+          "note": "项目课"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Good habits",
+          "lessons": [
+            "Module 1 Stay safe, stay happy",
+            "话题：好习惯"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES",
+            "GR.TENSE.PRES.THIRD",
+            "VO.PHRASE.VERB"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I feel good",
+          "lessons": [
+            "Big question（据教辅）: What makes you feel good?",
+            "话题：身心感受"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT",
+            "GR.SENT.CONJ"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Hobbies",
+          "lessons": [
+            "话题：爱好",
+            "句型（概括）：I like … / He likes …ing."
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "GR.TENSE.PRES.THIRD",
+            "GR.VERB.FORM.ING"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Safety first",
+          "lessons": [
+            "话题：安全（含 Safe swimming 等阅读）"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.SENT.NEG"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 5,
+          "title": "Project 1 A happy life poster",
+          "lessons": [
+            "项目：快乐生活海报，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "WR.PICTURE"
+          ],
+          "note": "项目课"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 At weekends",
+          "lessons": [
+            "Module 2 Enjoy my life",
+            "话题：周末活动安排"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES",
+            "GR.PREP.TIME"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Getting along with others",
+          "lessons": [
+            "话题：与人相处（动物故事中的分享与尊重）"
+          ],
+          "kps": [
+            "FN.POLITE",
+            "FN.SUGGEST"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Shopping smart",
+          "lessons": [
+            "话题：理性购物",
+            "Big question（据教辅）: How can you be a smart shopper?"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 We love festivals",
+          "lessons": [
+            "话题：传统节日（端午节等）"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.PREP.TIME",
+            "GR.TENSE.PRES"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 10,
+          "title": "Project 2 An invitation card",
+          "lessons": [
+            "项目：邀请卡，综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "FN.SUGGEST"
+          ],
+          "note": "项目课"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2012",
+      "note": "旧版（2012 版）。按 2024 年起逐年换新的进度，2027 春季这一册预计换成新版，但截至 2026-11-11 新版目录尚未公开，公开后需要更新本册",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Cinderella",
+          "lessons": [
+            "话题：童话故事",
+            "句型：Why are you sad? Because …"
+          ],
+          "kps": [
+            "GR.SENT.WH",
+            "GR.SENT.CONJ",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How do you come to school?",
+          "lessons": [
+            "话题：上学方式",
+            "句型：How do you come to school? I come to school on foot."
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.PRES.AUX",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Asking the way",
+          "lessons": [
+            "话题：问路",
+            "句型：How do I get to …? Go along … Turn left at …"
+          ],
+          "kps": [
+            "FN.DIR",
+            "GR.PREP.PLACE",
+            "GR.SENT.WH.HOW",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Seeing the doctor",
+          "lessons": [
+            "话题：看病",
+            "句型：What's wrong with you? You should …"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Project 1 Around our city",
+          "lessons": [
+            "项目：城市导览，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "FN.DIR",
+            "VO.TOPIC.PLACE"
+          ],
+          "note": "项目课"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Helping our parents",
+          "lessons": [
+            "话题：帮父母做家务",
+            "句型：What are you doing? I'm …ing."
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 In the kitchen",
+          "lessons": [
+            "话题：厨房",
+            "句型：Is he cooking? / What are they doing?"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.YESNO.BE",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Chinese festivals",
+          "lessons": [
+            "话题：中国传统节日",
+            "句型：The Spring Festival is in January or February."
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.PREP.TIME",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 Birthdays",
+          "lessons": [
+            "话题：生日",
+            "句型：When's your birthday? It's on the … of …"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "GR.NUM.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Project 2 My important days",
+          "lessons": [
+            "项目：重要的日子，综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "项目课"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Try your best",
+          "lessons": [
+            "话题：面对困难、全力以赴"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "FN.SUGGEST"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Honesty",
+          "lessons": [
+            "话题：诚实"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Great people",
+          "lessons": [
+            "话题：伟人与我的英雄"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "FN.DESCRIBE",
+            "WR.EXPR.PAST"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Getting together",
+          "lessons": [
+            "话题：聚会"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN",
+            "FN.SUGGEST"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 5,
+          "title": "Project 1 A better me",
+          "lessons": [
+            "项目：更好的我，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ],
+          "note": "项目课"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Keeping it clean",
+          "lessons": [
+            "话题：保持清洁"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER",
+            "VO.PHRASE.VERB"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Going green",
+          "lessons": [
+            "话题：绿色生活"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Old things, new life",
+          "lessons": [
+            "话题：旧物新用"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.PHRASE.VERB"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 Then and now",
+          "lessons": [
+            "话题：过去与现在"
+          ],
+          "kps": [
+            "GR.TENSE.CONTRAST",
+            "GR.VERB.BE",
+            "GR.TENSE.PAST"
+          ],
+          "note": "新版：话题与核心问题取自目录；句型为按单元主题概括，未逐课核对课本原文"
+        },
+        {
+          "no": 10,
+          "title": "Project 2 A better home",
+          "lessons": [
+            "项目：更好的家园，综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ],
+          "note": "项目课"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2012",
+      "note": "旧版（2012 版）。按 2024 年起逐年换新的进度，2027 春季这一册预计换成新版，但截至 2026-11-11 新版目录尚未公开，公开后需要更新本册",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 The lion and the mouse",
+          "lessons": [
+            "话题：寓言故事",
+            "语法：一般过去时、副词（quietly, happily）"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.ADJ.ADV"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Good habits",
+          "lessons": [
+            "话题：好习惯",
+            "句型：He always … / She never …"
+          ],
+          "kps": [
+            "GR.ADJ.ADV",
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 A healthy diet",
+          "lessons": [
+            "话题：健康饮食",
+            "句型：a lot of / a little / a few / some"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.NOUN.COUNT",
+            "VO.PHRASE.COLLOC"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Road safety",
+          "lessons": [
+            "话题：交通安全",
+            "句型：We must … / We mustn't …"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER",
+            "FN.DIR"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Project 1 Being a good student",
+          "lessons": [
+            "项目：做个好学生，综合运用 Unit 1–4"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ],
+          "note": "项目课"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 A party",
+          "lessons": [
+            "话题：聚会计划",
+            "句型：What are you going to do? I'm going to …"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 An interesting country",
+          "lessons": [
+            "话题：国家与文化",
+            "句型：I will … / Will you …?"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Summer holiday plans",
+          "lessons": [
+            "话题：暑假计划"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "GR.TENSE.FUT.WILL",
+            "FN.PLAN",
+            "WR.EXPR.FUTURE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 Our dreams",
+          "lessons": [
+            "话题：梦想职业",
+            "句型：What do you want to be? I want to be …"
+          ],
+          "kps": [
+            "GR.VERB.NONFIN",
+            "VO.TOPIC.FAMILY",
+            "WR.EXPR.FUTURE"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Project 2 A travel book",
+          "lessons": [
+            "项目：旅行手册，综合运用 Unit 5–8"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ],
+          "note": "项目课"
+        }
+      ]
+    }
+  ]
+}

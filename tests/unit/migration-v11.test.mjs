@@ -8,7 +8,7 @@ import path from 'node:path'
 import { migrations, newDb, addPaper } from './helpers/db.mjs'
 
 const ms = migrations()
-assert.equal(ms.length, 14, '迁移数组共 14 项（v1–v14；v12 是内置助手的表，v13 是学科，v14 是导入自动认学科）')
+assert.equal(ms.length, 15, '迁移数组共 15 项（v1–v15；v12 是内置助手的表，v13 是学科，v14 是导入自动认学科，v15 是教材目录）')
 
 // ───────── 冻结：v1–v10 的源码哈希写死，谁改了旧迁移谁失败 ─────────
 // 取 db.ts 里从「v10 用的缩框函数」到「v10 → v11」注释之前的原文（含 v1–v10 全部迁移和它们依赖的冻结函数），换行归一后求哈希
@@ -79,8 +79,8 @@ else assert.equal(got, FROZEN_V1_V10, '不要改 v1–v10 的迁移（已发出�
 // ───────── 全新库一路迁移到 v11 ─────────
 {
   const { db, version } = newDb()
-  assert.equal(version, 14)
-  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 14)
+  assert.equal(version, 15)
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 15)
   const idx = db.prepare("SELECT name FROM sqlite_master WHERE type='index'").all().map(r => r.name)
   for (const i of ['idx_parse_batches_paper', 'idx_parse_batches_model', 'idx_course_lessons_o', 'idx_course_kp_map_o', 'idx_course_kp_check_o', 'idx_report_variants_r']) assert.ok(idx.includes(i), i)
   db.close()

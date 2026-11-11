@@ -1,0 +1,1932 @@
+{
+  "id": "chinese-tongbian",
+  "subject": "chinese",
+  "edition": "统编版",
+  "textbookValue": "统编版",
+  "checkedAt": "2026-11-11",
+  "sources": [
+    {
+      "title": "电子课本网·人教版（统编）小学语文各册目录（2024秋一上、2025春一下、2025秋二上/三上、2026春二下/三下、2026秋四上/五上/六上；四下/五下/六下为原版）",
+      "url": "http://www.dzkbw.com/books/rjb/yuwen/"
+    },
+    {
+      "title": "尚忆教育·统编小学语文 1–6 年级上册原版目录（用于新旧对照）",
+      "url": "http://m.shangyijiaoyu.com/h-nd-1546.html"
+    },
+    {
+      "title": "澎湃新闻·小学语文四、五、六年级下册统编教材目录（2020-01-04，原版预发布）",
+      "url": "https://www.thepaper.cn/newsDetail_forward_5431310"
+    },
+    {
+      "title": "北京日报 2026-09-01：四至六年级语文新教材首次投入使用（《航天员写给孩子的信》《金字塔》替换《松鼠》等）",
+      "url": "https://news.bjd.com.cn/2026/09/01/11941517.shtml"
+    },
+    {
+      "title": "川观新闻：六年级语文变化详解，《曹冲称象》首次进入六年级教材",
+      "url": "https://cbgc.scol.com.cn/news/7922618"
+    },
+    {
+      "title": "搜狐·2026 年秋季小学语文四至六年级教材变化梳理（四上单元调整，2026-07-16）",
+      "url": "https://www.sohu.com/a/1051019151_387091"
+    },
+    {
+      "title": "杭州网 2024-08-23：一年级语文新教材变化（删《画》《大小多少》《青蛙写诗》，增《两件宝》）",
+      "url": "https://hznews.hangzhou.com.cn/kejiao/content/2024-08/23/content_8777336_2.htm"
+    },
+    {
+      "title": "扬子晚报 2025-08：江苏二、三年级换新教材，二年级语文新增《彩虹》《称赞》等",
+      "url": "https://www.yzwb.net/news/jiangsu/202508/t20250825_254704.html"
+    },
+    {
+      "title": "鸡西市教育局·统编语文单元作业设计（一下第八单元、二上第八单元、二下第一单元、三上第三/四单元、三下第一单元）",
+      "url": "https://edu.jixi.gov.cn/upload/file/20260901/6392389718413821113289117.docx"
+    },
+    {
+      "title": "澎湃新闻转央视：三科统编教材修订后三年内覆盖所有年级",
+      "url": "https://www.thepaper.cn/newsDetail_forward_28668648"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 0,
+          "title": "入学教育（我上学了）",
+          "lessons": [
+            "我是中国人",
+            "我爱我们的祖国",
+            "我是小学生",
+            "我爱学语文"
+          ],
+          "kps": [
+            "CN.CHAR.WRITE.NEAT"
+          ],
+          "note": "不计入八个单元，放在第一单元之前；内容是入学适应、读写姿势。"
+        },
+        {
+          "no": 1,
+          "title": "第一单元（识字）",
+          "lessons": [
+            "天地人",
+            "金木水火土",
+            "口耳目手足",
+            "日月山川",
+            "语文园地一",
+            "快乐读书吧：读书真快乐"
+          ],
+          "kps": [
+            "CN.CHAR.SOUND.READ",
+            "CN.CHAR.FORM.STROKE",
+            "CN.CHAR.WRITE.NEAT",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：先识字后拼音，认识基本笔画、感受象形字；快乐读书吧培养读书兴趣。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（汉语拼音）",
+          "lessons": [
+            "ɑ o e",
+            "i u ü",
+            "b p m f",
+            "d t n l",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.PY.FINAL",
+            "CN.PY.INITIAL",
+            "CN.PY.TONE",
+            "CN.PY.SPELL"
+          ],
+          "note": "语文要素：认读单韵母和声母，学习声调与两拼音节。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（汉语拼音）",
+          "lessons": [
+            "g k h",
+            "j q x",
+            "z c s",
+            "zh ch sh r",
+            "y w",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.PY.INITIAL",
+            "CN.PY.SPELL",
+            "CN.PY.RULE",
+            "CN.CHAR.SOUND.CONFUSE"
+          ],
+          "note": "语文要素：学完声母，学习三拼音节、ü 遇 j q x 去点、y w 的用法，分辨平翘舌。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（汉语拼音）",
+          "lessons": [
+            "ɑi ei ui",
+            "ɑo ou iu",
+            "ie üe er",
+            "ɑn en in un ün",
+            "ɑng eng ing ong",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.PY.FINAL",
+            "CN.PY.SPELL",
+            "CN.PY.TONE"
+          ],
+          "note": "语文要素：复韵母、前后鼻韵母和整体认读音节，借助拼音读儿歌。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（阅读）",
+          "lessons": [
+            "秋天",
+            "江南",
+            "雪地里的小画家",
+            "四季",
+            "语文园地五"
+          ],
+          "kps": [
+            "CN.ACCU.TEXT",
+            "CN.ACCU.POEM.RECITE",
+            "CN.READ.SKILL.LOCATE",
+            "CN.SENT.PUNC.BASIC"
+          ],
+          "note": "语文要素：正确朗读课文，认识自然段，找出明显信息。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（识字）",
+          "lessons": [
+            "对韵歌",
+            "日月明",
+            "小书包",
+            "升国旗",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.CHAR.FORM.BUILD",
+            "CN.CHAR.FORM.STROKE",
+            "CN.WORD.MEAN.CLASSIFY",
+            "CN.WORD.MEAN.ANT"
+          ],
+          "note": "语文要素：借助韵文、会意字等多种方法识字，按笔顺写字。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（阅读）",
+          "lessons": [
+            "小小的船",
+            "影子",
+            "两件宝",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.ACCU.TEXT",
+            "CN.READ.GENRE.POETRY",
+            "CN.WORD.MEAN.ANT",
+            "CN.SENT.RHET.SIMILE"
+          ],
+          "note": "语文要素：读好儿歌、儿童诗的节奏，借助图画理解内容。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（阅读）",
+          "lessons": [
+            "比尾巴",
+            "乌鸦喝水",
+            "雨点儿",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.SENT.FORM.KIND",
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.LOCATE",
+            "CN.SENT.PUNC.BASIC"
+          ],
+          "note": "语文要素：读好问句和陈述句的语气，借助图画读懂故事。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2024 年秋/春季起使用。"
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（识字）",
+          "lessons": [
+            "春夏秋冬",
+            "姓氏歌",
+            "小青蛙",
+            "猜字谜",
+            "语文园地一",
+            "快乐读书吧：读读童谣和儿歌"
+          ],
+          "kps": [
+            "CN.CHAR.FORM.BUILD",
+            "CN.CHAR.FORM.RADICAL",
+            "CN.WORD.MEAN.CLASSIFY",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：用形声字、字谜、归类等方法识字；读童谣儿歌。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（阅读）",
+          "lessons": [
+            "热爱中国共产党",
+            "吃水不忘挖井人",
+            "我多想去看看",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.ACCU.TEXT",
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.THEME"
+          ],
+          "note": "语文要素：朗读课文，找出课文中的明显信息，体会情感。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（阅读）",
+          "lessons": [
+            "小公鸡和小鸭子",
+            "树和喜鹊",
+            "怎么都快乐",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.WORD.MEAN.ANT",
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.RESPONSE"
+          ],
+          "note": "语文要素：读好对话，联系生活说感受。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（阅读）",
+          "lessons": [
+            "静夜思",
+            "夜色",
+            "端午粽",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.AUTHOR",
+            "CN.ACCU.CULTURE",
+            "CN.READ.SKILL.LOCATE"
+          ],
+          "note": "语文要素：背诵古诗，了解传统节日，找出明显信息。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（识字）",
+          "lessons": [
+            "动物儿歌",
+            "古对今",
+            "操场上",
+            "人之初",
+            "语文园地五"
+          ],
+          "kps": [
+            "CN.CHAR.FORM.RADICAL",
+            "CN.WORD.MEAN.ANT",
+            "CN.WORD.BUILD.COLLOC",
+            "CN.ACCU.TEXT"
+          ],
+          "note": "语文要素：借助偏旁、对子、动作词识字，读《三字经》选段。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（阅读）",
+          "lessons": [
+            "古诗二首：池上、小池",
+            "浪花",
+            "荷叶圆圆",
+            "要下雨了",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.AUTHOR",
+            "CN.WORD.BUILD.PATTERN",
+            "CN.READ.SKILL.LOCATE"
+          ],
+          "note": "语文要素：读古诗想画面，积累叠词。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（阅读）",
+          "lessons": [
+            "文具的家",
+            "一分钟",
+            "动物王国开大会",
+            "小猴子下山",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.RESPONSE",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：根据课文内容做简单推断，联系生活说想法。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（阅读）",
+          "lessons": [
+            "棉花姑娘",
+            "咕咚",
+            "小壁虎借尾巴",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.LOCATE",
+            "CN.SENT.FORM.KIND",
+            "CN.CHAR.SOUND.READ"
+          ],
+          "note": "语文要素：借助图画等方法试着自主阅读；分角色朗读，读出对话语气（鸡西教育局单元作业设计印证）。"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2025 年秋/春季起使用。"
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（阅读）",
+          "lessons": [
+            "小蝌蚪找妈妈",
+            "我是什么",
+            "植物妈妈有办法",
+            "语文园地一",
+            "快乐读书吧：读读童话故事"
+          ],
+          "kps": [
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.GENRE.STORY",
+            "CN.WORD.BUILD.COLLOC",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：借助图片了解课文内容；积累词语搭配。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（识字）",
+          "lessons": [
+            "场景歌",
+            "树之歌",
+            "拍手歌",
+            "田家四季歌",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.WORD.BUILD.MEASURE",
+            "CN.CHAR.FORM.RADICAL",
+            "CN.WORD.MEAN.CLASSIFY",
+            "CN.CHAR.FORM.BUILD"
+          ],
+          "note": "语文要素：借助量词、偏旁、韵文识字，词语归类。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（阅读）",
+          "lessons": [
+            "彩虹",
+            "去外婆家",
+            "数星星的孩子",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.READ.SKILL.LOCATE",
+            "CN.WORD.MEAN.CONTEXT",
+            "CN.SENT.IMITATE"
+          ],
+          "note": "本单元为新版调整单元（新增《彩虹》《去外婆家》等），语文要素未查到原文，按课文内容推断为读懂课文、联系上下文理解词语。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（阅读）",
+          "lessons": [
+            "古诗二首：登鹳雀楼、望庐山瀑布",
+            "黄山奇石",
+            "日月潭",
+            "葡萄沟",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.AUTHOR",
+            "CN.SENT.RHET.SIMILE",
+            "CN.WORD.BUILD.COLLOC",
+            "CN.READ.SKILL.LOCATE"
+          ],
+          "note": "语文要素：积累描写景物的词语，读句子想象画面。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（阅读）",
+          "lessons": [
+            "坐井观天",
+            "寒号鸟",
+            "我要的是葫芦",
+            "语文园地五"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.THEME",
+            "CN.SENT.FORM.RHETQ",
+            "CN.SENT.FORM.KIND"
+          ],
+          "note": "语文要素：读懂寓言故事，明白道理；读好反问句、感叹句。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（阅读）",
+          "lessons": [
+            "八角楼上",
+            "朱德的扁担",
+            "难忘的泼水节",
+            "刘胡兰",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.READ.SKILL.CHARACTER",
+            "CN.READ.SKILL.LOCATE",
+            "CN.ACCU.TEXT"
+          ],
+          "note": "语文要素：借助关键词句了解人物，感受革命领袖和英雄的品质。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（阅读）",
+          "lessons": [
+            "古诗二首：江雪、敕勒歌",
+            "雾在哪里",
+            "雪孩子",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.LOCATE"
+          ],
+          "note": "语文要素：读古诗想象画面，读懂童话情节。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（阅读）",
+          "lessons": [
+            "称赞",
+            "纸船和风筝",
+            "快乐的小河",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.CHAR.SOUND.READ",
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.RESPONSE"
+          ],
+          "note": "语文要素：综合运用多种方法自主识字（课文全文不注音）；学习默读，不出声、不指读（鸡西教育局单元作业设计印证）。"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2025 年秋/春季起使用。"
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（阅读）",
+          "lessons": [
+            "古诗二首：咏柳、村居",
+            "找春天",
+            "开满鲜花的小路",
+            "邓小平爷爷植树",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.AUTHOR",
+            "CN.SENT.RHET.PERSON",
+            "CN.WORD.BUILD.COLLOC",
+            "CN.READ.SKILL.LOCATE"
+          ],
+          "note": "语文要素：读句子想象画面，积累描写春天的词语。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（阅读）",
+          "lessons": [
+            "雷锋叔叔，你在哪里",
+            "千人糕",
+            "我不是最弱小的",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.THEME",
+            "CN.ACCU.TEXT"
+          ],
+          "note": "语文要素：读课文找出明显信息，体会关爱他人的情感。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（识字）",
+          "lessons": [
+            "神州谣",
+            "传统节日",
+            "“贝”的故事",
+            "中国美食",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.ACCU.CULTURE",
+            "CN.CHAR.FORM.RADICAL",
+            "CN.CHAR.FORM.BUILD",
+            "CN.WORD.MEAN.CLASSIFY"
+          ],
+          "note": "语文要素：借助偏旁表义、字理识字，了解传统节日和饮食文化。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（阅读）",
+          "lessons": [
+            "彩色的梦",
+            "一匹出色的马",
+            "枫树上的喜鹊",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.READ.GENRE.POETRY",
+            "CN.SENT.IMITATE",
+            "CN.READ.SKILL.RESPONSE"
+          ],
+          "note": "语文要素：读儿童诗、散文，展开想象，仿说仿写句子。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（阅读）",
+          "lessons": [
+            "寓言二则：亡羊补牢、揠苗助长",
+            "画杨桃",
+            "小马过河",
+            "语文园地五"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.THEME",
+            "CN.WORD.IDIOM.USE",
+            "CN.READ.SKILL.RESPONSE"
+          ],
+          "note": "语文要素：读寓言故事，明白其中的道理。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（阅读）",
+          "lessons": [
+            "古诗二首：绝句、晓出净慈寺送林子方",
+            "雷雨",
+            "要是你在野外迷了路",
+            "太空生活趣事多",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.AUTHOR",
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.STRUCT"
+          ],
+          "note": "语文要素：读课文找出主要信息，了解大自然的奥秘（《太空生活趣事多》等为科普短文）。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（阅读）",
+          "lessons": [
+            "大象的耳朵",
+            "蜘蛛开店",
+            "青蛙卖泥塘",
+            "小毛虫",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.THEME"
+          ],
+          "note": "语文要素：借助提示（示意图、关键词）讲故事。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（阅读）",
+          "lessons": [
+            "羿射九日",
+            "黄帝的传说",
+            "大禹治水",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.ACCU.LIT",
+            "CN.READ.SKILL.LOCATE"
+          ],
+          "note": "本单元为神话传说单元（新版调整，《大禹治水》从二上移来）；语文要素按内容推断为读神话、借助提示讲故事。"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2026 年秋/春季起使用。"
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（学校生活）",
+          "lessons": [
+            "大青树下的小学",
+            "花的学校",
+            "不懂就要问",
+            "口语交际：我的暑假生活",
+            "习作：猜猜他是谁",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.READ.SKILL.WORDS",
+            "CN.WORD.MEAN.CONTEXT",
+            "CN.WRITE.PERSON",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：阅读时关注有新鲜感的词语和句子；体会习作的乐趣（鸡西教育局资料印证）。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（金秋时节）",
+          "lessons": [
+            "古诗三首",
+            "铺满金色巴掌的水泥道",
+            "秋天的雨",
+            "听听，秋的声音",
+            "习作：写日记",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.WORD.MEAN.CONTEXT",
+            "CN.ACCU.POEM.RECITE",
+            "CN.SENT.RHET.SIMILE",
+            "CN.SENT.RHET.PERSON",
+            "CN.WRITE.PRACTICAL"
+          ],
+          "note": "语文要素：运用多种方法理解难懂的词语；学习写日记。目录页只写「古诗三首」，原版为《山行》《赠刘景文》《夜书所见》，新版篇目未核实。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（阅读策略：预测）",
+          "lessons": [
+            "总也倒不了的老屋",
+            "犟龟",
+            "小狗学叫",
+            "口语交际：名字里的故事",
+            "习作：续写故事",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.RESPONSE",
+            "CN.WRITE.IMAGINE",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：一边读一边预测，了解预测的基本方法；续写故事（鸡西教育局资料印证）。知识点树里没有「预测」专门代码，用阅读感受和故事类代替。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（童话世界）",
+          "lessons": [
+            "宝葫芦的秘密（节选）",
+            "在牛肚子里旅行",
+            "一块奶酪",
+            "习作：我来编童话",
+            "语文园地四",
+            "快乐读书吧：在那奇妙的王国里"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.IMAGINE",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：感受童话丰富的想象；试着自己编童话。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：观察）",
+          "lessons": [
+            "搭船的鸟",
+            "金色的草地",
+            "梳理与交流、初试身手",
+            "习作例文：我家的小狗",
+            "习作例文：我爱故乡的杨梅",
+            "习作：我们眼中的缤纷世界"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.WRITE.OBJECT",
+            "CN.WRITE.SCENE"
+          ],
+          "note": "语文要素：体会作者是怎样留心观察周围事物的；仔细观察，把观察所得写下来。习作单元无语文园地。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（祖国山河）",
+          "lessons": [
+            "富饶的西沙群岛",
+            "海滨小城",
+            "美丽的小兴安岭",
+            "香港，璀璨的明珠",
+            "习作：这儿真美",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.READ.SKILL.STRUCT",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.WRITE.SCENE",
+            "CN.SENT.RHET.SIMILE"
+          ],
+          "note": "语文要素：借助关键语句理解一段话的意思；围绕一个意思写。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（我与自然）",
+          "lessons": [
+            "古诗三首",
+            "大自然的声音",
+            "读不完的大书",
+            "口语交际：身边的“小事”",
+            "习作：我有一个想法",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.READ.SKILL.STRUCT",
+            "CN.WRITE.OPINION",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：感受课文生动的语言，积累喜欢的语句；把自己的想法写清楚。目录页只写「古诗三首」，原版第六单元的《望天门山》《饮湖上初晴后雨》《望洞庭》可能移到这里，未核实。"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（美好品质）",
+          "lessons": [
+            "司马光",
+            "一定要争气",
+            "手术台就是阵地",
+            "一个粗瓷大碗",
+            "口语交际：请教",
+            "习作：那次经历真难忘",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.EVENT",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：了解故事主要内容，体会人物品质；把一次经历写清楚。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2025 年秋/春季起使用。"
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（可爱的生灵）",
+          "lessons": [
+            "古诗三首：绝句、惠崇春江晚景、三衢道中",
+            "燕子",
+            "荷花",
+            "昆虫备忘录",
+            "口语交际：春游去哪儿玩",
+            "习作：我的植物朋友",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.SENT.RHET.SIMILE",
+            "CN.SENT.RHET.PERSON",
+            "CN.WRITE.OBJECT",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：试着一边读一边想象画面；体会优美生动的语句；把观察到的事物写清楚（鸡西教育局资料印证）。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（寓言故事）",
+          "lessons": [
+            "守株待兔",
+            "会摇尾巴的狼",
+            "鹿角和鹿腿",
+            "池子与河流",
+            "口语交际：劝告",
+            "习作：看图画，写一写",
+            "语文园地二",
+            "快乐读书吧"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.THEME",
+            "CN.ORAL.PERSUADE",
+            "CN.WRITE.PICTURE",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：读寓言故事，明白其中的道理；看图画写清图意。快乐读书吧标题目录页未写出（原版为「小故事大道理」）。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（观察与发现）",
+          "lessons": [
+            "海底世界",
+            "石蜂",
+            "小虾",
+            "习作：我做了一项小实验",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.READ.SKILL.SUMMARY",
+            "CN.READ.SKILL.STRUCT",
+            "CN.READ.SKILL.LOCATE",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：借助关键语句概括一段话的大意；把实验过程写清楚。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（传统文化）",
+          "lessons": [
+            "古诗三首：元日、清明、九月九日忆山东兄弟",
+            "纸的发明",
+            "赵州桥",
+            "一幅名扬中外的画",
+            "综合性学习：中华传统节日",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.FEELING",
+            "CN.ACCU.CULTURE",
+            "CN.READ.SKILL.STRUCT",
+            "CN.WRITE.LEARN"
+          ],
+          "note": "语文要素：了解课文是怎样围绕一个意思把一段话写清楚的；综合性学习搜集传统节日资料。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：想象）",
+          "lessons": [
+            "胡萝卜先生的长胡子",
+            "我变成了一棵树",
+            "习作：奇妙的想象"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "语文要素：走进想象的世界，感受想象的神奇；发挥想象写故事。目录页未列交流平台、初试身手和习作例文，新版是否保留未核实。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（多彩童年与身边的人）",
+          "lessons": [
+            "童年的水墨画",
+            "肥皂泡",
+            "灰雀",
+            "我不能失信",
+            "习作：身边那些有特点的人",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.READ.GENRE.POETRY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.READ.SKILL.WORDS",
+            "CN.WRITE.PERSON"
+          ],
+          "note": "本单元为新版重组单元（《灰雀》从三上移来，新增《我不能失信》）；要素按内容推断为体会人物品质、写出人物特点。"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（天地奇观）",
+          "lessons": [
+            "火烧云",
+            "暴风雨来临之前",
+            "我们奇妙的世界",
+            "习作：国宝大熊猫",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.READ.SKILL.STRUCT",
+            "CN.READ.SKILL.LOCATE",
+            "CN.SENT.RHET.SIMILE",
+            "CN.WRITE.EXPO",
+            "CN.WRITE.OBJECT"
+          ],
+          "note": "语文要素：了解课文是怎样把事物写清楚的；整合信息，介绍一种事物。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（有趣的故事）",
+          "lessons": [
+            "慢性子裁缝和急性子顾客",
+            "漏",
+            "枣核",
+            "口语交际：趣味故事会",
+            "习作：这样想象真有趣",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.READ.SKILL.SUMMARY",
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.IMAGINE",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：了解故事主要内容，复述故事。（要素按原版同类单元概括，新版单元导语未逐字核对）"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2026 年秋/春季起使用。"
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（自然之美）",
+          "lessons": [
+            "观潮",
+            "繁星",
+            "现代诗二首：秋晚的江上、花牛歌",
+            "口语交际：我们与环境",
+            "习作：推荐一个好地方",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.SKILL.STRUCT",
+            "CN.READ.GENRE.POETRY",
+            "CN.WRITE.SCENE",
+            "CN.WRITE.OPINION",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：边读边想象画面，感受自然之美；推荐一个地方，写清推荐理由。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（阅读策略：提问）",
+          "lessons": [
+            "一个豆荚里的五粒豆",
+            "夜间飞行的秘密",
+            "方帽子店",
+            "田忌赛马",
+            "习作：我的家人",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.READ.SKILL.RESPONSE",
+            "CN.READ.GENRE.STORY",
+            "CN.READ.GENRE.EXPO",
+            "CN.WRITE.PERSON"
+          ],
+          "note": "语文要素：阅读时尝试从不同角度去思考，提出自己的问题。知识点树里没有「提问策略」专门代码。新版新增《方帽子店》《田忌赛马》（原五下）和习作「我的家人」。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（连续观察）",
+          "lessons": [
+            "古诗三首：暮江吟、题西林壁、雪梅",
+            "爬山虎的脚",
+            "蟋蟀的住宅",
+            "口语交际：爱护眼睛，保护视力",
+            "习作：写观察日记",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.WRITE.OBJECT",
+            "CN.WRITE.PRACTICAL",
+            "CN.ORAL.PERSUADE"
+          ],
+          "note": "语文要素：体会文章准确生动的表达，感受作者连续细致的观察；写观察日记。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（中外神话）",
+          "lessons": [
+            "盘古开天地",
+            "精卫填海",
+            "普罗米修斯",
+            "女娲补天",
+            "习作：我和____过一天",
+            "语文园地四",
+            "快乐读书吧：很久很久以前"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.WRITE.IMAGINE",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：了解故事的起因、经过、结果，感受神话中神奇的想象和鲜明的人物形象。注：有报道称新版移出《女娲补天》，但电子课本目录仍有此课，以课本为准。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：写清楚一件事）",
+          "lessons": [
+            "麻雀",
+            "爬天都峰",
+            "习作例文：我家的杏熟了",
+            "习作例文：小木船",
+            "习作：生活万花筒"
+          ],
+          "kps": [
+            "CN.READ.SKILL.STRUCT",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：了解作者是怎样把事情写清楚的；写一件事，把事情写清楚。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（中国文化：世界文化遗产）",
+          "lessons": [
+            "长城",
+            "颐和园",
+            "秦兵马俑",
+            "口语交际：我是小小讲解员",
+            "习作：中国的世界文化遗产",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.READ.SKILL.STRUCT",
+            "CN.READ.SKILL.LOCATE",
+            "CN.ACCU.CULTURE",
+            "CN.WRITE.EXPO",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "新版新增单元。要素按内容推断：了解课文按游览顺序或从几个方面介绍事物；搜集资料介绍一处世界文化遗产。"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（童年成长）",
+          "lessons": [
+            "牛和鹅",
+            "一只窝囊的大老虎",
+            "陀螺",
+            "王戎不取道旁李",
+            "口语交际：安慰",
+            "习作：我的心儿怦怦跳",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.READ.SKILL.RESPONSE",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.WRITE.EVENT",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：学习用批注的方法阅读；把一件事和当时的感受写清楚。原版第六单元后移，并入《王戎不取道旁李》。"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（家国情怀）",
+          "lessons": [
+            "我将无我，不负人民",
+            "为中华之崛起而读书",
+            "延安，我把你追寻",
+            "古诗三首：凉州词、出塞、夏日绝句",
+            "习作：写信",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.READ.SKILL.SUMMARY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.FEELING",
+            "CN.WRITE.PRACTICAL"
+          ],
+          "note": "语文要素：关注主要人物和事件，学习概括文章主要内容；学写书信。原版第七单元后移，新增《我将无我，不负人民》。"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2026 年秋/春季起使用。"
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2019",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（乡村生活）",
+          "lessons": [
+            "古诗词三首：四时田园杂兴（其二十五）、宿新市徐公店、清平乐·村居",
+            "乡下人家",
+            "天窗",
+            "三月桃花水",
+            "口语交际：转述",
+            "习作：我的乐园",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.READ.SKILL.THEME",
+            "CN.ORAL.PERSUADE",
+            "CN.WRITE.SCENE"
+          ],
+          "note": "语文要素：抓住关键语句，初步体会课文表达的思想感情；写自己的乐园，表达喜爱之情。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（科普：提问）",
+          "lessons": [
+            "琥珀",
+            "飞向蓝天的恐龙",
+            "纳米技术就在我们身边",
+            "千年梦圆在今朝",
+            "口语交际：说新闻",
+            "习作：我的奇思妙想",
+            "语文园地二",
+            "快乐读书吧：十万个为什么"
+          ],
+          "kps": [
+            "CN.READ.SKILL.RESPONSE",
+            "CN.READ.GENRE.EXPO",
+            "CN.WRITE.IMAGINE",
+            "CN.READ.BOOK",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：阅读时能提出不懂的问题，并试着解决；按自己的想法写清奇思妙想。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（现代诗）",
+          "lessons": [
+            "短诗三首：繁星（七一）、繁星（一三一）、繁星（一五九）",
+            "绿",
+            "白桦",
+            "在天晴了的时候",
+            "综合性学习：轻叩诗歌大门",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.READ.GENRE.POETRY",
+            "CN.SENT.RHET.SIMILE",
+            "CN.ACCU.LIT",
+            "CN.WRITE.LEARN"
+          ],
+          "note": "语文要素：初步了解现代诗的特点，体会诗歌的情感；综合性学习收集、整理、创作诗歌。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（动物朋友）",
+          "lessons": [
+            "猫",
+            "母鸡",
+            "白鹅",
+            "习作：我的动物朋友",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.SKILL.THEME",
+            "CN.WRITE.OBJECT"
+          ],
+          "note": "语文要素：从具体描述中体会作家对动物的感情；写出动物的特点。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：游记）",
+          "lessons": [
+            "海上日出",
+            "记金华的双龙洞",
+            "交流平台和初试身手",
+            "习作例文：颐和园",
+            "习作例文：七月的天山",
+            "习作：游____"
+          ],
+          "kps": [
+            "CN.READ.SKILL.STRUCT",
+            "CN.WRITE.SCENE"
+          ],
+          "note": "语文要素：了解课文按游览顺序写景物的方法；学习按游览顺序写景物。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（成长）",
+          "lessons": [
+            "文言文二则：囊萤夜读、铁杵成针",
+            "小英雄雨来（节选）",
+            "我们家的男子汉",
+            "芦花鞋",
+            "口语交际：朋友相处的秘诀",
+            "习作：我学会了____",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.WRITE.EVENT",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：学习把握长文章的主要内容；按一定顺序把做事的过程写清楚。电子课本为较新印次（文言文二则在第六单元）；2020 年预发布目录中文言文二则在第七单元，两者不一致，以较新印次为准。"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（人物品质）",
+          "lessons": [
+            "古诗三首：芙蓉楼送辛渐、塞下曲、墨梅",
+            "黄继光",
+            "“诺曼底号”遇难记",
+            "挑山工",
+            "口语交际：自我介绍",
+            "习作：我的“自画像”",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.FEELING",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.PERSON",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：从人物的语言、动作等描写中感受人物品质；写出自己的特点。"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（童话）",
+          "lessons": [
+            "宝葫芦的秘密（节选）",
+            "巨人的花园",
+            "海的女儿",
+            "习作：故事新编",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.ACCU.LIT",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "语文要素：感受童话奇妙的想象，体会童话中人物真善美的形象；发挥想象，创编故事。"
+        }
+      ],
+      "note": "2026–2027 学年下学期（2027 年春）按计划应换用新修订版，截至 2026-11-11 新版下册目录尚未公开，这里先收原版（2019 年版、较新印次）目录，新版出来后需要更新。"
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（万物有灵）",
+          "lessons": [
+            "桂花雨",
+            "落花生",
+            "珍珠鸟",
+            "口语交际：制定班级公约",
+            "习作：我的心爱之物",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.SKILL.THEME",
+            "CN.WRITE.OBJECT",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：初步了解课文借助具体事物抒发感情的方法；写心爱之物，表达喜爱之情。新版《白鹭》移到第七单元。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（阅读策略：提高阅读速度）",
+          "lessons": [
+            "冀中的地道战",
+            "将相和",
+            "什么比猎豹的速度更快",
+            "“诺曼底号”遇难记",
+            "习作：“漫画”老师",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.PERSON"
+          ],
+          "note": "语文要素：学习提高阅读速度的方法；用具体事例写出人物特点。知识点树里没有「阅读速度」专门代码。新版新增《“诺曼底号”遇难记》（原四下），移出《搭石》。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（民间故事）",
+          "lessons": [
+            "猎人海力布",
+            "牛郎织女（一）",
+            "牛郎织女（二）",
+            "口语交际：讲民间故事",
+            "习作：故事新编",
+            "语文园地三",
+            "快乐读书吧：从前有座山"
+          ],
+          "kps": [
+            "CN.READ.GENRE.STORY",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.WRITE.IMAGINE",
+            "CN.ORAL.SCENE",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：了解课文内容，创造性地复述故事；新版习作由「缩写故事」改为「故事新编」。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（爱国情怀）",
+          "lessons": [
+            "古诗三首：示儿、题临安邸、己亥杂诗",
+            "少年中国说（节选）",
+            "圆明园的毁灭",
+            "梅兰芳蓄须明志",
+            "习作：二十年后的家乡",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.FEELING",
+            "CN.ACCU.POEM.AUTHOR",
+            "CN.READ.SKILL.THEME",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "语文要素：结合资料，体会课文表达的思想感情；习作展开想象写二十年后的家乡。《梅兰芳蓄须明志》从四上移来。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：说明文）",
+          "lessons": [
+            "太阳",
+            "金字塔",
+            "习作例文：鲸",
+            "习作例文：风向袋的制作",
+            "习作：介绍一种事物"
+          ],
+          "kps": [
+            "CN.READ.GENRE.EXPO",
+            "CN.WRITE.EXPO"
+          ],
+          "note": "语文要素：阅读简单的说明性文章，了解基本的说明方法；搜集资料，用恰当的说明方法介绍一种事物。新版用《金字塔》替换《松鼠》（北京日报印证）。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（舐犊情深）",
+          "lessons": [
+            "慈母情深",
+            "父爱之舟",
+            "航天员写给孩子的信",
+            "口语交际：父母之爱",
+            "习作：我想对您说",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.SKILL.THEME",
+            "CN.WRITE.PRACTICAL",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：体会作者描写的场景、细节中蕴含的感情；用恰当的语言表达自己的看法和感受。新增《航天员写给孩子的信》（北京日报印证）。"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（四时景物）",
+          "lessons": [
+            "古诗词三首：山居秋暝、枫桥夜泊、早春呈水部张十八员外",
+            "第一场雪",
+            "白鹭",
+            "习作：我最喜爱的季节",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.WRITE.SCENE"
+          ],
+          "note": "语文要素：初步体会静态描写和动态描写；写出景物的特点和变化。新版改动较大（新增《第一场雪》、调入《白鹭》）。"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（读书明智）",
+          "lessons": [
+            "古人谈读书",
+            "忆读书",
+            "走遍天下书为侣",
+            "习作：推荐一本书",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.TRANS",
+            "CN.ACCU.MOTTO",
+            "CN.READ.SKILL.LOCATE",
+            "CN.WRITE.OPINION"
+          ],
+          "note": "语文要素：根据要求梳理信息，把握内容要点；推荐一本书，写清推荐理由。"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2026 年秋/春季起使用。"
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2019",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（童年往事）",
+          "lessons": [
+            "古诗三首：四时田园杂兴（其三十一）、稚子弄冰、村晚",
+            "祖父的园子",
+            "月是故乡明",
+            "梅花魂",
+            "口语交际：走进他们的童年岁月",
+            "习作：那一刻，我长大了",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.READ.SKILL.THEME",
+            "CN.WRITE.EVENT",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：体会课文表达的思想感情；把一件事的某个场景写具体，表达真实感受。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（古典名著）",
+          "lessons": [
+            "草船借箭",
+            "景阳冈",
+            "猴王出世",
+            "红楼春趣",
+            "口语交际：怎么表演课本剧",
+            "习作：写读后感",
+            "语文园地二",
+            "快乐读书吧：读古典名著，品百味人生"
+          ],
+          "kps": [
+            "CN.ACCU.LIT",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.READ.BOOK",
+            "CN.WRITE.PRACTICAL",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：初步学习阅读古典名著的方法；学写读后感。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（综合性学习：遨游汉字王国）",
+          "lessons": [
+            "汉字真有趣",
+            "我爱你，汉字"
+          ],
+          "kps": [
+            "CN.WRITE.LEARN",
+            "CN.CHAR.FORM.HOMOPHONE",
+            "CN.CHAR.FORM.TYPO",
+            "CN.WORD.IDIOM.SAYING",
+            "CN.ACCU.CULTURE"
+          ],
+          "note": "语文要素：综合性学习，了解汉字文化（谐音、字谜、汉字演变），学写简单的研究报告。本单元无语文园地。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（家国情怀）",
+          "lessons": [
+            "古诗三首：从军行、秋夜将晓出篱门迎凉有感、闻官军收河南河北",
+            "青山处处埋忠骨",
+            "军神",
+            "清贫",
+            "习作：他____了",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.FEELING",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.PERSON"
+          ],
+          "note": "语文要素：通过课文中动作、语言、神态的描写，体会人物的内心；尝试运用这些描写方法，表现人物内心。电子课本为较新印次（《青山处处埋忠骨》在前），与 2020 年预发布目录顺序不同。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：人物描写）",
+          "lessons": [
+            "人物描写一组：摔跤、他像一棵挺脱的树、两茎灯草",
+            "刷子李",
+            "交流平台和初试身手",
+            "习作例文：我的朋友容容",
+            "习作例文：小守门员和他的观众们",
+            "习作：形形色色的人"
+          ],
+          "kps": [
+            "CN.READ.SKILL.CHARACTER",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.WRITE.PERSON"
+          ],
+          "note": "语文要素：学习描写人物的基本方法；初步运用描写人物的基本方法，具体地表现一个人的特点。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（思维的火花）",
+          "lessons": [
+            "自相矛盾",
+            "田忌赛马",
+            "跳水",
+            "习作：神奇的探险之旅",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "语文要素：了解人物的思维过程，加深对课文内容的理解；把故事情节写得吸引人。"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（异域风情）",
+          "lessons": [
+            "威尼斯的小艇",
+            "牧场之国",
+            "金字塔",
+            "口语交际：我是小小讲解员",
+            "习作：中国的世界文化遗产",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.GENRE.NONCONT",
+            "CN.WRITE.EXPO",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：体会静态描写和动态描写的表达效果；搜集资料，介绍一个地方。"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（幽默与智慧）",
+          "lessons": [
+            "杨氏之子",
+            "手指",
+            "童年的发现",
+            "口语交际：我们都来讲笑话",
+            "习作：漫画的启示",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.SKILL.WORDS",
+            "CN.WRITE.OPINION",
+            "CN.ORAL.SCENE"
+          ],
+          "note": "语文要素：感受课文风趣的语言；看漫画，写出自己的想法。"
+        }
+      ],
+      "note": "2026–2027 学年下学期（2027 年春）按计划应换用新修订版，截至 2026-11-11 新版下册目录尚未公开，这里先收原版（2019 年版、较新印次）目录，新版出来后需要更新。"
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（触摸自然）",
+          "lessons": [
+            "草原",
+            "丁香结",
+            "古诗词三首：宿建德江、六月二十七日望湖楼醉书、西江月·夜行黄沙道中",
+            "习作：变形记",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.SKILL.RESPONSE",
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "语文要素：阅读时从所读的内容想开去；发挥想象，把自己变成另一种事物写故事。新版移出《花之歌》。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（革命岁月）",
+          "lessons": [
+            "七律·长征",
+            "狼牙山五壮士",
+            "开国大典",
+            "我的战友邱少云",
+            "口语交际：演讲",
+            "习作：多彩的活动",
+            "语文园地二"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.READ.SKILL.STRUCT",
+            "CN.ORAL.DISCUSS",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：了解文章是怎样点面结合写场面的；记一次活动，尝试点面结合写场面。新增《我的战友邱少云》，《灯光》移到第五单元。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（阅读策略：有目的地阅读）",
+          "lessons": [
+            "竹节人",
+            "宇宙生命之谜",
+            "故宫博物院",
+            "习作：____让生活更美好",
+            "语文园地三"
+          ],
+          "kps": [
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.GENRE.NONCONT",
+            "CN.READ.GENRE.EXPO",
+            "CN.WRITE.OPINION"
+          ],
+          "note": "语文要素：根据阅读目的，选用恰当的阅读方法；写清楚某种事物是怎样让生活更美好的。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（小说）",
+          "lessons": [
+            "桥",
+            "穷人",
+            "金色的鱼钩",
+            "口语交际：请你支持我",
+            "习作：笔尖流出的故事",
+            "语文园地四",
+            "快乐读书吧：笑与泪，经历与成长"
+          ],
+          "kps": [
+            "CN.READ.SKILL.CHARACTER",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.ORAL.PERSUADE",
+            "CN.WRITE.IMAGINE",
+            "CN.READ.BOOK"
+          ],
+          "note": "语文要素：读小说，关注情节、环境，感受人物形象；发挥想象，创编生活故事。《金色的鱼钩》从六下移来，移出《在柏林》。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（习作单元：围绕中心意思写）",
+          "lessons": [
+            "灯光",
+            "盼",
+            "习作例文：爸爸的计划",
+            "习作例文：小站",
+            "习作：围绕中心意思写"
+          ],
+          "kps": [
+            "CN.READ.SKILL.THEME",
+            "CN.READ.SKILL.STRUCT",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：体会文章是怎样围绕中心意思来写的；从不同方面或选取不同事例，表达中心意思。新版用《灯光》替换《夏天里的成长》。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（保护环境）",
+          "lessons": [
+            "只有一个地球",
+            "青山不老",
+            "三黑和土地",
+            "古诗三首：浪淘沙（其一）、江南春、书湖阴先生壁",
+            "口语交际：意见不同怎么办",
+            "习作：学写倡议书",
+            "语文园地六"
+          ],
+          "kps": [
+            "CN.READ.SKILL.LOCATE",
+            "CN.READ.SKILL.THEME",
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.ORAL.DISCUSS",
+            "CN.WRITE.PRACTICAL"
+          ],
+          "note": "语文要素：抓住关键句，把握文章的主要观点；学写倡议书。古诗三首篇目同原版，位置从单元开头移到单元末。"
+        },
+        {
+          "no": 7,
+          "title": "第七单元（探索发现）",
+          "lessons": [
+            "文言文二则：两小儿辩日、曹冲称象",
+            "表里的生物",
+            "他们那时候多有趣啊",
+            "习作：插上科学的翅膀飞",
+            "语文园地七"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.TRANS",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "新版重组单元（原「艺术之美」单元整体更换）：《两小儿辩日》《表里的生物》《他们那时候多有趣啊》从六下提前，《曹冲称象》首次进入六年级（川观新闻印证）。要素按原六下第五单元推断：体会文章是怎样用具体事例说明观点的；发挥想象写科幻故事。"
+        },
+        {
+          "no": 8,
+          "title": "第八单元（走近鲁迅）",
+          "lessons": [
+            "少年闰土",
+            "好的故事",
+            "我的伯父鲁迅先生",
+            "有的人——纪念鲁迅有感",
+            "习作：传承好家风",
+            "语文园地八"
+          ],
+          "kps": [
+            "CN.READ.SKILL.WORDS",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.ACCU.LIT",
+            "CN.READ.GENRE.POETRY",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：借助相关资料，理解课文主要内容；新版习作改为「传承好家风」（原为「有你，真好」）。"
+        }
+      ],
+      "note": "新修订版（2022 年版课标对应），2026 年秋/春季起使用。"
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2019",
+      "units": [
+        {
+          "no": 1,
+          "title": "第一单元（民风民俗）",
+          "lessons": [
+            "北京的春节",
+            "腊八粥",
+            "古诗三首：寒食、迢迢牵牛星、十五夜望月",
+            "藏戏",
+            "口语交际：即兴发言",
+            "习作：家乡的风俗",
+            "语文园地一"
+          ],
+          "kps": [
+            "CN.READ.SKILL.STRUCT",
+            "CN.ACCU.CULTURE",
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.MEANING",
+            "CN.ORAL.DISCUSS",
+            "CN.WRITE.EXPO"
+          ],
+          "note": "语文要素：分清内容的主次，体会作者是如何详写主要部分的；抓住重点，写出家乡风俗的特点。"
+        },
+        {
+          "no": 2,
+          "title": "第二单元（外国文学名著）",
+          "lessons": [
+            "鲁滨逊漂流记（节选）",
+            "骑鹅旅行记（节选）",
+            "汤姆·索亚历险记（节选）",
+            "口语交际：同读一本书",
+            "习作：写作品梗概",
+            "语文园地二",
+            "快乐读书吧：漫步世界名著花园"
+          ],
+          "kps": [
+            "CN.READ.BOOK",
+            "CN.ACCU.LIT",
+            "CN.READ.SKILL.SUMMARY",
+            "CN.ORAL.DISCUSS"
+          ],
+          "note": "语文要素：借助作品梗概，了解名著的主要内容；学习写作品梗概。"
+        },
+        {
+          "no": 3,
+          "title": "第三单元（习作单元：真情流露）",
+          "lessons": [
+            "匆匆",
+            "那个星期天",
+            "交流平台和初试身手",
+            "习作例文：别了，语文课",
+            "习作例文：阳光的两种用法",
+            "习作：让真情自然流露"
+          ],
+          "kps": [
+            "CN.READ.SKILL.THEME",
+            "CN.READ.SKILL.TECHNIQUE",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：体会文章是怎样表达情感的；选择合适的内容写出真情实感。"
+        },
+        {
+          "no": 4,
+          "title": "第四单元（理想信念）",
+          "lessons": [
+            "古诗三首：马诗、石灰吟、竹石",
+            "十六年前的回忆",
+            "为人民服务",
+            "董存瑞舍身炸暗堡",
+            "综合性学习：奋斗的历程",
+            "习作：心愿",
+            "语文园地四"
+          ],
+          "kps": [
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.FEELING",
+            "CN.READ.SKILL.WORDS",
+            "CN.READ.SKILL.CHARACTER",
+            "CN.WRITE.LEARN",
+            "CN.WRITE.EVENT"
+          ],
+          "note": "语文要素：关注外貌、神态、言行的描写，体会人物的品质；查阅相关资料，加深对课文的理解。第 13 课较早印次是《金色的鱼钩》，较新印次换成《董存瑞舍身炸暗堡》，电子课本目录两者都列，这里按较新印次。"
+        },
+        {
+          "no": 5,
+          "title": "第五单元（科学精神）",
+          "lessons": [
+            "文言文二则：学弈、两小儿辩日",
+            "真理诞生于一百个问号之后",
+            "表里的生物",
+            "他们那时候多有趣啊",
+            "口语交际：辩论",
+            "习作：插上科学的翅膀飞",
+            "语文园地五"
+          ],
+          "kps": [
+            "CN.ACCU.CLASSIC.WORD",
+            "CN.ACCU.CLASSIC.TRANS",
+            "CN.ACCU.CLASSIC.IDEA",
+            "CN.READ.SKILL.STRUCT",
+            "CN.ORAL.DISCUSS",
+            "CN.WRITE.IMAGINE"
+          ],
+          "note": "语文要素：体会文章是怎样用具体事例说明观点的；发挥想象，写科幻故事。"
+        },
+        {
+          "no": 6,
+          "title": "第六单元（综合性学习：难忘小学生活）",
+          "lessons": [
+            "回忆往事",
+            "依依惜别",
+            "古诗词诵读：采薇（节选）、送元二使安西、春夜喜雨、早春呈水部张十八员外、江上渔者、泊船瓜洲、游园不值、卜算子·送鲍浩然之浙东、浣溪沙、清平乐"
+          ],
+          "kps": [
+            "CN.WRITE.LEARN",
+            "CN.WRITE.PRACTICAL",
+            "CN.ACCU.POEM.RECITE",
+            "CN.ACCU.POEM.AUTHOR"
+          ],
+          "note": "综合性学习：制作成长纪念册、策划毕业联欢会、写信写赠言。古诗词诵读 10 首是书末附录，不属于单元，这里并入最后一个单元方便检索。"
+        }
+      ],
+      "note": "2026–2027 学年下学期（2027 年春）按计划应换用新修订版，截至 2026-11-11 新版下册目录尚未公开，这里先收原版（2019 年版、较新印次）目录，新版出来后需要更新。"
+    }
+  ]
+}

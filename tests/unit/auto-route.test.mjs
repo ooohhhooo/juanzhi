@@ -26,7 +26,7 @@ const EN_PAGE = `PEP 小学英语五年级期末测试
 // ── v14 迁移：只加列，重复执行无害，旧数据不动 ──
 {
   const ms = migrations()
-  assert.equal(ms.length, 14)
+  assert.equal(ms.length, 15)
   const { db } = newDb(':memory:', 13)
   assert.ok(!db.prepare('PRAGMA table_info(papers)').all().some(c => c.name === 'subject_hint'))
   db.prepare("INSERT INTO papers (id, title, file_name, file_hash, status, subject) VALUES ('p1', '旧卷', 'a.pdf', 'h1', 'done', 'math')").run()
@@ -35,7 +35,7 @@ const EN_PAGE = `PEP 小学英语五年级期末测试
   const row = db.prepare("SELECT subject, subject_hint FROM papers WHERE id = 'p1'").get()
   assert.equal(row.subject, 'math'); assert.equal(row.subject_hint, null)
   ms[13](db)   // 重复执行无害
-  assert.equal(newDb().version, 14)
+  assert.equal(newDb().version, 15)
 }
 
 // ── 分流规则 ──

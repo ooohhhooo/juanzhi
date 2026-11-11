@@ -78,7 +78,7 @@ export const HOT_ROWS = 6
 export const GAP_MIN_PAPERS = 3
 
 /** code → 它和所有子孙（含自己） */
-function subtree(db: Db): Map<string, string[]> {
+export function subtree(db: Db): Map<string, string[]> {
   const kids = new Map<string, string[]>()
   for (const k of db.prepare('SELECT code, parent_code FROM kps').all() as any[]) {
     if (!kids.has(k.parent_code ?? '')) kids.set(k.parent_code ?? '', [])

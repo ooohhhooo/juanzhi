@@ -71,3 +71,4 @@
   .ewb-crs-row { grid-template-columns: minmax(0, 1fr); }
   .ewb-crs-split { grid-template-columns: minmax(0, 1fr); }
 }
+.ewb-crs-group { margin: 12px 0 4px; font-size: var(--ewb-fs-md, 14px); color: var(--ewb-ink-2); }
