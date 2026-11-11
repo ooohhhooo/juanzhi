@@ -328,8 +328,9 @@ export function registerCourseIpc(): void {
     notifyDataChanged('course')
     return r
   })
-  ipcMain.handle('course:refreshBuiltin', async (_e, id: unknown) => {
+  ipcMain.handle('course:refreshBuiltin', async (_e, id: unknown, confirm: unknown) => {
     const oid = IdSchema.parse(id)
+    if (confirm !== true) throw new Error('重新从内置更新会覆盖你手工改过的知识点对应，需要先确认')
     if (outlineBusy(oid)) throw new Error('这份教材正在使用中，请稍后再更新')
     const r = refreshBuiltinTextbook(db(), oid, CATALOG)
     notifyDataChanged('course')

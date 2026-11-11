@@ -89,7 +89,7 @@ export default function CompareTextbook() {
           </section>
 
           <section className="ewb-crs-block" data-testid="compare-units">
-            <h4 className="ewb-crs-block__title">教材每个单元的覆盖情况 <span className="ewb-ana-meta">绿色 = 机构课程讲到了，红色 = 没讲到</span></h4>
+            <h4 className="ewb-crs-block__title">教材每个单元的覆盖情况 <span className="ewb-ana-meta">蓝色 = 机构课程讲到了，浅色 = 只有大类对应（较粗），红色 = 没讲到</span></h4>
             {r.units.map(u => (
               <div key={u.lessonId} className="ewb-crs-row" data-testid={`compare-unit-${u.lessonId}`} data-covered={u.covered} data-total={u.total}>
                 <div className="ewb-crs-row__kp">
@@ -98,8 +98,8 @@ export default function CompareTextbook() {
                 </div>
                 <div className="ewb-crs-chips">
                   {u.kps.map(k => (
-                    <span key={k.code} className={`ewb-ana-pill ${k.lessons.length ? 'ewb-ana-pill--primary' : 'ewb-ana-pill--red'}`} data-testid={k.lessons.length ? 'compare-kp-covered' : 'compare-kp-uncovered'} title={k.lessons.length ? k.lessons.map(l => `${l.levelName} ${l.label}`).join('；') : '机构课程里没有讲到'}>
-                      {k.name}{k.lessons.length ? `：${k.lessons.slice(0, 2).map(l => `${l.levelName} ${l.label}`).join('、')}${k.lessons.length > 2 ? ` 等 ${k.lessons.length} 课` : ''}` : ' · 没讲到'}{k.frequent ? ' · 常考' : ''}
+                    <span key={k.code} className={`ewb-ana-pill ${k.lessons.length ? (k.coarseOnly ? 'ewb-ana-pill--quiet' : 'ewb-ana-pill--primary') : 'ewb-ana-pill--red'}`} data-coarse={k.coarseOnly} data-testid={k.lessons.length ? 'compare-kp-covered' : 'compare-kp-uncovered'} title={k.lessons.length ? k.lessons.map(l => `${l.levelName} ${l.label}`).join('；') : '机构课程里没有讲到'}>
+                      {k.name}{k.lessons.length ? `：${k.lessons.slice(0, 2).map(l => `${l.levelName} ${l.label}`).join('、')}${k.lessons.length > 2 ? ` 等 ${k.lessons.length} 课` : ''}` : ' · 没讲到'}{k.coarseOnly ? ' · 大类对应，较粗' : ''}{k.frequent ? ' · 常考' : ''}
                     </span>
                   ))}
                 </div>
