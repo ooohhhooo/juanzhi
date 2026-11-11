@@ -71,3 +71,19 @@
   .ewb-crs-row { grid-template-columns: minmax(0, 1fr); }
   .ewb-crs-split { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* 教材核对：每个单元一行，默认折叠 */
+.ewb-tb-list { display: grid; gap: var(--ewb-sp-2); margin-top: var(--ewb-sp-3); }
+.ewb-tb-unit { border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-md); background: var(--ewb-page); }
+.ewb-tb-unit[data-review="true"] { border-color: var(--ewb-line-strong); background: var(--ewb-note); }
+.ewb-tb-unit__head { all: unset; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ewb-sp-2) var(--ewb-sp-3); width: 100%; padding: var(--ewb-sp-3); cursor: pointer; }
+.ewb-tb-unit__head:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 2px; }
+.ewb-tb-unit__no { min-width: 1.6em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ewb-tb-unit__title { font-weight: 700; }
+.ewb-tb-unit__kps { flex: 1 1 200px; color: var(--ewb-ink-2); font-size: var(--ewb-fs-sm); }
+.ewb-tb-unit__body { display: grid; gap: var(--ewb-sp-2); padding: 0 var(--ewb-sp-3) var(--ewb-sp-3); }
+.ewb-tb-kps { margin: 0; padding-inline-start: 1.2em; font-size: var(--ewb-fs-sm); }
+.ewb-tb-page { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: var(--ewb-sp-3); align-items: start; }
+.ewb-tb-page img { width: 100%; border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-sm); }
+.ewb-tb-page pre { margin: 0; max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
+@media (max-width: 900px) { .ewb-tb-page { grid-template-columns: minmax(0, 1fr); } }

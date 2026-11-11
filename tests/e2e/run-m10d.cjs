@@ -165,10 +165,10 @@ async function main() {
     check('失败路径', '点“移除”：卡片消失', await waitFor(async () => (await T('course-job-state').count()) === 0, 8000))
   }
   {
-    fs.writeFileSync(f('超大.pdf'), Buffer.alloc(31 * 1024 * 1024))
+    fs.writeFileSync(f('超大.pdf'), ''); fs.truncateSync(f('超大.pdf'), 501 * 1024 * 1024)   // 稀疏文件，不占磁盘
     const ok = await pickFile(f('超大.pdf'))
     const msg = pickFile.msg
-    check('失败路径', '超大文件（31 MB）：提示“文件太大了（超过 30 MB）”', !ok && /文件太大了/.test(String(msg)), String(msg))
+    check('失败路径', '超大文件（501 MB）：提示“文件太大了：501 MB，超过 500 MB 的上限”', !ok && /文件太大了.*501 MB.*500 MB/.test(String(msg)), String(msg))
     await closeWizard()
     fs.rmSync(f('超大.pdf'), { force: true })
   }

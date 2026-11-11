@@ -60,6 +60,57 @@ function makeTextPdf(file, lines) {
   return file
 }
 
+/** 多页文字版 PDF（每页一组行，ASCII）：合成「教材」用。junkBytes > 0 时在中间塞一个没人引用的大对象（全 0），把文件撑到指定大小，用来测大文件，不进内存地写 */
+function makeMultiPagePdf(file, pagesLines, junkBytes = 0) {
+  const n = pagesLines.length
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', `<< /Type /Pages /Kids [${pagesLines.map((_, i) => `${5 + i * 2} 0 R`).join(' ')}] /Count ${n} >>`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
+  // 对象 4 = 占位（junk），页对象从 5 开始：页 i = 5 + 2i，内容流 = 6 + 2i
+  objs.push(null)
+  pagesLines.forEach((lines, i) => {
+    const body = 'BT /F1 16 Tf 20 TL 60 780 Td\n' + lines.map(l => `(${l.replace(/[()\\]/g, '')}) Tj T*`).join('\n') + '\nET'
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${6 + i * 2} 0 R >>`)
+    objs.push(['<< /Length LEN >>', Buffer.from(body)])
+  })
+  const fd = fs.openSync(file, 'w')
+  let len = 0
+  const w = b => { fs.writeSync(fd, b); len += b.length }
+  const offs = []
+  w(Buffer.from('%PDF-1.4\n'))
+  objs.forEach((o, i) => {
+    offs.push(len)
+    if (o === null) {
+      w(Buffer.from(`${i + 1} 0 obj\n<< /Length ${junkBytes} >>\nstream\n`))
+      const chunk = Buffer.alloc(1024 * 1024)
+      for (let left = junkBytes; left > 0; left -= chunk.length) w(left >= chunk.length ? chunk : chunk.subarray(0, left))
+      w(Buffer.from('\nendstream\nendobj\n'))
+    } else if (Array.isArray(o)) w(Buffer.concat([Buffer.from(`${i + 1} 0 obj\n${o[0].replace('LEN', String(o[1].length))}\nstream\n`), o[1], Buffer.from('\nendstream\nendobj\n')]))
+    else w(Buffer.from(`${i + 1} 0 obj\n${o}\nendobj\n`))
+  })
+  const xref = `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${len}\n%%EOF\n`
+  w(Buffer.from(xref))
+  fs.closeSync(fd)
+  return file
+}
+
+/**
+ * 合成教材（ASCII 英文，虚构）：第 1 页封面（写着版本、年级、学期），第 2 页目录（Unit n ...... 印的页码），
+ * 正文每个单元 perUnit 页，印的页码 = PDF 页 - 2。每页第一行是「Unit n Title」页眉，单元第一页另有小节标题 Lesson / Let's ...
+ */
+function makeTextbookPdf(file, units, perUnit = 6, o = {}) {
+  const pages = []
+  pages.push(o.cover ?? ['PEP Primary English', 'Grade 3 Book 1', 'People Education Press (sample)'])
+  pages.push(['Contents', ...units.map((u, i) => `Unit ${i + 1} ${u} ........ ${1 + i * perUnit}`)])
+  units.forEach((u, i) => {
+    for (let k = 0; k < perUnit; k++) {
+      const lines = [`Unit ${i + 1} ${u}`]
+      if (k === 0) lines.push(`Lesson 1 ${u} basics`, `Lesson 2 ${u} practice`, `Let's learn about ${u}`)
+      lines.push(`Body text of page ${k + 1} in unit ${i + 1}. The students read, listen and speak about ${u} in class today.`)
+      pages.push(lines)
+    }
+  })
+  return makeMultiPagePdf(file, pages, o.junkBytes ?? 0)
+}
+
 /** 扫描版 PDF：页面里只有一张 JPEG，没有文本层，只能 OCR */
 function makeImagePdf(file, jpg, w, h) {
   const pw = 595, ph = Math.round(595 * h / w)
@@ -118,4 +169,4 @@ function makeHeic(pngFile, heicFile) {
   try { execFileSync('/usr/bin/sips', ['-s', 'format', 'heic', pngFile, '--out', heicFile], { stdio: 'ignore' }); return fs.existsSync(heicFile) && fs.statSync(heicFile).size > 100 ? heicFile : null } catch { return null }
 }
 
-module.exports = { makeXlsx, makeDocxTable, makeDocxText, makeTextPdf, makeImagePdf, drawImages, makeHeic, withExifOrientation, path }
+module.exports = { makeXlsx, makeDocxTable, makeDocxText, makeTextPdf, makeMultiPagePdf, makeTextbookPdf, makeImagePdf, drawImages, makeHeic, withExifOrientation, path }

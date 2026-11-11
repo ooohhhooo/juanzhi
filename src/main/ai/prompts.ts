@@ -42,6 +42,8 @@ import p5HintSystem from './prompts/p5_course_hint.system.txt?raw'
 import p5HintUser from './prompts/p5_course_hint.user.txt?raw'
 import p5ExtractSystem from './prompts/p5_course_extract.system.txt?raw'
 import p5ExtractUser from './prompts/p5_course_extract.user.txt?raw'
+import p5TextbookSystem from './prompts/p5_course_textbook.system.txt?raw'
+import p5TextbookUser from './prompts/p5_course_textbook.user.txt?raw'
 import p6ProposeSystem from './prompts/p6_classify_propose.system.txt?raw'
 import p6ProposeUser from './prompts/p6_classify_propose.user.txt?raw'
 import p6AssignSystem from './prompts/p6_classify_assign.system.txt?raw'
@@ -148,6 +150,7 @@ const DEFAULTS: Record<string, string> = {
   'p5_course_advice.system': trimEnd(p5AdviceSystem), 'p5_course_advice.user': trimEnd(p5AdviceUser),
   'p5_course_hint.system': trimEnd(p5HintSystem), 'p5_course_hint.user': trimEnd(p5HintUser),
   'p5_course_extract.system': trimEnd(p5ExtractSystem), 'p5_course_extract.user': trimEnd(p5ExtractUser),
+  'p5_course_textbook.system': trimEnd(p5TextbookSystem), 'p5_course_textbook.user': trimEnd(p5TextbookUser),
   'p6_classify_propose.system': trimEnd(p6ProposeSystem), 'p6_classify_propose.user': trimEnd(p6ProposeUser),
   'p6_classify_assign.system': trimEnd(p6AssignSystem), 'p6_classify_assign.user': trimEnd(p6AssignUser),
   'p7_role_draft.system': trimEnd(p7RoleSystem), 'p7_role_draft.user': trimEnd(p7RoleUser),
@@ -202,6 +205,7 @@ const TITLES: Record<PromptId, string> = {
   p5_course_advice: 'P5 课程对照：家长沟通话术（看板）',
   p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议',
   p5_course_extract: 'P5 课程对照：从 Word / PDF / 图片的文字里整理课程表',
+  p5_course_textbook: 'P5 课程对照：教材 / 整本书按单元挑知识点',
   p6_classify_propose: 'P6 文字归类：从抽样文字里提出类别',
   p6_classify_assign: 'P6 文字归类：把每条文字归入类别',
   p7_role_draft: 'P7 助手角色：根据岗位和选择生成角色草稿'
@@ -223,6 +227,7 @@ export const PLACEHOLDERS: Record<PromptId, string[]> = {
   p5_course_advice: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
   p5_course_hint: ['SCENE', 'FILTER_DESC', 'SAMPLE_WARNING', 'LOST_POINTS', 'COURSE_MATCH', 'EVIDENCE'],
   p5_course_extract: ['SOURCE_KIND', 'SOURCE_TEXT'],
+  p5_course_textbook: ['SUBJECT_NAME', 'UNIT_TITLE', 'UNIT_NO', 'UNIT_TOTAL', 'PAGE_RANGE', 'UNIT_HEADINGS', 'UNIT_OPENING', 'KP_CANDIDATES'],
   p6_classify_propose: ['FIELD_NAME', 'TOTAL_COUNT', 'SAMPLE_COUNT', 'TEXT_LINES', 'EXISTING_CATEGORIES'],
   p6_classify_assign: ['FIELD_NAME', 'CATEGORIES', 'TEXT_LINES'],
   p7_role_draft: ['SCENE', 'JOB', 'TASKS', 'REPORT_TO', 'STYLE', 'EXTRA', 'TOOL_LIST', 'SKILL_LIST']

@@ -12,6 +12,16 @@ import '../../design/page-report.css'
 import '../../design/page-course.css'
 
 /** 设置 → 课程大纲：课程体系卡片（启用 / 查看 / 重新上传 / 删除 / 匹配）和上传向导。数据只存在这台电脑上。 */
+/** 整理中的进度文字：读教材的页、文字识别（扫描版）、按单元挑知识点、按段、按表 */
+function progressText(p: CourseJob['progress']): string {
+  if (!p || p.total < 1) return 'AI 整理中'
+  if (p.unit === '页') return `读取教材 · ${p.done}/${p.total} 页`
+  if (p.unit === '页（文字识别）') return `文字识别 · ${p.done}/${p.total} 页（扫描版较慢）`
+  if (p.unit === '个单元') return `AI 整理中 · 第 ${Math.min(p.done + 1, p.total)}/${p.total} 个单元`
+  if (p.total < 2) return 'AI 整理中'
+  return p.unit === '段' ? `AI 整理中 · 第 ${Math.min(p.done + 1, p.total)}/${p.total} 段` : `AI 整理中 · ${p.done}/${p.total} 张表`
+}
+
 export default function CourseSettings() {
   const { message } = App.useApp()
   const qc = useQueryClient()
@@ -51,9 +61,10 @@ export default function CourseSettings() {
                 <span className="ewb-crs-card__name" data-testid="course-job-name">{j.fileName}</span>
                 {j.replaceId && <span className="ewb-ana-pill ewb-ana-pill--quiet">替换「{(cards ?? []).find(c => c.id === j.replaceId)?.name ?? j.name}」</span>}
                 <span className={`ewb-ana-pill${j.status === 'failed' ? ' ewb-ana-pill--warn' : ''}`} data-testid="course-job-state">
-                  {{ queued: '排队中', running: j.progress && j.progress.total > 1 ? (j.progress.unit === '段' ? `AI 整理中 · 第 ${Math.min(j.progress.done + 1, j.progress.total)}/${j.progress.total} 段` : `AI 整理中 · ${j.progress.done}/${j.progress.total} 张表`) : 'AI 整理中', ready: '待核对', failed: '整理失败' }[j.status]}
+                  {{ queued: '排队中', running: progressText(j.progress), ready: '待核对', failed: '整理失败' }[j.status]}
                 </span>
               </div>
+              {j.status === 'running' && j.progress?.note && <div className="ewb-crs-card__meta"><span data-testid="course-job-note">{j.progress.note}</span></div>}
               {j.status === 'failed' && <div className="ewb-crs-card__meta"><span data-testid="course-job-error">{j.error || '没有整理成功'}</span></div>}
               <div className="ewb-crs-card__actions">
                 {j.status === 'ready' && <Btn tone="primary" size="small" data-testid="course-job-review"

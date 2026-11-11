@@ -14,11 +14,13 @@ import { withSpend } from './cost'
 import { CourseFileError } from '../course/table-read'
 import { COL_FIELDS } from '../course/map'
 import { courseDashboard, gapsToCsv } from '../course/stats'
-import { SCENES, confirmDraft, createOutline, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
+import { SCENES, applyTextbookMaps, confirmDraft, createOutline, setOutlineKind, diffOutline, editMap, getOutline, listOutlines, mapRows, removeOutline, renameOutline, replaceOutline, searchLessons, setOutlineActive } from '../course/store'
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
-  cancelSuggest, setJobHooks, setSessionSubject, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession
+  cancelSuggest, setJobHooks, setSessionSubject, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession,
+  sessionKind, textbookPageOf, textbookUnitsOf, useBuiltinCatalog
 } from '../course/service'
+import { promptVersionFor } from '../ai/prompts'
 import type { SuggestResult } from '../course/service'
 import { createJobQueue } from '../course/job-queue'
 import type { AdviceScope } from '../course/service'
@@ -67,8 +69,17 @@ const SaveSchema = z.object({
   /** 替换会删掉老师确认 / 手工指定的对应时，用户在确认框里明确同意 */
   confirmLockedLoss: z.boolean().default(false),
   /** 新建体系属于哪个学科（缺省英语）；替换时以原体系为准 */
-  subject: SubjectArg
+  subject: SubjectArg,
+  /** 课程表 / 教材课本（教材整理会话以会话为准） */
+  kind: z.enum(['course', 'textbook']).optional(),
+  /** 教材：每个单元（课次 = 单元序号）的知识点，核对界面里老师增删、确认后的结果 */
+  unitKps: z.array(z.object({
+    seq: z.number().int().min(0).max(99999),
+    kps: z.array(z.object({ code: z.string().max(80), confidence: z.string().max(10), quote: z.string().max(200).default(''), reason: z.string().max(200).default(''), confirmed: z.boolean().default(false), manual: z.boolean().default(false) })).max(12)
+  })).max(2000).optional()
 })
+/** 读文件时的选项：课程表 / 教材课本、页码范围（如 "1-60"）、学科 */
+const ReadOptsSchema = z.object({ kind: z.enum(['course', 'textbook']).optional(), pageRange: z.string().max(200).optional(), subject: SubjectArg }).optional()
 
 const ScopeSchema = z.object({ filter: FilterArg, outlineIds: OutlineIds })
 const toScope = (raw: unknown): AdviceScope => {
@@ -116,7 +127,8 @@ export function registerCourseIpc(): void {
 
   // ───── 上传向导 ─────
   /** 选文件（可多选）：弹系统对话框（路径随之登记），每个文件读成一个「读取会话」；读不了的文件只记下原因。取消返回 null */
-  ipcMain.handle('course:pickFile', async () => {
+  ipcMain.handle('course:pickFile', async (_e, rawOpts?: unknown) => {
+    const ropts = ReadOptsSchema.parse(rawOpts ?? undefined) ?? {}
     const win = getMainWindow()
     const opts: Electron.OpenDialogOptions = { title: '选择课程表', filters: [{ name: '课程表（Excel、CSV、Word、PDF、图片）', extensions: ['xlsx', 'csv', 'txt', 'xls', 'tsv', 'docx', 'doc', 'pdf', 'png', 'jpg', 'jpeg', 'heic'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile', 'multiSelections'] }
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
@@ -125,12 +137,16 @@ export function registerCourseIpc(): void {
     const errors: string[] = []
     for (const p of r.filePaths.slice(0, MAX_FILES)) {
       allowPath(p)
-      try { sources.push(await readSourceFile(p)) } catch (e) { errors.push(e instanceof Error ? e.message : String(e)) }
+      try { sources.push(await readSourceFile(p, ropts)) } catch (e) { errors.push(e instanceof Error ? e.message : String(e)) }
     }
     return { sources, errors }
   })
   /** 拖入文件：路径必须是 preload 对真实 File 取过路径、登记过的 */
-  ipcMain.handle('course:readFile', async (_e, p: unknown) => readSourceFile(z.string().min(1).max(2000).parse(p)).catch(fileFailure))
+  ipcMain.handle('course:readFile', async (_e, p: unknown, rawOpts?: unknown) => readSourceFile(z.string().min(1).max(2000).parse(p), ReadOptsSchema.parse(rawOpts ?? undefined) ?? {}).catch(fileFailure))
+  /** 教材整理好之后：每个单元的页码、小节标题和 AI 挑的知识点；看原书某一页；用软件内置的这一册目录 */
+  ipcMain.handle('course:textbookUnits', async (_e, sid: unknown) => { try { return textbookUnitsOf(IdSchema.parse(sid)) } catch (e) { return fileFailure(e) } })
+  ipcMain.handle('course:textbookPage', async (_e, sid: unknown, page: unknown) => { try { return await textbookPageOf(IdSchema.parse(sid), z.number().int().min(1).max(100000).parse(page)) } catch (e) { return fileFailure(e) } })
+  ipcMain.handle('course:useBuiltinCatalog', async (_e, sid: unknown) => { try { return useBuiltinCatalog(IdSchema.parse(sid)) } catch (e) { return fileFailure(e) } })
   ipcMain.handle('course:readText', async (_e, t: unknown) => readSourceText(z.string().min(1).max(5_000_000).parse(t)).catch(fileFailure))
 
   /** 认列：会调用 AI（写 ai_usage），归写入类 */
@@ -215,15 +231,19 @@ export function registerCourseIpc(): void {
     let resolved
     try { resolved = resolveLevels(p.sessionId, p.mappings, p.levels as never) } catch (e) { return fileFailure(e) }
     const levels = resolved.levels.filter(l => l.lessons.length)
+    const kind = sessionKind(p.sessionId) ?? p.kind
     const common = { sourceName: src?.name ?? '', sourceHash: src?.hash ?? '', mapping: p.mappings, warnings: (p.warnings.length ? p.warnings : resolved.warnings.slice(0, 300)) as never, aiModel: p.aiModel, levels }
     if (p.replaceId) {
       if (outlineBusy(p.replaceId)) throw new Error('这个课程体系正在匹配 / 生成家长建议，请等它结束或先取消，再替换')
       const r = replaceOutline(db(), p.replaceId, { ...common, confirmLockedLoss: p.confirmLockedLoss })
+      setOutlineKind(db(), p.replaceId, kind)
+      if (p.unitKps?.length) applyTextbookMaps(db(), p.replaceId, p.unitKps, { model: p.aiModel, promptVersion: promptVersionFor('p5_course_textbook') }, false)
       log.info('course', '替换课程体系', { added: r.added, changed: r.changed, removed: r.removed })
       notifyDataChanged('course')
       return { id: p.replaceId, replaced: true, ...r }
     }
-    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(src?.subject ?? p.subject) })   // 学科以整理会话里锁定的为准，其次才是界面传来的
+    const id = createOutline(db(), { ...common, name: p.name, scene: p.scene as never, termNote: p.termNote, status: 'active', subject: asSubject(src?.subject ?? p.subject), kind })
+    if (p.unitKps?.length) applyTextbookMaps(db(), id, p.unitKps, { model: p.aiModel, promptVersion: promptVersionFor('p5_course_textbook') })   // 学科以整理会话里锁定的为准，其次才是界面传来的
     log.info('course', '保存课程体系', { levels: levels.length, lessons: levels.reduce((n, l) => n + l.lessons.length, 0) })
     notifyDataChanged('course')
     return { id, replaced: false }

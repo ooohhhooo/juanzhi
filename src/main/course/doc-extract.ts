@@ -8,12 +8,15 @@ import JSZip from 'jszip'
 import { CourseFileError, LIMITS, ZIP_LIMITS, cleanCell, decodeXml, readText, scanElements } from './table-read.ts'
 import type { Sheet, TableRead } from './table-read.ts'
 import type { SheetMapping } from './map.ts'
+import { COURSE_MAX_PAGES, MAX_IMPORT_BYTES } from '../../shared/file-limits.ts'
 
 /** 发给 AI 的文字上限（字符）；再多就不像一份课程表了 */
 export const MAX_SOURCE_CHARS = 60_000
 /** PDF / 图片最多处理的页数 */
-export const MAX_PAGES = 20
-export const MAX_FILE_BYTES = 30 * 1024 * 1024
+export const MAX_PAGES = COURSE_MAX_PAGES
+/** PDF 由渲染窗口按需分块读取（不进内存），上限同试卷导入；Word / Excel / 图片要整份读进内存，另有较小的上限 */
+export const MAX_FILE_BYTES = MAX_IMPORT_BYTES
+export const MAX_INMEMORY_BYTES = 100 * 1024 * 1024
 
 export type RichKind = 'docx' | 'pdf' | 'image'
 export const KIND_LABEL: Record<RichKind, string> = { docx: 'Word', pdf: 'PDF', image: '图片' }

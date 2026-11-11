@@ -1,0 +1,13 @@
+学科：{{SUBJECT_NAME}}
+单元：{{UNIT_TITLE}}（第 {{UNIT_NO}} / {{UNIT_TOTAL}} 个单元，书的第 {{PAGE_RANGE}} 页）
+
+【这个单元的小节标题和栏目名】
+{{UNIT_HEADINGS}}
+
+【开头的几行文字】
+{{UNIT_OPENING}}
+
+【候选知识点】（代码 | 名称）
+{{KP_CANDIDATES}}
+
+请按 system 的要求只输出 JSON。
