@@ -13,7 +13,7 @@ Turn a stack of primary-school Chinese, math and English exam papers into a "dic
 
 ![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v14-overview.png)
 
-> **This is the 1.4.0 public beta (公测版).** New: a built-in assistant (ask about your data in Chinese, make dashboards, drafts and share cards; it remembers earlier conversations), a Data page that takes spreadsheets, images, PDF and Word files, connectors for WeCom and common MCP tools, and an interactive terminal interface. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
+> **This is the 1.5.0 public beta (公测版).** New: Chinese and math subjects (the whole workflow works for them, as for English); files dropped into the window are sorted into the paper library or the Data page automatically, and the app checks each paper\'s subject and warns you if it looks misplaced. The assistant, data import, WeCom and MCP connectors added in 1.4 still work as before. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
 
 > **Download: [click here to open the download page](https://github.com/ooohhhooo/juanzhi/releases/latest)**　|　Full installation guide: [docs/安装指南.md](docs/安装指南.md) (the guide is in Chinese)
 
@@ -56,6 +56,13 @@ Juanzhi is a program you install on your computer. It is made for **primary-scho
 ![Switched to Math: the overview only counts math papers, and the categories are math's own](docs/screenshots/readme-v14-subjects.png)
 
 The trees follow the 2022 national curriculum standards and the new textbook editions; the research notes (in Chinese) are in [docs/学科调研](docs/学科调研/). You can edit each subject's tree in Settings → 知识点树 (Knowledge-point tree). In math, a whole section of mental arithmetic, column calculation or step-by-step calculation counts as one question.
+
+**Automatic sorting on import:**
+- Drop files onto any page other than the paper library, the Data page or the assistant, and the app sorts them: spreadsheets (Excel, CSV) go to Data, anything that looks like a paper (including images) goes to the paper library, and other documents go to Data's document materials. One message sums up where everything went.
+- Once a paper's text has been read, the app checks its subject. For example, if the sidebar is on English and you import a math paper, the app holds it back and shows "This looks like a math paper" (这份看起来是数学卷) at the top of the paper library, with buttons to move it to math or keep it in English. When it isn't sure, it uses the current subject and doesn't interrupt you. It won't ask again about a paper you have already decided on.
+- To fix a paper later, use 改学科 (Change subject) in the paper's 更多 (More) menu; it is then re-recognised under the new subject.
+- Spreadsheets and documents on the Data page carry a subject tag (English, Chinese, Math or General) that you can change. By default the page, and the assistant, only see the current subject plus General.
+- If you paste screenshots of papers from several subjects into the assistant and ask it to import them, it files each one under its own subject.
 
 5. **Built-in assistant (new in 1.4).** Ask questions in Chinese in the 「助手」(Assistant) page, such as "which classes' attendance dropped most" or "write a message to a parent about renewing". It looks up papers, courses, reports and the data you imported, and makes dashboards, write-ups, lists and share cards. See [section 7](#7-built-in-assistant-ask-about-your-data-in-chinese-make-dashboards-drafts-and-cards).
 
@@ -180,12 +187,12 @@ Without an API Key you can still install the app and look at the "sample data". 
 
 | Your computer | Click this file |
 |---|---|
-| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.3.0-beta.4-mac-arm64.dmg` |
-| Mac with Intel processor | `Juanzhi-1.3.0-beta.4-mac-x64.dmg` |
-| Windows (recommended) | `Juanzhi-1.3.0-beta.4-win-x64-setup.exe` (installer version) |
-| Windows, without permission to install | `Juanzhi-1.3.0-beta.4-win-x64-portable.exe` (no-install version, double-click to use) |
+| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.5.0-mac-arm64.dmg` |
+| Mac with Intel processor | `Juanzhi-1.5.0-mac-x64.dmg` |
+| Windows (recommended) | `Juanzhi-1.5.0-win-x64-setup.exe` (installer version) |
+| Windows, without permission to install | `Juanzhi-1.5.0-win-x64-portable.exe` (no-install version, double-click to use) |
 
-- The `1.3.0-beta.4` in the file name is the version number. Use the latest version shown on the page.
+- The `1.5.0` in the file name is the version number. Use the latest version shown on the page.
 - **Do not click** `Source code (zip)` or `Source code (tar.gz)`. That is source code for programmers, not an installer.
 - If you are not sure which chip your Mac has, download the Intel version (`mac-x64`). A Mac with an Apple chip can usually open it too (the system may ask you to install Rosetta. Just follow the prompt). The reverse does not work: the Apple-chip installer cannot be opened on an Intel Mac.
 - **If your browser says the file "isn't commonly downloaded" or "may be harmful"** (「此文件不常被下载」「可能有害」): in Edge, click the "…" next to the file, then "Keep", then "Keep anyway" (「保留」→「仍然保留」). In Chrome, click "Keep". The reason is the same: there is no signing certificate.

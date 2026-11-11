@@ -10,8 +10,8 @@ web
 
 ## Users
 
-- **运营** at a K12 online-education company (primary-school English line). They collect school exam papers, produce analysis for the boss, cut parent-facing material from it, and tell tutors what to emphasise. Their English is ordinary, they don't know grammar terms, and they aren't technical. They're busy and want usable output in a few clicks.
-- **辅导老师**, of uneven ability. The weaker ones aren't English majors and aren't comfortable with software. They check AI-tagged questions, look up key and error-prone points, pull original-paper screenshots for lessons, and explain to parents in plain words what a child should practise.
+- **运营** at a K12 online-education company (primary-school Chinese, math and English). They collect school exam papers, produce analysis for the boss, cut parent-facing material from it, and tell tutors what to emphasise. They don't know subject jargon (grammar terms, textbook editions), and they aren't technical. They're busy and want usable output in a few clicks.
+- **辅导老师**, of uneven ability. The weaker ones aren't subject specialists and aren't comfortable with software. They check AI-tagged questions, look up key and error-prone points, pull original-paper screenshots for lessons, and explain to parents in plain words what a child should practise.
 - **Readers of exports, who never open the app:**
   - **老板**: wants decisions — 教研重点 and 课程卖点.
   - **家长**: wants plain words and what to practise at home.
@@ -44,7 +44,7 @@ Turn a pile of school exam papers (PDF, photos, Word) into knowledge-point evide
   - Electron, React 19, TypeScript, Ant Design 6, ECharts 6, TanStack Query, `node:sqlite`.
   - No native npm modules.
   - Everything works offline: no CDN fonts or remote assets at runtime; fonts must be bundled.
-- **Language:** the UI is in Chinese, while the content (questions, options) is English.
+- **Language:** the UI is in Chinese, while the content follows the subject: Chinese and math papers are in Chinese, English papers in English.
 - **Charts:** treemap, bar charts, heatmap/matrix.
 - **Must not be lost:** keyboard shortcuts (J/K, Enter) on the review page, and drag-and-drop import anywhere in the window.
 - **Exports:** PDF reports must render Chinese on Windows (font fallback chain).
