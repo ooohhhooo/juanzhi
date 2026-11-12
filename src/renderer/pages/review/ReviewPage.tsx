@@ -225,7 +225,7 @@ export default function ReviewPage() {
     }
     const suspect = paper?.similar_state === 'suspect'
     if (pendingN === 0 && !suspect) return doIt(false)
-    const suspectLine = suspect ? '另外：这份卷子被标成「疑似重复」，确认完成后默认也不计入统计；如果它确实是新卷，请先到试卷库或处理队列点「确实是新卷，计入统计」。' : ''
+    const suspectLine = suspect ? '另外：这份卷子被标成「疑似重复」，确认完成后默认也不计入统计；如果它确实是新卷，请先到「试卷」点「确实是新卷，计入统计」。' : ''
     modal.confirm({
       title: pendingN > 0 ? `还有 ${pendingN} 道题没有逐题确认` : '确认整份试卷？',
       content: <div>{pendingN > 0 && <div>仍然完成的话，这些题会按当前内容一并标为已确认。</div>}{suspectLine && <div data-testid="finish-similar-note" style={{ marginTop: pendingN > 0 ? 8 : 0 }}>{suspectLine}</div>}</div>,
@@ -239,7 +239,7 @@ export default function ReviewPage() {
     return (
       <div style={{ padding: 'var(--ewb-sp-5)' }}>
         <Btn tone="secondary" icon={ArrowLeft} onClick={() => navigate('/review')}>返回</Btn>
-        <EmptyState title="这份试卷还没有解析结果" description={`当前状态：${statusMap[paper.status]?.label ?? paper.status}。请先到「处理队列」运行 AI 解析。`} />
+        <EmptyState title="这份试卷还没有解析结果" description={`当前状态：${statusMap[paper.status]?.label ?? paper.status}。请先到「试卷 → 处理中」运行 AI 解析。`} />
       </div>
     )
   }
