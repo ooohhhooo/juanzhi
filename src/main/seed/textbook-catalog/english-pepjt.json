@@ -1,0 +1,977 @@
+{
+  "id": "english-pepjt",
+  "subject": "english",
+  "edition": "人教精通",
+  "textbookValue": "人教精通",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 人教版精通（三年级起点）各册目录（jt3s_2024 / jt3x_2025 / jt4s_2025 / jt4x_2026 / jt5s_2026 / jt5x / jt6s_2026 / jt6x）",
+      "url": "http://www.dzkbw.com/books/rjb/xiaoxue-yingyu/"
+    },
+    {
+      "title": "电子课本网 · 人教版精通三年级上册(2024秋版)目录",
+      "url": "http://www.dzkbw.com/books/rjb/yingyu/jt3s_2024/"
+    },
+    {
+      "title": "教习网英语朗读 · 人教精通版三上至六下 8 册课文朗读目录与单元句型（sanshang … liuxia /rjjtb/）",
+      "url": "https://yyld.51jiaoxi.com/sanshang/rjjtb/"
+    },
+    {
+      "title": "教习网英语朗读 · 人教精通版六年级下册课文目录",
+      "url": "https://yyld.51jiaoxi.com/liuxia/rjjtb/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Greetings",
+          "lessons": [
+            "话题：问候与自我介绍",
+            "句型（概括）：Hello! I'm … / Good morning. / What's your name? My name is … / Nice to meet you.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.POSS.ADJ",
+            "GR.VERB.BE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 School things",
+          "lessons": [
+            "话题：文具与学习用品",
+            "句型（概括）：What's this? It's a … / This is my …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.PRON.DEMO",
+            "GR.NOUN.ARTICLE.A_AN",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Toys",
+          "lessons": [
+            "话题：玩具；请求与给予",
+            "句型（概括）：Can I see your …? Sure. Here you are. / Look at my …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL",
+            "FN.POLITE",
+            "GR.PRON.POSS.ADJ"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "FN.GREET",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Friends",
+          "lessons": [
+            "话题：介绍朋友，描述外貌",
+            "句型（概括）：This is my friend … / He's tall. She has long hair.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "VO.TOPIC.BODY",
+            "GR.ADJ.USE",
+            "GR.PRON.PERSONAL",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Drinks and fruits",
+          "lessons": [
+            "话题：饮料与水果",
+            "句型（概括）：Do you like bananas? Yes, I do. / Can I have some water?",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.NOUN.PLURAL.REG",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Food",
+          "lessons": [
+            "话题：食物；表达想要",
+            "句型（概括）：I'd like some … / Would you like …? Yes, please.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.VERB.MODAL.WOULD",
+            "GR.NOUN.COUNT.SOMEANY"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Revision 2",
+          "lessons": [
+            "话题：复习 Unit 4–6"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.FOOD",
+            "VO.TOPIC.FAMILY"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My classroom",
+          "lessons": [
+            "话题：教室物品与课堂指令",
+            "句型（概括）：Open the window, please. / Clean the desk.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.VERB.IMPER",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My class",
+          "lessons": [
+            "话题：班级与人数",
+            "句型（概括）：How many students are there? There are twenty.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "GR.SENT.THEREBE",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My family",
+          "lessons": [
+            "话题：家庭成员",
+            "句型（概括）：Who is that man? He is my uncle.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHO",
+            "GR.PRON.DEMO",
+            "GR.PRON.PERSONAL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "话题：复习 Unit 1–3（Review of Units 1-3）"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.FAMILY"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Clothes",
+          "lessons": [
+            "话题：衣物；穿与脱",
+            "句型（概括）：Put on your … / Take off your … / This is my …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "VO.PHRASE.VERB",
+            "GR.VERB.IMPER",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Animals",
+          "lessons": [
+            "话题：动物",
+            "句型（概括）：What is that? It is a little rabbit.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.DEMO",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Colours",
+          "lessons": [
+            "话题：颜色",
+            "句型（概括）：What colour is the dress? It is red.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.SENT.WH.WHAT",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Revision 2",
+          "lessons": [
+            "话题：复习 Unit 4–6（Review of Units 4-6）"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.CLOTHES",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Sports",
+          "lessons": [
+            "话题：体育运动",
+            "句型（概括）：What's your favourite sport? I like … / Let's play football.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Hobbies",
+          "lessons": [
+            "话题：爱好",
+            "句型（概括）：What's your hobby? I like singing and dancing.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "GR.VERB.FORM.ING",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Weather",
+          "lessons": [
+            "话题：天气",
+            "句型（概括）：What's the weather like today? It's cloudy. / How's the weather?",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.HOBBY",
+            "VO.TOPIC.WEATHER"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Fun activities",
+          "lessons": [
+            "话题：趣味活动与野餐",
+            "句型（概括）：Would you like some bread? Yes, please. / Let's fly a kite.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.WOULD",
+            "FN.SUGGEST",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Animals",
+          "lessons": [
+            "话题：动物（复数）",
+            "句型（概括）：What are these? They are lions.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.PRON.DEMO",
+            "GR.NOUN.PLURAL",
+            "GR.PRON.PERSONAL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 My day",
+          "lessons": [
+            "话题：一日作息与钟点",
+            "句型（概括）：What time is it? / What time do you get up? I get up at six thirty.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Revision 2",
+          "lessons": [
+            "话题：复习 Unit 4–6"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.ANIMAL",
+            "GR.NUM.TIME"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Transport",
+          "lessons": [
+            "话题：交通方式",
+            "句型（概括）：How do you go to school? I usually go by bus. / on foot",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.HOW",
+            "GR.ADJ.ADV.FREQ",
+            "GR.PREP.COLLOC"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 School subjects",
+          "lessons": [
+            "话题：学科与课程表",
+            "句型（概括）：Do you have music today? Yes, we do. / What subject do you like?",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.YESNO.DO",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 After-school activities",
+          "lessons": [
+            "话题：课后活动",
+            "句型（概括）：What do you do after school? I often …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES",
+            "GR.ADJ.ADV.FREQ",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.SCHOOL",
+            "GR.ADJ.ADV.FREQ"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Weekend activities",
+          "lessons": [
+            "话题：周末活动（野餐、做作业、探望祖父母）",
+            "句型（概括）：What do you do on weekends? I visit my grandparents.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "VO.PHRASE.VERB",
+            "GR.TENSE.PRES",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Special days",
+          "lessons": [
+            "话题：节日与日期",
+            "句型（概括）：When is Teachers' Day? It's on September 10th.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.NUM.ORD",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Asking for directions",
+          "lessons": [
+            "话题：问路与指路",
+            "句型（概括）：Is there a library near here? Yes, there is. It's next to the bank. / Turn left. Go straight.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3 / Fun time / Story time"
+          ],
+          "kps": [
+            "FN.DIR",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE",
+            "GR.SENT.WH.WHERE",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Revision 2",
+          "lessons": [
+            "话题：复习 Unit 4–6"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "FN.DIR",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Around the world",
+          "lessons": [
+            "话题：世界各国与名胜",
+            "句型（概括）：Do you know these places? / What other countries do you know?"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.YESNO.DO",
+            "GR.SENT.WH.WHAT",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Jobs",
+          "lessons": [
+            "话题：职业",
+            "句型（概括）：What does he do? He's a doctor."
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Workplaces",
+          "lessons": [
+            "话题：职业与工作地点",
+            "句型（概括）：Where does she work? She works in a hospital."
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.WHERE",
+            "GR.TENSE.PRES.THIRD",
+            "GR.TENSE.PRES.AUX"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.PRES.THIRD"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Putting things in order",
+          "lessons": [
+            "话题：物品归属与归位",
+            "句型（概括）：Whose bag is this? It's mine. / Put it behind / beside …"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "GR.PRON.POSS.NOUN",
+            "GR.PREP.PLACE",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 A tidy house",
+          "lessons": [
+            "话题：房间与整理",
+            "句型（概括）：Where is the …? It's in the kitchen. / There is a … in the …"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.PREP.PLACE",
+            "GR.SENT.THEREBE",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Be yourself",
+          "lessons": [
+            "话题：自我认同与个人特长",
+            "句型（概括）：I'm good at … / I can …"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.VERB.MODAL.CAN",
+            "VO.PHRASE.COLLOC",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Revision 2",
+          "lessons": [
+            "话题：复习 Unit 4–6"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.PRON.POSS.NOUN",
+            "GR.PREP.PLACE"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Welcome to our school!",
+          "lessons": [
+            "话题：介绍学校设施",
+            "句型（概括）：This is our library. / There is a … in our school.",
+            "课文：Lesson 1–6 / Revision"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Can I help you?",
+          "lessons": [
+            "话题：购物",
+            "句型（概括）：Can I help you? / How much is the dictionary? It's thirty yuan.",
+            "课文：Lesson 7–12 / Revision"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 We should obey the rules.",
+          "lessons": [
+            "话题：规则（借书、保持安静）",
+            "句型（概括）：We should keep quiet. / Don't run in the hallways.",
+            "课文：Lesson 13–18 / Revision"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Fun time 1",
+          "lessons": [
+            "话题：复习 Unit 1–3（Recycle 1 / Recycle 2 / Fun Reading）"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "RD.DETAIL",
+            "GR.VERB.MODAL.SHOULD"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 What's wrong with you?",
+          "lessons": [
+            "话题：看病与身体不适",
+            "句型（概括）：What's wrong with you? I have a headache. / You should take some medicine.",
+            "课文：Lesson 19–24 / Revision"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.HAVE",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 I'm cleaning my room.",
+          "lessons": [
+            "话题：家务与正在做的事",
+            "句型（概括）：What are you doing? I'm cleaning my room. / Is he doing his homework? No, he isn't.",
+            "课文：Lesson 25–30 / Revision"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING",
+            "VO.PHRASE.VERB",
+            "GR.SENT.YESNO.BE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 We're watching the games.",
+          "lessons": [
+            "话题：运动会",
+            "句型（概括）：What are they doing? They're doing the high jump.",
+            "课文：Lesson 31–36 / Revision"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.FORM.ING",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Fun time 2",
+          "lessons": [
+            "话题：复习 Unit 4–6（Recycle 1 / Recycle 2 / Fun Reading）"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.TENSE.PRES_CONT",
+            "RD.DETAIL"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Travelling",
+          "lessons": [
+            "话题：假期旅行",
+            "句型（概括）：Where did you go during the holiday? What did you do there?"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.TENSE.PAST.AUX",
+            "FN.PLAN",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My feelings",
+          "lessons": [
+            "话题：情绪与感受",
+            "句型（概括）：How do you feel? I'm happy because …"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "FN.DESCRIBE",
+            "GR.SENT.WH.HOW",
+            "GR.SENT.CONJ"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Planting and growing",
+          "lessons": [
+            "话题：种植与植物生长过程",
+            "句型（概括）：First … Then … / The plant grows …"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.TENSE.PRES",
+            "GR.VERB.IMPER",
+            "GR.SENT.CONJ"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.TENSE.PAST",
+            "GR.ADJ.USE"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Seasons",
+          "lessons": [
+            "话题：四季与季节活动",
+            "句型（概括）：Which season do you like best? I like … because …"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.CONJ",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Celebration days",
+          "lessons": [
+            "话题：节日与日期（序数词）",
+            "句型（概括）：When is …? It's on …"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.NUM.ORD",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Heroes",
+          "lessons": [
+            "话题：英雄人物（科学家、宇航员、工程师等）",
+            "句型（概括）：Who is your hero? He / She …"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PAST",
+            "FN.DESCRIBE",
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Revision 2",
+          "lessons": [
+            "话题：复习 Unit 4–6"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.NUM.ORD",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 I went to Sanya for my holidays.",
+          "lessons": [
+            "话题：假期经历",
+            "句型（概括）：Where did you go? / Did you have a good time in Sanya? Yes, I had a wonderful trip.",
+            "课文：Lesson 1–6 / Revision"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.TENSE.PAST.AUX",
+            "WR.EXPR.PAST"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 There is a park near my home.",
+          "lessons": [
+            "话题：社区设施与方位",
+            "句型（概括）：There is a … near my home. / Where is the post office? It is between …",
+            "课文：Lesson 7–12 / Revision"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE",
+            "FN.DIR",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 We are going to travel.",
+          "lessons": [
+            "话题：旅行计划",
+            "句型（概括）：What are you going to do this summer? We are going to … / How are you going there? By plane.",
+            "课文：Lesson 13–18 / Revision"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN",
+            "GR.SENT.WH.HOW",
+            "WR.EXPR.FUTURE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Fun time",
+          "lessons": [
+            "话题：复习 Unit 1–3（Recycle 1 / Recycle 2 / Fun Reading）"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.TENSE.CONTRAST",
+            "RD.DETAIL"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 General Revision 1",
+          "lessons": [
+            "话题：小学总复习（Task 1–12）"
+          ],
+          "kps": [
+            "GR.TENSE.CONTRAST",
+            "FN.DIALOG",
+            "RD.DETAIL"
+          ],
+          "note": "总复习单元"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 General Revision 2",
+          "lessons": [
+            "话题：小学总复习（Task 1–12）"
+          ],
+          "kps": [
+            "GR.TENSE.CONTRAST",
+            "FN.DIALOG",
+            "WR.EXPR"
+          ],
+          "note": "总复习单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 General Revision 3",
+          "lessons": [
+            "话题：小学总复习（Task 1–10）"
+          ],
+          "kps": [
+            "GR.TENSE.CONTRAST",
+            "RD.DETAIL",
+            "WR.EXPR"
+          ],
+          "note": "总复习单元"
+        }
+      ]
+    }
+  ]
+}
