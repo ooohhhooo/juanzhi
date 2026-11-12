@@ -268,7 +268,7 @@ assert.equal(vres[0].source, 'vision')
   // 但「完整的题在下一批又出现」仍是重复，不是续写
   const s1 = newMergeState()
   mergeBatch(s1, { meta: out.meta, sections: [sec()], materials: [], questions: [mq({ continues_next: false })], notes: [] }, { batch: 1, mode: 'text' })
-  mergeBatch(s1, { meta: out.meta, sections: [], materials: [], questions: [mq({ continues_next: false, stem: '重复的' })], notes: [] }, { batch: 2, mode: 'text' })
+  mergeBatch(s1, { meta: out.meta, sections: [], materials: [], questions: [mq({ continues_next: false, stem: 'What does Tom like' })], notes: [] }, { batch: 2, mode: 'text' })
   assert.equal(s1.questions[0].stem, 'What does Tom like?')
   assert.ok(s1.notes.some(n => /重复/.test(n)))
   // 同序号但标题不同的大题（听力「一」/笔试「一」）仍是新实例

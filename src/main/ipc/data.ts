@@ -147,7 +147,7 @@ export function registerDataIpc(): void {
       try {
         const { withCourse, ...selection } = opts0
         res = await buildPack({
-          db: getDb(), openDb: openSqlite, filesDir: getFilesDir(), outPath: out, tmpDir, appVersion: app.getVersion(), withCourse,
+          db: getDb(), openDb: openSqlite, filesDir: getFilesDir(), outPath: out, tmpDir, appVersion: app.getVersion(), withCourse, dataDir: getDataDir(),
           selection: { ...selection, course: withCourse === false ? false : selection.course },
           extras: { dataDir: getDataDir(), datasets: store, documents: getDocumentStore() }, scrub: sc.text,
           onProgress: p => progress({ op: 'export', ...p })

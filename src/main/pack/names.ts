@@ -10,6 +10,7 @@ export type EntryClass =
   | { kind: 'manifest' }
   | { kind: 'db' }
   | { kind: 'file'; paperId: string; rel: string }
+  | { kind: 'courseware'; outlineId: string; name: string }
   | { kind: 'dir' }
   | { kind: 'extra'; group: ExtraGroup; name: string }
 
@@ -27,7 +28,8 @@ const FILE_RES: RegExp[] = [
   /^files\/([0-9a-f-]{36})\/(page-\d{1,4}\.png)$/,
   /^files\/([0-9a-f-]{36})\/(media\/\d{1,4}\.(?:png|jpg|gif))$/
 ]
-const DIR_RES: RegExp[] = [/^extras\/$/, /^extras\/(?:datasets|documents|skills|roles)\/$/, /^files\/$/, /^files\/[0-9a-f-]{36}\/$/, /^files\/[0-9a-f-]{36}\/media\/$/]
+const COURSEWARE_RE = /^courseware\/([0-9a-f-]{36})\/(index\.json|[0-9a-f]{4,20}\.txt)$/
+const DIR_RES: RegExp[] = [/^courseware\/$/, /^courseware\/[0-9a-f-]{36}\/$/, /^extras\/$/, /^extras\/(?:datasets|documents|skills|roles)\/$/, /^files\/$/, /^files\/[0-9a-f-]{36}\/$/, /^files\/[0-9a-f-]{36}\/media\/$/]
 
 /** 返回条目的分类；不合法返回 null */
 export function classifyEntry(name: string): EntryClass | null {
@@ -41,10 +43,12 @@ export function classifyEntry(name: string): EntryClass | null {
   if (name === 'db.sqlite') return { kind: 'db' }
   if (name.endsWith('/')) {
     if (!DIR_RES.some(re => re.test(name))) return null
-    const m = /^files\/([0-9a-f-]{36})\//.exec(name)
+    const m = /^(?:files|courseware)\/([0-9a-f-]{36})\//.exec(name)
     if (m && !UUID_RE.test(m[1])) return null
     return { kind: 'dir' }
   }
+  const cw = COURSEWARE_RE.exec(name)
+  if (cw) return UUID_RE.test(cw[1]) ? { kind: 'courseware', outlineId: cw[1], name: cw[2] } : null
   for (const [group, re] of EXTRA_RES) {
     const m = re.exec(name)
     if (m) return { kind: 'extra', group, name: m[1] }

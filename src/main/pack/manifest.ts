@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const PACK_FORMAT = 'ewb-pack'
 /**
- * 数据包格式版本：1 = 只有 db.sqlite + files/；2 = 另带 extras/（数据页表格 / 文档、Skill、角色）。
+ * 数据包格式版本：1 = 只有 db.sqlite + files/；2 = 另带 extras/（数据页表格 / 文档、Skill、角色）或 courseware/（机构课件文字）。
  * 没有 extras 的包仍然写 1，旧版本软件照样能导入；带 extras 的包写 2，旧版本软件会拒绝（它不认识 extras/ 里的文件）。
  */
 export const PACK_FORMAT_VERSION = 2
@@ -32,7 +32,7 @@ export const ManifestSchema = z.object({
   /** 各项数量（界面和导入摘要用） */
   counts: z.object({
     reports: z.number().int().min(0).max(10_000_000), datasets: z.number().int().min(0).max(100000), documents: z.number().int().min(0).max(100000),
-    skills: z.number().int().min(0).max(100000), roles: z.number().int().min(0).max(100000), chats: z.number().int().min(0).max(10_000_000)
+    skills: z.number().int().min(0).max(100000), courseware: z.number().int().min(0).max(10_000_000), roles: z.number().int().min(0).max(100000), chats: z.number().int().min(0).max(10_000_000)
   }).partial().optional()
 }).passthrough()
 

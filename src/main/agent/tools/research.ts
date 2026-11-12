@@ -8,12 +8,13 @@ import { z } from 'zod'
 import type { ToolDef, ToolCtx } from '../types.ts'
 import { FilterShape, subjectOf, toFilter, describeFilter, resolveKp } from './data.ts'
 import { researchTableWithCourseware, findOutlineByName, locateInTextbooks, adviceCell, ADVICE_LABEL, clampPerKp } from '../../course/research-table.ts'
-import type { ResearchTable, RLesson } from '../../course/research-table.ts'
+import type { ResearchTable, RLesson, LessonPick } from '../../course/research-table.ts'
 import { researchXlsx, researchSheetRows, locText, schoolCell, exampleText, lessonTitleOf } from '../../course/research-xlsx.ts'
 import { coursewareOfLesson, lessonKey, listCourseware } from '../../course/courseware.ts'
 import { saveTable, safeFileStem } from '../outputs/store.ts'
 import { exportsDir } from '../outputs/export.ts'
 import { listOutlines } from '../../course/store.ts'
+import { lessonName } from '../../course/map.ts'
 
 const clip = (t: string, n: number): string => { const x = (t ?? '').replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n) + '…' : x }
 
@@ -40,7 +41,11 @@ export function findLessons(lessons: RLesson[], spec: string, level?: string): R
   const t = spec.trim()
   const pool = level ? lessons.filter(l => l.levelName.includes(level)) : lessons
   const num = /^(?:第\s*)?(\d{1,5})\s*(?:节|课|讲)?$/.exec(t)
-  if (num) return pool.filter(l => l.seq === Number(num[1]))
+  if (num) {
+    // 同时比课次编号（大纲里写的“第 5 课”）和排序号：两种都命中就都列出来，让用户选
+    const n = Number(num[1])
+    return pool.filter(l => l.seq === n || /^\d+$/.test((l.noLabel ?? '').trim()) && Number(l.noLabel!.trim()) === n || (/^第\s*(\d+)\s*[课节讲]/.exec((l.noLabel ?? '').trim())?.[1] === String(n)))
+  }
   const low = t.toLowerCase()
   const exact = pool.filter(l => l.label === t || l.title.toLowerCase() === low)
   return exact.length ? exact : pool.filter(l => l.label.toLowerCase().includes(low) || l.title.toLowerCase().includes(low))
@@ -80,17 +85,17 @@ export const researchTable: ToolDef = {
       const dir = exportsDir(scope)
       fs.mkdirSync(dir, { recursive: true })
       file = path.join(dir, `${safeFileStem(name)}.xlsx`)
-      fs.writeFileSync(file, await researchXlsx(t, { filterDesc: describeFilter(a), generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }) }))
+      fs.writeFileSync(file, await researchXlsx(t, { filterDesc: describeFilter(a), generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }), includeReviewing: !!a.include_reviewing }))
     } catch { file = '' }
-    return { text: summaryText(t, describeFilter(a), name, file), count: t.lessons.length }
+    return { text: summaryText(t, describeFilter(a), name, file, !!a.include_reviewing), count: t.lessons.length }
   }
 }
 
-function summaryText(t: ResearchTable, desc: string, name: string, file: string): string {
+function summaryText(t: ResearchTable, desc: string, name: string, file: string, includeReviewing: boolean): string {
   const s = t.summary
   const out = [
     `教研对照表《${t.course!.name}》${t.courseB ? ` 对 《${t.courseB.name}》` : ''}${t.textbooks.length ? `，教材：${t.textbooks.map(b => `《${b.name}》`).join('、')}` : '，没选教材'}`,
-    `范围：${desc}，已审核试卷 ${t.papers} 份${t.smallSample ? '（少于 3 份，不标「常考」）' : ''}；每个知识点最多 ${t.perKp} 道例题`,
+    `范围：${desc}，${includeReviewing ? '试卷（含待审核）' : '已审核试卷'} ${t.papers} 份${t.smallSample ? '（少于 3 份，不标「常考」）' : ''}；每个知识点最多 ${t.perKp} 道例题`,
     `共 ${s.lessons} 节课、${s.kps} 个知识点（${s.kpsWithExamples} 个有校内例题）、${s.coursewareFiles} 份课件；修订建议 ${s.adviceItems} 条${t.courseB ? `；只有 A 讲 ${s.onlyA} 个、只有 B 讲 ${s.onlyB} 个` : ''}${t.textbooks.length ? `；教材有、A 没讲 ${s.tbNotInA} 个` : ''}`,
     `已存成产出表格「${name}」（在产出里可以导出 xlsx）${file ? `；带格式的 Excel 已写到：${file}` : ''}`,
     '', '各节课：'
@@ -169,13 +174,15 @@ export const lessonKps: ToolDef = {
     if ('text' in A) return A
     const bk = pickBooks(ctx, a.textbooks)
     if ('text' in bk) return bk
-    const t = researchTableWithCourseware(ctx.db, ctx.dataDir, toFilter(a, subject), { courseId: A.id, textbookIds: bk.ids, perKp: clampPerKp(a.per_kp) })
+    // 只算被问到的那一节（其余节不查例题、不出建议），整张表算一遍太慢
+    const pick: LessonPick = l => findLessons([l as unknown as RLesson], a.lesson, a.level).length > 0
+    const t = researchTableWithCourseware(ctx.db, ctx.dataDir, toFilter(a, subject), { courseId: A.id, textbookIds: bk.ids, perKp: clampPerKp(a.per_kp), lessonFilter: pick })
     if (!t.ready) return { text: t.reason, count: 0 }
     const hit = findLessons(t.lessons, a.lesson, a.level)
     if (!hit.length) return { text: `《${A.name}》里没有找到「${a.lesson}」。可以写课的编号（如「第 3 节」）或标题里的词。`, count: 0 }
     if (hit.length > 1) return { text: `「${a.lesson}」对应多节课，请指定级别（level）或写得更具体：\n${hit.slice(0, 12).map(l => `- ${lessonLine(l)}`).join('\n')}`, count: hit.length }
     const l = hit[0]
-    const out = [`《${A.name}》${lessonLine(l)}｜范围：${describeFilter(a)}，已审核试卷 ${t.papers} 份`]
+    const out = [`《${A.name}》${lessonLine(l)}｜范围：${describeFilter(a)}，${a.include_reviewing ? '试卷（含待审核）' : '已审核试卷'} ${t.papers} 份`]
     if (!l.kps.length) out.push('这节课还没有对应的知识点（可能没匹配，或对应都是低把握 / 被否决的）。')
     for (const g of l.groups) {
       out.push('', `【${g.name}】`)
@@ -209,7 +216,7 @@ export const coursewareRead: ToolDef = {
     const A = need(findOutlineByName(ctx.db, subject, a.course, 'course'))
     if ('text' in A) return A
     const rows = ctx.db.prepare(`SELECT l.id, l.seq, l.no_label, l.title, lv.name level_name FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id WHERE l.outline_id = ? ORDER BY lv.sort, l.seq`).all(A.id) as any[]
-    const lessons = rows.map(r => ({ lessonId: r.id, levelName: r.level_name, seq: r.seq, label: r.no_label && !/^\d+$/.test(r.no_label) ? r.no_label : `第 ${r.no_label || r.seq} 课`, title: r.title ?? '' })) as unknown as RLesson[]
+    const lessons = rows.map(r => ({ lessonId: r.id, levelName: r.level_name, seq: r.seq, label: lessonName({ seq: r.seq, noLabel: r.no_label, title: r.title }), noLabel: String(r.no_label ?? ''), title: r.title ?? '' })) as unknown as RLesson[]
     const hit = findLessons(lessons, a.lesson, a.level)
     if (!hit.length) return { text: `《${A.name}》里没有找到「${a.lesson}」。`, count: 0 }
     if (hit.length > 1) return { text: `「${a.lesson}」对应多节课，请指定级别（level）或写得更具体：\n${hit.slice(0, 12).map(l => `- ${lessonLine(l)}`).join('\n')}`, count: hit.length }

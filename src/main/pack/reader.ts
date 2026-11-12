@@ -197,6 +197,7 @@ async function doExtract(zipPath: string, staging: string, lim: PackLimits, opts
           if (cls.kind === 'manifest') dest = path.join(staging, 'manifest.json')
           else if (cls.kind === 'db') dest = path.join(staging, 'db.sqlite')
           else if (cls.kind === 'extra') dest = path.join(staging, 'extras', cls.group, cls.name)
+          else if (cls.kind === 'courseware') dest = path.join(staging, 'courseware', cls.outlineId, cls.name)
           else { dest = path.join(staging, 'files', cls.paperId, ...cls.rel.split('/')); paperDirs.add(cls.paperId) }
           const resolved = path.resolve(dest)
           if (!resolved.startsWith(staging + path.sep)) throw new PackError('bad_entry', '数据包里的路径越出了允许的范围，已拒绝导入')

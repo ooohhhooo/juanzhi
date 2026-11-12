@@ -7,7 +7,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { net, nativeImage } from 'electron'
 import { getDb, getFilesDir } from '../db'
-import { chat, AiError } from '../ai/client'
+import { chat, AiError, HIDDEN_THINKING } from '../ai/client'
 import { effectiveMaxTokens, modelProfile } from '../ai/providers'
 import { RETRY_HINT, friendlyAiError } from '../ai/friendly'
 import type { ChatMessage } from '../ai/client'
@@ -408,7 +408,8 @@ async function runAiStage(
       return
     }
     // 单页还是写不完：加大上限后仍被截断时，把这一页拆成上下两半分别识别（重叠处由合并去重），不直接失败
-    if (sawTruncated && !batch.part) {
+    // 额度是被后台思考吃光的（正文很短）：拆半页也一样写不完，不拆，直接报白话错误
+    if (sawTruncated && !batch.part && !lastErr?.detail.includes(HIDDEN_THINKING)) {
       const parts = splitPageBatch(batch, prepared.inputs.find(p => p.idx === batch.pages[0]))
       if (parts) {
         prepared.notes.push(`第 ${batch.pages[0]} 页内容太多，已拆成上下两半分别识别`)

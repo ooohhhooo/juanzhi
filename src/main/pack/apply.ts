@@ -19,6 +19,7 @@ import type { ImportJournal } from './journal.ts'
 import { PACK_SETTING_KEYS, isPartialScope } from './manifest.ts'
 import type { Manifest } from './manifest.ts'
 import { importExtras } from './extras.ts'
+import { importCoursewareDir, dropAllCourseware } from '../course/courseware.ts'
 import type { ExtrasReport } from './extras.ts'
 import { UUID_RE } from './names.ts'
 import { renameRetry } from './fsretry.ts'
@@ -66,6 +67,8 @@ export interface ImportReport {
   promptsKeptLocal: number
   /** 新增的助手对话数（包里带了对话记录才有） */
   chatsAdded?: number
+  /** 随包补进来的机构课件份数（包里带了才有） */
+  coursewareAdded?: number
   /** 数据页表格 / 文档、Skill、角色的导入结果（包里带了才有） */
   extras?: ExtrasReport
   warnings: string[]
@@ -445,6 +448,7 @@ export function applyMerge(deps: ApplyDeps, staged: Staged, opts: { updateCourse
     if (deps.fault === 'after-swap') throw new Error('测试注入的故障：改名之后')
     db.exec('COMMIT'); inTx = false
     report.newPaperIds = newIds
+    applyCourseware(deps, staged, report, 'merge')
     applyExtras(deps, staged, report)
     return report
   } catch (e) {
@@ -523,7 +527,8 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     if (!keepReports) db.exec('DELETE FROM main.reports; DELETE FROM main.ai_analyses;')
     if (legacy) db.exec('DELETE FROM main.ai_drafts; DELETE FROM main.ai_usage;')
     // 课程大纲：包里带了才替换；导出时取消了「带课程大纲」的包不会把本机的课程清空
-    if (colsOf(db, 'pk', 'course_outlines').length && count(db, 'SELECT COUNT(*) c FROM pk.course_outlines') > 0) db.exec('DELETE FROM main.course_outlines; DELETE FROM main.course_advice;')
+    const packHadCourse = colsOf(db, 'pk', 'course_outlines').length > 0 && count(db, 'SELECT COUNT(*) c FROM pk.course_outlines') > 0
+    if (packHadCourse) db.exec('DELETE FROM main.course_outlines; DELETE FROM main.course_advice;')
 
     report.kpsAdded = copyRows(db, 'kps', { force: { builtin: 'CASE WHEN s.code IN (SELECT code FROM temp.local_builtin) THEN 1 ELSE 0 END' } })
     copyRows(db, 'qtypes')
@@ -573,6 +578,7 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     }
     try { report.backup.bytes = dirBytes(backupDir) } catch { /* 只是显示用 */ }
     try { pruneBackups(deps.dataDir, 2) } catch { /* 旧备份留着也无妨 */ }
+    applyCourseware(deps, staged, report, 'overwrite', packHadCourse)
     applyExtras(deps, staged, report)
     return report
   } catch (e) {
@@ -593,6 +599,22 @@ export function applyOverwrite(deps: ApplyDeps, staged: Staged): ImportReport {
     try { db.exec('DROP TABLE IF EXISTS temp.imp_papers; DROP TABLE IF EXISTS temp.imp_q; DROP TABLE IF EXISTS temp.kpmap; DROP TABLE IF EXISTS temp.local_builtin; DROP TABLE IF EXISTS temp.imp_sess') } catch { /* 忽略 */ }
     detach(db)
   }
+}
+
+/**
+ * 提交之后：把包里带的机构课件放进数据目录（courseware/<大纲 id>/）。只处理库里确实有的大纲。
+ * 合并：本机已有的课件不覆盖，只补本机没有的；覆盖：包里带了课程大纲时，按大纲整体替换（本机的课件目录先清掉，和大纲一起换）。
+ */
+function applyCourseware(deps: ApplyDeps, staged: Staged, report: ImportReport, mode: 'merge' | 'overwrite', packHadCourse = false): void {
+  const root = path.join(path.dirname(staged.dbPath), 'courseware')
+  try {
+    if (mode === 'overwrite' && packHadCourse) dropAllCourseware(deps.dataDir)
+    if (!fs.existsSync(root)) return
+    const have = new Set((deps.db.prepare('SELECT id FROM main.course_outlines').all() as any[]).map(r => String(r.id)))
+    let n = 0
+    for (const id of fs.readdirSync(root)) if (UUID_RE.test(id) && have.has(id)) n += importCoursewareDir(deps.dataDir, id, path.join(root, id))
+    report.coursewareAdded = n
+  } catch (e) { report.warnings.push(`导入机构课件时出错：${(e as Error).message.slice(0, 100)}`) }
 }
 
 /** 提交之后：把数据页表格 / 文档、Skill、角色并进数据目录（文件操作，不在数据库事务里；出错只记提示） */

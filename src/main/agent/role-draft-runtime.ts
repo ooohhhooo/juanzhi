@@ -31,7 +31,7 @@ export async function generateRoleDraft(reqId: string, a: RoleDraftAnswers): Pro
   running.set(reqId, ctl)
   try {
     const r = await jsonCall({
-      kind: 'agent-role-draft', model, signal: ctl.signal, maxTokens: 3000,
+      kind: 'agent-role-draft', model, signal: ctl.signal,
       system: promptText('p7_role_draft', 'system'), user: fillTemplate(promptText('p7_role_draft', 'user'), vars)
     })
     const draft = normalizeRoleDraft(r.content, new Set(tools.map(t => t.name)), new Set(skills.map(s => s.name)))

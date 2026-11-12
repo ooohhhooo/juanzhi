@@ -88,6 +88,16 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
   assert.equal(r.courseB, null); assert.deepEqual([r.onlyA, r.onlyB], [[], []])
 }
 
+// ── 要对齐按主知识点：基础 + 进阶混合的课不误报 ──
+{
+  const C = mkOutline('机构大纲丙', 'course', [{ name: '混合级', lessons: [lesson(1, 'Plural C'), lesson(2, 'Mix C')] }])
+  mapTo(C, [['GR.PLU', 'Plural C'], ['GR.COMP', 'Mix C'], ['GR.PLU', 'Mix C']])
+  const r = researchTable(db, F, { courseId: C, textbookIds: [T] })
+  const mix = r.lessons.find(l => l.title === 'Mix C')
+  // 比较级在教材三年级（较早），但主知识点是题更多的名词复数（五年级）→ 顺序没倒置
+  assert.equal(mix.advice.some(a => a.kind === 'align'), false, '混合课按主知识点判断，不拿最小值误报')
+}
+
 // ── 修订建议（没有课件） ──
 {
   const r = researchTable(db, F, { courseId: A, textbookIds: [T] })
@@ -220,6 +230,16 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
   await assert.rejects(() => pptxText(new Uint8Array([1, 2, 3])), /打不开/)
   const noSlides = await new JSZip().file('a.txt', 'x').generateAsync({ type: 'uint8array' })
   await assert.rejects(() => pptxText(noSlides), /没有找到幻灯片/)
+  // 解压炸弹：单条目解压后 > 20MB（压缩后很小）→ 拒绝
+  const bomb = new JSZip()
+  bomb.file('ppt/slides/slide1.xml', '<a:p><a:t>x</a:t></a:p>' + ' '.repeat(21 * 1024 * 1024), { compression: 'DEFLATE' })
+  const bombBuf = await bomb.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })
+  assert.ok(bombBuf.length < 200_000, '压缩后很小')
+  await assert.rejects(() => pptxText(bombBuf), /太大/)
+  // 幻灯片页数 > 500 → 拒绝
+  const many = new JSZip()
+  for (let i = 1; i <= 501; i++) many.file(`ppt/slides/slide${i}.xml`, '<a:p><a:t>x</a:t></a:p>')
+  await assert.rejects(async () => pptxText(await many.generateAsync({ type: 'uint8array' })), /超过 500 页/)
 }
 
 // ── AI 小结的校验：只能用依据里的数字 ──
@@ -230,6 +250,11 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
   assert.equal(parseAdviceReply('{"summary":"校内 3/3 份卷子考过，建议用《卷二》第 2 题做例题。"}', l), '校内 3/3 份卷子考过，建议用《卷二》第 2 题做例题。')
   assert.equal(parseAdviceReply('```json\n{"summary":"第 2 课校内 3/3 份卷子考过。"}\n```', l)?.includes('3/3'), true)
   assert.equal(parseAdviceReply('{"summary":"校内 9/10 份卷子考过"}', l), null, '编了数字 → 丢掉')
+  assert.equal(parseAdviceReply('{"summary":"校内三份卷子里考过 3 次。"}', l)?.includes('三份'), true, '汉字数字转成阿拉伯再比对：三 = 3')
+  assert.equal(parseAdviceReply('{"summary":"校内九份卷子都考过。"}', l), null, '汉字数字编造 → 丢掉')
+  assert.equal(parseAdviceReply('{"summary":"这节课一般要补充，校内 3/3 份卷子考过。"}', l)?.length > 0, true, '“一般”不是数字')
+  assert.equal(parseAdviceReply('{"summary":"校内几十份卷子都考过。"}', l), null, '模糊数量无法核对 → 丢掉')
+  assert.equal(parseAdviceReply(`{"summary":"${'字'.repeat(121)}"}`, l), null, '超过 120 字丢掉')
   assert.equal(parseAdviceReply('不是 JSON', l), null)
   assert.equal(parseAdviceReply('{"summary":""}', l), null)
   assert.equal(parseAdviceReply(`{"summary":"${'字'.repeat(300)}"}`, l), null, '超长丢掉')
@@ -267,6 +292,8 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
     assert.match(tLocate.run({ kp: '根本没有的词xyz' }, ctx).text, /没有叫/)
     // 这节课的知识点和例题
     assert.deepEqual(findLessons([{ seq: 3, label: '第 3 课', title: 'Animals', levelName: '基础级' }, { seq: 1, label: '第 1 课', title: 'Compare', levelName: '进阶级' }], '第 3 节').map(l => l.title), ['Animals'])
+    // 课次编号（大纲里写的“第 5 课”）和排序号都比：两边各命中一节就都列出来
+    assert.deepEqual(findLessons([{ seq: 1, noLabel: '5', label: '第 5 课', title: 'X', levelName: '基础级' }, { seq: 5, noLabel: '7', label: '第 7 课', title: 'Y', levelName: '基础级' }], '第 5 节').map(l => l.title).sort(), ['X', 'Y'])
     const ls = tLesson.run({ course: '机构大纲甲', lesson: '第 1 节', level: '基础', textbooks: ['示例教材'], per_kp: 2 }, ctx)
     assert.match(ls.text, /规则变化/); assert.match(ls.text, /《卷一》第/); assert.match(ls.text, /修订建议/)
     assert.match(tLesson.run({ course: '机构大纲甲', lesson: '1' }, ctx).text, /对应多节课/, '两个级别都有第 1 课：要求指定级别')
@@ -276,6 +303,25 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
     assert.match(rd.text, /共 1000 字，后面还有（nextFrom=500）/)
     assert.equal(tRead.run({ course: '机构大纲甲', lesson: '第 2 节', level: '基础', from: 500, max_chars: 500 }, ctx).text.endsWith('0123456789'), true)
     assert.match(tRead.run({ course: '机构大纲甲', lesson: '第 3 节', level: '基础' }, ctx).text, /还没有挂课件/)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+}
+
+// ── 内存缓存：数据没动就复用（返回副本），库里有写入就重算 ──
+{
+  const { researchTableWithCourseware } = await import('../../src/main/course/research-table.ts')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-rt2-'))
+  try {
+    const a1 = researchTableWithCourseware(db, dir, F, { courseId: A, textbookIds: [T] })
+    a1.lessons[0].aiAdvice = '被调用方改过'
+    const a2 = researchTableWithCourseware(db, dir, F, { courseId: A, textbookIds: [T] })
+    assert.equal(a2.lessons[0].aiAdvice, '', '缓存给的是副本，改它不污染缓存')
+    assert.deepEqual(a2.summary, a1.summary)
+    addPaper(db, { title: '卷五', year: 2025, questions: [q('GR.COMP')] })
+    const a3 = researchTableWithCourseware(db, dir, F, { courseId: A, textbookIds: [T] })
+    assert.equal(a3.papers, a1.papers + 1, '库里有写入后重算')
+    // 只算一节
+    const one = researchTableWithCourseware(db, dir, F, { courseId: A, textbookIds: [T], lessonFilter: l => l.title === 'Plural' })
+    assert.deepEqual(one.lessons.map(l => l.title), ['Plural'])
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
 }
 

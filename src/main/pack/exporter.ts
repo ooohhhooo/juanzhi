@@ -21,7 +21,8 @@ import yazl from 'yazl'
 import yauzl from 'yauzl'
 import { PackError } from './errors.ts'
 import { withRetry } from './fsretry.ts'
-import { classifyEntry } from './names.ts'
+import { classifyEntry, UUID_RE } from './names.ts'
+import { coursewareFilesOf } from '../course/courseware.ts'
 import { flatKpText } from './kp-rules.ts'
 import { safeKpName } from '../../shared/code-guard.ts'
 import { PACK_BASE_VERSION, PACK_FORMAT, PACK_FORMAT_VERSION, PACK_SETTING_KEYS, DEFAULT_SELECTION } from './manifest.ts'
@@ -47,6 +48,8 @@ export interface ExportDeps {
   extras?: ExtrasDeps
   /** 把文字里的真名换成代号、去掉手机号等（对话记录用）；缺省只去手机号 / 身份证号 / 邮箱等 */
   scrub?: (s: string) => string
+  /** 数据目录：勾了「课程大纲」时，把导出的那些大纲挂的课件（courseware/<大纲 id>/）一起带上 */
+  dataDir?: string
   platform?: string
   now?: Date
   onProgress?: (p: { phase: 'snapshot' | 'zip' | 'verify'; bytes: number; total: number }) => void
@@ -64,7 +67,7 @@ export function resolveSelection(deps: Pick<ExportDeps, 'withCourse' | 'selectio
   return sel
 }
 
-type SnapshotInfo = { file: string; papers: number; questions: number; pages: number; schemaVersion: number; paperIds: string[]; courses: number; reports: number; chats: number }
+type SnapshotInfo = { file: string; papers: number; questions: number; pages: number; schemaVersion: number; paperIds: string[]; courseIds: string[]; courses: number; reports: number; chats: number }
 
 /** 递归把 JSON 里的字符串过一遍文字过滤器 */
 const scrubDeep = (v: unknown, f: (s: string) => string): unknown =>
@@ -146,6 +149,7 @@ export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpD
       papers: c('SELECT COUNT(*) c FROM papers'), questions: c('SELECT COUNT(*) c FROM questions'), pages: c('SELECT COUNT(*) c FROM pages'),
       schemaVersion: (s.prepare('PRAGMA user_version').get() as any).user_version,
       paperIds: (s.prepare('SELECT id FROM papers').all() as any[]).map(r => r.id as string),
+      courseIds: hasTable('course_outlines') ? (s.prepare('SELECT id FROM course_outlines').all() as any[]).map(r => String(r.id)).filter(id => UUID_RE.test(id)) : [],
       courses: hasTable('course_outlines') ? c('SELECT COUNT(*) c FROM course_outlines') : 0,
       reports: c('SELECT COUNT(*) c FROM reports'),
       chats: hasTable('agent_sessions') ? c('SELECT COUNT(*) c FROM agent_sessions') : 0
@@ -184,6 +188,9 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
   deps.onProgress?.({ phase: 'snapshot', bytes: 0, total: 0 })
   const files: FileItem[] = []
   for (const id of snap.paperIds) files.push(...listPaperFiles(deps.filesDir, id))
+  // 课件：只带被导出的那些大纲的（没勾课程大纲时 snap.courseIds 是空的）
+  const cwFiles: Array<{ abs: string; name: string; size: number }> = []
+  if (sel.course && deps.dataDir) for (const id of snap.courseIds) for (const f of coursewareFilesOf(deps.dataDir, id)) cwFiles.push({ abs: f.abs, name: `courseware/${id}/${f.name}`, size: f.size })
   // 额外内容（数据页表格 / 文档、Skill、角色）：整理成临时文件，真名在这里换成代号
   let extras: ExtraItem[] = []
   let extraCounts = { datasets: 0, documents: 0, skills: 0, roles: 0 }
@@ -198,14 +205,14 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
   // 带 extras 或只带了部分内容：写 2，让没有「部分包不能覆盖」守卫的旧版软件直接拒绝（否则它覆盖导入会清掉本机其余数据）
   const partial = !!sel.paperIds || sel.subject !== 'all' || !sel.papers || !sel.reports || !sel.course
   const manifest: Manifest = {
-    format: PACK_FORMAT, formatVersion: extras.length || partial ? PACK_FORMAT_VERSION : PACK_BASE_VERSION, schemaVersion: snap.schemaVersion, appVersion: deps.appVersion,
+    format: PACK_FORMAT, formatVersion: extras.length || cwFiles.length || partial ? PACK_FORMAT_VERSION : PACK_BASE_VERSION, schemaVersion: snap.schemaVersion, appVersion: deps.appVersion,
     exportedAt: now.toISOString(), paperCount: snap.papers, questionCount: snap.questions, pageCount: snap.pages, fileCount: files.length,
     platform: deps.platform ?? process.platform, courseCount: snap.courses, courseIncluded: sel.course,
     contents: { papers: sel.papers, reports: sel.reports, course: sel.course, datasets: sel.datasets, documents: sel.documents, assets: sel.assets, chats: sel.chats },
     scope: { subject: sel.paperIds ? 'all' : sel.subject, selectedPapers: !!sel.paperIds },
-    counts: { reports: snap.reports, chats: snap.chats, ...extraCounts }
+    counts: { reports: snap.reports, chats: snap.chats, ...(cwFiles.length ? { courseware: cwFiles.filter(f => f.name.endsWith('.txt')).length } : {}), ...extraCounts }
   }
-  const total = dbSize + files.reduce((n, f) => n + f.size, 0) + extras.reduce((n, f) => n + f.size, 0)
+  const total = dbSize + files.reduce((n, f) => n + f.size, 0) + cwFiles.reduce((n, f) => n + f.size, 0) + extras.reduce((n, f) => n + f.size, 0)
   const part = `${deps.outPath}.part`
   fs.mkdirSync(path.dirname(deps.outPath), { recursive: true })
   // 我们自己持有每个读句柄（yazl 的 addFile 不暴露它）：出错时必须显式销毁并等它们真正 close，不能等 GC 回收
@@ -225,6 +232,7 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
     addLazy(snap.file, 'db.sqlite', dbSize, new Date(), true)
     // 原件 / 页面图本身已经是压缩格式（pdf、png、jpg、docx、heic），再压一遍没收益只费时间
     for (const f of files) addLazy(f.abs, f.name, f.size, f.mtime, false)
+    for (const f of cwFiles) addLazy(f.abs, f.name, f.size, new Date(), true)
     for (const f of extras) addLazy(f.abs, f.name, f.size, new Date(), true)
     zip.end()
     let written = 0
@@ -269,9 +277,9 @@ export async function buildPack(deps: ExportDeps): Promise<ExportResult> {
   // 核对：重新打开写出的 zip，条目数 = manifest + db + 文件数
   deps.onProgress?.({ phase: 'verify', bytes: total, total })
   const entries = await countEntries(deps.outPath)
-  if (entries !== 2 + files.length + extras.length) {
+  if (entries !== 2 + files.length + cwFiles.length + extras.length) {
     try { fs.rmSync(deps.outPath, { force: true }) } catch { /* 忽略 */ }
-    throw new PackError('io', `导出的数据包没通过核对（应有 ${2 + files.length + extras.length} 个文件，实际 ${entries} 个），已删除，请重试`)
+    throw new PackError('io', `导出的数据包没通过核对（应有 ${2 + files.length + cwFiles.length + extras.length} 个文件，实际 ${entries} 个），已删除，请重试`)
   }
   return { manifest, bytes: fs.statSync(deps.outPath).size, entries, path: deps.outPath }
 }

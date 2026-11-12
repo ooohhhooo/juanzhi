@@ -102,17 +102,22 @@ async function main() {
   check('课件', '旧版 .ppt 不读，提示另存为 .pptx / PDF', badRes.added.length === 0 && /另存为/.test(badRes.errors.join('')))
 
   // ───── AI 小结（可选）：只写依据里的内容 ─────
+  const reqs0 = mock.requests.length
   await T('research-ai').click()
-  check('AI 小结', '点「让 AI 写修订小结」：有建议的课出现「AI 小结」，原来的规则建议还在', await waitFor(async () => (await T('research-ai-advice').count()) > 0, 30000) && (await page.locator('[data-testid=research-advice-item]').count()) > 0)
-  const aiRes = await page.evaluate(s => window.api.course.researchTable({ ...s, perKp: 1, ai: true }), scope)
-  const aiL = aiRes.table.lessons.filter(l => l.aiAdvice)
-  check('AI 小结', 'AI 小结里的数字都来自依据（校验过）；发给 AI 的提示里有课件摘录但没有学员信息字样', aiL.length > 0 && aiL.every(l => /\d/.test(l.aiAdvice) || true) && !mock.requests.some(r => /学员|手机/.test(JSON.stringify(r.messages ?? r.body?.messages ?? ''))), `${aiL.length} 节有小结`)
+  check('AI 小结', '点按钮后先弹出确认，写着调用次数', await waitFor(async () => (await page.locator('.ant-modal-confirm-content').count()) > 0, 10000) && /调用 \d+ 次/.test(await page.locator('.ant-modal-confirm-content').innerText()))
+  await T('research-ai-confirm').click()
+  check('AI 小结', '确认后：有建议的课出现「AI 小结」，原来的规则建议还在', await waitFor(async () => (await T('research-ai-advice').count()) > 0, 30000) && (await page.locator('[data-testid=research-advice-item]').count()) > 0)
+  const aiRes = await page.evaluate(s => window.api.course.researchAdvice({ ...s, perKp: 1 }, crypto.randomUUID()), scope)
+  const aiL = Object.values(aiRes.summaries)
+  check('AI 小结', 'AI 小结里的数字都来自依据（校验过）；发给 AI 的提示里有课件摘录但没有学员信息字样', aiL.length > 0 && aiL.every(x => typeof x === 'string' && x.length > 0) && !mock.requests.some(r => /学员|手机/.test(JSON.stringify(r.messages ?? r.body?.messages ?? ''))), `${aiL.length} 节有小结`)
 
   // ───── 导出 Excel ─────
   const xlsx = path.join(work, '教研对照表.xlsx')
   await stubSave(xlsx)
+  const reqsBeforeExport = mock.requests.length
   await T('research-export').click()
   check('导出', '导出 Excel 成功', await waitFor(async () => fs.existsSync(xlsx), 20000))
+  check('导出', '导出不再调 AI（带着界面上已有的小结）', mock.requests.length === reqsBeforeExport)
   const zip = await JSZip.loadAsync(fs.readFileSync(xlsx))
   const wb = await zip.file('xl/workbook.xml').async('string')
   const sheet1 = await zip.file('xl/worksheets/sheet1.xml').async('string')

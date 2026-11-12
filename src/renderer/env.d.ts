@@ -206,9 +206,12 @@ interface ElectronAPI {
     compare(scope: CourseCompareScope): Promise<CourseCompareResult>
     compareCopy(scope: CourseCompareScope): Promise<{ text: string; chars: number }>
     compareExport(scope: CourseCompareScope): Promise<{ saved: boolean; path?: string; rows?: number }>
-    /** 教研对照表：A（+B）× 教材 × 校内试卷；ai = 让 AI 把依据写成小结 */
+    /** 教研对照表：A（+B）× 教材 × 校内试卷。AI 小结要单独点按钮（researchAdvice），导出时带 aiAdvice 回来，不再调 AI */
     researchTable(scope: ResearchScope): Promise<{ table: import('../main/course/research-table').ResearchTable; aiNote: string; filterDesc: string }>
-    researchExport(scope: ResearchScope): Promise<{ saved: boolean; path?: string; rows?: number; aiNote?: string }>
+    researchAdviceCount(scope: ResearchScope): Promise<{ calls: number; total: number; configured: boolean; ready: boolean }>
+    researchAdvice(scope: ResearchScope, requestId: string): Promise<{ summaries: Record<string, string>; done: number; failed: number; cancelled: boolean; model: string; note: string }>
+    researchAdviceCancel(requestId: string): Promise<boolean>
+    researchExport(scope: ResearchScope): Promise<{ saved: boolean; path?: string; rows?: number }>
     coursewareList(outlineId: string): Promise<Array<{ id: string; name: string; key: string; chars: number; addedAt: string }>>
     coursewareAdd(req: { outlineId: string; levelName: string; seq: number }): Promise<{ added: Array<{ id: string; name: string; chars: number }>; errors: string[] } | null>
     coursewareRemove(outlineId: string, id: string): Promise<boolean>
@@ -747,7 +750,7 @@ type CourseOutlineCard = import('../main/course/store').OutlineCard
 type CourseCatalogEdition = import('../main/course/textbook-builtin').CatalogInfo
 type CourseCompareResult = import('../main/course/compare').CompareResult
 interface CourseCompareScope { filter: StatsFilter; courseId: string; textbookIds: string[] }
-interface ResearchScope { filter: StatsFilter; courseId: string; courseBId?: string; textbookIds: string[]; perKp: number; ai?: boolean }
+interface ResearchScope { filter: StatsFilter; courseId: string; courseBId?: string; textbookIds: string[]; perKp: number; aiAdvice?: Record<string, string> }
 type CourseOutlineDetail = import('../main/course/store').OutlineDetail
 type CourseLessonRow = import('../main/course/store').LessonRow
 type CourseMapEdit = import('../main/course/store').MapEdit

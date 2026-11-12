@@ -23,3 +23,6 @@ release/
 
 # 设计参考图（第三方图片，不进公开仓库）
 .impeccable/refs/
+
+# e2e 每次运行的结果（不进仓库；已入库的旧文件不动）
+tests/e2e/last-result-*.json

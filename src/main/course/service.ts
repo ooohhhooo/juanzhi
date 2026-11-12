@@ -10,7 +10,7 @@ import { net, clipboard } from 'electron'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import { getDb } from '../db'
-import { AiError, chat } from '../ai/client'
+import { AiError, chat, HIDDEN_THINKING } from '../ai/client'
 import { loadConfig, recordUsage } from '../ai/config'
 import { getApiKey } from '../ai/secret'
 import { createStream } from '../ai/stream'
@@ -195,7 +195,7 @@ export interface SuggestResult { items: Record<string, SuggestItem>; model: stri
 const emptyMapping = (): SheetMapping => ({ headerRows: 1, levelName: '', columns: [], skipMarkers: [], uncertain: [] })
 const aiReady = () => { const c = loadConfig(); return !!(c.base_url && parseModelOf(c) && getApiKey()) }
 
-export async function jsonCall(o: { kind: string; model: string; system: string; user: string; signal?: AbortSignal; /** 已不再限制输出长度：统一用 effectiveMaxTokens（调用方原来传的小数在后台思考的模型上会被占满） */ maxTokens?: number }): Promise<{ content: string; model: string }> {
+export async function jsonCall(o: { kind: string; model: string; system: string; user: string; signal?: AbortSignal }): Promise<{ content: string; model: string }> {
   const cfg = loadConfig()
   const lim = effectiveMaxTokens(cfg, o.model)
   const t0 = Date.now()
@@ -271,16 +271,19 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal, 
     const parts = await mapLimit(chunks, 3, async chunk => {
       if (sub.signal.aborted) throw new AiError('aborted', '已取消')
       // 这一段写不完（加大上限后仍被截断）：按行对半拆开分别整理再合并，直到拆不动为止
-      const runChunk = async (text: string): Promise<ExtractParse> => {
+      // 遇到「思考吃光额度」的截断不拆（拆了也一样写不完），最多拆 3 层；每段最多 8 次调用的预算
+      let chunkBudget = 8
+      const runChunk = async (text: string, depth = 0): Promise<ExtractParse> => {
         const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: text })
         let r
+        chunkBudget--
         try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal: sub.signal }) } catch (err) {
           if (err instanceof AiError && err.code === 'aborted') throw err
           const ls = text.split('\n')
-          if (err instanceof AiError && err.code === 'truncated' && ls.length > 1) {
+          if (err instanceof AiError && err.code === 'truncated' && !err.detail.includes(HIDDEN_THINKING) && ls.length > 1 && depth < 3 && chunkBudget >= 2) {
             const mid = Math.ceil(ls.length / 2)
-            const a = await runChunk(ls.slice(0, mid).join('\n'))
-            const b = await runChunk(ls.slice(mid).join('\n'))
+            const a = await runChunk(ls.slice(0, mid).join('\n'), depth + 1)
+            const b = await runChunk(ls.slice(mid).join('\n'), depth + 1)
             return { ok: a.ok && b.ok, lessons: [...a.lessons, ...b.lessons], dropped: [...a.dropped, ...b.dropped], problems: [...a.problems, ...b.problems] }
           }
           throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
@@ -584,7 +587,9 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
         try {
           if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
           // 一次问「这批考点 × 这段课程」；写不完（加大上限后仍被截断）就把这批考点对半拆开分别问，再合并
-          const askOne = async (kpPart: typeof batch, ci: number): Promise<MatchEntry[]> => {
+          // 思考吃光额度的截断不拆；最多拆 3 层，每批每段最多 12 次调用
+          let askBudget = 12
+          const askOne = async (kpPart: typeof batch, ci: number, depth = 0): Promise<MatchEntry[]> => {
             const blk = kpBatchBlock(kpPart)
             const user = fillTemplate(userTpl, { OUTLINE_LINES: chunks[ci].join('\n'), KP_BATCH: blk.text })
             const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
@@ -592,10 +597,11 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
             let p = parseMatchResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
             for (let attempt = 1; attempt <= 2; attempt++) {
               let r
+              askBudget--
               try { r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal }) } catch (err) {
-                if (err instanceof AiError && err.code === 'truncated' && kpPart.length > 1) {
+                if (err instanceof AiError && err.code === 'truncated' && !err.detail.includes(HIDDEN_THINKING) && kpPart.length > 1 && depth < 3 && askBudget >= 2) {
                   const mid = Math.ceil(kpPart.length / 2)
-                  return mergeEntries([await askOne(kpPart.slice(0, mid), ci), await askOne(kpPart.slice(mid), ci)])
+                  return mergeEntries([await askOne(kpPart.slice(0, mid), ci, depth + 1), await askOne(kpPart.slice(mid), ci, depth + 1)])
                 }
                 throw err
               }

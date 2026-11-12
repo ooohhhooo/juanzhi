@@ -1,13 +1,14 @@
 // A1：推理模型（deepseek-v4-pro）的思考内容也占输出额度。客户端要：读 reasoning_content（不计入正文、只报进度）、
 // 写不完（finish_reason=length）时把上限翻倍重试一次（不超过模型天花板）、仍不行就带着已写出的部分报 truncated；报错一律白话。
 import assert from 'node:assert/strict'
-import { chat, AiError } from '../../src/main/ai/client.ts'
+import { chat, AiError, forgetMaxTokens, rememberedMaxTokens } from '../../src/main/ai/client.ts'
 import { friendlyAiError, RETRY_HINT } from '../../src/main/ai/friendly.ts'
 import { modelProfile, effectiveMaxTokens, PROVIDER_PRESETS } from '../../src/main/ai/providers.ts'
 
 const ev = o => `data: ${JSON.stringify(o)}\n\n`
 const base = { baseUrl: 'https://api.example.com/v1', apiKey: 'sk-unit', model: 'deepseek-v4-pro', messages: [{ role: 'user', content: 'x' }], backoffMs: 5, timeoutMs: 2000, stream: true }
 function fakeFetch(script) {
+  forgetMaxTokens() // 每个用例从干净的「已记住的上限」开始
   const calls = []
   const fetchImpl = async (url, init) => {
     calls.push(JSON.parse(init.body))
@@ -122,6 +123,23 @@ const fail = async p => { try { await p; return null } catch (e) { return e } }
   const { fetchImpl, calls } = fakeFetch([sseOk('', '半截', 'length'), sseOk('', '完整了')])
   const r = await chat({ ...base, fetchImpl, maxTokens: lim.maxTokens, escalateOnLength: { ceiling: lim.ceiling }, maxTokensFallback: lim.fallback })
   assert.equal(r.content, '完整了'); assert.deepEqual(calls.map(c => c.max_tokens), [8192, 16384], '手填值写不完也会加大')
+}
+// ── 被 400 降级后能用的上限按「服务+模型」记在内存里：下一次直接从它开始，天花板也压到它 ──
+{
+  const rej = { status: 400, text: 'Invalid max_tokens value, the valid range is [1, 8192]' }
+  const f1 = fakeFetch([rej, rej, sseOk('', '好了')])
+  await chat({ ...base, fetchImpl: f1.fetchImpl, maxTokens: 32768, maxTokensFallback: [16384, 8192], escalateOnLength: { ceiling: 65536 }, maxRetries: 0 })
+  assert.equal(rememberedMaxTokens(base.baseUrl + '/', 'DeepSeek-V4-Pro'), 8192)
+  // 第二次调用：不会再先试 32768；写不完时也不会加大到 8192 以上
+  const calls2 = []
+  const script = [sseOk('', '半截', 'length')]
+  const fetchImpl = async (url, init) => { calls2.push(JSON.parse(init.body).max_tokens); const st = script.shift(); const enc = new TextEncoder(); return new Response(new ReadableStream({ start(c) { for (const x of st.sse) c.enqueue(enc.encode(x)); c.close() } }), { status: 200 }) }
+  const e = await fail(chat({ ...base, fetchImpl, maxTokens: 32768, maxTokensFallback: [16384, 8192], escalateOnLength: { ceiling: 65536 }, maxRetries: 0 }))
+  assert.equal(e.code, 'truncated'); assert.deepEqual(calls2, [8192], '直接从 8192 开始，天花板压到 8192，不再加大')
+  // 别的模型不受影响
+  const f3 = fakeFetch([sseOk('', 'ok')])
+  forgetMaxTokens(); await chat({ ...base, model: 'other', fetchImpl: f3.fetchImpl, maxTokens: 32768 })
+  assert.deepEqual(f3.calls.map(c => c.max_tokens), [32768])
 }
 // ── P2-5：一次调用的总时限（模型断断续续一直写也不能无限等）──
 {

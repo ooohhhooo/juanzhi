@@ -29,7 +29,7 @@ import type { SuggestResult } from '../course/service'
 import { createJobQueue } from '../course/job-queue'
 import { researchTableWithCourseware, clampPerKp } from '../course/research-table'
 import { researchXlsx } from '../course/research-xlsx'
-import { polishAdvice } from '../course/research-service'
+import { polishAdvice, adviceCallCount, aiConfigured } from '../course/research-service'
 import { addCourseware, dropCoursewareOf, listCourseware, lessonKey, removeCourseware } from '../course/courseware'
 import { readCoursewareFile } from '../course/doc-read'
 import type { AdviceScope } from '../course/service'
@@ -370,23 +370,41 @@ export function registerCourseIpc(): void {
   })
 
   // ───── 教研对照表：机构大纲 A（+B）× 学校教材 × 校内试卷；课件按节挂在大纲上（只在本机读文字，存在数据目录里） ─────
-  const ResearchScope = z.object({ filter: FilterArg, courseId: IdSchema, courseBId: IdSchema.optional(), textbookIds: z.array(IdSchema).max(60).default([]), perKp: z.number().int().min(1).max(10).default(3), ai: z.boolean().default(false) })
-  const buildResearch = async (raw: unknown) => {
+  const ResearchScope = z.object({
+    filter: FilterArg, courseId: IdSchema, courseBId: IdSchema.optional(), textbookIds: z.array(IdSchema).max(60).default([]), perKp: z.number().int().min(1).max(10).default(3),
+    /** 导出时带回界面上已有的 AI 小结（key = 级别|课次）：导出不再调 AI */
+    aiAdvice: z.record(z.string().max(400)).optional()
+  })
+  const buildResearch = (raw: unknown) => {
     const s = ResearchScope.parse(raw)
     const table = researchTableWithCourseware(db(), getDataDir(), s.filter, { courseId: s.courseId, courseBId: s.courseBId, textbookIds: s.textbookIds, perKp: clampPerKp(s.perKp) })
-    let aiNote = ''
-    if (s.ai && table.ready) {
-      const r = await polishAdvice(table, getDataDir())
-      aiNote = r.note
-      notifyDataChanged('usage')
-    }
-    return { table, aiNote, filterDesc: describeFilter(s.filter, 0) }
+    if (table.ready && s.aiAdvice) for (const l of table.lessons) { const v = s.aiAdvice[lessonKey(l.levelName, l.seq)]; if (v && l.advice.length) l.aiAdvice = v }
+    return { table, scope: s, filterDesc: describeFilter(s.filter, 0) }
   }
-  ipcMain.handle('course:researchTable', async (_e, raw: unknown) => buildResearch(raw))
-  ipcMain.handle('course:researchExport', async (_e, raw: unknown) => {
-    const r = await buildResearch(raw)
+  ipcMain.handle('course:researchTable', async (_e, raw: unknown) => { const r = buildResearch(raw); return { table: r.table, aiNote: '', filterDesc: r.filterDesc } })
+  /** 点“让 AI 写修订小结”之前：先告诉老师会调用几次 AI */
+  ipcMain.handle('course:researchAdviceCount', async (_e, raw: unknown) => {
+    const r = buildResearch(raw)
+    return { ...adviceCallCount(r.table), configured: aiConfigured(), ready: r.table.ready }
+  })
+  const adviceJobs = new Map<string, AbortController>()
+  ipcMain.handle('course:researchAdvice', async (_e, raw: unknown, rawRequestId: unknown) => {
+    const requestId = z.string().uuid().parse(rawRequestId)
+    const r = buildResearch(raw)
     if (!r.table.ready) throw new Error(r.table.reason)
-    const buf = await researchXlsx(r.table, { filterDesc: r.filterDesc, generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }) })
+    const ctl = new AbortController()
+    adviceJobs.set(requestId, ctl)
+    try {
+      const res = await polishAdvice(r.table, getDataDir(), ctl.signal)
+      notifyDataChanged('usage')
+      return res
+    } finally { adviceJobs.delete(requestId) }
+  })
+  ipcMain.handle('course:researchAdviceCancel', async (_e, rawRequestId: unknown) => { adviceJobs.get(z.string().uuid().parse(rawRequestId))?.abort(); return true })
+  ipcMain.handle('course:researchExport', async (_e, raw: unknown) => {
+    const r = buildResearch(raw)
+    if (!r.table.ready) throw new Error(r.table.reason)
+    const buf = await researchXlsx(r.table, { filterDesc: r.filterDesc, generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }), includeReviewing: !!r.scope.filter.includeReviewing })
     const win = getMainWindow()
     const opts: Electron.SaveDialogOptions = { title: '导出教研对照表', defaultPath: '教研对照表.xlsx', filters: [{ name: 'Excel 表格', extensions: ['xlsx'] }] }
     const d = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
@@ -395,12 +413,13 @@ export function registerCourseIpc(): void {
       const code = (e as NodeJS.ErrnoException).code
       throw new Error(code === 'EBUSY' || code === 'EPERM' || code === 'EACCES' ? '文件正被其他程序占用（比如 Excel 里还开着它）或没有写入权限，请关闭后重试' : `保存失败：${(e as Error).message}`)
     }
-    return { saved: true, path: d.filePath, rows: r.table.lessons.reduce((n, l) => n + Math.max(1, l.kps.length), 0), aiNote: r.aiNote }
+    return { saved: true, path: d.filePath, rows: r.table.lessons.reduce((n, l) => n + Math.max(1, l.kps.length), 0) }
   })
   ipcMain.handle('course:coursewareList', async (_e, outlineId: unknown) => listCourseware(getDataDir(), IdSchema.parse(outlineId)))
   /** 给某一节挂课件：弹系统对话框（可多选），文字只在本机读出来 */
   ipcMain.handle('course:coursewareAdd', async (_e, raw: unknown) => {
     const p = z.object({ outlineId: IdSchema, levelName: z.string().min(1).max(80), seq: z.number().int().min(0).max(99999) }).parse(raw)
+    if (!db().prepare('SELECT 1 FROM course_outlines WHERE id = ?').get(p.outlineId)) throw new Error('这份大纲已经不存在了，请刷新后再试')
     const win = getMainWindow()
     const opts: Electron.OpenDialogOptions = { title: '选择这一节的课件', filters: [{ name: '课件（PDF、Word、PPT、文本、图片）', extensions: ['pdf', 'docx', 'pptx', 'ppt', 'doc', 'txt', 'md', 'png', 'jpg', 'jpeg', 'heic'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile', 'multiSelections'] }
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)

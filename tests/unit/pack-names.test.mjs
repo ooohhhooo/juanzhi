@@ -10,10 +10,12 @@ ok('manifest.json', 'manifest'); ok('db.sqlite', 'db')
 ok(`files/${ID}/original.pdf`, 'file'); ok(`files/${ID}/original.docx`, 'file'); ok(`files/${ID}/original.heic`, 'file'); ok(`files/${ID}/original.jpeg`, 'file')
 ok(`files/${ID}/page-1.png`, 'file'); ok(`files/${ID}/page-12.png`, 'file'); ok(`files/${ID}/media/3.png`, 'file'); ok(`files/${ID}/media/3.jpg`, 'file'); ok(`files/${ID}/media/3.gif`, 'file')
 ok('files/', 'dir'); ok(`files/${ID}/`, 'dir'); ok(`files/${ID}/media/`, 'dir')
+ok(`courseware/${ID}/index.json`, 'courseware'); ok(`courseware/${ID}/a1b2c3d4e5.txt`, 'courseware'); ok('courseware/', 'dir'); ok(`courseware/${ID}/`, 'dir')
 const f = classifyEntry(`files/${ID}/media/3.png`)
 assert.deepEqual([f.paperId, f.rel], [ID, 'media/3.png'])
 
 for (const bad of [
+  `courseware/${ID}/../x.txt`, `courseware/${ID}/evil.exe`, `courseware/${ID}/ABC.txt`, 'courseware/not-a-uuid/index.json', `courseware/${ID}/sub/index.json`, `courseware/${ID}/a1b2c3d4e5.txt/`,
   '../evil.txt', 'files/../../evil', `files/${ID}/../../evil`, `files/${ID}/../x/page-1.png`, '/etc/passwd', '/db.sqlite', 'C:\\Windows\\x', 'C:/x', 'c:db.sqlite',
   'files\\' + ID + '\\page-1.png', `files/${ID}/page-1.png\u0000.exe`, 'db.sqlite\n', `files//${ID}/page-1.png`, './db.sqlite', `files/${ID}/./page-1.png`,
   'readme.txt', '__MACOSX/', '__MACOSX/._db.sqlite', '.DS_Store', 'files/.DS_Store', `files/${ID}/.DS_Store`, `files/${ID}/._page-1.png`,

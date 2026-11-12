@@ -12,7 +12,7 @@ export const runtimeClassifyAi: ClassifyAi = async o => {
   const cfg = loadConfig()
   const model = parseModelOf(cfg)
   if (!cfg.base_url || !model) throw new Error('还没有配置 AI 服务，文字归类需要先在“AI 服务”里配置')
-  const r = await jsonCall({ kind: o.kind, model, system: o.system, user: o.user, signal: o.signal, maxTokens: o.maxTokens })
+  const r = await jsonCall({ kind: o.kind, model, system: o.system, user: o.user, signal: o.signal })
   return { content: r.content }
 }
 

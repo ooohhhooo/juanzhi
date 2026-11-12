@@ -51,4 +51,14 @@ const out = questions => ({ meta: { title: null, grade: null, semester: null, sc
   assert.deepEqual(st.questions.map(x => x.no), ['1', '2', '3', '4'], '重叠的第 2 题不重复')
   assert.equal(st.questions[2].stem, '第三题完整', '被切断的第 3 题用完整版')
 }
+// 同号但题干明显不同：不丢，改名保留并记 notes；同一题的两次识别（被切断 / 多几个字）仍去重
+{
+  const st = newMergeState()
+  mergeBatch(st, out([q('5', 'The cat is sleeping on the sofa now.')]), { batch: 1, mode: 'text' })
+  mergeBatch(st, out([q('5', 'The cat is sleeping on the sofa'), q('6', 'Tom 昨天去了哪里？')]), { batch: 2, mode: 'text' })
+  assert.deepEqual(st.questions.map(x => x.no), ['5', '6'], '相似的算重复')
+  mergeBatch(st, out([q('5', '我们班有四十五名学生，其中女生占五分之二。')]), { batch: 3, mode: 'text' })
+  assert.deepEqual(st.questions.map(x => x.no), ['5', '6', '5-2'], '不同的题改名保留')
+  assert.ok(st.notes.some(n => n.includes('5-2') && n.includes('核对')))
+}
 console.log('page-split.test ✓')

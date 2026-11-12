@@ -88,6 +88,13 @@ export function mergeBatch(state: MergeState, out: BatchOutput, ctx: { batch: nu
       // 整条替换：保留原位置，以及上一批给出的页码/anchor（提示词要求模型原样沿用，这里再兜底一次）
       state.questions[idx] = { ...q, mode: old.mode, batch: old.batch, inst, page: old.page, anchor: old.anchor, anchor_ref: old.anchor_ref }
       if (impliedContinuation) state.notes.push(`第 ${q.section || '?'} 大题第 ${q.no} 题跨批，模型没有标注续写，已按续写合并，请核对`)
+    } else if (old && !sameStem(old.stem, q.stem)) {
+      // 同号但题干明显不同：多半是两道不同的题被识别成了同一个号（拆半页 / 模型编号错），都留着，改名后请人核对
+      let k = 2
+      while (findQuestion(state, q.section, `${q.no}-${k}`, inst) >= 0) k++
+      const no = `${q.no}-${k}`
+      state.questions.push({ ...q, no, mode: ctx.mode, batch: ctx.batch, inst })
+      state.notes.push(`第 ${q.section || '?'} 大题第 ${q.no} 题出现了两道内容不同的题，后一道已改名为第 ${no} 题保留，请核对`)
     } else if (old) {
       state.notes.push(`第 ${q.section || '?'} 大题第 ${q.no} 题重复出现，已保留先出现的`)
     } else {
@@ -101,6 +108,19 @@ export function mergeBatch(state: MergeState, out: BatchOutput, ctx: { batch: nu
 const sq = (t: string) => t.replace(/\s+/g, '').toLowerCase()
 function sameTitle(a: string, b: string): boolean {
   return sq(a) === sq(b)
+}
+
+/** 题干是否「差不多是同一道」：去空白标点后的相邻两字组合，重合数 / 较短一方 ≥ 0.4（任一方为空视为相同） */
+export function sameStem(a: string, b: string): boolean {
+  const norm = (t: string) => (t ?? '').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '')
+  const grams = (t: string) => { const o = new Set<string>(); for (let i = 0; i + 1 < t.length; i++) o.add(t.slice(i, i + 2)); return o }
+  const x = norm(a), y = norm(b)
+  if (!x || !y) return true
+  if (x.length < 4 || y.length < 4) return x.includes(y) || y.includes(x)
+  const gx = grams(x), gy = grams(y)
+  let common = 0
+  for (const g of gx) if (gy.has(g)) common++
+  return common / Math.min(gx.size, gy.size) >= 0.4
 }
 
 function findQuestion(state: MergeState, section: string, no: string, inst: number): number {

@@ -3,6 +3,7 @@
  * 工作表：「对照表」（一节课多行时合并课程列 / 课件列 / 修订建议列，自动换行，冻结首行）、「只有A只有B」（选了 B 才有）、「教材有机构没讲」、「说明」。
  * 不含任何学员个人信息：里面只有课程大纲、教材目录、试卷题目和统计数字。
  */
+import { MAX_AI_LESSONS } from './research-ai.ts'
 import { buildXlsx } from '../analysis/report/export-xlsx.ts'
 import type { XCell, XRow, XSheet } from '../analysis/report/export-xlsx.ts'
 import { ADVICE_LABEL, adviceCell } from './research-table.ts'
@@ -30,7 +31,10 @@ const visualLen = (s: string): number => [...s].reduce((n, ch) => n + (ch.charCo
 const linesOf = (text: string, width: number): number => text.split('\n').reduce((n, ln) => n + Math.max(1, Math.ceil(visualLen(ln) / Math.max(8, width - 1))), 0)
 const heightOf = (lines: number): number => Math.min(409, Math.max(18, lines * 15 + 4))
 
-export interface ResearchXlsxMeta { filterDesc: string; generatedAt: string }
+export interface ResearchXlsxMeta { filterDesc: string; generatedAt: string; /** 范围里把「待审核（AI 结果未确认）」的卷子也算进来了 */ includeReviewing?: boolean }
+
+/** 试卷范围的说法：按筛选里有没有包含待审核的卷子写 */
+export const papersScopeText = (includeReviewing?: boolean): string => includeReviewing ? '含老师已审核和待审核（AI 结果未确认）的试卷' : '只含老师已审核的试卷'
 
 export function researchSheetRows(t: ResearchTable): { header: string[]; widths: number[]; rows: XRow[]; merges: string[]; flat: string[][] } {
   const hasB = !!t.courseB, hasBooks = t.textbooks.length > 0
@@ -92,9 +96,11 @@ export async function researchXlsx(t: ResearchTable, meta: ResearchXlsxMeta): Pr
     sheets.push(table('教材有机构没讲', ['知识点大类', '知识点', '教材位置', '校内考过', '常考', '易错题数'], [14, 22, 44, 18, 8, 10],
       t.tbNotInA.map(r => [r.group, r.name, r.units.join('；'), r.papers ? `${r.papers}/${r.paperTotal} 份卷子` : '范围内没有考到', r.frequent ? '是' : '', r.errorCount ? String(r.errorCount) : ''])))
   }
+  const adviceLessons = t.lessons.filter(l => l.advice.length > 0).length, aiLessons = t.lessons.filter(l => l.aiAdvice).length
   const info: string[][] = [
     ['数据范围', meta.filterDesc || '全部试卷'],
-    ['试卷份数', `${t.papers} 份（只含老师已审核的试卷）`],
+    ['试卷份数', `${t.papers} 份（${papersScopeText(meta.includeReviewing)}）`],
+    ...(aiLessons > 0 && aiLessons < adviceLessons ? [['AI 小结范围', `只有 ${aiLessons}/${adviceLessons} 节有建议的课写了 AI 小结，其余只有规则结论（AI 小结一次最多写 ${MAX_AI_LESSONS} 节，或中途取消、个别节没写成）`]] : []),
     ['机构大纲 A', t.course?.name ?? ''],
     ...(t.courseB ? [['机构大纲 B', t.courseB.name]] : []),
     ['学校教材', t.textbooks.map(b => b.name).join('、') || '（没选）'],

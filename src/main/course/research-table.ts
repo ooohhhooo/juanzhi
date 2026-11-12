@@ -14,7 +14,7 @@ import { GAP_MIN_PAPERS, subtree } from './stats.ts'
 import { listOutlines } from './store.ts'
 import { lessonName } from './map.ts'
 import { compareCourseTextbook } from './compare.ts'
-import { coursewareOfLesson, lessonKey } from './courseware.ts'
+import { coursewareOfLesson, lessonKey, listCourseware } from './courseware.ts'
 
 type Db = any
 
@@ -26,7 +26,9 @@ export interface CwInput { id: string; name: string; text: string }
 /** 某一节挂的课件（含全文，只用来判断「讲没讲到」，不进结果表） */
 export type CoursewareLookup = (outlineId: string, levelName: string, seq: number) => CwInput[]
 
-export interface ResearchOptions { courseId: string; courseBId?: string; textbookIds: string[]; perKp?: number; courseware?: CoursewareLookup }
+/** 只要其中几节课时给：不命中的课不算例题 / 建议，只保留「要对齐」需要的顺序信息（助手的 lesson_kps 用） */
+export type LessonPick = (l: { id: number; levelName: string; seq: number; noLabel: string; label: string; title: string }) => boolean
+export interface ResearchOptions { courseId: string; courseBId?: string; textbookIds: string[]; perKp?: number; courseware?: CoursewareLookup; lessonFilter?: LessonPick }
 
 export interface ExampleQ { id: string; paperId: string; paperTitle: string; no: string; stem: string; options: string[]; answer: string; errorProne: boolean; errorReason: string }
 export interface TbLoc { outlineId: string; outlineName: string; levelName: string; label: string; title: string; pages: string; coarse: boolean }
@@ -47,6 +49,8 @@ export const ADVICE_LABEL: Record<AdviceKind, string> = { add: '要补', align: 
 export interface AdviceItem { kind: AdviceKind; text: string; /** 依据（程序算出来的事实，AI 润色时只能引用它们） */ basis: string[]; kpCode?: string }
 export interface RLesson {
   lessonId: number; outlineId: string; levelName: string; seq: number; label: string; title: string
+  /** 大纲里写的课次编号（可能和 seq 不同，如“第 5 课”排在第 3 位） */
+  noLabel?: string
   groups: Array<{ name: string; code: string; kps: RKp[] }>
   kps: RKp[]
   courseware: Array<{ id: string; name: string; chars: number }>
@@ -87,7 +91,7 @@ const mainMaps = (db: Db, outlineId: string): MapLite[] =>
 const PAGE_RE = /第\s*\d+(?:\s*[–\-—~～]\s*\d+)?\s*页/
 const json = <T>(s: string | null | undefined, fb: T): T => { try { const v = s ? JSON.parse(s) : fb; return (v ?? fb) as T } catch { return fb } }
 
-interface LessonInfo { id: number; outlineId: string; outlineName: string; levelName: string; levelIdx: number; seq: number; label: string; title: string; pages: string }
+interface LessonInfo { noLabel: string; id: number; outlineId: string; outlineName: string; levelName: string; levelIdx: number; seq: number; label: string; title: string; pages: string }
 function lessonsOf(db: Db, outlineId: string, outlineName: string): LessonInfo[] {
   const levelIdx = new Map((db.prepare('SELECT id FROM course_levels WHERE outline_id = ? ORDER BY sort, id').all(outlineId) as any[]).map((r, i) => [r.id as number, i]))
   const rows = db.prepare(`SELECT l.id, l.level_id, l.seq, l.no_label, l.title, l.points_json, lv.name level_name FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id
@@ -95,7 +99,7 @@ function lessonsOf(db: Db, outlineId: string, outlineName: string): LessonInfo[]
   return rows.map(r => {
     const pts = json<Array<{ text?: string }>>(r.points_json, [])
     const pages = pts.map(p => PAGE_RE.exec(String(p?.text ?? ''))?.[0] ?? '').find(Boolean) ?? ''
-    return { id: r.id, outlineId, outlineName, levelName: r.level_name, levelIdx: levelIdx.get(r.level_id) ?? 0, seq: r.seq, label: lessonName({ seq: r.seq, noLabel: r.no_label ?? '', title: r.title ?? '' }), title: r.title ?? '', pages: pages.replace(/\s+/g, ' ') }
+    return { noLabel: String(r.no_label ?? ''), id: r.id, outlineId, outlineName, levelName: r.level_name, levelIdx: levelIdx.get(r.level_id) ?? 0, seq: r.seq, label: lessonName({ seq: r.seq, noLabel: r.no_label ?? '', title: r.title ?? '' }), title: r.title ?? '', pages: pages.replace(/\s+/g, ' ') }
   })
 }
 
@@ -189,6 +193,11 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
     }
     return k
   }
+  /** 轻量版：只有名字和校内统计，不查教材位置 / 例题（只为「要对齐」排顺序用） */
+  const lightKp = (code: string): RKp => {
+    const st = stat.get(code)
+    return { code, name: nameOf(code), group: '', groupCode: '', papers: st?.papers ?? 0, paperTotal: counts.papers, questions: st?.questions ?? 0, errorCount: st?.errorCount ?? 0, frequent: false, locs: [], examples: [], bLessons: [] }
+  }
   const kpOrder = (x: RKp, y: RKp) => (y.errorCount > 0 ? 1 : 0) - (x.errorCount > 0 ? 1 : 0) || y.papers - x.papers || y.questions - x.questions || (kpRows.get(x.code)?.sort ?? 0) - (kpRows.get(y.code)?.sort ?? 0) || (x.code < y.code ? -1 : 1)
   const groupOrder = (a: string, b: string) => (kpRows.get(a)?.sort ?? 0) - (kpRows.get(b)?.sort ?? 0) || (a < b ? -1 : 1)
 
@@ -208,12 +217,16 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
   const runningMax = new Map<string, number>()   // 教材 id → 前面各课里最靠后的教材位置
   for (const l of aLessons) {
     const codes = aByLesson.get(l.id) ?? []
+    if (opts.lessonFilter && !opts.lessonFilter(l)) {
+      alignAdvice({ tbs, relatedLessons, runningMax }, codes.map(lightKp), [])   // 不在要的课里：只更新「前面已讲到哪一册」
+      continue
+    }
     const kps = codes.map(kpOf).sort((x, y) => groupOrder(x.groupCode, y.groupCode) || kpOrder(x, y))
     const groups: RLesson['groups'] = []
     for (const k of kps) { let g = groups.find(x => x.code === k.groupCode); if (!g) { g = { name: k.group, code: k.groupCode, kps: [] }; groups.push(g) } g.kps.push(k) }
     const cw = opts.courseware?.(A.id, l.levelName, l.seq) ?? []
     const advice = adviceOf({ lesson: l, kps, cw, books: tbs.map(t => t.b), hasBooks: books.length > 0, smallSample, minPapers, paperTotal: counts.papers, uncoveredByCode, tbUnitKps, tbs, aCodes: aMap, relatedLessons, kpOf, kpRows, runningMax })
-    lessons.push({ lessonId: l.id, outlineId: A.id, levelName: l.levelName, seq: l.seq, label: l.label, title: l.title, groups, kps, courseware: cw.map(c => ({ id: c.id, name: c.name, chars: c.text.length })), advice, aiAdvice: '' })
+    lessons.push({ lessonId: l.id, outlineId: A.id, levelName: l.levelName, seq: l.seq, noLabel: l.noLabel, label: l.label, title: l.title, groups, kps, courseware: cw.map(c => ({ id: c.id, name: c.name, chars: c.text.length })), advice, aiAdvice: '' })
   }
 
   // 只有 A 讲 / 只有 B 讲
@@ -270,6 +283,8 @@ interface AdviceCtx {
   runningMax: Map<string, number>
 }
 
+/** 一个知识点在教材里直接出现在这么多个册次以上，就当螺旋式知识点，不拿它判断顺序 */
+const SPIRAL_LEVELS = 3
 const locText = (l: TbLoc): string => `${l.outlineName === l.levelName ? '' : `${l.outlineName} `}${l.levelName} ${l.label}${l.pages ? `（${l.pages}）` : ''}${l.coarse ? '（较粗）' : ''}`.replace(/\s+/g, ' ').trim()
 const schoolText = (k: RKp): string => `校内 ${k.papers}/${k.paperTotal} 份卷子考过、共 ${k.questions} 题${k.errorCount ? `、其中 ${k.errorCount} 题易错` : ''}`
 
@@ -277,6 +292,30 @@ const schoolText = (k: RKp): string => `校内 ${k.papers}/${k.paperTotal} 份�
 export function courseMentions(textNorm: string, name: string, hintWords: string): boolean {
   const cands = [name, ...String(hintWords ?? '').split(/[,，、;；\s/|]+/)].map(norm).filter(w => w.length >= 2)
   return cands.some(w => textNorm.includes(w))
+}
+
+/** 要对齐：按知识点判断。出现在 ≥3 个册次的螺旋式知识点跳过；取这节课的主知识点
+ *  （教材里有直接对应、非较粗；校内题最多 → 卷子最多）的位置，和前面已讲到的最靠后位置比，倒置才提示 */
+function alignAdvice(c: Pick<AdviceCtx, 'tbs' | 'relatedLessons' | 'runningMax'>, kps: RKp[], out: AdviceItem[]): void {
+  for (const t of c.tbs) {
+    let main: { k: RKp; ord: number; at: LessonInfo } | null = null
+    for (const k of kps) {
+      const us = c.relatedLessons(t.byKp, k.code).direct.map(id => t.info.get(id)).filter((x): x is LessonInfo => !!x)
+      if (!us.length) continue
+      if (new Set(us.map(u => u.levelIdx)).size >= SPIRAL_LEVELS) continue
+      const first = us.reduce((m, u) => (u.levelIdx * 10000 + u.seq < m.levelIdx * 10000 + m.seq ? u : m))
+      const better = !main || k.questions > main.k.questions || (k.questions === main.k.questions && k.papers > main.k.papers)
+      if (better) main = { k, ord: first.levelIdx * 10000 + first.seq, at: first }
+    }
+    if (!main) continue
+    const { ord, at } = main
+    const prev = c.runningMax.get(t.b.id)
+    if (prev !== undefined && Math.floor(ord / 10000) < Math.floor(prev / 10000)) {
+      const basis = [`本节主要知识点「${main.k.name}」最早出现在教材 ${t.b.name === at.levelName ? '' : `${t.b.name} `}${at.levelName} ${at.label}`.replace(/\s+/g, ' '), '前面的课已经讲到教材里更靠后的册']
+      out.push({ kind: 'align', kpCode: main.k.code, basis, text: `和《${t.b.name}》的册次顺序不一致：${basis.join('；')}。` })
+    }
+    c.runningMax.set(t.b.id, Math.max(prev ?? ord, ord))
+  }
 }
 
 function adviceOf(c: AdviceCtx): AdviceItem[] {
@@ -315,22 +354,7 @@ function adviceOf(c: AdviceCtx): AdviceItem[] {
       out.push({ kind: 'add', kpCode: x.code, basis, text: `「${u.name}」：${basis.join('；')}。` })
     }
   }
-  // 要对齐：本节知识点在教材里的位置比前面已讲的更靠前（顺序和教材倒置）
-  for (const t of c.tbs) {
-    let ord: number | null = null, at: LessonInfo | null = null
-    for (const k of c.kps) for (const lid of c.relatedLessons(t.byKp, k.code).direct) {
-      const u = t.info.get(lid); if (!u) continue
-      const o = u.levelIdx * 10000 + u.seq
-      if (ord === null || o < ord) { ord = o; at = u }
-    }
-    if (ord === null || !at) continue
-    const prev = c.runningMax.get(t.b.id)
-    if (prev !== undefined && Math.floor(ord / 10000) < Math.floor(prev / 10000)) {
-      const basis = [`本节知识点最早出现在教材 ${t.b.name === at.levelName ? '' : `${t.b.name} `}${at.levelName} ${at.label}`.replace(/\s+/g, ' '), '前面的课已经讲到教材里更靠后的册']
-      out.push({ kind: 'align', basis, text: `和《${t.b.name}》的册次顺序不一致：${basis.join('；')}。` })
-    }
-    c.runningMax.set(t.b.id, Math.max(prev ?? ord, ord))
-  }
+  alignAdvice(c, c.kps, out)
   // 换例题：常考 / 易错、有校内原题的知识点，建议用原题做例题
   const swap = c.kps.filter(k => k.examples.length && (k.frequent || k.errorCount > 0)).slice(0, 4)
   for (const k of swap) {
@@ -401,9 +425,28 @@ export function locateInTextbooks(db: Db, subject: unknown, codes: string[], boo
   return { books: books.map(b => ({ id: b.id, name: b.name })), byCode }
 }
 
-/** 带上数据目录里挂的课件（按节）再生成 */
+const tableCache = new Map<string, ResearchTable>()
+const TABLE_CACHE_MAX = 4
+
+/** 带上数据目录里挂的课件（按节）再生成。结果按「库里数据有没有被写过 + 大纲版本 + 教材 + 筛选 + 每题例题数 + 课件索引」缓存在内存里（最多 4 份），
+ *  窗口重新聚焦、重复点击时不再重算；返回的是副本，调用方可以随便改（比如写 AI 小结）。带 lessonFilter 的不缓存。 */
 export function researchTableWithCourseware(db: Db, dataDir: string, filter: StatsFilter, opts: Omit<ResearchOptions, 'courseware'>): ResearchTable {
-  return researchTable(db, filter, { ...opts, courseware: (outlineId, levelName, seq) => coursewareOfLesson(dataDir, outlineId, lessonKey(levelName, seq)).map(c => ({ id: c.id, name: c.name, text: c.text })) })
+  const build = () => researchTable(db, filter, { ...opts, courseware: (outlineId, levelName, seq) => coursewareOfLesson(dataDir, outlineId, lessonKey(levelName, seq)).map(c => ({ id: c.id, name: c.name, text: c.text })) })
+  if (opts.lessonFilter) return build()
+  let key = ''
+  try {
+    const ids = [...new Set([opts.courseId, opts.courseBId ?? '', ...opts.textbookIds].filter(Boolean))]
+    const revs = ids.map(id => `${id}:${(db.prepare('SELECT rev FROM course_outlines WHERE id = ?').get(id) as any)?.rev ?? '-'}`)
+    // total_changes()：这个连接写过多少行；试卷、题目、对应、知识点任何改动都会让它变，所以不会读到旧数据
+    const changes = Number((db.prepare('SELECT total_changes() AS n').get() as any)?.n ?? -1)
+    const cw = listCourseware(dataDir, opts.courseId).map(c => `${c.id}@${c.addedAt}`).join(',')
+    key = JSON.stringify([changes, revs, opts.textbookIds, opts.courseBId ?? '', filter, clampPerKp(opts.perKp ?? DEFAULT_PER_KP), cw])
+  } catch { key = '' }
+  const hit = key ? tableCache.get(key) : undefined
+  if (hit) { tableCache.delete(key); tableCache.set(key, hit); return structuredClone(hit) }
+  const t = build()
+  if (key) { tableCache.set(key, structuredClone(t)); while (tableCache.size > TABLE_CACHE_MAX) tableCache.delete(tableCache.keys().next().value as string) }
+  return t
 }
 
 export { lessonKey }

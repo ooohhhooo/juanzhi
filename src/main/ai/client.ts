@@ -377,6 +377,13 @@ export const HIDDEN_THINKING = 'hidden-thinking'
 export const NO_TIME_TO_RETRY = 'no-time-to-retry'
 const RETRYABLE = new Set<AiErrorCode>(['rate_limit', 'server', 'timeout', 'network'])
 
+/** 进程内记住：某服务+模型被 400 降级后能用的 max_tokens（key = baseUrl|model），后续调用直接从它开始并把天花板压到它；不落盘 */
+const okMaxTokens = new Map<string, number>()
+const mtKey = (baseUrl: string, model: string): string => `${baseUrl.replace(/\/+$/, '').toLowerCase()}|${model.trim().toLowerCase()}`
+export const rememberedMaxTokens = (baseUrl: string, model: string): number | undefined => okMaxTokens.get(mtKey(baseUrl, model))
+export const rememberMaxTokens = (baseUrl: string, model: string, n: number): void => { okMaxTokens.set(mtKey(baseUrl, model), n) }
+export const forgetMaxTokens = (): void => okMaxTokens.clear()
+
 /** 发一次对话；网络/限流/5xx 指数退避重试，空 content 同参数重试，其余错误直接抛出 */
 export async function chat(req: ChatRequest): Promise<ChatResult> {
   const maxRetries = req.maxRetries ?? 3
@@ -386,11 +393,17 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
   let attempt = 0
   let emptyRetried = false
   let maxTokens = req.maxTokens
+  // 之前这个服务+模型被 400 降级过：直接从降级后的值开始，天花板也压到它
+  const remembered = maxTokens ? rememberedMaxTokens(req.baseUrl, req.model) : undefined
+  if (remembered && maxTokens && remembered < maxTokens) maxTokens = remembered
+  let cap = remembered ?? 0
+  const ceilingOf = (): number => { const c = req.escalateOnLength?.ceiling ?? 0; return cap ? Math.min(c, cap) : c }
   let escalations = 0
   let escalated = false
   let fellBack: number | null = null
   let fallbackStep = 0
   const fallbackList = (Array.isArray(req.maxTokensFallback) ? req.maxTokensFallback : req.maxTokensFallback ? [req.maxTokensFallback] : []).filter(n => n > 0)
+  let pendingRemember: number | null = null
   let lastTruncated: AiError | null = null
   const deadline = Date.now() + (req.maxTotalMs ?? DEFAULT_TOTAL_MS)
 
@@ -413,6 +426,7 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
         if (!emptyRetried) { emptyRetried = true; continue }
         throw new AiError('empty', '模型返回了空内容（重试后仍为空）', null, `reasoning ${r.reasoningChars} 字；finish_reason=${r.finishReason || '无'}`)
       }
+      if (pendingRemember) rememberMaxTokens(req.baseUrl, req.model, pendingRemember)   // 降级后真的能用，记住
       return { ...r, attempts: attempt, maxTokensUsed: maxTokens ?? null, escalated, fellBackTo: fellBack }
     } catch (e) {
       let err = e instanceof AiError ? e : new AiError('network', (e as Error).message)
@@ -420,13 +434,13 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
       const lastMs = Date.now() - startedAt
       // 被长度上限截断：上限翻倍（不超过模型的天花板）再来一次；只试一次
       // 加长重试最多要写到上一次的两倍长：剩余总时限不够跑完它就不开始（开始了也必然死在总时限上，白白多花一次钱），直接按「没写完」报错，已写出的部分留作草稿
-      const wouldEscalate = err.code === 'truncated' && escalations < MAX_ESCALATIONS && req.escalateOnLength && maxTokens && req.escalateOnLength.ceiling > maxTokens
+      const wouldEscalate = err.code === 'truncated' && escalations < MAX_ESCALATIONS && req.escalateOnLength && maxTokens && ceilingOf() > maxTokens
       if (wouldEscalate && deadline - Date.now() < lastMs * 2) {
         err.detail += `；剩余总时限 ${Math.max(0, Math.round((deadline - Date.now()) / 1000))} 秒，不够再加长重试一次（上一次用了 ${Math.round(lastMs / 1000)} 秒）[${NO_TIME_TO_RETRY}]`
         throw err
       }
-      if (err.code === 'truncated' && escalations < MAX_ESCALATIONS && req.escalateOnLength && maxTokens && req.escalateOnLength.ceiling > maxTokens) {
-        const next = Math.min(req.escalateOnLength.ceiling, maxTokens * 2)
+      if (err.code === 'truncated' && escalations < MAX_ESCALATIONS && req.escalateOnLength && maxTokens && ceilingOf() > maxTokens) {
+        const next = Math.min(ceilingOf(), maxTokens * 2)
         req.onRetry?.({ reason: 'length', maxTokens: next, previousMaxTokens: maxTokens })
         maxTokens = next
         escalations++
@@ -440,6 +454,7 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
         && /max_tokens|max tokens|maximum|too large|out of range|exceed|上限|最大/i.test(err.detail + err.message)) {
         fellBack = fallbackList[fallbackStep++]
         maxTokens = fellBack
+        pendingRemember = fellBack; cap = fellBack
         attempt--
         continue
       }

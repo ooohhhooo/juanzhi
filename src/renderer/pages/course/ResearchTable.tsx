@@ -133,16 +133,17 @@ export default function ResearchTable() {
   const [perKp, setPerKp] = useState(3)
   const [picker, setPicker] = useState(false)
   const [shown, setShown] = useState(PREVIEW_STEP)
-  const [aiToken, setAiToken] = useState(0)
+  // AI 小结：点按钮才调，结果存在这里（换范围就清空）；导出时带给主进程，不再调 AI
+  const [ai, setAi] = useState<{ summaries: Record<string, string>; note: string; running: boolean; reqId: string }>({ summaries: {}, note: '', running: false, reqId: '' })
   const [busy, setBusy] = useState(false)
   const cid = courses.some(c => c.id === aId) ? aId : (courses[0]?.id ?? '')
   const bid = bId && bId !== cid && courses.some(c => c.id === bId) ? bId : ''
   const books = useMemo(() => bookIds.filter(id => (cards ?? []).some(c => c.id === id && c.kind === 'textbook')), [bookIds, cards])
-  useEffect(() => { setAiToken(0); setShown(PREVIEW_STEP) }, [cid, bid, books.join(','), perKp, filter])
-  const scope: ResearchScope = { filter: { ...filter, subject }, courseId: cid, courseBId: bid || undefined, textbookIds: books, perKp, ai: aiToken > 0 }
+  useEffect(() => { setAi(a => { if (a.running && a.reqId) void window.api.course.researchAdviceCancel(a.reqId); return { summaries: {}, note: '', running: false, reqId: '' } }); setShown(PREVIEW_STEP) }, [cid, bid, books.join(','), perKp, filter])
+  const scope: ResearchScope = { filter: { ...filter, subject }, courseId: cid, courseBId: bid || undefined, textbookIds: books, perKp }
   const { data, isFetching, error } = useQuery({
-    queryKey: ['course', 'research', scope, aiToken], queryFn: () => window.api.course.researchTable(scope), enabled: !!cid,
-    placeholderData: prev => prev
+    queryKey: ['course', 'research', scope], queryFn: () => window.api.course.researchTable(scope), enabled: !!cid,
+    placeholderData: prev => prev, refetchOnWindowFocus: false
   })
   const t = data?.table
 
@@ -168,10 +169,30 @@ export default function ResearchTable() {
   const detach = async (l: RLesson, id: string) => {
     try { await window.api.course.coursewareRemove(l.outlineId, id); qc.invalidateQueries({ queryKey: ['course', 'research'] }) } catch (e) { message.error(clean(e)) }
   }
+  const aiOf = (l: RLesson): string => l.aiAdvice || ai.summaries[`${l.levelName}|${l.seq}`] || ''
+  const askAi = async () => {
+    try {
+      const c = await window.api.course.researchAdviceCount(scope)
+      if (!c.ready) return
+      if (!c.configured) { message.warning('还没有配置 AI 服务，请先到“设置 → AI 服务”里配置'); return }
+      if (c.calls === 0) { message.info('这份对照表里没有需要写小结的课'); return }
+      const ok = await new Promise<boolean>(res => Modal.confirm({
+        title: '让 AI 写修订小结', okText: `开始（调用 ${c.calls} 次）`, cancelText: '先不了', onOk: () => res(true), onCancel: () => res(false), okButtonProps: { 'data-testid': 'research-ai-confirm' } as never,
+        content: `有修订建议的课共 ${c.total} 节，每节调用一次你设置的 AI，这次会调用 ${c.calls} 次${c.total > c.calls ? `（一次最多写前 ${c.calls} 节）` : ''}。依据和课件摘录会发给它；可以随时取消。`
+      }))
+      if (!ok) return
+      const reqId = crypto.randomUUID()
+      setAi(a => ({ ...a, running: true, reqId, note: '' }))
+      const r = await window.api.course.researchAdvice(scope, reqId)
+      setAi(a => (a.reqId === reqId ? { summaries: { ...a.summaries, ...r.summaries }, note: r.note, running: false, reqId: '' } : a))
+      qc.invalidateQueries({ queryKey: ['usage'] })
+    } catch (e) { setAi(a => ({ ...a, running: false, reqId: '' })); message.error(clean(e)) }
+  }
+  const cancelAi = () => { if (ai.reqId) void window.api.course.researchAdviceCancel(ai.reqId) }
   const exportXlsx = async () => {
     setBusy(true)
     try {
-      const x = await window.api.course.researchExport(scope)
+      const x = await window.api.course.researchExport({ ...scope, aiAdvice: Object.keys(ai.summaries).length ? ai.summaries : undefined })
       if (x.saved) message.success(`已导出：${x.path}`)
     } catch (e) { message.error(clean(e)) } finally { setBusy(false) }
   }
@@ -214,7 +235,7 @@ export default function ResearchTable() {
       title: '修订建议', width: 280, onCell: r => ({ rowSpan: r.span }),
       render: (_: unknown, r) => (
         <div data-testid={`research-advice-${r.lesson.lessonId}`}>
-          {r.lesson.aiAdvice && <div style={{ marginBottom: 6 }} data-testid="research-ai-advice"><Tag color="purple">AI 小结</Tag>{r.lesson.aiAdvice}</div>}
+          {aiOf(r.lesson) && <div style={{ marginBottom: 6 }} data-testid="research-ai-advice"><Tag color="purple">AI 小结 · 供参考</Tag>{aiOf(r.lesson)}</div>}
           {r.lesson.advice.map((a, i) => <div key={i} style={{ marginBottom: 4 }} data-testid="research-advice-item" data-kind={a.kind}><Tag color={ADVICE_COLOR[a.kind]}>{ADVICE_LABEL[a.kind]}</Tag>{a.text}</div>)}
           {!r.lesson.advice.length && <span className="ewb-ana-meta">{r.lesson.courseware.length ? '没有发现需要改的地方。' : '暂无建议。挂上这一节的课件后，可以判断要补 / 可减的内容。'}</span>}
         </div>
@@ -228,7 +249,9 @@ export default function ResearchTable() {
       <FilterBar />
       <Panel title="教研对照表" data-testid="research-panel"
         aside={<span className="ewb-rep-row" style={{ gap: 8 }}>
-          <Btn tone="secondary" size="small" icon={Sparkles} disabled={!t?.ready} data-testid="research-ai" onClick={() => setAiToken(n => n + 1)}>让 AI 写修订小结</Btn>
+          {ai.running
+            ? <Btn tone="secondary" size="small" data-testid="research-ai-cancel" onClick={cancelAi}>取消 AI 小结</Btn>
+            : <Btn tone="secondary" size="small" icon={Sparkles} disabled={!t?.ready} data-testid="research-ai" onClick={() => void askAi()}>让 AI 写修订小结</Btn>}
           <Btn tone="primary" size="small" icon={Download} disabled={!t?.ready} loading={busy} data-testid="research-export" onClick={() => void exportXlsx()}>导出 Excel</Btn>
         </span>}>
         <p className="ewb-rep-note" style={{ marginBottom: 12 }}>以机构大纲的每一节课为一行：这节课对应的知识点、学校教材里在哪一册哪个单元、校内试卷考过的原题，再加修订建议。课件只在本机读取文字；点“让 AI 写修订小结”时，依据和课件摘录会发给你在“AI 服务”里设置的模型。</p>
@@ -262,7 +285,7 @@ export default function ResearchTable() {
             {t.textbooks.length > 0 && <>；教材里有、A 没讲的 <b data-testid="research-tb-not-in-a">{t.summary.tbNotInA}</b> 个</>}
             {t.courseB && <>；只有 A 讲 <b>{t.summary.onlyA}</b> 个、只有 B 讲 <b>{t.summary.onlyB}</b> 个</>}。
           </h3>
-          <p className="ewb-rep-note">试卷范围内共 {t.papers} 份已审核的卷子{t.smallSample ? '（少于 3 份，不标“常考”）' : ''}。知识点对应是 AI 匹配的结果（内置教材来自目录），请教研核对；“较粗”表示只有更大的类别对得上。{data?.aiNote ? ` ${data.aiNote}` : ''}</p>
+          <p className="ewb-rep-note">试卷范围内共 {t.papers} 份{filter.includeReviewing ? '卷子（含待审核）' : '已审核的卷子'}{t.smallSample ? '（少于 3 份，不标“常考”）' : ''}。知识点对应是 AI 匹配的结果（内置教材来自目录），请教研核对；“较粗”表示只有更大的类别对得上。{ai.running ? ' AI 正在写修订小结……' : ''}{ai.note ? ` ${ai.note}` : ''}</p>
           <Table<Row> size="small" rowKey="key" columns={columns} dataSource={rows} pagination={false} bordered loading={isFetching} scroll={{ x: 'max-content' }} data-testid="research-grid" className="ewb-rt-grid" />
           {t.lessons.length > shown && (
             <div style={{ textAlign: 'center', margin: '12px 0' }}>

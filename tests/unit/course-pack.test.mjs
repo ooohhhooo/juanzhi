@@ -1,12 +1,14 @@
 // 数据包里的课程大纲：默认随包带走、导出时可以不带；导入（合并 / 覆盖）按外键整体复制并重新编号；话术缓存不带；坏的体系 id 拒绝；旧包（没有课程表）照常导入。
 import assert from 'node:assert/strict'
 import path from 'node:path'
+import fs from 'node:fs'
 import { makeEnv, paperWithFiles, openDb, count, LATEST, migrate } from './helpers/packenv.mjs'
 import { buildPack } from '../../src/main/pack/exporter.ts'
 import { extractPack } from '../../src/main/pack/reader.ts'
 import { prepareStagedDb } from '../../src/main/pack/stage-db.ts'
 import { applyMerge, applyOverwrite, summarizePack } from '../../src/main/pack/apply.ts'
 import { PackError } from '../../src/main/pack/errors.ts'
+import { addCourseware, listCourseware, readCoursewareText, lessonKey } from '../../src/main/course/courseware.ts'
 import { createOutline, applyMatchBatch, editMap, targetKps, listOutlines, mapRows } from '../../src/main/course/store.ts'
 
 const prep = dbPath => prepareStagedDb(dbPath, { openDb, migrate: (db, from) => migrate(db, from), latest: LATEST })
@@ -193,6 +195,50 @@ A.db.prepare("INSERT INTO course_advice (scope_key, cache_key, markdown, confirm
   applyOverwrite({ ...D.deps }, (await stageOf(out, D)).staged)
   assert.deepEqual(D.db.prepare('SELECT kp_code FROM course_kp_map').all().map(r => r.kp_code), ['GR.NOUN.PLURAL.REG'])
   assert.equal(D.db.prepare('SELECT COUNT(*) c FROM course_kp_check').get().c, 0)
+}
+
+// ── 课件随包走：只带被导出的大纲；合并不覆盖本机已有的；覆盖按大纲整体替换；没勾课程大纲不带 ──
+{
+  const G = makeEnv('cwG')
+  const o1 = createOutline(G.db, { name: '大纲一', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: '基础级', lessons: [lesson(1, 'a')] }] })
+  const o2 = createOutline(G.db, { name: '大纲二', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: '基础级', lessons: [lesson(1, 'b')] }] })
+  const it1 = addCourseware(G.dataDir, o1, lessonKey('基础级', 1), '课件一.pptx', '第一份课件的文字')
+  addCourseware(G.dataDir, o2, lessonKey('基础级', 1), '课件二.pdf', '第二份')
+  // 只导学科不含 o2 的情形用「没勾课程」代替；这里先验证带上两份大纲的课件
+  const { out, res } = await exportOf(G, 'cw', { dataDir: G.dataDir })
+  assert.equal(res.manifest.counts.courseware, 2)
+  assert.equal(res.manifest.formatVersion, 2, '带课件的包旧版本软件会拒绝')
+  const ex = await extractPack(out, path.join(G.dir, 'peek-cw'))
+  assert.ok(fs.existsSync(path.join(path.dirname(ex.dbPath), 'courseware', o1, 'index.json')))
+  // 没勾课程大纲：不带课件
+  const { res: res0 } = await exportOf(G, 'cw-none', { dataDir: G.dataDir, withCourse: false })
+  assert.equal(res0.manifest.counts.courseware, undefined)
+  // 只带被导出的大纲：把 o2 从库里删掉（模拟只剩一份大纲），它的课件目录还在数据目录里但不该进包
+  G.db.prepare('DELETE FROM course_outlines WHERE id = ?').run(o2)
+  const { res: res1 } = await exportOf(G, 'cw-one', { dataDir: G.dataDir })
+  assert.equal(res1.manifest.counts.courseware, 1, '只带还在的大纲的课件')
+
+  // 合并导入到 H：新大纲的课件带过来；已有同名同节课件的不覆盖
+  const { out: outBoth } = await exportOf(G, 'cw-merge', { dataDir: G.dataDir })
+  const H = makeEnv('cwH')
+  const rep = applyMerge(H.deps, (await stageOf(outBoth, H)).staged)
+  assert.equal(rep.coursewareAdded, 1)
+  assert.equal(listCourseware(H.dataDir, o1).length, 1)
+  assert.equal(readCoursewareText(H.dataDir, o1, it1.id).text, '第一份课件的文字')
+  // H 本机改过这份课件：再次合并不覆盖
+  addCourseware(H.dataDir, o1, lessonKey('基础级', 1), '课件一.pptx', '本机改过的文字')
+  const rep2 = applyMerge(H.deps, (await stageOf(outBoth, H)).staged)
+  assert.equal(rep2.coursewareAdded, 0)
+  assert.equal(readCoursewareText(H.dataDir, o1, it1.id).text, '本机改过的文字', '合并导入不覆盖本机已有课件')
+
+  // 覆盖导入：按大纲整体替换，本机旧大纲的课件目录被清掉
+  const I = makeEnv('cwI')
+  const oOld = createOutline(I.db, { name: '本机旧大纲', scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels: [{ name: 'x', lessons: [lesson(1, 'z')] }] })
+  addCourseware(I.dataDir, oOld, lessonKey('x', 1), '旧课件.txt', '旧')
+  const rep3 = applyOverwrite({ ...I.deps }, (await stageOf(outBoth, I)).staged)
+  assert.equal(rep3.coursewareAdded, 1)
+  assert.equal(listCourseware(I.dataDir, oOld).length, 0, '被替换掉的大纲，课件一起清')
+  assert.equal(listCourseware(I.dataDir, o1).length, 1)
 }
 
 console.log('course-pack.test ✓')
