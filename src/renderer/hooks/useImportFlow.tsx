@@ -75,7 +75,7 @@ export function useImportFlow() {
           title: '发现内容相同的试卷',
           content: (
             <div data-testid="duplicate-confirm">
-              {dups.slice(0, 10).map(d => <div key={d.path}>「{d.fileName}」与已有的「{d.duplicateOf?.title}」内容完全相同{d.duplicateOf?.parseFailed && <b>（那份 AI 解析失败了，请到「处理队列」重试，不必重新导入；仍然导入会再多出一份）</b>}</div>)}
+              {dups.slice(0, 10).map(d => <div key={d.path}>「{d.fileName}」与已有的「{d.duplicateOf?.title}」内容完全相同{d.duplicateOf?.parseFailed && <b>（那份 AI 解析失败了，请到「试卷 → 处理中」重试，不必重新导入；仍然导入会再多出一份）</b>}</div>)}
               {dups.length > 10 && <div>……还有 {dups.length - 10} 个内容相同的文件</div>}
               <div style={{ marginTop: 8 }}>是否仍然导入？（统计时同一个文件只算一份，多导入一份不会让它被重复计数；需要时可在看板筛选栏打开「包含重复导入」。）</div>
             </div>

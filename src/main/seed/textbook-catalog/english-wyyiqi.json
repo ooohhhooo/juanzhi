@@ -1,0 +1,1793 @@
+{
+  "id": "english-wyyiqi",
+  "subject": "english",
+  "edition": "外研版（一起）",
+  "textbookValue": "外研版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 外研版新标准英语（一年级起点）一至六年级 12 册目录（yq1s … yq6x）",
+      "url": "http://www.dzkbw.com/books/waiyan/yingyu/yq1s/"
+    },
+    {
+      "title": "教习网 · 外研版（一年级起点）版本页（一至五年级上册共 9 册课文目录）",
+      "url": "https://www.51jiaoxi.com/versions/46370/"
+    },
+    {
+      "title": "教习网 · 外研版（一年级起点）五年级上册课文目录",
+      "url": "https://www.51jiaoxi.com/books/46379/"
+    },
+    {
+      "title": "21世纪教育网 · 外研版（一起）六年级下册 Module 5 Unit 1 教案",
+      "url": "https://zy.21cnjy.com/19708014"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Hello! / Unit 2 How are you?",
+          "lessons": [
+            "话题：问候",
+            "句型：Hello! / How are you?"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 What's your name? / Unit 2 I'm a boy.",
+          "lessons": [
+            "话题：询问姓名、介绍自己",
+            "句型：What's your name? / I'm a boy."
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.BE",
+            "GR.PRON.PERSONAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 Sit down! / Unit 2 Point to the window!",
+          "lessons": [
+            "话题：课堂指令、教室物品",
+            "句型：Sit down! / Point to the window!"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 It's red! / Unit 2 It's a red dog.",
+          "lessons": [
+            "话题：颜色",
+            "句型：It's red! / It's a red dog."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE",
+            "GR.NOUN.ARTICLE.A_AN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 This is our teacher. / Unit 2 This is a yellow cat.",
+          "lessons": [
+            "话题：介绍他人与物品",
+            "句型：This is our teacher. / This is a yellow cat."
+          ],
+          "kps": [
+            "GR.PRON.DEMO",
+            "GR.PRON.POSS.ADJ",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 What's this? / Unit 2 It's my ruler.",
+          "lessons": [
+            "话题：文具",
+            "句型：What's this? / It's my ruler."
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.POSS.ADJ"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 Is it a dog? / Unit 2 It's a yellow cat.",
+          "lessons": [
+            "话题：动物、猜物",
+            "句型：Is it a dog? / It's a yellow cat."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.YESNO.BE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 How many? / Unit 2 How many pink balls?",
+          "lessons": [
+            "话题：数字 1–10、数数",
+            "句型：How many? / How many pink balls?"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "GR.NOUN.PLURAL"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 How old are you? / Unit 2 Happy birthday!",
+          "lessons": [
+            "话题：年龄、生日",
+            "句型：How old are you? / Happy birthday!"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD",
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 That is my father. / Unit 2 That is his car.",
+          "lessons": [
+            "话题：家庭成员",
+            "句型：That is my father. / That is his car."
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO",
+            "GR.PRON.POSS.ADJ"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.PRON.DEMO",
+            "GR.NUM.CARD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 He's a doctor. / Unit 2 She's a nurse.",
+          "lessons": [
+            "话题：职业",
+            "句型：He's a doctor. / She's a nurse."
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.PERSONAL",
+            "GR.VERB.BE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 Where's the bird? / Unit 2 The toy car is under the bed.",
+          "lessons": [
+            "话题：物品位置",
+            "句型：Where's the bird? / The toy car is under the bed."
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 Where's the orange cat? / Unit 2 How many green birds?",
+          "lessons": [
+            "话题：位置、颜色与数量",
+            "句型：Where's the orange cat? / How many green birds?"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE",
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 This is my head. / Unit 2 These are your legs.",
+          "lessons": [
+            "话题：身体部位",
+            "句型：This is my head. / These are your legs."
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.PRON.DEMO",
+            "GR.NOUN.PLURAL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 They're cows. / Unit 2 It's thin.",
+          "lessons": [
+            "话题：农场动物、描述外形",
+            "句型：They're cows. / It's thin."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE",
+            "GR.NOUN.PLURAL"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 These snakes are short. / Unit 2 They're little and cute.",
+          "lessons": [
+            "话题：描述动物",
+            "句型：These snakes are short. / They're little and cute."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE",
+            "VO.FORM.OPPOSITE",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 There is a cat in the tree. / Unit 2 There are three brown monkeys.",
+          "lessons": [
+            "话题：描述场景中的事物",
+            "句型：There is a cat in the tree. / There are three brown monkeys."
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE",
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 There's a pair of shorts under that duck. / Unit 2 There are two footballs under my desk.",
+          "lessons": [
+            "话题：衣物、物品位置",
+            "句型：There's a pair of shorts under that duck. / There are two footballs under my desk."
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "VO.TOPIC.CLOTHES",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 I like football. / Unit 2 What's your favourite sport?",
+          "lessons": [
+            "话题：运动与喜好",
+            "句型：I like football. / What's your favourite sport?"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 Let's play football! / Unit 2 Let's sing!",
+          "lessons": [
+            "话题：提议一起活动",
+            "句型：Let's play football! / Let's sing!"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "FN.SUGGEST",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE",
+            "VO.TOPIC.ANIMAL"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 I like the ABC song. / Unit 2 I like football.",
+          "lessons": [
+            "话题：喜好",
+            "句型：I like the ABC song. / I like football."
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 I don't like meat. / Unit 2 I don't like ginger.",
+          "lessons": [
+            "话题：食物喜好（否定）",
+            "句型：I don't like meat. / I don't like ginger."
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.TENSE.PRES.AUX",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 Do you like bananas? / Unit 2 Do they like apples?",
+          "lessons": [
+            "话题：水果、询问喜好",
+            "句型：Do you like bananas? / Do they like apples?"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.NOUN.PLURAL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 Sam likes T-shirts. / Unit 2 He doesn't like these trousers.",
+          "lessons": [
+            "话题：衣物喜好（第三人称）",
+            "句型：Sam likes T-shirts. / He doesn't like these trousers."
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.TENSE.PRES.THIRD",
+            "GR.TENSE.PRES.AUX"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 At 7, I get up. / Unit 2 I go home at 5.",
+          "lessons": [
+            "话题：日常作息、钟点",
+            "句型：At 7, I get up. / I go home at 5."
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.PREP.TIME",
+            "GR.TENSE.PRES",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 What do you do on Sundays? / Unit 2 Where do you live?",
+          "lessons": [
+            "话题：周末活动、居住地",
+            "句型：What do you do on Sundays? / Where do you live?"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHAT",
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.TIME",
+            "GR.TENSE.PRES.AUX"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 How do you go to school? / Unit 2 I go by train.",
+          "lessons": [
+            "话题：交通方式",
+            "句型：How do you go to school? / I go by train."
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.HOW",
+            "GR.PREP.COLLOC"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 She goes swimming. / Unit 2 Does he play the piano?",
+          "lessons": [
+            "话题：他人的爱好与活动",
+            "句型：She goes swimming. / Does he play the piano?"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES.THIRD",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 It's winter. / Unit 2 What does he do in summer?",
+          "lessons": [
+            "话题：季节与活动",
+            "句型：It's winter. / What does he do in summer?"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.TENSE.PRES.THIRD",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 Happy New Year! / Unit 2 We have Christmas.",
+          "lessons": [
+            "话题：节日",
+            "句型：Happy New Year! / We have Christmas."
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PRES",
+            "GR.TENSE.PRES.THIRD",
+            "GR.SENT.YESNO.DO"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 What's the weather like? / Unit 2 I like swimming.",
+          "lessons": [
+            "话题：天气与活动",
+            "句型：What's the weather like? / I like swimming."
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.VERB.NONFIN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 She's listening to the radio. / Unit 2 I'm drawing a picture.",
+          "lessons": [
+            "话题：正在做的事",
+            "句型：She's listening to the radio. / I'm drawing a picture."
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 Sam isn't tidying his room. / Unit 2 Are you doing your homework?",
+          "lessons": [
+            "话题：家务与作业（进行时否定、疑问）",
+            "句型：Sam isn't tidying his room. / Are you doing your homework?"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.NEG",
+            "GR.SENT.YESNO.BE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 What are you doing? / Unit 2 What's he doing?",
+          "lessons": [
+            "话题：询问正在做什么",
+            "句型：What are you doing? / What's he doing?"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.FORM.ING"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 Lingling is skipping. / Unit 2 What are the kids playing?",
+          "lessons": [
+            "话题：课间游戏",
+            "句型：Lingling is skipping. / What are the kids playing?"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.FORM.ING"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 I usually play basketball. / Unit 2 My grandma usually cooks.",
+          "lessons": [
+            "话题：日常习惯",
+            "句型：I usually play basketball. / My grandma usually cooks."
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 It's Children's Day today. / Unit 2 We're having a picnic.",
+          "lessons": [
+            "话题：儿童节、野餐",
+            "句型：It's Children's Day today. / We're having a picnic."
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 The train is going up a hill. / Unit 2 The horse is turning around.",
+          "lessons": [
+            "话题：描述动作与方向",
+            "句型：The train is going up a hill. / The horse is turning around."
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.PHRASE.VERB",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 Turn left! / Unit 2 Where do you live?",
+          "lessons": [
+            "话题：指路、住址",
+            "句型：Turn left! / Where do you live?"
+          ],
+          "kps": [
+            "FN.DIR",
+            "GR.VERB.IMPER",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 It's next to the park. / Unit 2 He's helping a child.",
+          "lessons": [
+            "话题：方位、助人",
+            "句型：It's next to the park. / He's helping a child."
+          ],
+          "kps": [
+            "GR.PREP.PLACE",
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习（Unit 1 I wear shorts on hot days. / Unit 2 It's next to the tree.）"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.PREP.PLACE",
+            "VO.TOPIC.WEATHER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Do you use chopsticks in England? / Unit 2 I'm eating hamburgers and chips.",
+          "lessons": [
+            "话题：中西饮食与餐具",
+            "句型：Do you use chopsticks in England? / I'm eating hamburgers and chips."
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 We're making a cake. / Unit 2 I'm watching TV.",
+          "lessons": [
+            "话题：正在做的事",
+            "句型：We're making a cake. / I'm watching TV."
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 These ducks are very naughty. / Unit 2 The ducks are playing in the rain.",
+          "lessons": [
+            "话题：动物与天气",
+            "句型：These ducks are very naughty. / The ducks are playing in the rain."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.PRON.DEMO",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 I can jump far. / Unit 2 What can you see?",
+          "lessons": [
+            "话题：能力",
+            "句型：I can jump far. / What can you see?"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.WH.WHAT",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 Can I have an ice cream? / Unit 2 Can I come in?",
+          "lessons": [
+            "话题：请求许可",
+            "句型：Can I have an ice cream? / Can I come in?"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 I've got new shorts and new shoes. / Unit 2 He's got a new shirt.",
+          "lessons": [
+            "话题：衣物",
+            "句型：I've got new shorts and new shoes. / He's got a new shirt."
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.VERB.HAVE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 Have you got a headache? / Unit 2 She's got a cold.",
+          "lessons": [
+            "话题：身体不适",
+            "句型：Have you got a headache? / She's got a cold."
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.HAVE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 This is Sam's book. / Unit 2 Is this your grandma's umbrella?",
+          "lessons": [
+            "话题：物品归属",
+            "句型：This is Sam's book. / Is this your grandma's umbrella?"
+          ],
+          "kps": [
+            "GR.NOUN.POSS",
+            "GR.PRON.DEMO",
+            "GR.SENT.YESNO.BE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 I'm going to do the long jump. / Unit 2 I'm going to be a driver.",
+          "lessons": [
+            "话题：运动会、理想职业",
+            "句型：I'm going to do the long jump. / I'm going to be a driver."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "VO.TOPIC.HOBBY",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 Are you going to go to Hong Kong? / Unit 2 What are you going to see?",
+          "lessons": [
+            "话题：旅行计划",
+            "句型：Are you going to go to Hong Kong? / What are you going to see?"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.HAVE",
+            "GR.TENSE.FUT.GOING"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 She's very nice. / Unit 2 I'm going to help her.",
+          "lessons": [
+            "话题：描述人物、打算",
+            "句型：She's very nice. / I'm going to help her."
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.ADJ.USE",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 It's very long. / Unit 2 You'll see Tower Bridge.",
+          "lessons": [
+            "话题：伦敦名胜",
+            "句型：It's very long. / You'll see Tower Bridge."
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.ADJ.USE",
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 We'll go to the zoo. / Unit 2 Will we have breakfast at 7?",
+          "lessons": [
+            "话题：郊游安排",
+            "句型：We'll go to the zoo. / Will we have breakfast at 7?"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.NUM.TIME",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 We'll pick fruit. / Unit 2 Thirteen, fourteen, fifteen...",
+          "lessons": [
+            "话题：摘水果、数字 13–20",
+            "句型：We'll pick fruit. / Thirteen, fourteen, fifteen..."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "VO.TOPIC.FOOD",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 Will you take your ball tomorrow? / Unit 2 On Monday, I'll go swimming.",
+          "lessons": [
+            "话题：一周计划",
+            "句型：Will you take your ball tomorrow? / On Monday, I'll go swimming."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "VO.TOPIC.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 Here are his hands. / Unit 2 There is a small monster.",
+          "lessons": [
+            "话题：身体部位、描述怪物",
+            "句型：Here are his hands. / There is a small monster."
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.SENT.THEREBE",
+            "GR.NOUN.PLURAL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 Are there many children in your class? / Unit 2 How many apples are there in the box?",
+          "lessons": [
+            "话题：询问数量",
+            "句型：Are there many children in your class? / How many apples are there in the box?"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 He works hard. / Unit 2 She's quite good at English.",
+          "lessons": [
+            "话题：学习表现",
+            "句型：He works hard. / She's quite good at English."
+          ],
+          "kps": [
+            "GR.TENSE.PRES.THIRD",
+            "GR.ADJ.ADV",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 They were very young. / Unit 2 He was in Hong Kong.",
+          "lessons": [
+            "话题：过去的样子与所在",
+            "句型：They were very young. / He was in Hong Kong."
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.VERB.BE",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 Were you on the second floor? / Unit 2 It was there.",
+          "lessons": [
+            "话题：寻找物品、序数词",
+            "句型：Were you on the second floor? / It was there."
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.NUM.ORD",
+            "GR.SENT.YESNO.BE"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习（Unit 1 Will you go swimming? / Unit 2 Were you at the farm yesterday?）"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.PAST",
+            "GR.SENT.THEREBE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 It was my birthday on Saturday. / Unit 2 I've got a new friend.",
+          "lessons": [
+            "话题：生日、新朋友",
+            "句型：It was my birthday on Saturday. / I've got a new friend."
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "VO.TOPIC.TIME",
+            "GR.VERB.HAVE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 I helped my mum. / Unit 2 Amy painted a picture.",
+          "lessons": [
+            "话题：过去做的事",
+            "句型：I helped my mum. / Amy painted a picture."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.VERB.FORM.ED"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 She didn't walk to school yesterday. / Unit 2 I didn't play football.",
+          "lessons": [
+            "话题：过去没做的事",
+            "句型：She didn't walk to school yesterday. / I didn't play football."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "GR.SENT.NEG",
+            "GR.TENSE.PAST.REG"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 Chinese people invented paper. / Unit 2 He invented this bicycle in 1839.",
+          "lessons": [
+            "话题：发明",
+            "句型：Chinese people invented paper. / He invented this bicycle in 1839."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 We went to the Great Wall. / Unit 2 I wore warm clothes.",
+          "lessons": [
+            "话题：出游经历",
+            "句型：We went to the Great Wall. / I wore warm clothes."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.IRREG",
+            "VO.TOPIC.PLACE",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 It didn't become gold. / Unit 2 He didn't come back.",
+          "lessons": [
+            "话题：故事",
+            "句型：It didn't become gold. / He didn't come back."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "GR.TENSE.PAST.IRREG",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 Did you take Amy's doll? / Unit 2 Did you see it?",
+          "lessons": [
+            "话题：询问过去的事",
+            "句型：Did you take Amy's doll? / Did you see it?"
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "GR.NOUN.POSS"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 When did they come? / Unit 2 Where did you go yesterday?",
+          "lessons": [
+            "话题：过去的时间与地点",
+            "句型：When did they come? / Where did you go yesterday?"
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "GR.SENT.WH.TIME",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 What happened to your head? / Unit 2 I bumped my head.",
+          "lessons": [
+            "话题：受伤",
+            "句型：What happened to your head? / I bumped my head."
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.TENSE.PAST.REG"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 Go to bed early. / Unit 2 Eat vegetables every day.",
+          "lessons": [
+            "话题：健康习惯",
+            "句型：Go to bed early. / Eat vegetables every day."
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.IMPER",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.AUX",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Don't touch the machines, please! / Unit 2 Don't feed the fish!",
+          "lessons": [
+            "话题：规则与禁令",
+            "句型：Don't touch the machines, please! / Don't feed the fish!"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 It's cheap. / Unit 2 It costs one hundred and eighteen yuan.",
+          "lessons": [
+            "话题：购物、价格",
+            "句型：It's cheap. / It costs one hundred and eighteen yuan."
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 He shouted, \"Wolf, wolf!\" / Unit 2 She went into a shop.",
+          "lessons": [
+            "话题：故事",
+            "句型：He shouted, \"Wolf, wolf!\" / She went into a shop."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 Dad played the erhu. / Unit 2 I was very nervous.",
+          "lessons": [
+            "话题：演出、感受",
+            "句型：Dad played the erhu. / I was very nervous."
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 We're having a party. / Unit 2 He's drawing books and birds.",
+          "lessons": [
+            "话题：聚会",
+            "句型：We're having a party. / He's drawing books and birds."
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 I'll draw the pictures. / Unit 2 Let's have fun this Saturday!",
+          "lessons": [
+            "话题：分工与周末计划",
+            "句型：I'll draw the pictures. / Let's have fun this Saturday!"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "FN.SUGGEST",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 What's the time? / Unit 2 It's 6:30 am in New York.",
+          "lessons": [
+            "话题：时间、时差",
+            "句型：What's the time? / It's 6:30 am in New York."
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME",
+            "GR.SENT.WH.TIME"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 He lives in the east of the US. / Unit 2 It's in the north of China.",
+          "lessons": [
+            "话题：方位、地理",
+            "句型：He lives in the east of the US. / It's in the north of China."
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.PRES.THIRD",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 Why do you like Australia? / Unit 2 Kangaroos live in Australia.",
+          "lessons": [
+            "话题：澳大利亚、动物",
+            "句型：Why do you like Australia? / Kangaroos live in Australia."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.PLACE",
+            "GR.SENT.CONJ"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 I'll send you a postcard. / Unit 2 I'm going to visit London.",
+          "lessons": [
+            "话题：旅行计划",
+            "句型：I'll send you a postcard. / I'm going to visit London."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.PRES_CONT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 There wasn't a clock here before. / Unit 2 There are tall trees now.",
+          "lessons": [
+            "话题：今昔变化",
+            "句型：There wasn't a clock here before. / There are tall trees now."
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.TENSE.PAST",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 This one is heavy. / Unit 2 They sell different things.",
+          "lessons": [
+            "话题：购物",
+            "句型：This one is heavy. / They sell different things."
+          ],
+          "kps": [
+            "FN.SHOP",
+            "GR.ADJ.USE",
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 They're all my favourite festivals! / Unit 2 They made moon cakes for the animals.",
+          "lessons": [
+            "话题：节日",
+            "句型：They're all my favourite festivals! / They made moon cakes for the animals."
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 We're going to tell stories. / Unit 2 I'm going to be eleven.",
+          "lessons": [
+            "话题：计划与生日",
+            "句型：We're going to tell stories. / I'm going to be eleven."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 It's mine. / Unit 2 Amy's blue dress is wet.",
+          "lessons": [
+            "话题：物品归属",
+            "句型：It's mine. / Amy's blue dress is wet."
+          ],
+          "kps": [
+            "GR.PRON.POSS.NOUN",
+            "GR.NOUN.POSS",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 You can play basketball well. / Unit 2 They got seventy points.",
+          "lessons": [
+            "话题：球赛、能力",
+            "句型：You can play basketball well. / They got seventy points."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.ADJ.ADV",
+            "GR.NUM.CARD",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 This dog can help him. / Unit 2 It could find the people.",
+          "lessons": [
+            "话题：动物助人",
+            "句型：This dog can help him. / It could find the people."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.CAN",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 Children often sit around tables. / Unit 2 There are lots of games.",
+          "lessons": [
+            "话题：学校生活对比",
+            "句型：Children often sit around tables. / There are lots of games."
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.ADJ.ADV.FREQ",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 Are you sad? / Unit 2 She was very happy.",
+          "lessons": [
+            "话题：情绪",
+            "句型：Are you sad? / She was very happy."
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.YESNO.BE",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 You should tidy your toys. / Unit 2 You shouldn't be late.",
+          "lessons": [
+            "话题：建议与规则",
+            "句型：You should tidy your toys. / You shouldn't be late."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.FUT.GOING",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 She was a driver before. / Unit 2 He worked in an office.",
+          "lessons": [
+            "话题：过去的职业",
+            "句型：She was a driver before. / He worked in an office."
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 What did she have for lunch? / Unit 2 Lunch is usually at half past twelve.",
+          "lessons": [
+            "话题：饮食与用餐时间",
+            "句型：What did she have for lunch? / Lunch is usually at half past twelve."
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.TENSE.PAST.AUX",
+            "GR.NUM.TIME"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 Have you got the Harry Potter DVDs? / Unit 2 You can use the computers.",
+          "lessons": [
+            "话题：图书馆",
+            "句型：Have you got the Harry Potter DVDs? / You can use the computers."
+          ],
+          "kps": [
+            "GR.VERB.HAVE",
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 Did you read them? / Unit 2 My favourite season is spring.",
+          "lessons": [
+            "话题：读书、季节",
+            "句型：Did you read them? / My favourite season is spring."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 Your bag is broken. / Unit 2 Mine is pink.",
+          "lessons": [
+            "话题：物品与归属",
+            "句型：Your bag is broken. / Mine is pink."
+          ],
+          "kps": [
+            "GR.PRON.POSS.NOUN",
+            "GR.ADJ.USE",
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 We'll see lots of very big stones. / Unit 2 It was amazing.",
+          "lessons": [
+            "话题：参观名胜",
+            "句型：We'll see lots of very big stones. / It was amazing."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.PAST",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 My father goes to work at 8 o'clock every morning. / Unit 2 I'll be home at 7 o'clock.",
+          "lessons": [
+            "话题：作息时间",
+            "句型：My father goes to work at 8 o'clock every morning. / I'll be home at 7 o'clock."
+          ],
+          "kps": [
+            "GR.TENSE.PRES.THIRD",
+            "GR.NUM.TIME",
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 Will you help me? / Unit 2 I made a kite.",
+          "lessons": [
+            "话题：手工、请求帮助",
+            "句型：Will you help me? / I made a kite."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.PAST.IRREG",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 We laughed a lot. / Unit 2 Mum bought new chopsticks for you.",
+          "lessons": [
+            "话题：回忆、礼物",
+            "句型：We laughed a lot. / Mum bought new chopsticks for you."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 What did you put in your bag? / Unit 2 I played on the beach.",
+          "lessons": [
+            "话题：旅行与假期",
+            "句型：What did you put in your bag? / I played on the beach."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "GR.TENSE.PAST",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.FUT.WILL",
+            "GR.PRON.POSS.NOUN"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 How long is the Great Wall? / Unit 2 It's more than four hundred metres high!",
+          "lessons": [
+            "话题：名胜与数据",
+            "句型：How long is the Great Wall? / It's more than four hundred metres high!"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 I went to Chinatown in New York yesterday. / Unit 2 I went to a library yesterday.",
+          "lessons": [
+            "话题：过去的经历",
+            "句型：I went to Chinatown in New York yesterday. / I went to a library yesterday."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.IRREG",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 Have you got any stamps from China? / Unit 2 Collecting stamps is my hobby.",
+          "lessons": [
+            "话题：集邮、爱好",
+            "句型：Have you got any stamps from China? / Collecting stamps is my hobby."
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.HAVE",
+            "GR.NOUN.COUNT.SOMEANY"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 Thanksgiving is very important in the US. / Unit 2 Can you tell me about Christmas?",
+          "lessons": [
+            "话题：西方节日",
+            "句型：Thanksgiving is very important in the US. / Can you tell me about Christmas?"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 Can I write to her? / Unit 2 I want a Chinese pen friend.",
+          "lessons": [
+            "话题：笔友",
+            "句型：Can I write to her? / I want a Chinese pen friend."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.VERB.MODAL.WOULD",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 I've got some Chinese chopsticks. / Unit 2 I haven't got a book about the US.",
+          "lessons": [
+            "话题：拥有的物品",
+            "句型：I've got some Chinese chopsticks. / I haven't got a book about the US."
+          ],
+          "kps": [
+            "GR.VERB.HAVE",
+            "GR.NOUN.COUNT.SOMEANY",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 Pandas love bamboo. / Unit 2 A child sleeps for ten hours a night.",
+          "lessons": [
+            "话题：动物习性、作息",
+            "句型：Pandas love bamboo. / A child sleeps for ten hours a night."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 Do you often tidy your bed? / Unit 2 I often read English books.",
+          "lessons": [
+            "话题：日常习惯",
+            "句型：Do you often tidy your bed? / I often read English books."
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.SENT.YESNO.DO",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 Do you want to visit the UN building? / Unit 2 I want to go to Shanghai.",
+          "lessons": [
+            "话题：参观与旅行",
+            "句型：Do you want to visit the UN building? / I want to go to Shanghai."
+          ],
+          "kps": [
+            "GR.VERB.NONFIN",
+            "VO.TOPIC.PLACE",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 Only drink clean water! / Unit 2 Go straight on.",
+          "lessons": [
+            "话题：健康提示、指路",
+            "句型：Only drink clean water! / Go straight on."
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "FN.DIR"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：全册复习"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PRES",
+            "GR.VERB.HAVE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2012",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 I want a hot dog, please. / Unit 2 What do you want to eat?",
+          "lessons": [
+            "话题：点餐",
+            "句型：I want a hot dog, please. / What do you want to eat?"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.VERB.MODAL.WOULD",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 2 Unit 1 When are we going to eat? / Unit 2 It will rain in Beijing.",
+          "lessons": [
+            "话题：计划、天气预报",
+            "句型：When are we going to eat? / It will rain in Beijing."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "GR.TENSE.FUT.WILL",
+            "FN.WEATHER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 3 Unit 1 I took some photos. / Unit 2 The sun is shining.",
+          "lessons": [
+            "话题：拍照、描述场景",
+            "句型：I took some photos. / The sun is shining."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.IRREG",
+            "GR.TENSE.PRES_CONT",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 4 Unit 1 I can't carry all these things. / Unit 2 The apples are falling down the stairs!",
+          "lessons": [
+            "话题：意外与求助",
+            "句型：I can't carry all these things. / The apples are falling down the stairs!"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 5 Unit 1 He is playing the suona, but the phone rings. / Unit 2 Some children are jumping in the water.",
+          "lessons": [
+            "话题：同时发生的事",
+            "句型：He is playing the suona, but the phone rings. / Some children are jumping in the water."
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.CONJ",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 6 Unit 1 It was Daming's birthday yesterday. / Unit 2 The name of the spaceship is Shenzhou V.",
+          "lessons": [
+            "话题：生日、航天",
+            "句型：It was Daming's birthday yesterday. / The name of the spaceship is Shenzhou V."
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.NOUN.POSS"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 7 Unit 1 My father flew into space in Shenzhou V. / Unit 2 She couldn't see or hear.",
+          "lessons": [
+            "话题：人物经历",
+            "句型：My father flew into space in Shenzhou V. / She couldn't see or hear."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.IRREG",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 8 Unit 1 Why do you have cups on your heads? / Unit 2 Why are you wearing a hat?",
+          "lessons": [
+            "话题：询问原因",
+            "句型：Why do you have cups on your heads? / Why are you wearing a hat?"
+          ],
+          "kps": [
+            "GR.SENT.CONJ",
+            "VO.TOPIC.CLOTHES",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 9 Unit 1 Best wishes to you! / Unit 2 Wishing you happiness every day.",
+          "lessons": [
+            "话题：毕业祝福",
+            "句型：Best wishes to you! / Wishing you happiness every day."
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 10 Unit 1 We're going to different schools. / Unit 2 I'm going to Lake Middle School.",
+          "lessons": [
+            "话题：升学",
+            "句型：We're going to different schools. / I'm going to Lake Middle School."
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "VO.TOPIC.SCHOOL",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Review Module",
+          "lessons": [
+            "话题：小学阶段总复习"
+          ],
+          "kps": [
+            "GR.TENSE.CONTRAST",
+            "GR.TENSE.PAST",
+            "GR.TENSE.FUT.GOING"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1080 @@
+{
+  "id": "math-qingdaowusi",
+  "subject": "math",
+  "edition": "青岛版（五四制）",
+  "textbookValue": "青岛版（五四制）",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "21世纪教育网·教材版本章节树（青岛版五四制小学数学）",
+      "url": "https://www.21cnjy.com/3/271285_3"
+    },
+    {
+      "title": "电子课本网·青岛版五四制数学各册目录",
+      "url": "http://www.dzkbw.com/books/qdb/shuxue/"
+    },
+    {
+      "title": "青岛晚报 2024-09-05：青岛版一年级数学新教材",
+      "url": "https://epaper.guanhai.com.cn/conpaper/qdwb/resfile/2024-09-05/A11/qdwb-20240905-A11.pdf"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "我的幼儿园",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.GEO.POS.DIRECTION",
+            "MA.STAT.DATA.CLASSIFY",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "入学主题活动"
+        },
+        {
+          "no": 1,
+          "title": "1～5的认识和加减法",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.COMPARE",
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB"
+          ],
+          "note": "情境：快乐课堂"
+        },
+        {
+          "no": 2,
+          "title": "6～10的认识和加减法",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.COMPARE",
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB"
+          ],
+          "note": "情境：走进花果山"
+        },
+        {
+          "no": 3,
+          "title": "认识图形（一）",
+          "kps": [
+            "MA.GEO.SOLID.BASIC"
+          ],
+          "note": "情境：创意拼搭"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "简单的重叠问题",
+          "kps": [
+            "MA.THINK.OVERLAP"
+          ],
+          "note": "21世纪教育网写作「简单的重复问题」，电子课本网和六三制同册写作「重叠问题」"
+        },
+        {
+          "no": 4,
+          "title": "11～20各数的认识",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.COMPARE",
+            "MA.CALC.ADD.WITHIN20"
+          ],
+          "note": "情境：漂亮的粘贴画"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "找找身边的数",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "20以内的加减法",
+          "kps": [
+            "MA.CALC.ADD.WITHIN20",
+            "MA.PROB.BASIC.ADDSUB"
+          ],
+          "note": "情境：小小运动会"
+        },
+        {
+          "no": 6,
+          "title": "总复习",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.CALC.ADD.WITHIN20",
+            "MA.GEO.SOLID.BASIC"
+          ],
+          "note": "情境：我爱冰雪运动"
+        }
+      ]
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "100以内数的认识",
+          "kps": [
+            "MA.NUM.INT.COUNT",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.COMPARE"
+          ],
+          "note": "情境：丰收了"
+        },
+        {
+          "no": 2,
+          "title": "认识图形（二）",
+          "kps": [
+            "MA.GEO.SHAPE.BASIC"
+          ],
+          "note": "情境：玩转图形"
+        },
+        {
+          "no": 3,
+          "title": "100以内的加减法（一）",
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.PROB.BASIC.ADDSUB"
+          ],
+          "note": "情境：护绿行动"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "爱心义卖",
+          "kps": [
+            "MA.MEAS.MONEY",
+            "MA.PROB.MODEL.PRICE",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按标题推断含认识人民币"
+        },
+        {
+          "no": 4,
+          "title": "100以内的加减法（二）",
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.PROB.BASIC.ADDSUB"
+          ],
+          "note": "情境：海趣"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "找规律",
+          "kps": [
+            "MA.ALG.PATTERN.NUM",
+            "MA.ALG.PATTERN.SHAPE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "分类（一）",
+          "kps": [
+            "MA.STAT.DATA.CLASSIFY"
+          ],
+          "note": "情境：妈妈的小帮手"
+        },
+        {
+          "no": 6,
+          "title": "厘米、米的认识",
+          "kps": [
+            "MA.MEAS.UNIT.LEN",
+            "MA.GEO.SHAPE.LINE"
+          ],
+          "note": "情境：教室里的测量"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "身体上的“小尺子”",
+          "kps": [
+            "MA.MEAS.UNIT.LEN",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "总复习",
+          "kps": [
+            "MA.CALC.ADD.WITHIN100",
+            "MA.NUM.INT.COUNT",
+            "MA.MEAS.UNIT.LEN"
+          ],
+          "note": "情境：儿童乐园"
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "表内乘法（一）",
+          "kps": [
+            "MA.CALC.MUL.TABLE",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "情境：中国戏法和杂技"
+        },
+        {
+          "no": 2,
+          "title": "表内乘法（二）",
+          "kps": [
+            "MA.CALC.MUL.TABLE",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "情境：多彩的社团"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "我们的校园",
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "除法的初步认识",
+          "kps": [
+            "MA.CALC.DIV.TABLE",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "情境：传统节日"
+        },
+        {
+          "no": 4,
+          "title": "观察物体（一）",
+          "kps": [
+            "MA.GEO.SOLID.VIEW"
+          ],
+          "note": "情境：谁的眼睛亮"
+        },
+        {
+          "no": 5,
+          "title": "表内除法",
+          "kps": [
+            "MA.CALC.DIV.TABLE",
+            "MA.CALC.MIX.ORDER",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "情境：变废为宝"
+        },
+        {
+          "no": 6,
+          "title": "有余数的除法",
+          "kps": [
+            "MA.CALC.DIV.REMAINDER",
+            "MA.PROB.BASIC.MULDIV"
+          ],
+          "note": "情境：休闲假日"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "简单的周期问题（一）",
+          "kps": [
+            "MA.ALG.PATTERN.SHAPE",
+            "MA.ALG.PATTERN.NUM"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "解决问题",
+          "kps": [
+            "MA.PROB.BASIC.MULTI",
+            "MA.CALC.MIX.ORDER"
+          ],
+          "note": "情境：巧手编织致富路"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "有趣的拼摆",
+          "kps": [
+            "MA.GEO.SHAPE.BASIC",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "总复习",
+          "kps": [
+            "MA.CALC.MUL.TABLE",
+            "MA.CALC.DIV.TABLE",
+            "MA.CALC.DIV.REMAINDER"
+          ],
+          "note": "情境：过年"
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "万以内数的认识",
+          "kps": [
+            "MA.NUM.INT.THOUSAND",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.COMPARE"
+          ],
+          "note": "情境：游览北京"
+        },
+        {
+          "no": 2,
+          "title": "多位数的加减法",
+          "kps": [
+            "MA.CALC.ADD.MULTI",
+            "MA.CALC.ESTIMATE",
+            "MA.PROB.BASIC.ADDSUB"
+          ],
+          "note": "情境：红色教育进校园"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "数字谜",
+          "kps": [
+            "MA.THINK.LOGIC"
+          ]
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "时间与生活",
+          "kps": [
+            "MA.MEAS.TIME.CLOCK",
+            "MA.MEAS.TIME.UNIT",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按标题推断"
+        },
+        {
+          "no": 3,
+          "title": "毫米、分米、千米的认识",
+          "kps": [
+            "MA.MEAS.UNIT.LEN",
+            "MA.MEAS.UNIT.FIT"
+          ],
+          "note": "情境：校园中的测量"
+        },
+        {
+          "no": 4,
+          "title": "解决问题",
+          "kps": [
+            "MA.ALG.REL",
+            "MA.PROB.BASIC.MULTI"
+          ],
+          "note": "情境：传承中医药文化"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "曹冲称象的奥秘",
+          "kps": [
+            "MA.MEAS.UNIT.MASS",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按标题推断"
+        },
+        {
+          "no": 5,
+          "title": "多位数乘一位数",
+          "kps": [
+            "MA.CALC.MUL.ONE_DIGIT",
+            "MA.CALC.ESTIMATE"
+          ],
+          "note": "情境：富饶的大海"
+        },
+        {
+          "no": 6,
+          "title": "分类（二）",
+          "kps": [
+            "MA.STAT.DATA.CLASSIFY",
+            "MA.STAT.DATA.TABLE"
+          ],
+          "note": "情境：漂亮的花朵"
+        },
+        {
+          "no": 7,
+          "title": "总复习",
+          "kps": [
+            "MA.NUM.INT.THOUSAND",
+            "MA.CALC.ADD.MULTI",
+            "MA.CALC.MUL.ONE_DIGIT",
+            "MA.MEAS.UNIT.LEN"
+          ],
+          "note": "情境：我的奥运梦"
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "轴对称、平移和旋转现象",
+          "kps": [
+            "MA.GEO.POS.SYM",
+            "MA.GEO.POS.MOVE"
+          ],
+          "note": "情境：美丽乡村"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "数学连环画",
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "解决问题",
+          "kps": [
+            "MA.PROB.BASIC.MULDIV",
+            "MA.PROB.BASIC.MULTI"
+          ],
+          "note": "情境：非遗文化进校园。按六三制同名单元推断是倍的问题"
+        },
+        {
+          "no": 3,
+          "title": "多位数除以一位数",
+          "kps": [
+            "MA.CALC.DIV.ONE_DIGIT",
+            "MA.CALC.DIV.REMAINDER"
+          ],
+          "note": "情境：探访果蔬博览会"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "搭配问题",
+          "kps": [
+            "MA.THINK.COMBO"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "多位数乘两位数",
+          "kps": [
+            "MA.CALC.MUL.MULTI_DIGIT",
+            "MA.CALC.ESTIMATE"
+          ],
+          "note": "情境：乡村新面貌"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "寻找“宝藏”",
+          "kps": [
+            "MA.GEO.POS.DIRECTION",
+            "MA.THINK.PRACTICE"
+          ],
+          "note": "按标题推断"
+        },
+        {
+          "no": 5,
+          "title": "混合运算",
+          "kps": [
+            "MA.CALC.MIX.ORDER",
+            "MA.PROB.BASIC.MULTI"
+          ],
+          "note": "情境：劳动最美丽"
+        },
+        {
+          "no": 6,
+          "title": "分数的初步认识",
+          "kps": [
+            "MA.NUM.FRAC.MEANING",
+            "MA.NUM.FRAC.COMPARE",
+            "MA.CALC.FRAC.ADDSUB_SAME"
+          ],
+          "note": "情境：今天我分餐"
+        },
+        {
+          "no": 7,
+          "title": "数据的收集与整理",
+          "kps": [
+            "MA.STAT.DATA.TABLE",
+            "MA.STAT.DATA.CLASSIFY"
+          ],
+          "note": "情境：体育与健康"
+        },
+        {
+          "no": 8,
+          "title": "小数的初步认识",
+          "kps": [
+            "MA.NUM.DEC.MEANING",
+            "MA.NUM.DEC.COMPARE",
+            "MA.CALC.DEC.ADDSUB"
+          ],
+          "note": "情境：乘车中的学问"
+        },
+        {
+          "no": 9,
+          "title": "总复习",
+          "kps": [
+            "MA.CALC.DIV.ONE_DIGIT",
+            "MA.CALC.MUL.MULTI_DIGIT",
+            "MA.NUM.FRAC.MEANING",
+            "MA.NUM.DEC.MEANING"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "线与角",
+          "kps": [
+            "MA.GEO.SHAPE.LINE",
+            "MA.GEO.SHAPE.ANGLE",
+            "MA.GEO.SHAPE.ANGLE_MEASURE"
+          ],
+          "note": "情境：繁忙的工地"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "年、月、日的秘密",
+          "kps": [
+            "MA.MEAS.TIME.CALENDAR",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "图形与周长",
+          "kps": [
+            "MA.GEO.SHAPE.QUAD",
+            "MA.GEO.PERI.RECT"
+          ],
+          "note": "情境：美丽的公园"
+        },
+        {
+          "no": 3,
+          "title": "解决问题",
+          "kps": [
+            "MA.ALG.REL",
+            "MA.PROB.BASIC.MULTI"
+          ],
+          "note": "情境：绿色生态园"
+        },
+        {
+          "no": 4,
+          "title": "长方形、正方形的面积",
+          "kps": [
+            "MA.GEO.AREA.RECT",
+            "MA.MEAS.UNIT.AREA"
+          ],
+          "note": "情境：我家圆了安居梦"
+        },
+        {
+          "no": 5,
+          "title": "万以上数的认识",
+          "kps": [
+            "MA.NUM.INT.LARGE",
+            "MA.NUM.INT.PLACE",
+            "MA.NUM.INT.APPROX"
+          ],
+          "note": "情境：大数知多少"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "度量衡的故事",
+          "kps": [
+            "MA.MEAS.UNIT",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "条形统计图",
+          "kps": [
+            "MA.STAT.CHART.BAR"
+          ],
+          "note": "情境：订校服"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "植树问题",
+          "kps": [
+            "MA.THINK.TREE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "多位数除以两位数",
+          "kps": [
+            "MA.CALC.DIV.TWO_DIGIT"
+          ],
+          "note": "情境：农业大丰收"
+        },
+        {
+          "no": 8,
+          "title": "总复习",
+          "kps": [
+            "MA.GEO.SHAPE.ANGLE",
+            "MA.GEO.AREA.RECT",
+            "MA.NUM.INT.LARGE",
+            "MA.CALC.DIV.TWO_DIGIT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "混合运算",
+          "kps": [
+            "MA.CALC.MIX.ORDER",
+            "MA.PROB.BASIC.MULTI"
+          ],
+          "note": "情境：志愿者在行动"
+        },
+        {
+          "no": 2,
+          "title": "相交与平行",
+          "kps": [
+            "MA.GEO.SHAPE.PARALLEL"
+          ],
+          "note": "情境：交通中的线"
+        },
+        {
+          "no": 3,
+          "title": "解决问题",
+          "kps": [
+            "MA.ALG.REL",
+            "MA.PROB.MODEL.PRICE",
+            "MA.PROB.MODEL.TRAVEL"
+          ],
+          "note": "情境：快捷的物流运输。按标题推断"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "制订家庭旅游计划",
+          "kps": [
+            "MA.PROB.MODEL.PRICE",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "运算律",
+          "kps": [
+            "MA.CALC.MIX.LAW",
+            "MA.CALC.MIX.SIMPLE"
+          ],
+          "note": "情境：苗木基地"
+        },
+        {
+          "no": 5,
+          "title": "多边形的认识",
+          "kps": [
+            "MA.GEO.SHAPE.TRIANGLE",
+            "MA.GEO.SHAPE.QUAD"
+          ],
+          "note": "情境：无处不在的图形"
+        },
+        {
+          "no": 6,
+          "title": "小数的意义与性质",
+          "kps": [
+            "MA.NUM.DEC.MEANING",
+            "MA.NUM.DEC.PROP",
+            "MA.NUM.DEC.COMPARE",
+            "MA.NUM.DEC.SHIFT"
+          ],
+          "note": "情境：校园小农场"
+        },
+        {
+          "no": 7,
+          "title": "小数加减法",
+          "kps": [
+            "MA.CALC.DEC.ADDSUB"
+          ],
+          "note": "情境：校园体育节"
+        },
+        {
+          "no": 8,
+          "title": "图形的对称、平移与旋转",
+          "kps": [
+            "MA.GEO.POS.SYM",
+            "MA.GEO.POS.MOVE"
+          ],
+          "note": "情境：图案美"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "设计乒乓球比赛活动方案",
+          "kps": [
+            "MA.THINK.COMBO",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "平均数",
+          "kps": [
+            "MA.STAT.AVG"
+          ],
+          "note": "情境：健体魄 强素质"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "重叠问题",
+          "kps": [
+            "MA.THINK.OVERLAP"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "总复习",
+          "kps": [
+            "MA.CALC.MIX.LAW",
+            "MA.GEO.SHAPE.TRIANGLE",
+            "MA.NUM.DEC",
+            "MA.STAT.AVG"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "note": "这册目录对应 2026 年春季在用的五四制版本（未按 2022 年版课标修订，审定年份未查到）",
+      "units": [
+        {
+          "no": 1,
+          "title": "简易方程",
+          "kps": [
+            "MA.ALG.EQ.SOLVE",
+            "MA.ALG.EQ.APPLY"
+          ],
+          "note": "情境：走进动物园"
+        },
+        {
+          "no": 2,
+          "title": "多边形的面积",
+          "kps": [
+            "MA.GEO.AREA.POLYGON",
+            "MA.GEO.AREA.COMPOSITE"
+          ],
+          "note": "情境：生活中的多边形"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "关注我们的活动空间",
+          "kps": [
+            "MA.GEO.AREA",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "因数与倍数",
+          "kps": [
+            "MA.NUM.FACTOR.MULT",
+            "MA.NUM.FACTOR.RULE",
+            "MA.NUM.FACTOR.PRIME",
+            "MA.NUM.FACTOR.GCD_LCM"
+          ],
+          "note": "情境：团体操表演"
+        },
+        {
+          "no": 4,
+          "title": "认识负数",
+          "kps": [
+            "MA.NUM.NEG"
+          ],
+          "note": "情境：中国的热极"
+        },
+        {
+          "no": 5,
+          "title": "分数的意义和性质",
+          "kps": [
+            "MA.NUM.FRAC.MEANING",
+            "MA.NUM.FRAC.BASIC",
+            "MA.NUM.FRAC.SIMPLIFY",
+            "MA.NUM.FRAC.CONVERT"
+          ],
+          "note": "情境：校园艺术节"
+        },
+        {
+          "no": 6,
+          "title": "对称、平移与旋转",
+          "kps": [
+            "MA.GEO.POS.SYM",
+            "MA.GEO.POS.MOVE"
+          ],
+          "note": "情境：图案美"
+        },
+        {
+          "no": 7,
+          "title": "分数加减法（一）",
+          "kps": [
+            "MA.CALC.FRAC.ADDSUB_SAME",
+            "MA.CALC.FRAC.ADDSUB"
+          ],
+          "note": "情境：剪纸中的数学"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "我能长多高",
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "折线统计图",
+          "kps": [
+            "MA.STAT.CHART.LINE"
+          ],
+          "note": "情境：绿色家园"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "分数加减法",
+          "kps": [
+            "MA.CALC.FRAC.ADDSUB"
+          ],
+          "note": "情境：关注环境"
+        },
+        {
+          "no": 2,
+          "title": "长方体和正方体",
+          "kps": [
+            "MA.GEO.SOLID.CUBOID",
+            "MA.MEAS.UNIT.VOL"
+          ],
+          "note": "情境：包装盒"
+        },
+        {
+          "no": 3,
+          "title": "分数乘法",
+          "kps": [
+            "MA.CALC.FRAC.MUL",
+            "MA.PROB.FRAC.PART"
+          ],
+          "note": "情境：小手艺展示"
+        },
+        {
+          "no": null,
+          "label": "智慧广场",
+          "title": "合理安排时间",
+          "kps": [
+            "MA.THINK.OPTIMIZE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "分数除法",
+          "kps": [
+            "MA.CALC.FRAC.DIV",
+            "MA.PROB.FRAC.PART"
+          ],
+          "note": "情境：走进乡村看小康"
+        },
+        {
+          "no": 5,
+          "title": "比",
+          "kps": [
+            "MA.ALG.RATIO.RATIO",
+            "MA.PROB.FRAC.RATIO"
+          ],
+          "note": "情境：劳动实践长学问"
+        },
+        {
+          "no": null,
+          "label": "主题活动",
+          "title": "“黄金比”之美",
+          "kps": [
+            "MA.ALG.RATIO.RATIO",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "方向与位置",
+          "kps": [
+            "MA.GEO.POS.DIRECTION"
+          ],
+          "note": "情境：走进军营"
+        },
+        {
+          "no": 7,
+          "title": "解决问题",
+          "kps": [
+            "MA.PROB.FRAC.PART",
+            "MA.PROB.BASIC.MULTI"
+          ],
+          "note": "情境：中国的世界遗产。按所在位置推断是分数的应用，未核实"
+        },
+        {
+          "no": 8,
+          "title": "复式统计图",
+          "kps": [
+            "MA.STAT.CHART.BAR",
+            "MA.STAT.CHART.LINE"
+          ],
+          "note": "情境：体质监测中的数学"
+        },
+        {
+          "no": null,
+          "label": "项目学习",
+          "title": "制订家庭节水方案",
+          "kps": [
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "可能性",
+          "kps": [
+            "MA.STAT.CHANCE"
+          ],
+          "note": "情境：抽奖转盘"
+        },
+        {
+          "no": 10,
+          "title": "总复习",
+          "kps": [
+            "MA.CALC.FRAC",
+            "MA.GEO.SOLID.CUBOID",
+            "MA.ALG.RATIO.RATIO",
+            "MA.STAT.CHANCE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "note": "这册目录对应 2026 年春季在用的五四制版本（未按 2022 年版课标修订，审定年份未查到）",
+      "units": [
+        {
+          "no": 1,
+          "title": "圆",
+          "kps": [
+            "MA.GEO.SHAPE.CIRCLE",
+            "MA.GEO.PERI.CIRCLE",
+            "MA.GEO.AREA.CIRCLE"
+          ],
+          "note": "情境：完美的图形"
+        },
+        {
+          "no": 2,
+          "title": "百分数（一）",
+          "kps": [
+            "MA.NUM.PCT.MEANING",
+            "MA.NUM.PCT.CONVERT"
+          ],
+          "note": "情境：体检中的百分数"
+        },
+        {
+          "no": 3,
+          "title": "百分数（二）",
+          "kps": [
+            "MA.PROB.FRAC.PCT"
+          ],
+          "note": "情境：欢乐农家游"
+        },
+        {
+          "no": 4,
+          "title": "圆柱和圆锥",
+          "kps": [
+            "MA.GEO.SOLID.CYLINDER",
+            "MA.GEO.SOLID.CONE"
+          ],
+          "note": "情境：冰激凌盒有多大"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "立体的截面",
+          "kps": [
+            "MA.GEO.SOLID.BASIC",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "比例",
+          "kps": [
+            "MA.ALG.RATIO.PROP",
+            "MA.ALG.RATIO.DIRECT"
+          ],
+          "note": "情境：啤酒生产中的数学"
+        },
+        {
+          "no": 6,
+          "title": "比例尺",
+          "kps": [
+            "MA.ALG.RATIO.SCALE",
+            "MA.GEO.POS.SCALE"
+          ],
+          "note": "情境：快乐足球"
+        },
+        {
+          "no": null,
+          "label": "综合实践",
+          "title": "让校园绿起来",
+          "kps": [
+            "MA.ALG.RATIO.SCALE",
+            "MA.THINK.PRACTICE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "扇形统计图",
+          "kps": [
+            "MA.STAT.CHART.PIE"
+          ],
+          "note": "情境：奥运奖牌"
+        }
+      ]
+    }
+  ]
+}

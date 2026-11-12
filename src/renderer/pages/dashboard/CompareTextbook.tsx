@@ -59,7 +59,7 @@ export default function CompareTextbook() {
           {books.map(b => <button key={b.id} type="button" className="ewb-crs-pick" aria-pressed={bids.includes(b.id)} data-testid={`compare-book-${b.id}`} onClick={() => toggle(b.id)}>{b.name}</button>)}
         </div>
         <Btn tone="quiet" size="small" onClick={() => nav('/courses')}>管理课程大纲</Btn>
-        <Btn tone="quiet" size="small" data-testid="compare-go-research" onClick={() => nav('/courses?view=research')}>做教研对照表（含校内例题和课件修订建议）</Btn>
+        <Btn tone="quiet" size="small" data-testid="compare-go-research" onClick={() => nav('/courses/research')}>做教研对照表（含校内例题和课件修订建议）</Btn>
       </div>
       {bids.length === 0 && <UsageNote kind="tip">请至少点选一份学校教材。</UsageNote>}
       {isFetching && !r && <Spin style={{ margin: 24 }} />}

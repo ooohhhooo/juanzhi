@@ -213,7 +213,7 @@ async function phaseParse() {
     const txt = await page.locator('[data-testid="qstate-g4-2026.pdf"]').innerText().catch(() => '')
     if (q.parse.running.length > 0 && !sawBadge) sawBadge = (await page.locator('[data-testid=badge-queue]').innerText().catch(() => '')).trim()
     if (/AI 解析中/.test(txt) && !sawParsingUi) sawParsingUi = txt.replace(/\n/g, ' ')
-    if (q.parse.running.length === 2 && /AI 解析中/.test(txt) && !shotDone) { shotDone = true; await page.screenshot({ path: path.join(shots, 'm2-03-queue-running.png') }) }
+    if (q.parse.running.length === 2 && /AI 解析中/.test(txt) && !shotDone) { shotDone = true; await page.screenshot({ path: path.join(shots, 'm2-03-queue-running.png') }); if (process.env.EWB_NAV_SHOT) await page.screenshot({ path: process.env.EWB_NAV_SHOT }) }
     const ps = await listPapers(page)
     return ps.length === 3 && ps.every(p => p.status === 'reviewing') ? ps : null
   }, 150000, 250)
@@ -223,7 +223,7 @@ async function phaseParse() {
   mock.delayMs = 0
   const q0 = bannerOk
   check('处理队列', '暂停时页面有明确的「队列已暂停」提示与「继续处理」按钮', q0)
-  check('处理队列', '侧栏「处理队列」图标上有进行中数量徽标', /^[1-3]$/.test(sawBadge), `徽标=${sawBadge}`)
+  check('处理队列', '队列页「处理中」标签上有进行中数量徽标（数字）', /^[1-3]$/.test(sawBadge), `徽标=${sawBadge}`)
 
   const byName = Object.fromEntries((done || []).map(p => [p.file_name, p]))
   ctx.p26 = byName['g4-2026.pdf']; ctx.p25 = byName['g4-2025.pdf']; ctx.p26c = byName['g4-2026-copy.pdf']
@@ -409,7 +409,7 @@ async function phaseFailures() {
   await sleep(500)
   const stillThere = (await listPapers(page)).filter(p => p.file_name === 'g4-2026-meta.pdf')
   check('P1-1 再导入', '解析失败的试卷再导入同一文件：弹「内容相同」确认并提示去队列重试；原试卷、页面、旧题目都还在，没有被删掉重建',
-    !!dupBox && /处理队列/.test(dupTxt) && stillThere.length === 1 && stillThere[0].id === id && stillThere[0].status === 'failed' && (await getQs(page, id)).questions.length === qBeforeRe && qBeforeRe === 36 && (await page.evaluate(i => window.api.papers.pages(i), id)).length === 2,
+    !!dupBox && /处理中/.test(dupTxt) && stillThere.length === 1 && stillThere[0].id === id && stillThere[0].status === 'failed' && (await getQs(page, id)).questions.length === qBeforeRe && qBeforeRe === 36 && (await page.evaluate(i => window.api.papers.pages(i), id)).length === 2,
     `${stillThere.length} 条，${qBeforeRe} 题；${dupTxt.replace(/\n/g, ' ').slice(0, 70)}`)
   // 复审 N7：失败但保留着旧题（含已审核的）的试卷，「重新提取」「从头重试」要先弹确认并说明会清掉多少题
   const q1fail = (await getQs(page, id)).questions[0]
@@ -757,7 +757,7 @@ async function phaseReview() {
   const iconTags = await page.locator('.ewb-sider .ewb-contents__tag').allInnerTexts()
   const mainW = (await page.locator('.ewb-main').boundingBox()).width
   check('审核页', '审核页的侧栏是窄图标栏：宽度 < 100px，图标栏的 6 个入口 + 设置 + 外观都在，每个入口图标下面有两字标签，画布占满其余宽度',
-    siderW < 100 && iconLinks >= 8 && ['总览', '试卷', '队列', '审核', '看板', '报告'].every(t => iconTags.includes(t)) && mainW > 1000, `${Math.round(siderW)}px，${iconLinks} 个入口，标签 ${iconTags.join('/')}，画布 ${Math.round(mainW)}px`)
+    siderW < 100 && iconLinks >= 8 && ['助手', '分析', '试卷', '报告', '课程', '数据'].every(t => iconTags.includes(t)) && mainW > 1000, `${Math.round(siderW)}px，${iconLinks} 个入口，标签 ${iconTags.join('/')}，画布 ${Math.round(mainW)}px`)
   await page.getByText(/需关注 \d+/).first().click()
   const nAttn = await items().count()
   await page.getByText(/待确认 \d+/).first().click()

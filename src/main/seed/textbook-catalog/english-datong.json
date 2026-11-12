@@ -1,0 +1,740 @@
+{
+  "id": "english-datong",
+  "subject": "english",
+  "edition": "人教大同版",
+  "textbookValue": "人教大同版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 人教版英语（大同版）三上至六上目录（dt3s_2024 / dt3x_2025 / dt4s_2025 / dt4x_2026 / dt5s_2026 / dt6s_2026）",
+      "url": "http://www.dzkbw.com/books/rjb/yingyu/"
+    },
+    {
+      "title": "英语朗读宝 · 人教大同版三上至四上单元目录（出版社：大同出版传媒）",
+      "url": "https://yyld.51jiaoxi.com/sanshang/rjdtb/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Making new friends",
+          "lessons": [
+            "话题：交新朋友"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.PERSONAL",
+            "GR.VERB.BE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My family",
+          "lessons": [
+            "话题：家庭成员"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHO",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Revision 1 Introduce yourself and your classmate",
+          "lessons": [
+            "复习单元：介绍自己和同学"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.PERSONAL",
+            "GR.VERB.BE",
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHO",
+            "GR.PRON.DEMO"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 In my schoolbag",
+          "lessons": [
+            "话题：书包里的文具"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.NOUN.PLURAL.REG"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 In the classroom",
+          "lessons": [
+            "话题：教室"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Revision 2 Describe your room",
+          "lessons": [
+            "复习单元：描述房间"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.NOUN.PLURAL.REG",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 Fun at the zoo",
+          "lessons": [
+            "话题：动物园"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 My puppets",
+          "lessons": [
+            "话题：木偶与身体部位"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.HAVE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Revision 3 Draw and describe your puppet",
+          "lessons": [
+            "复习单元：画一画、描述木偶"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE",
+            "VO.TOPIC.BODY",
+            "GR.VERB.HAVE"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 10,
+          "title": "Project: Design a board game",
+          "lessons": [
+            "项目课：设计棋盘游戏"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 All about fruit",
+          "lessons": [
+            "话题：水果"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.NOUN.PLURAL.REG"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Dream toys",
+          "lessons": [
+            "话题：玩具"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.HAVE",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Revision 1 Sing a song",
+          "lessons": [
+            "复习单元：唱歌"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.NOUN.PLURAL.REG",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.HAVE",
+            "GR.ADJ.USE"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 Things in the park",
+          "lessons": [
+            "话题：公园"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Actions",
+          "lessons": [
+            "话题：动作"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Revision 2 Describe a place",
+          "lessons": [
+            "复习单元：描述一个地方"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE",
+            "GR.VERB.MODAL.CAN",
+            "GR.VERB.IMPER"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 Our clothes",
+          "lessons": [
+            "话题：衣服"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 Our pets",
+          "lessons": [
+            "话题：宠物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.HAVE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Revision 3 Write about a friend and their pet",
+          "lessons": [
+            "复习单元：写朋友和他的宠物"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.PRON.DEMO",
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.HAVE"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 10,
+          "title": "Project: Make a puppet",
+          "lessons": [
+            "项目课：做木偶"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Places in a city",
+          "lessons": [
+            "话题：城市场所"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.WHERE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Sports Day",
+          "lessons": [
+            "话题：运动会"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 School surprise",
+          "lessons": [
+            "话题：学校里的惊喜"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Food shopping",
+          "lessons": [
+            "话题：买食物"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Getting around",
+          "lessons": [
+            "话题：出行方式"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "FN.DIR"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Jobs Day",
+          "lessons": [
+            "话题：职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 The weather outside",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Seasons of fun",
+          "lessons": [
+            "话题：季节活动"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Revision 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.TENSE.PRES"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 Time to get up",
+          "lessons": [
+            "话题：作息时间"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 A busy week",
+          "lessons": [
+            "话题：一周安排"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Revision 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME",
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES",
+            "GR.ADJ.ADV.FREQ"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 Festival fun",
+          "lessons": [
+            "话题：节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 Story time",
+          "lessons": [
+            "话题：故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Revision 3",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME",
+            "RD.DETAIL.FACT"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 10,
+          "title": "Project: Make a book about a cartoon character",
+          "lessons": [
+            "项目课：制作卡通人物小书"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 The new school year plan",
+          "lessons": [
+            "话题：新学年计划"
+          ],
+          "kps": [
+            "FN.PLAN",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My weekly plan",
+          "lessons": [
+            "话题：每周安排"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "FN.PLAN",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Revision 1 Write an invitation",
+          "lessons": [
+            "复习单元：写邀请函"
+          ],
+          "kps": [
+            "FN.PLAN",
+            "GR.TENSE.FUT.GOING",
+            "VO.TOPIC.TIME",
+            "WR.EXPR"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 Having fun",
+          "lessons": [
+            "话题：娱乐活动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.FORM.ING"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Fun with clubs",
+          "lessons": [
+            "话题：社团活动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN",
+            "GR.VERB.MODAL.WOULD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Revision 2 Make a picture board",
+          "lessons": [
+            "复习单元：做图片展板"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.FORM.ING",
+            "GR.VERB.MODAL.CAN",
+            "GR.VERB.MODAL.WOULD"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 My hometown",
+          "lessons": [
+            "话题：家乡"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 Holidays",
+          "lessons": [
+            "话题：假期"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Revision 3 Write an email",
+          "lessons": [
+            "复习单元：写电子邮件"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "FN.DESCRIBE",
+            "GR.TENSE.PAST",
+            "FN.PLAN",
+            "WR.EXPR"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 10,
+          "title": "Project: Make a time capsule",
+          "lessons": [
+            "项目课：做时间胶囊"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 How do you feel?",
+          "lessons": [
+            "话题：情绪感受"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Let's get along!",
+          "lessons": [
+            "话题：相处之道"
+          ],
+          "kps": [
+            "FN.POLITE",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Revision 1 Write a letter",
+          "lessons": [
+            "复习单元：写信"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.HOW",
+            "FN.POLITE",
+            "GR.VERB.MODAL.SHOULD",
+            "WR.EXPR"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 Read to learn",
+          "lessons": [
+            "话题：阅读学习"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "RD.MAIN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Good manners",
+          "lessons": [
+            "话题：礼仪"
+          ],
+          "kps": [
+            "FN.POLITE",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Revision 2 Write about a film character",
+          "lessons": [
+            "复习单元：写电影人物"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "RD.MAIN",
+            "FN.POLITE",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER",
+            "WR.EXPR"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 Around the world",
+          "lessons": [
+            "话题：世界各地"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "RD.MAIN"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 World festivals",
+          "lessons": [
+            "话题：世界节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Revision 3 Be a tour guide",
+          "lessons": [
+            "复习单元：当导游"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "RD.MAIN",
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 10,
+          "title": "Project: Design a game stand",
+          "lessons": [
+            "项目课：设计游戏摊位"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    }
+  ]
+}

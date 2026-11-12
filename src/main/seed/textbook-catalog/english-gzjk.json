@@ -1,0 +1,934 @@
+{
+  "id": "english-gzjk",
+  "subject": "english",
+  "edition": "教科版（广州）",
+  "textbookValue": "教科版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 教科版（广州版）英语各册目录（3s_2024 / 3x_2025 / 4s_2025 / 4x_2026 / 5s_2026 / 6s_2026 / 5x / 6x）",
+      "url": "http://www.dzkbw.com/books/jkb/yingyu/"
+    },
+    {
+      "title": "英语朗读宝 · 广州教科版三上至六下目录",
+      "url": "https://yyld.51jiaoxi.com/sanshang/gzjkb/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Letters in Our Life",
+          "lessons": [
+            "话题：生活中的字母"
+          ],
+          "kps": [
+            "PH.LETTER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 English and Chinese",
+          "lessons": [
+            "话题：英语与汉语"
+          ],
+          "kps": [
+            "PH.LETTER",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Who's Who?",
+          "lessons": [
+            "话题：认识人"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "FN.GREET",
+            "GR.PRON.PERSONAL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Colour a Keyboard",
+          "lessons": [
+            "话题：键盘与颜色"
+          ],
+          "kps": [
+            "PH.LETTER",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Set a Password",
+          "lessons": [
+            "话题：设密码"
+          ],
+          "kps": [
+            "PH.LETTER",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 I Can Draw",
+          "lessons": [
+            "话题：画画"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Be a Good Listener",
+          "lessons": [
+            "话题：认真倾听"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 It's Time to Exercise!",
+          "lessons": [
+            "话题：做运动"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review A Music Show",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "PH.LETTER",
+            "FN.GREET",
+            "GR.VERB.IMPER",
+            "GR.SENT.WH.WHO",
+            "GR.PRON.PERSONAL",
+            "GR.ADJ.USE"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Get Up",
+          "lessons": [
+            "话题：起床"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.NUM.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What a Day!",
+          "lessons": [
+            "话题：一天"
+          ],
+          "kps": [
+            "GR.SENT.EXCL",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Plan My Day",
+          "lessons": [
+            "话题：安排一天"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Come and Join Us!",
+          "lessons": [
+            "话题：一起参加"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Our Classroom, Our Call",
+          "lessons": [
+            "话题：我们的教室"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 I'm on Duty",
+          "lessons": [
+            "话题：值日"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 School Rules",
+          "lessons": [
+            "话题：校规"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 A Polite Way",
+          "lessons": [
+            "话题：礼貌"
+          ],
+          "kps": [
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review Road Helper Day",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.NUM.TIME",
+            "GR.SENT.EXCL",
+            "GR.TENSE.PRES",
+            "FN.TIME",
+            "FN.SUGGEST"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Come on In!",
+          "lessons": [
+            "话题：做客"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Help Yourself",
+          "lessons": [
+            "话题：招待客人"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 I'm the Chef Today!",
+          "lessons": [
+            "话题：做饭"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Help Out in the Kitchen",
+          "lessons": [
+            "话题：厨房帮忙"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 She Helps Me a Lot",
+          "lessons": [
+            "话题：家人帮助"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 I Love My Family",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Family Time",
+          "lessons": [
+            "话题：家庭时光"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Joy in the Air",
+          "lessons": [
+            "话题：节日气氛"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review Happy New Year!",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "FN.POLITE",
+            "VO.TOPIC.FOOD",
+            "FN.GREET",
+            "VO.TOPIC.PLACE",
+            "VO.PHRASE.VERB"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 The School Garden",
+          "lessons": [
+            "话题：学校菜园"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Busy as a Bee",
+          "lessons": [
+            "话题：忙碌"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Grow Taller",
+          "lessons": [
+            "话题：长高"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.ADJ.COMPARE.REG"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Let's Do It!",
+          "lessons": [
+            "话题：动手做"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 How's the Weather?",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Tidy Up My Closet",
+          "lessons": [
+            "话题：整理衣柜"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Let's Make a Call!",
+          "lessons": [
+            "话题：打电话"
+          ],
+          "kps": [
+            "FN.DIALOG"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 The Best Place to Live",
+          "lessons": [
+            "话题：宜居的地方"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.ADJ.SUPER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review A Happy Trip",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.SCHOOL",
+            "VO.PHRASE.VERB",
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.BODY",
+            "GR.ADJ.COMPARE.REG"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Learn Words in Chunks",
+          "lessons": [
+            "话题：语块学习"
+          ],
+          "kps": [
+            "VO.PHRASE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 It's for Everybody",
+          "lessons": [
+            "话题：大家共享"
+          ],
+          "kps": [
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Best Friends Forever",
+          "lessons": [
+            "话题：朋友"
+          ],
+          "kps": [
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Here Comes a Typhoon!",
+          "lessons": [
+            "话题：台风"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 A Trip to Harbin",
+          "lessons": [
+            "话题：哈尔滨之旅"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Space Travel",
+          "lessons": [
+            "话题：太空旅行"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Make a Bird Feeder",
+          "lessons": [
+            "话题：制作喂鸟器"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Review Let's Go Camping!",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "VO.PHRASE",
+            "FN.POLITE",
+            "FN.DESCRIBE",
+            "VO.TOPIC.PLACE",
+            "RD.DETAIL.FACT"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What's your favourite season?",
+          "lessons": [
+            "Module 1 Seasons",
+            "话题：季节"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 It's the middle of winter",
+          "lessons": [
+            "话题：冬天"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 We are going to have an English test",
+          "lessons": [
+            "Module 2 Plans",
+            "话题：计划"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Have a good time in Hainan",
+          "lessons": [
+            "话题：假期计划"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Would you like to go with us?",
+          "lessons": [
+            "Module 3 Invitations",
+            "话题：邀请"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.WOULD",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 See you at the party",
+          "lessons": [
+            "话题：聚会"
+          ],
+          "kps": [
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 We will go by train",
+          "lessons": [
+            "Module 4 Travel",
+            "话题：出行方式"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Ben's first trip to Beijing",
+          "lessons": [
+            "话题：北京之旅"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 Be careful!",
+          "lessons": [
+            "Module 5 Safety",
+            "话题：注意安全"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 10 How to stay safe",
+          "lessons": [
+            "话题：安全守则"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 11 Can you tell me the way?",
+          "lessons": [
+            "Module 6 Directions",
+            "话题：问路"
+          ],
+          "kps": [
+            "FN.DIR"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Unit 12 I know a short cut",
+          "lessons": [
+            "话题：近路"
+          ],
+          "kps": [
+            "FN.DIR"
+          ]
+        },
+        {
+          "no": 13,
+          "title": "Module 7 Let's look back",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.TENSE.FUT.GOING",
+            "FN.SUGGEST",
+            "GR.TENSE.FUT.WILL",
+            "GR.VERB.IMPER",
+            "FN.DIR"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 I Am Angry",
+          "lessons": [
+            "话题：情绪"
+          ],
+          "kps": [
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Talk It Out",
+          "lessons": [
+            "话题：沟通"
+          ],
+          "kps": [
+            "FN.DIALOG"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Work It Out Together",
+          "lessons": [
+            "话题：合作"
+          ],
+          "kps": [
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Cat or Dog?",
+          "lessons": [
+            "话题：宠物选择"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.COMPARE.REG"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Shop Smart",
+          "lessons": [
+            "话题：明智购物"
+          ],
+          "kps": [
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Keep It Green",
+          "lessons": [
+            "话题：环保"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Play It Safe",
+          "lessons": [
+            "话题：安全"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Review A Gift for Grandpa",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.ADJ.USE",
+            "FN.DIALOG",
+            "FN.SUGGEST",
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.COMPARE.REG"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Slow and steady wins the race",
+          "lessons": [
+            "Module 1 Stories",
+            "话题：龟兔赛跑"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Waiting for another hare",
+          "lessons": [
+            "话题：守株待兔"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What animal is it?",
+          "lessons": [
+            "Module 2 Animals",
+            "话题：动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 We can save the animals",
+          "lessons": [
+            "话题：保护动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Dr Sun Yatsen",
+          "lessons": [
+            "Module 3 Famous people",
+            "话题：名人"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Steve Jobs",
+          "lessons": [
+            "话题：名人"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 It's the polite thing to do",
+          "lessons": [
+            "Module 4 Good manners",
+            "话题：礼仪"
+          ],
+          "kps": [
+            "FN.POLITE",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 The magic words",
+          "lessons": [
+            "话题：礼貌用语"
+          ],
+          "kps": [
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 Where will you go?",
+          "lessons": [
+            "Module 5 Travel abroad",
+            "话题：出国旅行"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 10 I can't wait to see you",
+          "lessons": [
+            "话题：期待见面"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 6 Let's look back",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.TENSE.PAST.IRREG",
+            "FN.POLITE"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    }
+  ]
+}

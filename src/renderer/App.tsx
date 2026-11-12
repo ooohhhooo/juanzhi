@@ -7,6 +7,7 @@ import AppLayout from './components/AppLayout'
 import PaperLibrary from './pages/PaperLibrary'
 import PaperDetail from './pages/PaperDetail'
 import CoursesPage from './pages/course/CoursesPage'
+import ResearchTablePage from './pages/course/ResearchTablePage'
 import Settings from './pages/Settings'
 import DatasetsPage from './pages/datasets/DatasetsPage'
 import QueuePage from './pages/QueuePage'
@@ -139,6 +140,7 @@ export default function App() {
                 <Route path="/" element={<PaperLibrary />} />
                 <Route path="/paper/:id" element={<PaperDetail />} />
                 <Route path="/courses" element={<CoursesPage />} />
+                <Route path="/courses/research" element={<ResearchTablePage />} />
                 <Route path="/datasets" element={<DatasetsPage />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/overview" element={<Overview />} />

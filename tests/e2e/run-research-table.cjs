@@ -53,9 +53,9 @@ async function main() {
   check('生成', '试卷范围里没有卷子（2010 学年）：表照样生成，但没有例题', none.table.ready && none.table.papers === 0 && none.table.lessons.every(l => l.kps.every(k => k.examples.length === 0)))
 
   // ───── 界面 ─────
-  await setFilter({ grade: '4' }, '#/courses?view=research')
+  await setFilter({ grade: '4' }, '#/courses/research')
   await T('research-table').waitFor({ timeout: 20000 })
-  check('界面', '课程页有打开教研对照表的入口，打开后有「机构大纲 A / B、教材、例题数」', (await T('courses-open-research').count()) === 1 && (await T('research-a').count()) === 1 && (await T('research-b').count()) === 1 && (await T('research-perkp').count()) === 1 && (await T('research-pick-books').count()) === 1)
+  check('界面', '课程页第二个标签「教研对照表」（/courses/research）：有「机构大纲 A / B、教材、例题数」', (await T('research-table-page').count()) === 1 && (await T('research-a').count()) === 1 && (await T('research-b').count()) === 1 && (await T('research-perkp').count()) === 1 && (await T('research-pick-books').count()) === 1)
   // 选教材：搜索 → 版本分组 → 勾册（已经添加过的这两册直接复用）
   await T('research-pick-books').click()
   await T('research-book-search').waitFor()

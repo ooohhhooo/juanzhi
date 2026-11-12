@@ -1,0 +1,566 @@
+[
+  {
+    "feature": "xlsx",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：课程表"
+  },
+  {
+    "feature": "xlsx",
+    "name": "表格直接读出来，走认列（p5_course_cols），不调用文字整理",
+    "pass": true,
+    "detail": "cols"
+  },
+  {
+    "feature": "xlsx",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "xlsx",
+    "name": "核对表里的课程标题和夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "xlsx",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "xlsx",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "xlsx",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：3 个知识点找到了对应的课，14 个没有找到"
+  },
+  {
+    "feature": "csv",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：课程表"
+  },
+  {
+    "feature": "csv",
+    "name": "表格直接读出来，走认列（p5_course_cols），不调用文字整理",
+    "pass": true,
+    "detail": "cols"
+  },
+  {
+    "feature": "csv",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "csv",
+    "name": "核对表里的课程标题和夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "csv",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "csv",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "csv",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：3 个知识点找到了对应的课，14 个没有找到"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：表格版"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "表格直接读出来，走认列（p5_course_cols），不调用文字整理",
+    "pass": true,
+    "detail": "cols"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "第 2 步有提示：表格取自 Word，请核对",
+    "pass": true,
+    "detail": "注意 这张表直接取自 Word 里的表格，请核对后再保存。"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "核对表里的课程标题和夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "Word（有表格）",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：3 个知识点找到了对应的课，14 个没有找到"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：无表格版"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "第 1 步说明了：约多少字、点“下一步”后由 AI 整理、需要核对",
+    "pass": true,
+    "detail": "Word，约 127 字。点“开始整理”后由 AI 整理成表格，需要你核对。"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 Word 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "核对表里的课程标题和夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "Word（没有表格）",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：3 个知识点找到了对应的课，14 个没有找到"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：文字版"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "第 1 步说明了：约多少字、点“下一步”后由 AI 整理、需要核对",
+    "pass": true,
+    "detail": "PDF，约 166 字。点“开始整理”后由 AI 整理成表格，需要你核对。"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 PDF 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "核对表里的课程标题和夹具一致",
+    "pass": true,
+    "detail": "[\"Present Simple\",\"Past Simple\",\"Present Continuous\"]"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"Present Simple\",\"Past Simple\",\"Present Continuous\"]"
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "文字版 PDF",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：0 个知识点找到了对应的课，17 个没有找到"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：扫描版"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "第 1 步说明了：约多少字、点“下一步”后由 AI 整理、需要核对",
+    "pass": true,
+    "detail": "PDF，约 104 字。点“开始整理”后由 AI 整理成表格，需要你核对。"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 PDF 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "核对表里的课程标题和夹具一致（OCR 容许少量差异：每课都包含夹具标题的主要字符）",
+    "pass": true,
+    "detail": "[\"Present Simple\",\"Past Simple\",\"Present Continuous\"]"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"Present Simple\",\"Past Simple\",\"Present Continuous\"]"
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "扫描版 PDF（OCR）",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：0 个知识点找到了对应的课，17 个没有找到"
+  },
+  {
+    "feature": "png 截图",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：截图"
+  },
+  {
+    "feature": "png 截图",
+    "name": "第 1 步说明了：约多少字、点“下一步”后由 AI 整理、需要核对",
+    "pass": true,
+    "detail": "图片，约 49 字。点“开始整理”后由 AI 整理成表格，需要你核对。"
+  },
+  {
+    "feature": "png 截图",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "png 截图",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "png 截图",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 图片 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "png 截图",
+    "name": "核对表里的课程标题和夹具一致（OCR 容许少量差异：每课都包含夹具标题的主要字符）",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "png 截图",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "png 截图",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "png 截图",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：0 个知识点找到了对应的课，17 个没有找到"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：手机拍照"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "第 1 步说明了：约多少字、点“下一步”后由 AI 整理、需要核对",
+    "pass": true,
+    "detail": "图片，约 49 字。点“开始整理”后由 AI 整理成表格，需要你核对。"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 图片 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "核对表里的课程标题和夹具一致（OCR 容许少量差异：每课都包含夹具标题的主要字符）",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "手机拍照 jpg（EXIF 旋转）",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：0 个知识点找到了对应的课，17 个没有找到"
+  },
+  {
+    "feature": "heic",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：照片"
+  },
+  {
+    "feature": "heic",
+    "name": "第 1 步说明了：约多少字、点“下一步”后由 AI 整理、需要核对",
+    "pass": true,
+    "detail": "图片，约 104 字。点“开始整理”后由 AI 整理成表格，需要你核对。"
+  },
+  {
+    "feature": "heic",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "heic",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。"
+  },
+  {
+    "feature": "heic",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 图片 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "heic",
+    "name": "核对表里的课程标题和夹具一致（OCR 容许少量差异：每课都包含夹具标题的主要字符）",
+    "pass": true,
+    "detail": "[\"Present Simple\",\"Past Simple\",\"Present Continuous\"]"
+  },
+  {
+    "feature": "heic",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"Present Simple\",\"Past Simple\",\"Present Continuous\"]"
+  },
+  {
+    "feature": "heic",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "heic",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：0 个知识点找到了对应的课，17 个没有找到"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "选择文件后显示“已读取”",
+    "pass": true,
+    "detail": "已读取：无表格版"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "文字整理：恰好一次 p5_course_extract 调用，请求里带行号，没有认列调用",
+    "pass": true,
+    "detail": "extract"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "第 2 步一句话：共 3 课",
+    "pass": true,
+    "detail": "识别到 1 个级别、共 3 课。有 1 处需要你看一眼。"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "第 2 步有醒目提示：这张表是 AI 从文件里整理的，请核对",
+    "pass": true,
+    "detail": "注意 这张表是 AI 从 Word 里整理出来的，可能漏课或认错，请对照原文件核对后再保存。"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "核对表里的课程标题和夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "核对步骤里提示了找不到原文的课",
+    "pass": true,
+    "detail": "注意 需要你看一眼 有 1 课在原文里找不到，已去掉：「凭空多出来的一课」"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "保存：数据库里有这个体系，课数 = 3，标题与夹具一致",
+    "pass": true,
+    "detail": "[\"一般现在时\",\"一般过去时\",\"现在进行时\"]"
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "“课程大纲”页出现这个体系的卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "AI 编造一课",
+    "name": "开始匹配并完成",
+    "pass": true,
+    "detail": "匹配完成：3 个知识点找到了对应的课，14 个没有找到"
+  },
+  {
+    "feature": "失败路径",
+    "name": "空白图片：提示“没有读到文字”，不进入下一步",
+    "pass": true,
+    "detail": "图片里没有读到文字，请换一个文件，或改传 Excel"
+  },
+  {
+    "feature": "失败路径",
+    "name": "没有课程内容的 PDF：能读到文字",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "失败路径",
+    "name": "没有课程内容的 PDF：AI 整理后卡片显示“没有从PDF里整理出任何一课”，有“重试”和“移除”，没有可核对的结果",
+    "pass": true,
+    "detail": "没有从PDF里整理出任何一课。请确认文件里是课程表，或改传 Excel"
+  },
+  {
+    "feature": "失败路径",
+    "name": "点“移除”：卡片消失",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "失败路径",
+    "name": "超大文件（501 MB）：提示“文件太大了：501 MB，超过 500 MB 的上限”",
+    "pass": true,
+    "detail": "PDF 文件太大了：501 MB，超过 500 MB 的上限。可以先用工具截取需要的页或压缩后再上传"
+  },
+  {
+    "feature": "失败路径",
+    "name": "旧版 .doc：提示另存为 .docx",
+    "pass": true,
+    "detail": "这是旧版 Word 格式（.doc），请用 Word 或 WPS 打开后「另存为」.docx 再上传"
+  },
+  {
+    "feature": "失败路径",
+    "name": "失败的上传都没有落库",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "隐私",
+    "name": "运行日志里没有课程内容、体系名、文件名",
+    "pass": true,
+    "detail": "2026-11-12 11:59:56 INFO  app 启动 {version=1.6.0-beta.1 platform=darwin arch=arm64 electron=45.0.0 chrome=156.0.8078.48 n"
+  },
+  {
+    "feature": "控制台",
+    "name": "渲染端控制台没有报错、没有出现密钥",
+    "pass": true,
+    "detail": ""
+  }
+]

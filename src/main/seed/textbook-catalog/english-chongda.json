@@ -1,0 +1,735 @@
+{
+  "id": "english-chongda",
+  "subject": "english",
+  "edition": "重大版",
+  "textbookValue": "重大版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 重大版（重庆大学出版社）小学英语各册目录（3s_2024 / 3x_2025 / 4s_2025 / 4x_2026 / 5s_2026 / 5x / 6s_2026 / 6x）",
+      "url": "http://www.dzkbw.com/books/cdb/"
+    },
+    {
+      "title": "电子课本网 · 重大版三年级英语上册(2024秋版)目录",
+      "url": "http://www.dzkbw.com/books/cdb/yingyu/3s_2024/"
+    },
+    {
+      "title": "教习网英语朗读 · 重庆大学版三上至六下 8 册课文朗读目录与单元句型（sanshang … liuxia /cqdxb/）",
+      "url": "https://yyld.51jiaoxi.com/sanshang/cqdxb/"
+    },
+    {
+      "title": "教习网英语朗读 · 重庆大学版六年级下册课文目录",
+      "url": "https://yyld.51jiaoxi.com/liuxia/cqdxb/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My First Day",
+          "lessons": [
+            "话题：入学第一天，问候与介绍",
+            "句型（概括）：Hello! What's your name? My name is …"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.POSS.ADJ",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My Classmates",
+          "lessons": [
+            "话题：认识同学",
+            "句型（概括）：This is … / He's … She's …"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.PERSONAL",
+            "GR.VERB.BE",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 School Rules",
+          "lessons": [
+            "话题：校规与课堂指令",
+            "句型（概括）：Open the door. / Be quiet. / Don't run in the hallways."
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 My Family",
+          "lessons": [
+            "话题：家庭成员",
+            "句型（概括）：Who is that man? He is my father."
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHO",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Weather and Life",
+          "lessons": [
+            "话题：天气与生活",
+            "句型（概括）：How is the weather today? It is sunny and warm."
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Lovely Animals",
+          "lessons": [
+            "话题：可爱的动物",
+            "句型（概括）：What is this? It's a … / I like …"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHAT",
+            "GR.NOUN.PLURAL.REG",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Wonderful Me",
+          "lessons": [
+            "话题：介绍自己（外貌、特点）",
+            "句型（概括）：I'm … / I have … / I can …"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "VO.TOPIC.BODY",
+            "GR.VERB.BE",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Doing Sports",
+          "lessons": [
+            "话题：体育运动与能力",
+            "句型（概括）：Can you run fast? Yes, I can. / No, I can't."
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Three Meals",
+          "lessons": [
+            "话题：一日三餐",
+            "句型（概括）：What do you have for breakfast? I have bread and milk. / Do you like …? Yes, I do."
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.TENSE.PRES",
+            "GR.NOUN.COUNT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Nice Clothes",
+          "lessons": [
+            "话题：衣物",
+            "句型（概括）：What are you wearing today? I'm wearing a yellow dress."
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.NOUN.PLURAL",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Seasons and Life",
+          "lessons": [
+            "话题：季节与生活",
+            "句型（概括）：What season is it? It's … / In spring, I can …"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Plants around Us",
+          "lessons": [
+            "话题：身边的植物",
+            "句型（概括）：Is there fresh air in the forest? Yes, there is. / Water the plants."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.THEREBE",
+            "GR.NOUN.COUNT",
+            "GR.VERB.IMPER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My Favourite Subjects",
+          "lessons": [
+            "话题：喜欢的学科",
+            "句型（概括）：What's your favourite subject? Why? Because …"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.SENT.CONJ"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Our Classroom",
+          "lessons": [
+            "话题：教室布置与方位",
+            "句型（概括）：Where is the teachers' desk? It is in front of the blackboard."
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.PREP.PLACE",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Daily Routine",
+          "lessons": [
+            "话题：日常作息",
+            "句型（概括）：What time does your father go to work? He leaves home at half past seven."
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.TENSE.PRES.THIRD",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Weekend Activities",
+          "lessons": [
+            "话题：周末活动",
+            "句型（概括）：Do you want to play the piano or go to the park? I want to …"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "GR.NOUN.ARTICLE",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Change of Seasons",
+          "lessons": [
+            "话题：季节变化与衣着",
+            "句型（概括）：It's getting cold. / In winter, I wear …"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Pet Friends",
+          "lessons": [
+            "话题：宠物朋友",
+            "句型（概括）：I have a … It has … / What does it like?"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "FN.DESCRIBE",
+            "GR.VERB.HAVE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Our School",
+          "lessons": [
+            "话题：校园场所",
+            "句型（概括）：There is a … in our school. / We can … here."
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 A School Day",
+          "lessons": [
+            "话题：在校一天的作息",
+            "句型（概括）：What time do you get up? I get up at seven o'clock."
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.TENSE.PRES.THIRD",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Safety Rules",
+          "lessons": [
+            "话题：安全规则",
+            "句型（概括）：You must stop at a red light. / Don't …"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Our Holidays",
+          "lessons": [
+            "话题：节假日",
+            "句型（概括）：What do you do on …? We …"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "VO.TOPIC.HOBBY",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Weather and Us",
+          "lessons": [
+            "话题：天气与我们的活动",
+            "句型（概括）：Is the weather sunny or rainy? It is rainy and windy."
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.CONJ"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 On the Farm",
+          "lessons": [
+            "话题：农场动物",
+            "句型（概括）：What can you see on the farm? I can see horses and ducks."
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.CAN",
+            "GR.NOUN.PLURAL"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Being a Better Learner",
+          "lessons": [
+            "话题：学习习惯与学习建议",
+            "句型（概括）：What problems do you have? You should …"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "FN.SUGGEST",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Being a Better Me",
+          "lessons": [
+            "话题：自我提升与好习惯",
+            "句型（概括）：I want to … / I should …"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.VERB.NONFIN",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Famous People",
+          "lessons": [
+            "话题：名人事迹",
+            "句型（概括）：Who is he? He was … He …"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PAST",
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 My Favourite Stories",
+          "lessons": [
+            "话题：喜欢的故事",
+            "句型（概括）：Once upon a time, … / What happened then?"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "RD.MAIN",
+            "RD.SKILL.ORDER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Our Earth",
+          "lessons": [
+            "话题：地球与环境保护",
+            "句型（概括）：We should protect our earth. / Don't …"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2014",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Good helpers",
+          "lessons": [
+            "话题：帮父母做家务",
+            "句型（概括）：How do you help your parents at home? I usually wash the clothes.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "GR.TENSE.PRES",
+            "GR.ADJ.ADV.FREQ",
+            "VO.PHRASE.VERB",
+            "GR.VERB.NONFIN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 At home",
+          "lessons": [
+            "话题：家庭生活与房间",
+            "句型（概括）：Where is …? It's in the … / What are you doing at home?",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "VO.PHRASE.VERB",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Seasons of a year",
+          "lessons": [
+            "话题：四季",
+            "句型（概括）：Which season do you like best? I like winter because I can make snowmen.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.WH.WHO",
+            "GR.SENT.CONJ",
+            "FN.WEATHER"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Review 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "VO.TOPIC.WEATHER",
+            "GR.TENSE.PRES"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Our school",
+          "lessons": [
+            "话题：学校场所与活动",
+            "句型（概括）：There is a … in our school.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 At the shop",
+          "lessons": [
+            "话题：购物",
+            "句型（概括）：Can I help you? / How much is it? / I'd like …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.SENT.WH.HOW",
+            "GR.VERB.MODAL.WOULD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Review 2",
+          "lessons": [
+            "话题：复习 Unit 4–5"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "FN.SHOP",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Spending Money Wisely",
+          "lessons": [
+            "话题：零花钱与理性消费、储蓄",
+            "句型（概括）：How much is it? / I save my pocket money."
+          ],
+          "kps": [
+            "FN.SHOP.PRICE",
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Touring around the World",
+          "lessons": [
+            "话题：世界旅行",
+            "句型（概括）：Where are you going to visit? I'm going to …"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Colourful Arts",
+          "lessons": [
+            "话题：艺术（绘画、音乐等）",
+            "句型（概括）：What kind of art do you like? I like …"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.USE",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Sports and Games",
+          "lessons": [
+            "话题：体育与游戏",
+            "句型（概括）：Who runs faster? … is better at …"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.COMPARE",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Fun Science",
+          "lessons": [
+            "话题：趣味科学实验",
+            "句型（概括）：First … Then … / What happens?"
+          ],
+          "kps": [
+            "GR.TENSE.PRES",
+            "GR.VERB.IMPER",
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2014",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Our winter holidays",
+          "lessons": [
+            "话题：寒假经历",
+            "句型（概括）：What did you do in the winter holidays? / Did you …? Yes, I did.",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.TENSE.PAST.AUX",
+            "WR.EXPR.PAST"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 A terrible day",
+          "lessons": [
+            "话题：糟糕的一天",
+            "句型（概括）：Why were you late for school this morning? Because …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.VERB.BE",
+            "GR.SENT.CONJ",
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Public rules",
+          "lessons": [
+            "话题：公共场所规则",
+            "句型（概括）：Don't touch the exhibits. / You mustn't …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.SENT.NEG",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Review 1",
+          "lessons": [
+            "话题：复习 Unit 1–3"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.TENSE.PAST",
+            "GR.VERB.IMPER"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 The water journey",
+          "lessons": [
+            "话题：水循环",
+            "句型（概括）：Water drops fall from the sky as rain. / The water goes to …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "GR.TENSE.PRES.THIRD",
+            "VO.TOPIC.WEATHER",
+            "RD.SKILL.ORDER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Our dreams",
+          "lessons": [
+            "话题：梦想与职业",
+            "句型（概括）：What's your dream job? I want to be a …",
+            "课文：Lesson 1 / Lesson 2 / Lesson 3"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.VERB.NONFIN",
+            "WR.EXPR.FUTURE",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Review 2",
+          "lessons": [
+            "话题：复习 Unit 4–5"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "GR.TENSE.PRES.THIRD",
+            "GR.VERB.NONFIN"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    }
+  ]
+}

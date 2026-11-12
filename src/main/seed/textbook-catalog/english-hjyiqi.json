@@ -1,0 +1,1384 @@
+{
+  "id": "english-hjyiqi",
+  "subject": "english",
+  "edition": "沪教牛津版（深圳，一起）",
+  "textbookValue": "沪教版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "英语朗读宝 · 沪教版（深圳）一上至六下单元目录",
+      "url": "https://yyld.51jiaoxi.com/yishang/hjbsz/"
+    },
+    {
+      "title": "教习网 · 沪教牛津版（六三制一起）（2024）一上、二上章节目录",
+      "url": "https://www.51jiaoxi.com/versions/163463/"
+    },
+    {
+      "title": "电子课本网 · 沪教版英语三上至六下目录（三至六年级与沪教牛津版三起相同）",
+      "url": "http://www.dzkbw.com/books/hjb/yingyu/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What is your family like?",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How are you today?",
+          "lessons": [
+            "话题：问候与感受"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.ADJ.USE",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What do you take to school?",
+          "lessons": [
+            "话题：文具"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 What can you do?",
+          "lessons": [
+            "话题：能力"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What is your favourite animal?",
+          "lessons": [
+            "话题：动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What colours can you see?",
+          "lessons": [
+            "话题：颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What food do you like?",
+          "lessons": [
+            "话题：食物"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What do we do in the classroom?",
+          "lessons": [
+            "话题：课堂活动"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 How do we play?",
+          "lessons": [
+            "话题：游戏"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Which season do you like?",
+          "lessons": [
+            "话题：季节"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What do you know about fruit?",
+          "lessons": [
+            "话题：水果"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.NOUN.PLURAL.REG"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 How do animals grow?",
+          "lessons": [
+            "话题：动物成长"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What can you do with your five senses?",
+          "lessons": [
+            "话题：五官感觉"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What do you like about your family?",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What is your favourite toy?",
+          "lessons": [
+            "话题：玩具"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHAT",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 What is around your home?",
+          "lessons": [
+            "话题：家附近"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What do you like about farms?",
+          "lessons": [
+            "话题：农场"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 How do people celebrate the Mid-Autumn Festival?",
+          "lessons": [
+            "话题：中秋节"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What is fun about food?",
+          "lessons": [
+            "话题：食物的乐趣"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How can we keep clean?",
+          "lessons": [
+            "话题：讲卫生"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What do you do in school clubs?",
+          "lessons": [
+            "话题：学校社团"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 How are people and animals different?",
+          "lessons": [
+            "话题：人与动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Who is your hero?",
+          "lessons": [
+            "话题：心中的英雄"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Why should we be honest?",
+          "lessons": [
+            "话题：诚实"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 How do we feel?",
+          "lessons": [
+            "话题：感受"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "VO.TOPIC.BODY",
+            "GR.VERB.BE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What's interesting about families?",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What do we look like?",
+          "lessons": [
+            "话题：外貌"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.ADJ.USE",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 How do we have fun?",
+          "lessons": [
+            "话题：玩乐"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What do we eat?",
+          "lessons": [
+            "话题：食物"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What do we like about small animals?",
+          "lessons": [
+            "话题：小动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 What do we know about weather?",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Why do we like birthdays?",
+          "lessons": [
+            "话题：生日"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Project 1",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.ADJ.USE",
+            "VO.TOPIC.BODY",
+            "GR.VERB.BE",
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Project 2",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.ADJ.USE",
+            "VO.TOPIC.BODY",
+            "GR.VERB.BE",
+            "VO.TOPIC.FAMILY"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 How do we spend our free time?",
+          "lessons": [
+            "话题：空闲时间"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How do we make friends?",
+          "lessons": [
+            "话题：交朋友"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What do we wear?",
+          "lessons": [
+            "话题：衣服"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 What sounds can we hear?",
+          "lessons": [
+            "话题：声音"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Where can we see colours?",
+          "lessons": [
+            "话题：颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What are our homes like?",
+          "lessons": [
+            "话题：家"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.PREP.PLACE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 What do we do at school?",
+          "lessons": [
+            "话题：学校"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 What do you do on Children's Day?",
+          "lessons": [
+            "话题：儿童节"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES"
+          ],
+          "note": "标题据英语朗读宝（该站数据在撇号处截断，结合本册例句补全）"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Where do people live?",
+          "lessons": [
+            "话题：居住的地方"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Where do animals live?",
+          "lessons": [
+            "话题：动物的家"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 How do we use numbers?",
+          "lessons": [
+            "话题：数字的用处"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 What do we buy?",
+          "lessons": [
+            "话题：购物"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 How are the seasons different?",
+          "lessons": [
+            "话题：四季"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What's amazing about plants?",
+          "lessons": [
+            "话题：植物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 How do we keep safe on the road?",
+          "lessons": [
+            "话题：交通安全"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 What do our grandparents do?",
+          "lessons": [
+            "话题：祖辈的生活"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Project 1 Places near my home",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.SENT.WH.WHERE",
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.PLACE",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Project 2 A journal of the seasons at school",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.SENT.WH.WHERE",
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.PLACE",
+            "GR.NUM.CARD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What is your daily schedule?",
+          "lessons": [
+            "话题：日程"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What do we like about school?",
+          "lessons": [
+            "话题：学校"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What's great about jobs?",
+          "lessons": [
+            "话题：职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 How can we make music?",
+          "lessons": [
+            "话题：音乐"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 How do we make art?",
+          "lessons": [
+            "话题：艺术"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 How do we measure time?",
+          "lessons": [
+            "话题：计时"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 How do things change?",
+          "lessons": [
+            "话题：变化"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 How do people get along with each other?",
+          "lessons": [
+            "话题：相处"
+          ],
+          "kps": [
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Project 1 Different jobs",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.NUM.TIME",
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Project 2 A guest house",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.NUM.TIME",
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES",
+            "VO.TOPIC.SCHOOL"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What do we do at the weekend?",
+          "lessons": [
+            "话题：周末"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How do we stay healthy?",
+          "lessons": [
+            "话题：健康"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What do you know about different countries?",
+          "lessons": [
+            "话题：国家"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 What's interesting about holidays?",
+          "lessons": [
+            "话题：假期"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What are living things?",
+          "lessons": [
+            "话题：生物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Why should we take care of the Earth?",
+          "lessons": [
+            "话题：保护地球"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 How do we celebrate festivals?",
+          "lessons": [
+            "话题：节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 How does music make us feel?",
+          "lessons": [
+            "话题：音乐与情绪"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Project 1",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.SHOULD",
+            "VO.TOPIC.TIME",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Project 2",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.SHOULD",
+            "VO.TOPIC.TIME",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Tidy up!",
+          "lessons": [
+            "话题：整理"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Our new home",
+          "lessons": [
+            "话题：新家"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 In the future",
+          "lessons": [
+            "话题：未来"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Revision 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "GR.TENSE.FUT.WILL"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Project 1",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 4 Reading is fun",
+          "lessons": [
+            "话题：阅读"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 At the weekend",
+          "lessons": [
+            "话题：周末"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 Holidays",
+          "lessons": [
+            "话题：假期"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Revision 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "GR.TENSE.PRES",
+            "GR.TENSE.FUT.GOING"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 10,
+          "title": "Project 2",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 7 Open Day",
+          "lessons": [
+            "话题：开放日"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Unit 8 Buying clothes",
+          "lessons": [
+            "话题：买衣服"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 13,
+          "title": "Unit 9 Seeing the Doctor",
+          "lessons": [
+            "话题：看病"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 14,
+          "title": "Revision 3",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "FN.SHOP",
+            "VO.TOPIC.CLOTHES",
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 15,
+          "title": "Project 3",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        },
+        {
+          "no": 16,
+          "title": "Unit 10 Great inventions",
+          "lessons": [
+            "话题：发明"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 17,
+          "title": "Unit 11 Chinese festivals",
+          "lessons": [
+            "话题：中国节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 18,
+          "title": "Unit 12 The giant's garden",
+          "lessons": [
+            "话题：巨人的花园"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 19,
+          "title": "Project 4",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.TENSE.PAST",
+            "VO.TOPIC.TIME",
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Why do people move to new places?",
+          "lessons": [
+            "话题：搬迁"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Why do we make art?",
+          "lessons": [
+            "话题：艺术"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 How should we protect ourselves?",
+          "lessons": [
+            "话题：自我保护"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 What makes things move?",
+          "lessons": [
+            "话题：运动与力"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 How do inventions change our lives?",
+          "lessons": [
+            "话题：发明"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What is a city?",
+          "lessons": [
+            "话题：城市"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Project 1",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "VO.TOPIC.PLACE",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.SHOULD",
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Project 2",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "VO.TOPIC.PLACE",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.SHOULD",
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 You and me",
+          "lessons": [
+            "话题：比较"
+          ],
+          "kps": [
+            "GR.ADJ.COMPARE.REG",
+            "GR.ADJ.COMPARE.THAN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Changes in our lives",
+          "lessons": [
+            "话题：生活变化"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Our school in the future",
+          "lessons": [
+            "话题：未来学校"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Project 1",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.ADJ.COMPARE.REG",
+            "GR.ADJ.COMPARE.THAN",
+            "GR.TENSE.PAST",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Art",
+          "lessons": [
+            "话题：美术"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Crafts",
+          "lessons": [
+            "话题：手工"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 PE lessons",
+          "lessons": [
+            "话题：体育课"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Project 2",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.COMPARE.REG",
+            "GR.ADJ.COMPARE.THAN",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 7 Helping others",
+          "lessons": [
+            "话题：帮助他人"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 8 Reading signs",
+          "lessons": [
+            "话题：标志"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 9 Reusing things",
+          "lessons": [
+            "话题：旧物利用"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Project 3",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.TENSE.PAST",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 13,
+          "title": "Unit 10 Great storybooks",
+          "lessons": [
+            "话题：故事书"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "RD.DETAIL.FACT"
+          ]
+        },
+        {
+          "no": 14,
+          "title": "Unit 11 Western festivals",
+          "lessons": [
+            "话题：西方节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 15,
+          "title": "Unit 12 The five peas",
+          "lessons": [
+            "话题：五颗豌豆"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 16,
+          "title": "Project 4",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR",
+            "GR.TENSE.PAST",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        }
+      ]
+    }
+  ]
+}

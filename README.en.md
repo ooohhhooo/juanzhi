@@ -466,8 +466,8 @@ When a command fails, `message` gives the reason in Chinese and `exit` is the ex
 | 4 | `cli_busy` | Another command-line job is running | Wait for it to finish, then run again |
 | 5 | `ai_not_configured` | The AI is not set up yet | Set it up in the window under 「设置」→「展开管理员设置」→「AI 服务」 (Settings → Show admin settings → AI service) |
 | 7 | `invalid_state` | It cannot be done right now (for example, there are no reviewed papers in the range) | Follow the `message`. Most often you need to review first |
-| 9 | `import_failed` | Some files could not be imported or analysed | Look at the `error` of each paper in `data.papers`. For the failed ones, click 「重试」 (Retry) in the window's 「处理队列」 (Processing queue) |
-| 10 | `timeout` | The import waited too long (it waits one hour at most by default) | For papers that were not finished, click 「重试」 (Retry) in the window's 「处理队列」 (Processing queue), or raise `--timeout` and run again |
+| 9 | `import_failed` | Some files could not be imported or analysed | Look at the `error` of each paper in `data.papers`. For the failed ones, click 「重试」 (Retry) in the window's 「试卷 → 处理中」 (Papers → Processing) |
+| 10 | `timeout` | The import waited too long (it waits one hour at most by default) | For papers that were not finished, click 「重试」 (Retry) in the window's 「试卷 → 处理中」 (Papers → Processing), or raise `--timeout` and run again |
 | 11 | `export_blocked` | The parent version did not pass the safety check (too little content, or contradictory sentences) | Generate it again |
 | 14 | `ai_failed` | The call to the AI service failed (network, key, balance) | Check your network and your account with the AI provider |
 
