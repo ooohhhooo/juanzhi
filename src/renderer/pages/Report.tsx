@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { subjectName, type SubjectId } from '../../shared/subject'
 import { useSubject } from '../subject/SubjectContext'
-import { App, Checkbox, Collapse, Modal, Popconfirm, Tooltip } from 'antd'
+import { App, Checkbox, Collapse, Modal, Popconfirm, Select, Tooltip } from 'antd'
 import { ClipboardList, Copy, FileText, FileType2, ImageDown, ImagePlus, Mail, MessageSquare, RotateCw, Sparkles, ShieldCheck, Trash2, X } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { keepSameSubject } from '../subject/placeholder'
@@ -14,6 +14,7 @@ import { NotCounted } from '../stats/Parts'
 import { cancelReport, dismissReportEntry, onReportDone, retryReportJob, startReport, takePendingDone, useReportJobs } from '../stats/reportStore'
 import type { ReportEntry } from '../stats/reportStore'
 import { READERS, READER_HINT, READER_LABEL } from '../../shared/report-post'
+import { clampPick, defaultCoursePick, isPickable, nextPick, searchOutlines, needsSearchSelect } from '../../shared/report-course-pick'
 import { AiDraftBadge, waitingText } from '../components/Plain'
 import { useElapsedSeconds } from '../hooks/useElapsed'
 import { useRoleGuideRole } from '../hooks/useUiPrefs'
@@ -142,7 +143,10 @@ export default function Report() {
   const [exporting, setExporting] = useState<'md' | 'pdf' | 'docx' | 'wechat' | null>(null)
   const [exported, setExported] = useState<ExportInfo | null>(null)
   const elapsed = useElapsedSeconds(entry?.startedAt, entry?.status === 'running')
+  const lastKey = `ewb.report.lastCourse.${subject}`
+  const readLast = (): string[] => { try { const v = JSON.parse(localStorage.getItem(lastKey) ?? '[]'); return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [] } catch { return [] } }
   const submit = (desc: string, rd: ReportReader, opts: ReportOptions | undefined) => {
+    if (opts?.course?.outlineIds.length) { try { localStorage.setItem(lastKey, JSON.stringify(opts.course.outlineIds)) } catch { /* 记不住也不影响生成 */ } }
     const r = startReport(filter, desc, rd, opts)
     setWatchId(r.requestId)
     if (r.result === 'duplicate') message.info('这份报告已在生成')
@@ -338,13 +342,19 @@ export default function Report() {
           {usable.length > 0 ? (
             <>
               <Checkbox checked={withCourse && courseSupported} disabled={!courseSupported} data-testid="report-course-check"
-                onChange={e => { setWithCourse(e.target.checked); if (e.target.checked && courseIds.length === 0) setCourseIds(usable.filter(o => o.match?.state === 'done' || o.match?.state === 'partial').map(o => o.id)) }}>加入课程对照</Checkbox>
+                onChange={e => { setWithCourse(e.target.checked); if (e.target.checked && pickedIds.length === 0) setCourseIds(defaultCoursePick(usable, readLast())) }}>加入课程对照</Checkbox>
               {!courseSupported && <span className="ewb-rep-muted" data-testid="report-course-boss-hint">老板版不加课程对照</span>}
               {courseOn && (
                 <div className="ewb-rep-course__list" data-testid="report-course-list">
-                  {usable.map(o => (
-                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={o.match?.state !== 'done' && o.match?.state !== 'partial'} data-testid={`report-course-outline-${o.id}`}
-                      onChange={e => setCourseIds(e.target.checked ? [...courseIds, o.id] : courseIds.filter(x => x !== o.id))}>
+                  {needsSearchSelect(usable) && (
+                    <Select mode="multiple" showSearch allowClear style={{ width: '100%', maxWidth: 520 }} data-testid="report-course-select" placeholder="搜名字或学期，最多选 3 份"
+                      value={pickedIds} filterOption={(input, opt) => searchOutlines([{ id: String(opt?.value), name: String((opt as any)?.label ?? ''), termNote: String((opt as any)?.term ?? '') }], input).length > 0}
+                      onChange={(v: string[]) => { const r = clampPick(v); if (r.notice) message.warning(r.notice); setCourseIds(r.ids) }}
+                      options={usable.map(o => ({ value: o.id, label: o.name, term: o.termNote ?? '', disabled: !isPickable(o) && !pickedIds.includes(o.id) }))} />
+                  )}
+                  {!needsSearchSelect(usable) && usable.map(o => (
+                    <Checkbox key={o.id} checked={courseIds.includes(o.id)} disabled={!isPickable(o)} data-testid={`report-course-outline-${o.id}`}
+                      onChange={e => { const r = nextPick(pickedIds, o.id, e.target.checked); if (r.notice) message.warning(r.notice); setCourseIds(r.ids) }}>
                       {o.name}{o.match?.state === 'partial' ? <span data-testid={`report-course-partial-${o.id}`}>（还有 {o.match.total - o.match.checked} 个知识点没匹配，结果可能不全；<a onClick={e => { e.preventDefault(); nav('/courses') }}>去匹配</a>）</span> : o.match?.state !== 'done' ? '（还没有匹配好，先到「课程大纲」页点“开始匹配”）' : ''}
                     </Checkbox>
                   ))}

@@ -157,6 +157,13 @@ interface ElectronAPI {
     setNote(id: string, note: string): Promise<boolean>
   }
   /** 课程对照（设置 → 课程大纲；看板「课程对照」页签） */
+  /** 教材书库（整本教材 PDF 的逐页原文，只在本机） */
+  books: {
+    list(): Promise<BookLibRow[]>
+    status(): Promise<BookBuildState[]>
+    units(id: string): Promise<Array<{ seq: number; key: string; title: string; pageStart: number; pageEnd: number; printedStart: number | null }>>
+    remove(id: string): Promise<boolean>
+  }
   course: {
     /** 只列这个学科的课程体系（不写 = 英语） */
     list(subject?: import('../shared/subject').SubjectId): Promise<CourseOutlineCard[]>
@@ -239,7 +246,7 @@ interface ElectronAPI {
   }
   questions: {
     list(paperId: string): Promise<QuestionList>
-    summary(): Promise<Array<{ paper_id: string; total: number; reviewed: number; attention: number }>>
+    summary(): Promise<Array<{ paper_id: string; total: number; reviewed: number; auto: number; attention: number }>>
     update(id: string, patch: QuestionPatch): Promise<QuestionView | null>
     remove(id: string): Promise<boolean>
     split(id: string, body: { first: { stem: string; options: string[] }; second: { no_label: string; stem: string; options: string[] } }): Promise<string>
@@ -570,6 +577,8 @@ interface AiConfig {
   vision_policy: 'auto' | 'images_always' | 'never'
   concurrency: number
   auto_parse: boolean
+  /** 新解析出的题：AI 和规则认的知识点一致时自动通过审核（默认开） */
+  auto_approve: boolean
   batch_pages: number
   timeout_sec: number
   max_tokens: number
@@ -1035,3 +1044,7 @@ declare module '*?raw' {
 }
 
 interface ConnectorView { id: string; type: string; name: string; summary: string; secretSet: boolean; tools?: Array<{ name: string; description: string; readOnly?: boolean }>; allowed?: string[]; transport?: 'stdio' | 'http'; preset?: string; lastTest?: { ok: boolean; message: string; at: number } }
+
+/** 书库里的一本书（outlineId = 上传整本教材时生成的那份课程体系） */
+interface BookLibRow { id: string; name: string; subject: string | null; edition: string | null; totalPages: number; unitVia: string | null; outlineId: string | null; builtAt: string; summary: { units: number; words: number; sentences: number; chars: number; writeChars: number; phrases: number; pages: number; emptyPages: number[]; ocrPages: number; line: string } | null }
+interface BookBuildState { hash: string; name: string; outlineId?: string | null; state: 'queued' | 'running' | 'done' | 'skipped' | 'error'; done: number; total: number; what: string; error?: string; summary?: BookLibRow['summary'] }

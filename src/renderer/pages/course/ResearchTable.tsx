@@ -9,6 +9,7 @@ import { useSubject } from '../../subject/SubjectContext'
 import { useStatsFilter } from '../../stats/StatsFilter'
 import FilterBar from '../../stats/StatsFilter'
 import { clean } from '../../components/CourseMatch'
+import CourseWizard from './CourseWizard'
 import { Btn, EmptyState, Panel, UsageNote } from '../../design'
 import '../../design/page-report.css'
 import '../../design/page-analysis.css'
@@ -36,7 +37,7 @@ const schoolText = (k: RKp, hasScores: boolean): string => (k.papers === 0 ? '�
  * 教材选择器：内置目录的版本很多（全国 40 多个），所以带搜索；每个版本折叠成一组，组里勾具体的册；
  * 勾了还没添加到“课程”里的册，点确定时会自动添加（内置目录，不需要 AI 匹配）。我上传的教材单独列在最前面。
  */
-function TextbookPicker({ open, onClose, cards, initial, onDone }: { open: boolean; onClose: () => void; cards: CourseOutlineCard[]; initial: string[]; onDone: (ids: string[]) => void }) {
+function TextbookPicker({ open, onClose, cards, initial, onDone, onUpload }: { open: boolean; onClose: () => void; cards: CourseOutlineCard[]; initial: string[]; onDone: (ids: string[]) => void; /** 没有书库的册：上传这册课本 PDF（label = 版本 年级册） */ onUpload: (label: string) => void }) {
   const { message } = App.useApp()
   const { subject, def } = useSubject()
   const [q, setQ] = useState('')
@@ -44,6 +45,10 @@ function TextbookPicker({ open, onClose, cards, initial, onDone }: { open: boole
   const [busy, setBusy] = useState(false)
   const { data: catalog } = useQuery({ queryKey: ['course', 'catalog', subject], queryFn: () => window.api.course.catalog(subject), enabled: open })
   const books = useMemo(() => cards.filter(c => c.kind === 'textbook' && c.status === 'active'), [cards])
+  // 哪些册有书库（上传过整本 PDF、建好了）：书库记着它属于哪份课程体系（outlineId）
+  const { data: bookRows } = useQuery({ queryKey: ['books', 'list'], queryFn: () => window.api.books.list(), enabled: open })
+  const withBook = useMemo(() => new Set((bookRows ?? []).map((b: { outlineId?: string | null }) => b.outlineId).filter((x): x is string => !!x)), [bookRows])
+  const bookOfCatalog = (editionId: string, key: string): boolean => books.some(b => { const p = parseBuiltin(b.builtinId); return !!p && p.editionId === editionId && p.keys.includes(key) && withBook.has(b.id) })
   useEffect(() => {
     if (!open) return
     const k: string[] = []
@@ -90,7 +95,7 @@ function TextbookPicker({ open, onClose, cards, initial, onDone }: { open: boole
           <div style={{ marginBottom: 12 }}>
             <div className="ewb-rep-note" style={{ marginBottom: 4 }}>我上传的教材</div>
             <div style={{ display: 'grid', gap: 4 }}>
-              {upl.map(b => <Checkbox key={b.id} checked={keys.includes(`ol:${b.id}`)} onChange={e => toggle(`ol:${b.id}`, e.target.checked)} data-testid={`research-book-ol-${b.id}`}>{b.name}</Checkbox>)}
+              {upl.map(b => <Checkbox key={b.id} checked={keys.includes(`ol:${b.id}`)} onChange={e => toggle(`ol:${b.id}`, e.target.checked)} data-testid={`research-book-ol-${b.id}`}>{b.name}{withBook.has(b.id) && <Tag color="green" style={{ marginLeft: 6 }} data-testid={`research-has-book-ol-${b.id}`}>有课本原文</Tag>}</Checkbox>)}
             </div>
           </div>
         )}
@@ -101,9 +106,14 @@ function TextbookPicker({ open, onClose, cards, initial, onDone }: { open: boole
           children: (
             <div style={{ display: 'grid', gap: 6 }}>
               {e.books.map(b => (
-                <Checkbox key={b.key} checked={keys.includes(`cat:${e.id}:${b.key}`)} onChange={ev => toggle(`cat:${e.id}:${b.key}`, ev.target.checked)} data-testid={`research-book-${e.id}-${b.key}`}>
+                <React.Fragment key={b.key}>
+                <Checkbox checked={keys.includes(`cat:${e.id}:${b.key}`)} onChange={ev => toggle(`cat:${e.id}:${b.key}`, ev.target.checked)} data-testid={`research-book-${e.id}-${b.key}`}>
                   {b.label}（{b.units} 个单元）{b.editionYear ? <span className="ewb-ana-meta" style={{ marginLeft: 6 }}>{b.editionYear}</span> : null}{added(e.id, b.key) ? <span className="ewb-ana-meta" style={{ marginLeft: 6 }}>已添加</span> : null}
+                  {bookOfCatalog(e.id, b.key) && <Tag color="green" style={{ marginLeft: 6 }} data-testid={`research-has-book-${e.id}-${b.key}`}>有课本原文</Tag>}
                 </Checkbox>
+                {!bookOfCatalog(e.id, b.key) && <a className="ewb-ana-meta" style={{ marginLeft: 24, fontSize: 12, opacity: 0.75 }} role="button" tabIndex={0} data-testid={`research-upload-book-${e.id}-${b.key}`}
+                  onClick={() => onUpload(`${e.edition} ${b.label}`)} onKeyDown={ev => { if (ev.key === 'Enter') onUpload(`${e.edition} ${b.label}`) }}>上传这册课本 PDF，结果更准</a>}
+                </React.Fragment>
               ))}
             </div>
           )
@@ -136,6 +146,7 @@ export default function ResearchTable() {
   // 三步：选我的大纲 → 选学校教材（版本和年级）→ 点“生成对照表”；其他选项收进“更多设置”
   const [go, setGo] = useState(false)
   const [picker, setPicker] = useState(false)
+  const [upload, setUpload] = useState<{ label: string } | null>(null)   // 从选教材弹窗进入的「上传这册课本 PDF」
   const [shown, setShown] = useState(PREVIEW_STEP)
   // AI 小结：点按钮才调，结果存在这里（换范围就清空）；导出时带给主进程，不再调 AI
   const [ai, setAi] = useState<{ summaries: Record<string, string>; note: string; running: boolean; reqId: string }>({ summaries: {}, note: '', running: false, reqId: '' })
@@ -240,7 +251,7 @@ export default function ResearchTable() {
         <div key={i} className="ewb-rt-loc" data-testid="research-loc" style={{ marginBottom: 6 }}>
           <span className="ewb-rt-loc__ed">{u.edition}</span>
           <span className="ewb-rt-loc__items">
-            <div>{locItem(u)}{u.byCatalog && <span className="ewb-ana-meta" style={{ marginLeft: 4 }} data-testid="research-by-catalog">按目录</span>}<Tag style={{ marginLeft: 6 }} color={u.score >= 60 ? 'green' : 'default'}>{u.similarity}</Tag></div>
+            <div>{locItem(u)}{u.byCatalog && <span className="ewb-ana-meta" style={{ marginLeft: 4 }} data-testid="research-by-catalog">按目录</span>}{u.byBook && <span className="ewb-ana-meta" style={{ marginLeft: 4 }} data-testid="research-by-book">课本原文</span>}<Tag style={{ marginLeft: 6 }} color={u.score >= 60 ? 'green' : 'default'}>{u.similarity}</Tag></div>
             <div className="ewb-ana-meta">{u.evidence}</div>
           </span>
         </div>
@@ -373,7 +384,8 @@ export default function ResearchTable() {
           )}
         </>
       )}
-      <TextbookPicker open={picker} onClose={() => setPicker(false)} cards={cards} initial={books} onDone={ids => { setBookIds(ids); qc.invalidateQueries({ queryKey: ['course'] }) }} />
+      <TextbookPicker open={picker} onClose={() => setPicker(false)} cards={cards} initial={books} onDone={ids => { setBookIds(ids); qc.invalidateQueries({ queryKey: ['course'] }) }} onUpload={label => { setPicker(false); setUpload({ label }) }} />
+      <CourseWizard open={!!upload} prefill={upload ?? undefined} onClose={() => { setUpload(null); qc.invalidateQueries({ queryKey: ['books'] }); qc.invalidateQueries({ queryKey: ['course'] }) }} />
     </div>
   )
 }

@@ -191,7 +191,7 @@ export const lessonKps: ToolDef = {
         k.examples.forEach((e, i) => out.push(`  例题 ${exampleText(e, i).split('\n').map((x, j) => (j ? `    ${clip(x, 160)}` : x)).join('\n')}`))
       }
     }
-    if (t.textbooks.length) out.push('', `教材位置：${l.units.length ? l.units.map(u => `${locText(u)}（${u.similarity}；${u.evidence}${u.byCatalog ? '；按目录' : ''}）`).join('；') : '所选教材里没有足够像的单元'}`)
+    if (t.textbooks.length) out.push('', `教材位置：${l.units.length ? l.units.map(u => `${locText(u)}（${u.similarity}；${u.evidence}${u.byCatalog ? '；按目录' : ''}${u.byBook ? '；课本原文' : ''}）`).join('；') : '所选教材里没有足够像的单元'}`)
     out.push('', '修订建议（程序规则，带依据）：', adviceCell(l))
     if (l.courseware.length) out.push('', `这节挂了课件：${l.courseware.map(c => `${c.name}（${c.chars} 字）`).join('、')}；要读内容用 courseware_read。`)
     return { text: out.join('\n'), count: l.kps.length }

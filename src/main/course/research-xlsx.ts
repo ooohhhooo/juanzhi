@@ -22,7 +22,7 @@ export const schoolCell = (k: RKp, hasScores = true): string => k.papers === 0 ?
 /** 匹配把握：老师看得懂的文字，括号里保留 0–100 的分数；下面一行是依据 */
 export const matchCell = (k: RKp): string => `${k.matchLabel}（${k.matchScore}）${k.evidence ? `\n${k.evidence}` : ''}`
 /** 这节课对应的教材单元：每行一个，写明很像 / 有点像和依据；只是按目录概括的单元标「按目录」 */
-export const unitsCell = (l: RLesson, hasBooks: boolean): string => !hasBooks ? '' : l.units.length ? l.units.map((u: UnitRef) => `${u.edition}  ${locItem(u)}（${u.similarity}（${u.score}）${u.byCatalog ? '，按目录' : ''}）\n  依据：${u.evidence}`).join('\n') : '没有找到足够像的单元'
+export const unitsCell = (l: RLesson, hasBooks: boolean): string => !hasBooks ? '' : l.units.length ? l.units.map((u: UnitRef) => `${u.edition}  ${locItem(u)}（${u.similarity}（${u.score}）${u.byCatalog ? '，按目录' : ''}${u.byBook ? '，课本原文' : ''}）\n  依据：${u.evidence}`).join('\n') : '没有找到足够像的单元'
 export function exampleText(e: ExampleQ, i: number): string {
   const stem = e.stem.replace(/\s+/g, ' ').trim().slice(0, 300)
   const opts = e.options.map(o => String(o).replace(/\s+/g, ' ').trim()).filter(Boolean)

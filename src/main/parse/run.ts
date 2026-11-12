@@ -30,6 +30,7 @@ import { TextOutputSchema, VisionOutputSchema, formatZodError, extractJson, FLAG
 import type { AnyQuestion } from './schema'
 import { mergeBatch, newMergeState, buildPrevContext } from './merge'
 import type { MergeState, MergedQuestion, Mode } from './merge'
+import { AUTO_APPROVED_FLAG, autoApproveAll } from './auto-approve'
 import { locateAll } from './locate'
 import type { PageGeom, LocateResult } from './locate'
 import { detectSimilar } from './similar'
@@ -490,18 +491,22 @@ function saveResults(
       INSERT INTO questions (id, paper_id, ord, no, no_label, section, section_title, qtype, material_id, stem, options, answer, score,
         difficulty, error_prone, error_reason, page_idx, bbox_json, bbox_source, anchor, anchor_ref, confidence, reviewed,
         kp_suggestion, kp_suggestion_status, flags_json, edited)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `)
     const insK = db.prepare('INSERT OR IGNORE INTO question_kps (question_id, kp_code, is_primary) VALUES (?, ?, ?)')
+    // 自动通过：AI 的主知识点和标志词规则认出的一致 → 直接标为审核通过（带「自动通过」标记）；设置里可以关
+    const parentOf = new Map((db.prepare('SELECT code, parent_code FROM kps').all() as unknown as Array<{ code: string; parent_code: string | null }>).map(r => [r.code, r.parent_code]))
+    const verdicts = loadConfig().auto_approve === false ? [] : autoApproveAll(finals.map(f => ({ stem: f.q.stem, options: f.q.options, answer: f.q.answer, kpMain: f.kp_main || null, kpSuggestion: f.kp_suggestion, confidence: f.confidence, flags: f.flags })), c => parentOf.get(c) ?? null)
     finals.forEach((f, i) => {
       const q = f.q
       const id = crypto.randomUUID()
+      const auto = !!verdicts[i]?.ok
       const sec = state.sections.find(s => s.no === q.section && s.inst === q.inst)
       insQ.run(id, paperId, i + 1, /^\d+$/.test(q.no) ? Number(q.no) : null, q.no, q.section, sec?.title ?? '', f.qtype, q.material_id,
         q.stem, JSON.stringify(q.options), q.answer, f.score, q.difficulty, q.error_prone ? 1 : 0, q.error_reason,
         f.loc.page, f.loc.bbox ? JSON.stringify(f.loc.bbox) : null, f.loc.source,
-        typeof q.anchor === 'string' ? q.anchor : q.anchor ? JSON.stringify(q.anchor) : '', q.anchor_ref, f.confidence,
-        f.kp_suggestion, f.kp_suggestion ? 'pending' : null, JSON.stringify(f.flags))
+        typeof q.anchor === 'string' ? q.anchor : q.anchor ? JSON.stringify(q.anchor) : '', q.anchor_ref, f.confidence, auto ? 1 : 0,
+        f.kp_suggestion, f.kp_suggestion ? 'pending' : null, JSON.stringify(auto ? [...f.flags, AUTO_APPROVED_FLAG] : f.flags))
       if (f.kp_main) insK.run(id, f.kp_main, 1)
       for (const k of f.kp_secondary) insK.run(id, k, 0)
     })

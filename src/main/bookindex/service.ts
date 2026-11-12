@@ -18,7 +18,7 @@ import { makeOcr, ocrAvailable, readTextLayer } from './reader'
 import type { UnitClassifier } from './structure'
 
 export interface BuildRequest { file: string; hash: string; name: string; subject?: string | null; edition?: string | null; outlineId?: string | null; totalPages?: number }
-export type BuildState = { hash: string; name: string; state: 'queued' | 'running' | 'done' | 'skipped' | 'error'; done: number; total: number; what: string; summary?: BookSummary; error?: string }
+export type BuildState = { hash: string; name: string; /** 关联的课程体系（教材详情里按它找建库进度） */ outlineId?: string | null; state: 'queued' | 'running' | 'done' | 'skipped' | 'error'; done: number; total: number; what: string; summary?: BookSummary; error?: string }
 
 /** 书库最多处理多少页的书（和教材上传的 300 页上限一致，留一点余量） */
 export const BOOK_MAX_PAGES = 400
@@ -53,18 +53,18 @@ export function scheduleBookBuild(req: BuildRequest): BuildState {
   if (hasBook(db, req.hash)) {
     if (req.outlineId) db.prepare('UPDATE book_files SET outline_id = ? WHERE id = ?').run(req.outlineId, req.hash)
     const b = getBook(db, req.hash)
-    const st: BuildState = { hash: req.hash, name: req.name, state: 'skipped', done: b?.totalPages ?? 0, total: b?.totalPages ?? 0, what: '已在书库里', summary: b?.summary }
+    const st: BuildState = { hash: req.hash, name: req.name, outlineId: req.outlineId ?? b?.outlineId ?? null, state: 'skipped', done: b?.totalPages ?? 0, total: b?.totalPages ?? 0, what: '已在书库里', summary: b?.summary }
     states.set(req.hash, st)
     return st
   }
   const cur = states.get(req.hash)
   if (cur && (cur.state === 'queued' || cur.state === 'running')) return cur
   if (req.totalPages && req.totalPages > BOOK_MAX_PAGES) {
-    const st: BuildState = { hash: req.hash, name: req.name, state: 'error', done: 0, total: req.totalPages, what: '', error: `这本书有 ${req.totalPages} 页，超过书库的 ${BOOK_MAX_PAGES} 页上限，没有建书库` }
+    const st: BuildState = { hash: req.hash, name: req.name, outlineId: req.outlineId ?? null, state: 'error', done: 0, total: req.totalPages, what: '', error: `这本书有 ${req.totalPages} 页，超过书库的 ${BOOK_MAX_PAGES} 页上限，没有建书库` }
     states.set(req.hash, st)
     return st
   }
-  const st: BuildState = { hash: req.hash, name: req.name, state: 'queued', done: 0, total: req.totalPages ?? 0, what: '排队中' }
+  const st: BuildState = { hash: req.hash, name: req.name, outlineId: req.outlineId ?? null, state: 'queued', done: 0, total: req.totalPages ?? 0, what: '排队中' }
   states.set(req.hash, st)
   queue.push(req)
   void pump()

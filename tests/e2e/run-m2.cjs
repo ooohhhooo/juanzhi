@@ -425,7 +425,7 @@ async function phaseFailures() {
   await page.getByRole('button', { name: /取\s*消/ }).click().catch(() => {})
   await sleep(600)
   const afterCancel1 = await paperByFile(page, 'g4-2026-meta.pdf')
-  check('N7 重新提取确认', '试卷库里对「AI 解析失败但保留着旧题」的试卷点「重新提取」：先弹确认，写明「36 道题、其中 1 道已审核」并提示旧题会丢；取消后什么都没变', !!dlg1 && /36/.test(dlg1Txt) && /其中 1 道已审核/.test(dlg1Txt) && /AI 解析失败/.test(dlg1Txt) && afterCancel1.status === 'failed' && (await getQs(page, id)).questions.length === 36 && (await page.evaluate(i => window.api.papers.pages(i), id)).length === 2, dlg1Txt.replace(/\n/g, ' ').slice(0, 90))
+  check('N7 重新提取确认', '试卷库里对「AI 解析失败但保留着旧题」的试卷点「重新提取」：先弹确认，写明「36 道题、其中 N 道已审核（含自动通过的）」并提示旧题会丢；取消后什么都没变', !!dlg1 && /36/.test(dlg1Txt) && /其中 \d+ 道已审核/.test(dlg1Txt) && /AI 解析失败/.test(dlg1Txt) && afterCancel1.status === 'failed' && (await getQs(page, id)).questions.length === 36 && (await page.evaluate(i => window.api.papers.pages(i), id)).length === 2, dlg1Txt.replace(/\n/g, ' ').slice(0, 90))
   await page.evaluate(() => { location.hash = '#/queue' })
   await page.getByText(/需处理/).first().click()
   await page.locator('tr', { hasText: 'g4-2026-meta.pdf' }).locator('[data-testid=retry-menu]').click()
@@ -434,7 +434,7 @@ async function phaseFailures() {
   const dlg2Txt = dlg2 ? await dlg2.innerText() : ''
   await page.getByRole('button', { name: /取\s*消/ }).click().catch(() => {})
   await sleep(600)
-  check('N7 重新提取确认', '处理队列的「从头重试」同样先确认；取消后试卷仍是 failed、旧题目还在', !!dlg2 && /36/.test(dlg2Txt) && /其中 1 道已审核/.test(dlg2Txt) && (await paperByFile(page, 'g4-2026-meta.pdf')).status === 'failed' && (await getQs(page, id)).questions.length === 36, dlg2Txt.replace(/\n/g, ' ').slice(0, 90))
+  check('N7 重新提取确认', '处理队列的「从头重试」同样先确认；取消后试卷仍是 failed、旧题目还在', !!dlg2 && /36/.test(dlg2Txt) && /其中 \d+ 道已审核/.test(dlg2Txt) && (await paperByFile(page, 'g4-2026-meta.pdf')).status === 'failed' && (await getQs(page, id)).questions.length === 36, dlg2Txt.replace(/\n/g, ' ').slice(0, 90))
   await recover()
   o = await run('badjson×1', [{ type: 'badjson', times: 1 }])
   check('故障：非法 JSON', '第一次非法 JSON → 带着错误信息让模型重来一次 → 成功（第二次请求的末尾是反馈消息，共 4 条消息）', o.p.status === 'reviewing' && o.reqs.length === 2 && /不是合法的 JSON/.test(o.reqs[1].retryFeedback) && o.reqs[1].messageCount === 4, `${o.reqs.length} 次；反馈=${o.reqs[1]?.retryFeedback.slice(0, 40)}`)
@@ -766,7 +766,9 @@ async function phaseReview() {
   await page.getByText(/待确认 \d+/).first().click()
   const nTodo = await items().count()
   await page.getByText(/全部 \d+/).first().click()
-  check('审核页', '左栏筛选：「需关注」只剩 2 题（Q22、Q30），「待确认」= 36 − 已确认 1 = 35，「全部」36', nAttn === 2 && nTodo === 35 && (await items().count()) === 36, `需关注 ${nAttn} / 待确认 ${nTodo}`)
+  // 已确认 = 老师确认的 + 解析时自动通过的（AI 和规则一致）
+  const nDone = await page.locator('[data-testid=q-item][data-reviewed="1"]').count()
+  check('审核页', '左栏筛选：「需关注」只剩 2 题（Q22、Q30），「待确认」= 36 − 已确认（含自动通过），「全部」36', nAttn === 2 && nDone >= 1 && nTodo === 36 - nDone && (await items().count()) === 36, `需关注 ${nAttn} / 待确认 ${nTodo} / 已确认 ${nDone}`)
   await selectQ(26)
   await page.waitForFunction(() => /第 2 \/ 2 页/.test(document.querySelector('[data-testid=page-indicator]')?.textContent || ''))
   await page.locator('[data-testid=question-form] .ant-collapse-header').first().click()

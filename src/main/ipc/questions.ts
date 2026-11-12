@@ -130,6 +130,7 @@ export function registerQuestionIpc(): void {
   ipcMain.handle('questions:summary', async () => {
     return getDb().prepare(`
       SELECT paper_id, COUNT(*) total, SUM(reviewed) reviewed,
+        SUM(CASE WHEN reviewed = 1 AND flags_json LIKE '%"auto_approved"%' THEN 1 ELSE 0 END) auto,
         SUM(CASE WHEN reviewed = 0 AND (confidence < ? OR kp_suggestion_status = 'pending') THEN 1 ELSE 0 END) attention
       FROM questions GROUP BY paper_id
     `).all(LOW_CONFIDENCE)
@@ -160,6 +161,11 @@ export function registerQuestionIpc(): void {
     }
     if (p.reviewed !== undefined) set('reviewed', p.reviewed ? 1 : 0)
     if (contentChanged) set('edited', 1)
+    // 老师动过这道题（改内容、改知识点、改审核状态）：它不再是「自动通过」，由老师接管
+    if (contentChanged || p.reviewed !== undefined || p.kp_main !== undefined || p.kp_secondary !== undefined) {
+      const fl = json<string[]>(cur.flags_json, [])
+      if (fl.includes('auto_approved')) set('flags_json', JSON.stringify(fl.filter(f => f !== 'auto_approved')))
+    }
 
     let dropped: string[] = []
     db.exec('BEGIN')
