@@ -14,6 +14,9 @@ import { GAP_MIN_PAPERS, subtree } from './stats.ts'
 import { listOutlines } from './store.ts'
 import { lessonName } from './map.ts'
 import { compareCourseTextbook } from './compare.ts'
+import { findEdition } from './catalog.ts'
+import { parseBuiltinId } from './textbook-builtin.ts'
+import { formatLoc } from '../../shared/tb-loc.ts'
 import { coursewareOfLesson, lessonKey, listCourseware } from './courseware.ts'
 
 type Db = any
@@ -31,7 +34,7 @@ export type LessonPick = (l: { id: number; levelName: string; seq: number; noLab
 export interface ResearchOptions { courseId: string; courseBId?: string; textbookIds: string[]; perKp?: number; courseware?: CoursewareLookup; lessonFilter?: LessonPick }
 
 export interface ExampleQ { id: string; paperId: string; paperTitle: string; no: string; stem: string; options: string[]; answer: string; errorProne: boolean; errorReason: string }
-export interface TbLoc { outlineId: string; outlineName: string; levelName: string; label: string; title: string; pages: string; coarse: boolean }
+export interface TbLoc { outlineId: string; outlineName: string; /** 版本显示名（内置教材取目录里的版本名；上传的教材用它自己的名字） */ edition: string; levelName: string; label: string; title: string; pages: string; coarse: boolean }
 export interface BRef { levelName: string; label: string; coarse: boolean }
 export interface RKp {
   code: string; name: string; group: string; groupCode: string
@@ -103,6 +106,9 @@ function lessonsOf(db: Db, outlineId: string, outlineName: string): LessonInfo[]
   })
 }
 
+/** 教材的版本显示名：内置目录用目录里的版本名，上传的教材用它的名字 */
+export const editionNameOf = (c: { name: string; builtinId?: string }): string => { const p = c.builtinId ? parseBuiltinId(c.builtinId) : null; return (p && findEdition(p.editionId)?.edition) || c.name }
+
 const oneLine = (s: string, n: number): string => { const t = (s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t }
 const norm = (s: string): string => s.normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '')
 
@@ -148,14 +154,14 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
 
   const bInfo = B ? new Map(lessonsOf(db, B.id, B.name).map(l => [l.id, l])) : new Map<number, LessonInfo>()
   const bMap: ByKp = B ? byKpOf(B.id) : new Map()
-  const tbs = books.map(b => ({ b, info: new Map(lessonsOf(db, b.id, b.name).map(l => [l.id, l])), byKp: byKpOf(b.id) }))
+  const tbs = books.map(b => ({ b, edition: editionNameOf(b), info: new Map(lessonsOf(db, b.id, b.name).map(l => [l.id, l])), byKp: byKpOf(b.id) }))
 
   const locsOf = (code: string): TbLoc[] => {
     const out: TbLoc[] = []
     for (const t of tbs) {
       const r = relatedLessons(t.byKp, code)
-      const pick = (ids: number[], coarse: boolean, max: number) => ids.map(id => t.info.get(id)).filter((x): x is LessonInfo => !!x).sort((a, z) => a.levelIdx - z.levelIdx || a.seq - z.seq).slice(0, max).map(l => ({ outlineId: t.b.id, outlineName: t.b.name, levelName: l.levelName, label: l.label, title: l.title, pages: l.pages, coarse }))
-      const d = pick(r.direct, false, 4)
+      const pick = (ids: number[], coarse: boolean, max: number) => ids.map(id => t.info.get(id)).filter((x): x is LessonInfo => !!x).sort((a, z) => a.levelIdx - z.levelIdx || a.seq - z.seq).slice(0, max).map(l => ({ outlineId: t.b.id, outlineName: t.b.name, edition: t.edition, levelName: l.levelName, label: l.label, title: l.title, pages: l.pages, coarse }))
+      const d = pick(r.direct, false, 12)
       out.push(...(d.length ? d : pick(r.coarse, true, 2)))
     }
     return out
@@ -225,7 +231,7 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
     const groups: RLesson['groups'] = []
     for (const k of kps) { let g = groups.find(x => x.code === k.groupCode); if (!g) { g = { name: k.group, code: k.groupCode, kps: [] }; groups.push(g) } g.kps.push(k) }
     const cw = opts.courseware?.(A.id, l.levelName, l.seq) ?? []
-    const advice = adviceOf({ lesson: l, kps, cw, books: tbs.map(t => t.b), hasBooks: books.length > 0, smallSample, minPapers, paperTotal: counts.papers, uncoveredByCode, tbUnitKps, tbs, aCodes: aMap, relatedLessons, kpOf, kpRows, runningMax })
+    const advice = adviceOf({ lesson: l, kps, cw, books: tbs.map(t => t.b), hasBooks: books.length > 0, smallSample, minPapers, paperTotal: counts.papers, uncoveredByCode, tbUnitKps, tbs, aCodes: aMap, relatedLessons, kpOf, kpRows, runningMax, subOf: sub })
     lessons.push({ lessonId: l.id, outlineId: A.id, levelName: l.levelName, seq: l.seq, noLabel: l.noLabel, label: l.label, title: l.title, groups, kps, courseware: cw.map(c => ({ id: c.id, name: c.name, chars: c.text.length })), advice, aiAdvice: '' })
   }
 
@@ -275,17 +281,20 @@ interface AdviceCtx {
   smallSample: boolean; minPapers: number; paperTotal: number
   uncoveredByCode: Map<string, TbNotInA>
   tbUnitKps: Map<string, Set<string>>
-  tbs: Array<{ b: { id: string; name: string }; info: Map<number, LessonInfo>; byKp: Map<string, Set<number>> }>
+  tbs: Array<{ b: { id: string; name: string }; edition: string; info: Map<number, LessonInfo>; byKp: Map<string, Set<number>> }>
   aCodes: Map<string, Set<number>>
   relatedLessons: (byKp: Map<string, Set<number>>, code: string) => { direct: number[]; coarse: number[] }
   kpOf: (code: string) => RKp
   kpRows: Map<string, any>
   runningMax: Map<string, number>
+  subOf: Map<string, string[]>
 }
 
 /** 一个知识点在教材里直接出现在这么多个册次以上，就当螺旋式知识点，不拿它判断顺序 */
 const SPIRAL_LEVELS = 3
-const locText = (l: TbLoc): string => `${l.outlineName === l.levelName ? '' : `${l.outlineName} `}${l.levelName} ${l.label}${l.pages ? `（${l.pages}）` : ''}${l.coarse ? '（较粗）' : ''}`.replace(/\s+/g, ' ').trim()
+/** 每节课「同单元要补」最多列几条 */
+export const MAX_ADD_UNIT = 5
+const locText = (l: TbLoc): string => formatLoc(l)
 const schoolText = (k: RKp): string => `校内 ${k.papers}/${k.paperTotal} 份卷子考过、共 ${k.questions} 题${k.errorCount ? `、其中 ${k.errorCount} 题易错` : ''}`
 
 /** 课件里有没有提到这个知识点：知识点名，或词表里长一点的词，出现在课件文字里就算 */
@@ -332,26 +341,38 @@ function adviceOf(c: AdviceCtx): AdviceItem[] {
       out.push({ kind: 'add', kpCode: k.code, basis, text: `「${k.name}」：${basis.join('；')}。` })
     }
   }
-  // 要补（同一教材单元里还考到、A 整份大纲都没讲）
+  // 要补（同一教材单元里还考到、A 整份大纲都没讲）：只挂和这节课知识点有关的（子孙 / 兄弟），或校内常考的；最多 MAX_ADD_UNIT 条，其余合成一句
   if (c.hasBooks) {
     const seen = new Set<string>()
     const cand: Array<{ code: string; unit: string }> = []
+    const parentOf = (x: string): string | null => (c.kpRows.get(x)?.parent_code as string | null | undefined) ?? null
+    const related = (code: string): boolean => c.kps.some(k => {
+      const kp = parentOf(k.code), cp = parentOf(code)
+      return (c.subOf.get(k.code) ?? [k.code]).includes(code) || (!!kp && kp === cp)
+    })
     for (const t of c.tbs) for (const k of c.kps) {
       const r = c.relatedLessons(t.byKp, k.code)
       for (const lid of r.direct) {
         const u = t.info.get(lid)
         for (const code of c.tbUnitKps.get(`${t.b.id}|${lid}`) ?? []) {
-          if (seen.has(code) || !c.uncoveredByCode.has(code)) continue
+          if (seen.has(code)) continue
+          const unc = c.uncoveredByCode.get(code)
+          if (!unc || !(unc.frequent || related(code))) continue
           seen.add(code)
-          cand.push({ code, unit: `${t.b.name === u?.levelName ? '' : `${t.b.name} `}${u?.levelName ?? ''} ${u?.label ?? ''}`.replace(/\s+/g, ' ').trim() })
+          cand.push({ code, unit: formatLoc({ outlineName: t.b.name, edition: t.edition, levelName: u?.levelName ?? '', label: u?.label ?? '', title: u?.title ?? '', pages: '', coarse: false }) })
         }
       }
     }
-    cand.sort((x, y) => { const a = c.uncoveredByCode.get(x.code)!, b = c.uncoveredByCode.get(y.code)!; return b.papers - a.papers || b.errorCount - a.errorCount || (x.code < y.code ? -1 : 1) })
-    for (const x of cand.slice(0, 4)) {
+    cand.sort((x, y) => { const a = c.uncoveredByCode.get(x.code)!, b = c.uncoveredByCode.get(y.code)!; return (b.frequent ? 1 : 0) - (a.frequent ? 1 : 0) || b.papers - a.papers || b.errorCount - a.errorCount || (x.code < y.code ? -1 : 1) })
+    for (const x of cand.slice(0, MAX_ADD_UNIT)) {
       const u = c.uncoveredByCode.get(x.code)!
       const basis = [`与本节知识点同在教材 ${x.unit}`, `机构大纲 A 整份都没有讲到「${u.name}」`, `校内 ${u.papers}/${u.paperTotal} 份卷子考过${u.errorCount ? `、${u.errorCount} 题易错` : ''}`]
       out.push({ kind: 'add', kpCode: x.code, basis, text: `「${u.name}」：${basis.join('；')}。` })
+    }
+    if (cand.length > MAX_ADD_UNIT) {
+      const n = cand.length - MAX_ADD_UNIT
+      const text = `另有 ${n} 个知识点同在这些单元、机构没讲，见下方“教材有、机构大纲没讲的”。`
+      out.push({ kind: 'add', basis: [`另有 ${n} 个知识点同在这些教材单元、机构大纲整份没讲`], text })
     }
   }
   alignAdvice(c, c.kps, out)
@@ -416,7 +437,7 @@ export function locateInTextbooks(db: Db, subject: unknown, codes: string[], boo
       const direct = new Set<number>(), coarse = new Set<number>()
       for (const c of subs.get(code) ?? [code]) for (const l of m.get(c) ?? []) direct.add(l)
       for (const c of anc(code)) for (const l of m.get(c) ?? []) if (!direct.has(l)) coarse.add(l)
-      const pick = (ids: Set<number>, isCoarse: boolean) => [...ids].map(id => info.get(id)).filter((x): x is LessonInfo => !!x).sort((a, z) => a.levelIdx - z.levelIdx || a.seq - z.seq).map(l => ({ outlineId: b.id, outlineName: b.name, levelName: l.levelName, label: l.label, title: l.title, pages: l.pages, coarse: isCoarse }))
+      const pick = (ids: Set<number>, isCoarse: boolean) => [...ids].map(id => info.get(id)).filter((x): x is LessonInfo => !!x).sort((a, z) => a.levelIdx - z.levelIdx || a.seq - z.seq).map(l => ({ outlineId: b.id, outlineName: b.name, edition: editionNameOf(b), levelName: l.levelName, label: l.label, title: l.title, pages: l.pages, coarse: isCoarse }))
       const d = pick(direct, false)
       out.push(...(d.length ? d : pick(coarse, true)))
     }

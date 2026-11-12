@@ -206,7 +206,7 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
     assert.match(sheet1, /<mergeCell ref="A\d+:A\d+"\/>/, '一节课多行时合并课程列')
     assert.match(sheet1, /wrapText|ht="/)
     const sst = await zip.file('xl/sharedStrings.xml').async('string')
-    for (const s of ['基础级 第 1 课', '规则变化', '卷一', '修订建议', '示例教材', '第 18–25 页', '答案：A']) assert.ok(sst.includes(s), `共享字符串里有「${s}」`)
+    for (const s of ['基础级 第 1 课', '规则变化', '卷一', '修订建议', '示例教材', 'p.18–25', '五上 U2 Plurals', '答案：A']) assert.ok(sst.includes(s), `共享字符串里有「${s}」`)
     assert.ok(!/手机|电话|\d{11}/.test(sst), '不含学员信息')
     const rb = researchTable(db, F, { courseId: A, courseBId: B, textbookIds: [T] })
     const zb = await JSZip.loadAsync(await researchXlsx(rb, { filterDesc: 'x', generatedAt: 'y' }))
@@ -286,7 +286,7 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
     assert.ok(fs.existsSync(xlsx) || out.text.includes('.xlsx'), '带格式的 xlsx 已写')
     // 教材定位
     const loc = tLocate.run({ kp: '名词复数' }, ctx)
-    assert.match(loc.text, /示例教材/); assert.match(loc.text, /第 18–25 页/)
+    assert.match(loc.text, /示例教材/); assert.match(loc.text, /p\.18–25/)
     assert.match(tLocate.run({ kp: '一般过去时' }, ctx).text, /较粗|Unit 3/)
     assert.match(tLocate.run({ kp: 'Unit 3' }, ctx).text, /Unit 3 Past/, '关键词在单元标题里找')
     assert.match(tLocate.run({ kp: '根本没有的词xyz' }, ctx).text, /没有叫/)
@@ -323,6 +323,45 @@ const kpOf = (l, code) => l.kps.find(k => k.code === code)
     const one = researchTableWithCourseware(db, dir, F, { courseId: A, textbookIds: [T], lessonFilter: l => l.title === 'Plural' })
     assert.deepEqual(one.lessons.map(l => l.title), ['Plural'])
   } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+}
+
+// ── 「要补」只挂有关的：子孙 / 兄弟 / 常考；每节最多 5 条，超出合成一句 ──
+{
+  const { db: d2 } = newDb()
+  useTree(d2, [
+    ['GR', null, '语法', 1], ['GR.PLU', 'GR', '名词复数', 2], ['GR.ART', 'GR', '冠词', 2],
+    ['GR.S1', 'GR', '兄弟一', 2], ['GR.S2', 'GR', '兄弟二', 2], ['GR.S3', 'GR', '兄弟三', 2], ['GR.S4', 'GR', '兄弟四', 2], ['GR.S5', 'GR', '兄弟五', 2], ['GR.S6', 'GR', '兄弟六', 2], ['GR.S7', 'GR', '兄弟七', 2],
+    ['VO', null, '词汇', 1], ['VO.NUM', 'VO', '基数词', 2], ['VO.LET', 'VO', '字母', 2], ['RD', null, '阅读', 1], ['RD.DET', 'RD', '细节理解', 2]
+  ])
+  const qq = kp => ({ kp, score: 2, stem: `${kp} 题` })
+  addPaper(d2, { title: 'A卷', year: 2025, questions: [qq('RD.DET'), qq('VO.NUM'), qq('GR.PLU')] })
+  addPaper(d2, { title: 'B卷', year: 2025, questions: [qq('RD.DET'), qq('GR.PLU')] })
+  addPaper(d2, { title: 'C卷', year: 2024, questions: [qq('RD.DET'), qq('GR.PLU')] })
+  const les = (seq, title) => ({ seq, noLabel: String(seq), title, theme: '', textbookRef: '', points: [], raw: {} })
+  const mk = (name, kind, levels) => createOutline(d2, { name, scene: 'org', termNote: '', sourceName: '', sourceHash: '', mapping: null, warnings: [], aiModel: '', status: 'active', levels, kind })
+  const ids = id => Object.fromEntries(d2.prepare('SELECT id, title FROM course_lessons WHERE outline_id = ?').all(id).map(r => [r.title, r.id]))
+  const map = (id, pairs) => { const l = ids(id); for (const [kp, t] of pairs) editMap(d2, { op: 'add', outlineId: id, kp, lessonId: l[t] }); markBuiltinChecked(d2, id, 'english') }
+  const A2 = mk('机构甲', 'course', [{ name: '基础', lessons: [les(1, 'Plural')] }])
+  map(A2, [['GR.PLU', 'Plural']])
+  const T1 = mk('教材一', 'textbook', [{ name: '三年级上册', lessons: [les(1, 'Unit 1 Mixed')] }])
+  map(T1, [['GR.PLU', 'Unit 1 Mixed'], ['GR.ART', 'Unit 1 Mixed'], ['VO.NUM', 'Unit 1 Mixed'], ['VO.LET', 'Unit 1 Mixed'], ['RD.DET', 'Unit 1 Mixed']])
+  const r1 = researchTable(d2, {}, { courseId: A2, textbookIds: [T1] })
+  const adds1 = r1.lessons[0].advice.filter(a => a.kind === 'add').map(a => a.kpCode)
+  assert.ok(adds1.includes('GR.ART'), '同一个父节点的兄弟要挂')
+  assert.ok(adds1.includes('RD.DET'), '校内常考的要挂，哪怕不相关')
+  assert.ok(!adds1.includes('VO.NUM') && !adds1.includes('VO.LET'), '无关又不常考的（基数词、字母）不挂')
+  assert.equal(r1.tbNotInA.length, 4, '整份没讲的仍完整列在底部')
+
+  const T2 = mk('教材二', 'textbook', [{ name: '三年级上册', lessons: [les(1, 'Unit 2 Many')] }])
+  map(T2, [['GR.PLU', 'Unit 2 Many'], ...[1, 2, 3, 4, 5, 6, 7].map(i => [`GR.S${i}`, 'Unit 2 Many'])])
+  const r2 = researchTable(d2, {}, { courseId: A2, textbookIds: [T2] })
+  const adds2 = r2.lessons[0].advice.filter(a => a.kind === 'add')
+  assert.equal(adds2.length, 6, '最多 5 条 + 一句合并')
+  assert.equal(adds2.filter(a => a.kpCode).length, 5)
+  assert.match(adds2[5].text, /另有 2 个知识点同在这些单元、机构没讲.*教材有、机构大纲没讲的/)
+  assert.equal(adds2[5].kpCode, undefined)
+  assert.equal(r2.tbNotInA.length, 7, '底部列表仍是全部 7 个')
+  assert.equal(r2.lessons[0].kps.find(k => k.code === 'GR.PLU').locs[0].edition, '教材二', '无目录的教材用自己的名字当版本')
 }
 
 console.log('research-table.test.mjs OK')

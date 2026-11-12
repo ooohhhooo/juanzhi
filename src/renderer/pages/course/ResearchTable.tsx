@@ -3,6 +3,7 @@ import { App, Checkbox, Collapse, InputNumber, Modal, Select, Spin, Table, Tag }
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Download, Paperclip, Sparkles } from 'lucide-react'
+import { groupLocs } from '../../../shared/tb-loc'
 import { useSubject } from '../../subject/SubjectContext'
 import { useStatsFilter } from '../../stats/StatsFilter'
 import FilterBar from '../../stats/StatsFilter'
@@ -26,7 +27,6 @@ const parseBuiltin = (s: string): { editionId: string; keys: string[] } | null =
   return m ? { editionId: m[1], keys: m[2].split(',').filter(Boolean) } : null
 }
 
-const locText = (l: RKp['locs'][number]): string => `${l.outlineName === l.levelName ? '' : `${l.outlineName}：`}${l.levelName} ${l.label}${l.pages ? `（${l.pages}）` : ''}${l.coarse ? ' · 较粗' : ''}`
 const schoolText = (k: RKp): string => (k.papers === 0 ? '范围内没有考到' : `${k.questions} 题 · ${k.papers}/${k.paperTotal} 份卷子${k.frequent ? ' · 常考' : ''}${k.errorCount ? ` · 易错 ${k.errorCount} 题` : ''}`)
 
 // ───────────────────────── 选教材：能搜索、按版本分组选册 ─────────────────────────
@@ -197,9 +197,15 @@ export default function ResearchTable() {
     } catch (e) { message.error(clean(e)) } finally { setBusy(false) }
   }
 
+  // 列宽按百分比分：有教材 / 有 B 时各让出一块，加起来 100%
+  const W = useMemo(() => {
+    const base: Record<string, number> = { lesson: 12, group: 6, kp: 9, loc: books.length ? 20 : 0, school: 9, ex: 22, b: t?.courseB ? 9 : 0, advice: 22 }
+    const sum = Object.values(base).reduce((a, b) => a + b, 0)
+    return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, `${(v * 100 / sum).toFixed(2)}%`])) as Record<string, string>
+  }, [books.length, t?.courseB])
   const columns: ColumnsType<Row> = [
     {
-      title: '课', dataIndex: 'lesson', width: 150, onCell: r => ({ rowSpan: r.span }),
+      title: '课', dataIndex: 'lesson', width: W.lesson, className: 'ewb-rt-lesson', onCell: r => ({ rowSpan: r.span }),
       render: (_: unknown, r) => (
         <div data-testid={`research-lesson-${r.lesson.lessonId}`}>
           <b>{r.lesson.levelName} {r.lesson.label}</b>
@@ -212,12 +218,17 @@ export default function ResearchTable() {
         </div>
       )
     },
-    { title: '大类', width: 80, render: (_: unknown, r) => r.kp?.group ?? <span className="ewb-ana-meta">这节课没有对应的知识点</span> },
-    { title: '知识点', width: 120, render: (_: unknown, r) => (r.kp ? <b>{r.kp.name}</b> : '') },
-    ...(books.length ? [{ title: '教材位置', width: 200, render: (_: unknown, r: Row) => (r.kp ? (r.kp.locs.length ? r.kp.locs.map((l, i) => <div key={i} className="ewb-ana-meta" style={{ color: l.coarse ? undefined : 'inherit' }} data-testid="research-loc">{locText(l)}</div>) : <span className="ewb-ana-meta">教材里没有找到</span>) : '') }] : []),
-    { title: '校内考察', width: 150, render: (_: unknown, r) => (r.kp ? <span data-testid="research-school">{schoolText(r.kp)}</span> : '') },
+    { title: '大类', width: W.group, render: (_: unknown, r) => r.kp?.group ?? <span className="ewb-ana-meta">这节课没有对应的知识点</span> },
+    { title: '知识点', width: W.kp, render: (_: unknown, r) => (r.kp ? <b>{r.kp.name}</b> : '') },
+    ...(books.length ? [{ title: '教材位置', width: W.loc, render: (_: unknown, r: Row) => (r.kp ? (r.kp.locs.length ? groupLocs(r.kp.locs).map((g, gi) => (
+      <div key={gi} className="ewb-rt-loc" data-testid="research-loc">
+        <span className="ewb-rt-loc__ed">{g.edition}</span>
+        <span className="ewb-rt-loc__items">{g.items.map((it, i) => <div key={i}>{it}</div>)}{g.more > 0 && <div className="ewb-ana-meta">等 {g.items.length + g.more} 处</div>}</span>
+      </div>
+    )) : <span className="ewb-ana-meta">教材里没有找到</span>) : '') }] : []),
+    { title: '校内考察', width: W.school, render: (_: unknown, r) => (r.kp ? <span data-testid="research-school">{schoolText(r.kp)}</span> : '') },
     {
-      title: '校内例题', render: (_: unknown, r) => (r.kp ? (r.kp.examples.length ? (
+      title: '校内例题', width: W.ex, render: (_: unknown, r) => (r.kp ? (r.kp.examples.length ? (
         <div style={{ display: 'grid', gap: 8 }}>
           {r.kp.examples.map(e => (
             <div key={e.id} data-testid="research-example">
@@ -230,9 +241,9 @@ export default function ResearchTable() {
         </div>
       ) : <span className="ewb-ana-meta">范围内没有这个知识点的题</span>) : '')
     },
-    ...(t?.courseB ? [{ title: `「${t.courseB.name}」里的课`, width: 140, render: (_: unknown, r: Row) => (r.kp ? (r.kp.bLessons.length ? r.kp.bLessons.map((b, i) => <div key={i} className="ewb-ana-meta">{b.levelName} {b.label}{b.coarse ? ' · 较粗' : ''}</div>) : <span className="ewb-ana-meta">B 里没讲</span>) : '') }] : []),
+    ...(t?.courseB ? [{ title: `「${t.courseB.name}」里的课`, width: W.b, render: (_: unknown, r: Row) => (r.kp ? (r.kp.bLessons.length ? r.kp.bLessons.map((b, i) => <div key={i} className="ewb-ana-meta">{b.levelName} {b.label}{b.coarse ? ' · 较粗' : ''}</div>) : <span className="ewb-ana-meta">B 里没讲</span>) : '') }] : []),
     {
-      title: '修订建议', width: 280, onCell: r => ({ rowSpan: r.span }),
+      title: '修订建议', width: W.advice, onCell: r => ({ rowSpan: r.span }),
       render: (_: unknown, r) => (
         <div data-testid={`research-advice-${r.lesson.lessonId}`}>
           {aiOf(r.lesson) && <div style={{ marginBottom: 6 }} data-testid="research-ai-advice"><Tag color="purple">AI 小结 · 供参考</Tag>{aiOf(r.lesson)}</div>}
@@ -286,7 +297,9 @@ export default function ResearchTable() {
             {t.courseB && <>；只有 A 讲 <b>{t.summary.onlyA}</b> 个、只有 B 讲 <b>{t.summary.onlyB}</b> 个</>}。
           </h3>
           <p className="ewb-rep-note">试卷范围内共 {t.papers} 份{filter.includeReviewing ? '卷子（含待审核）' : '已审核的卷子'}{t.smallSample ? '（少于 3 份，不标“常考”）' : ''}。知识点对应是 AI 匹配的结果（内置教材来自目录），请教研核对；“较粗”表示只有更大的类别对得上。{ai.running ? ' AI 正在写修订小结……' : ''}{ai.note ? ` ${ai.note}` : ''}</p>
-          <Table<Row> size="small" rowKey="key" columns={columns} dataSource={rows} pagination={false} bordered loading={isFetching} scroll={{ x: 'max-content' }} data-testid="research-grid" className="ewb-rt-grid" />
+          <div className="ewb-rt-wrap" data-testid="research-grid-wrap">
+            <Table<Row> size="small" rowKey="key" columns={columns} dataSource={rows} pagination={false} bordered loading={isFetching} tableLayout="fixed" data-testid="research-grid" className="ewb-rt-grid" />
+          </div>
           {t.lessons.length > shown && (
             <div style={{ textAlign: 'center', margin: '12px 0' }}>
               <Btn tone="secondary" size="small" data-testid="research-more" onClick={() => setShown(n => n + PREVIEW_STEP)}>再看 {Math.min(PREVIEW_STEP, t.lessons.length - shown)} 节（已显示 {shown}/{t.lessons.length} 节，导出的 Excel 是全部）</Btn>

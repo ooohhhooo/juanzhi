@@ -6,6 +6,7 @@
 import { MAX_AI_LESSONS } from './research-ai.ts'
 import { buildXlsx } from '../analysis/report/export-xlsx.ts'
 import type { XCell, XRow, XSheet } from '../analysis/report/export-xlsx.ts'
+import { formatLoc, formatLocs } from '../../shared/tb-loc.ts'
 import { ADVICE_LABEL, adviceCell } from './research-table.ts'
 import type { ExampleQ, RKp, RLesson, ResearchTable, TbLoc } from './research-table.ts'
 
@@ -15,7 +16,7 @@ const LESSON_FILL: XCell['s'] = { border: true, wrap: true, fill: 'F4F4FB' }
 const ADVICE_FILL: XCell['s'] = { border: true, wrap: true, fill: 'FFF8E1' }
 
 export const lessonTitleOf = (l: Pick<RLesson, 'levelName' | 'label'>): string => `${l.levelName} ${l.label}`
-export const locText = (l: TbLoc): string => `${l.outlineName === l.levelName ? '' : `${l.outlineName}：`}${l.levelName} ${l.label}${l.pages ? `（${l.pages}）` : ''}${l.coarse ? ' · 较粗' : ''}`.replace(/\s+/g, ' ').trim()
+export const locText = (l: TbLoc): string => formatLoc(l)
 export const schoolCell = (k: RKp): string => k.papers === 0 ? '范围内没有考到' : `${k.questions} 题 · ${k.papers}/${k.paperTotal} 份卷子${k.frequent ? ' · 常考' : ''}${k.errorCount ? ` · 易错 ${k.errorCount} 题` : ''}`
 export function exampleText(e: ExampleQ, i: number): string {
   const stem = e.stem.replace(/\s+/g, ' ').trim().slice(0, 300)
@@ -23,7 +24,7 @@ export function exampleText(e: ExampleQ, i: number): string {
   return [`${i + 1}.《${e.paperTitle}》第 ${e.no} 题${e.errorProne ? '【易错】' : ''}`, stem, ...opts, e.answer ? `答案：${e.answer}` : ''].filter(Boolean).join('\n')
 }
 export const examplesCell = (k: RKp): string => k.examples.length ? k.examples.map(exampleText).join('\n\n') : '（范围内没有这个知识点的题）'
-export const tbCell = (k: RKp, hasBooks: boolean): string => !hasBooks ? '' : k.locs.length ? k.locs.map(locText).join('\n') : '教材里没有找到'
+export const tbCell = (k: RKp, hasBooks: boolean): string => !hasBooks ? '' : k.locs.length ? formatLocs(k.locs) : '教材里没有找到'
 export const bCell = (k: RKp): string => k.bLessons.length ? k.bLessons.map(b => `${b.levelName} ${b.label}${b.coarse ? ' · 较粗' : ''}`).join('\n') : '（B 里没讲）'
 
 /** 估算一格要几行（CJK 算 2 个宽度） */

@@ -89,3 +89,11 @@
 .ewb-tb-page pre { margin: 0; max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
 @media (max-width: 900px) { .ewb-tb-page { grid-template-columns: minmax(0, 1fr); } }
 .ewb-rt-grid .ant-table-tbody > tr > td { vertical-align: top; }
+/* 教研对照表：表格铺满画布，列按百分比分；长文本（含英文书名）换行；画布窄于 940px（窗口约 1200px）横向滚动，「课」列钉在左边 */
+.ewb-rt-wrap { overflow-x: auto; }
+.ewb-rt-grid table { table-layout: fixed; width: 100% !important; min-width: 940px; }
+.ewb-rt-grid .ant-table-thead > tr > th, .ewb-rt-grid .ant-table-tbody > tr > td { word-break: break-word; overflow-wrap: anywhere; }
+.ewb-rt-grid .ewb-rt-lesson { position: sticky; left: 0; z-index: 2; background: var(--ant-color-bg-container, #fff); }
+.ewb-rt-loc { display: flex; gap: 8px; margin-bottom: 4px; }
+.ewb-rt-loc__ed { flex: none; max-width: 45%; font-weight: 600; }
+.ewb-rt-loc__items { min-width: 0; }
