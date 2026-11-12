@@ -26,6 +26,8 @@ assert.equal(raws.size, files.length, 'index.ts 里登记的和目录里的文�
 assert.equal(CATALOG.length, files.length, '运行时目录没有丢掉任何一个版本')
 // 用户拍板的第一批 6 个版本
 for (const id of ['math-renjiao', 'math-bsd', 'chinese-tongbian', 'english-pep', 'english-wy', 'english-yilin']) assert.ok(raws.has(id), `内置了 ${id}`)
+// 英语第三批（docs/学科调研/教材目录/english-第三批-调研说明.md）
+for (const id of ['english-yuejiao', 'english-datong', 'english-xinjiaoji', 'english-hjyiqi']) assert.ok(raws.has(id), `内置了 ${id}`)
 
 // 校验函数本身能报出问题
 const good = JSON.parse(fs.readFileSync(path.join(dir, 'math-renjiao.json'), 'utf8'))
