@@ -1,0 +1,784 @@
+{
+  "id": "english-liaoshi",
+  "subject": "english",
+  "edition": "辽师大版",
+  "textbookValue": "辽师大版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 辽师大版英语各册目录（3s_2024 / 3x_2025 / 4s_2025 / 4x_2026 / 5s_2026 / 6s_2026 / 5x / 6x）",
+      "url": "http://www.dzkbw.com/books/lsdb/yingyu/"
+    },
+    {
+      "title": "英语朗读宝 · 辽师大（三起）五下、六上、六下目录",
+      "url": "https://yyld.51jiaoxi.com/wuxia/lsdsq/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My school",
+          "lessons": [
+            "话题：学校、问候"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "FN.GREET",
+            "PH.LETTER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My family",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My teachers",
+          "lessons": [
+            "话题：老师"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "FN.DESCRIBE",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 My favourite sport",
+          "lessons": [
+            "话题：运动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 A happy day",
+          "lessons": [
+            "话题：快乐的一天"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Our rules",
+          "lessons": [
+            "话题：规则"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 It's a sunny day",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Spring is here",
+          "lessons": [
+            "话题：春天"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 This is beautiful",
+          "lessons": [
+            "话题：美丽的事物"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Good habits",
+          "lessons": [
+            "话题：好习惯"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 I love it",
+          "lessons": [
+            "话题：喜欢的事物"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Let me help you",
+          "lessons": [
+            "话题：帮助别人"
+          ],
+          "kps": [
+            "FN.POLITE",
+            "GR.VERB.MODAL.CAN",
+            "GR.VERB.IMPER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Back to school",
+          "lessons": [
+            "话题：开学"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Caring for things around us",
+          "lessons": [
+            "话题：爱护身边的物品"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Stay fit and healthy",
+          "lessons": [
+            "话题：健康"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 We are a team",
+          "lessons": [
+            "话题：团队合作"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Safety first",
+          "lessons": [
+            "话题：安全"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Be thankful",
+          "lessons": [
+            "话题：感恩"
+          ],
+          "kps": [
+            "FN.POLITE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My favourite festival",
+          "lessons": [
+            "话题：节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Family time",
+          "lessons": [
+            "话题：家庭时光"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Healthy diet, healthy life",
+          "lessons": [
+            "话题：健康饮食"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Everybody works",
+          "lessons": [
+            "话题：劳动与职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 The sun rises every day",
+          "lessons": [
+            "话题：自然规律"
+          ],
+          "kps": [
+            "GR.TENSE.PRES.THIRD",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Everybody needs a home",
+          "lessons": [
+            "话题：家园"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.PLACE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 It's changing for the better",
+          "lessons": [
+            "话题：变化"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.ADJ.COMPARE.REG"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Don't worry",
+          "lessons": [
+            "话题：情绪与安慰"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Thank you for making my day better",
+          "lessons": [
+            "话题：感谢"
+          ],
+          "kps": [
+            "FN.POLITE",
+            "GR.PREP.COLLOC"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 You are my hero",
+          "lessons": [
+            "话题：身边的英雄"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Who built the Great Wall of China?",
+          "lessons": [
+            "话题：历史与名胜"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 I love my hometown",
+          "lessons": [
+            "话题：家乡"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "FN.DESCRIBE",
+            "GR.SENT.THEREBE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My new school",
+          "lessons": [
+            "话题：新学校"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Visiting a school",
+          "lessons": [
+            "话题：参观学校"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My community",
+          "lessons": [
+            "话题：社区"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 In the fields",
+          "lessons": [
+            "话题：田野"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 My day",
+          "lessons": [
+            "话题：一天的作息"
+          ],
+          "kps": [
+            "GR.TENSE.PRES",
+            "GR.NUM.TIME"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 On duty",
+          "lessons": [
+            "话题：值日"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE",
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.WH.WHERE",
+            "VO.TOPIC.PLACE",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 After school",
+          "lessons": [
+            "话题：放学后"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 On weekends",
+          "lessons": [
+            "话题：周末"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 9 A busy family",
+          "lessons": [
+            "话题：忙碌的一家"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 10 Cleaning my room",
+          "lessons": [
+            "话题：打扫房间"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Unit 11 Calling home",
+          "lessons": [
+            "话题：打电话回家"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "FN.DIALOG"
+          ]
+        },
+        {
+          "no": 13,
+          "title": "Unit 12 Having fun",
+          "lessons": [
+            "话题：玩乐"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 14,
+          "title": "Review 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES",
+            "GR.ADJ.ADV.FREQ",
+            "VO.TOPIC.FAMILY",
+            "VO.PHRASE.VERB"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Play safely",
+          "lessons": [
+            "话题：安全玩耍"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I know I can",
+          "lessons": [
+            "话题：相信自己"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My dream farm",
+          "lessons": [
+            "话题：梦想农场"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.WOULD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Let's go green",
+          "lessons": [
+            "话题：绿色生活"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 I want to see the world",
+          "lessons": [
+            "话题：看世界"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.VERB.NONFIN",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Festivals around the world",
+          "lessons": [
+            "话题：世界节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Back to school",
+          "lessons": [
+            "话题：开学与假期回顾"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Seeing the doctor",
+          "lessons": [
+            "话题：看病"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My animal sign",
+          "lessons": [
+            "话题：生肖"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 A different weekend",
+          "lessons": [
+            "话题：特别的周末"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 A birthday party",
+          "lessons": [
+            "话题：生日聚会"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.NUM.ORD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Sports games",
+          "lessons": [
+            "话题：运动会"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.COMPARE.REG"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD",
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 My best friend",
+          "lessons": [
+            "话题：好朋友"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.ADJ.COMPARE.REG"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 Our community",
+          "lessons": [
+            "话题：社区"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 9 My daily life",
+          "lessons": [
+            "话题：日常生活"
+          ],
+          "kps": [
+            "GR.TENSE.PRES",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 10 A family sports day",
+          "lessons": [
+            "话题：家庭运动日"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Unit 11 The class play",
+          "lessons": [
+            "话题：班级演出"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 13,
+          "title": "Unit 12 My vacation plan",
+          "lessons": [
+            "话题：假期计划"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN",
+            "WR.EXPR.FUTURE"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,614 @@
+[
+  {
+    "feature": "空状态",
+    "name": "没有上传课程大纲：看板“课程对照”页签是教学型空状态（标题、三步说明、去上传、隐私说明）",
+    "pass": true,
+    "detail": "这里会告诉你：丢分的考点在哪一课讲 上传你自己的课程表（课程大纲、教学进度，或孩子在上的课），卷知帮你对照。 1 上传课程表（.xlsx 或 .csv，也可以先下载模板） 2 核对 AI 整理的结果 3 开始匹配：让 AI 把知识点对应到课 去上传课程大纲 下载空白模板 课程表只存在这台电脑上；整理和匹配时，内容会发给"
+  },
+  {
+    "feature": "空状态",
+    "name": "不显示任何“默认课程”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "空状态",
+    "name": "点“去上传课程大纲”：跳到侧栏的“课程大纲”页（侧栏该项高亮）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "空状态",
+    "name": "课程大纲页空状态：说明它是做什么的，有“添加课程大纲”主按钮、“下载空白模板”、“看示例”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "“下载示例（虚构数据）”：运行时生成 .xlsx（两个级别 × 5 课）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "示例文件里是两张工作表：基础级、进阶级；内容是虚构的",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "“下载空白模板”：只有表头（课次 / 级别 / 主题 / 课程标题 / …）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "第 1 步有醒目的隐私说明，并提供“手动指定每一列”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "选文件后显示“已读取”，名称默认取文件名",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "后台整理",
+    "name": "点“开始整理”后弹窗关闭，列表里出现这个文件的任务卡片",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "让 AI 认列：每张工作表一次调用（共 2 次），提示词只有预览行，没有内部代码",
+    "pass": true,
+    "detail": "cols=2"
+  },
+  {
+    "feature": "向导",
+    "name": "第 2 步一句话：识别到 2 个级别、共 10 课",
+    "pass": true,
+    "detail": "识别到 2 个级别、共 10 课。"
+  },
+  {
+    "feature": "向导",
+    "name": "列识别条：每列有类型下拉，课次 / 课程标题 / 词汇 / 句型被认出来",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "左侧是级别列表（基础级 5 课 / 进阶级 5 课），右侧是该级别的课次表，内容原样来自单元格",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "可以切到另一个级别查看；改过的格子在切换后还在",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "切回来时改过的格子保持",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "向导",
+    "name": "保存之前什么都没落库",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "保存",
+    "name": "保存成功：体系、2 个级别、10 课，场景 org，备注保存了",
+    "pass": true,
+    "detail": "{\"id\":\"75fa84e6-a69a-4275-b76a-b0907e1a8fc9\",\"name\":\"示例体系 A\",\"scene\":\"org\",\"term_note\":\"示例学期\",\"source_name\":\"课程表示例（虚构）\",\"source_hash\":\"c04cb01b31a96ba17ef450b161a15818061fd180\",\"status\":\"active\",\"active\":1,\"rev\":1,\"mapping_json\":\"{\\\"基础级\\\":{\\\"headerRows\\\":1,\\\"levelName\\\":\\\"\\\",\\\"columns\\\":[{\\\"col\\\":0,\\\"field\\\":\\\"seq\\\"},{\\\"col\\\":1,\\\"field\\\":\\\"level\\\"},{\\\"col\\\":2,\\\"field\\\":\\\"theme\\\"},{\\\"col\\\":3,\\\"field\\\":\\\"title\\\"},{\\\"col\\\":4,\\\"field\\\":\\\"phonics\\\"},{\\\"col\\\":5,\\\"field\\\":\\\"word\\\"},{\\\"col\\\":6,\\\"field\\\":\\\"pattern\\\"},{\\\"col\\\":7,\\\"field\\\":\\\"expression\\\"},{\\\"col\\\":8,\\\"field\\\":\\\"textbook_ref\\\"},{\\\"col\\\":9,\\\"field\\\":\\\"skill\\\"},{\\\"col\\\":10,\\\"field\\\":\\\"note\\\"}],\\\"skipMarkers\\\":[],\\\"uncertain\\\":[]},\\\"进阶级\\\":{\\\"headerRows\\\":1,\\\"levelName\\\":\\\"\\\",\\\"columns\\\":[{\\\"col\\\":0,\\\"field\\\":\\\"seq\\\"},{\\\"col\\\":1,\\\"field\\\":\\\"level\\\"},{\\\"col\\\":2,\\\"field\\\":\\\"theme\\\"},{\\\"col\\\":3,\\\"field\\\":\\\"title\\\"},{\\\"col\\\":4,\\\"field\\\":\\\"phonics\\\"},{\\\"col\\\":5,\\\"field\\\":\\\"word\\\"},{\\\"col\\\":6,\\\"field\\\":\\\"pattern\\\"},{\\\"col\\\":7,\\\"field\\\":\\\"expression\\\"},{\\\"col\\\":8,\\\"field\\\":\\\"textbook_ref\\\"},{\\\"col\\\":9,\\\"field\\\":\\\"skill\\\"},{\\\"col\\\":10,\\\"field\\\":\\\"note\\\"}],\\\"skipMarkers\\\":[],\\\"uncertain\\\":[]}}\",\"warnings_json\":\"[]\",\"ai_model\":\"mock-text-model\",\"created_at\":\"2026-11-12 12:26:30\",\"updated_at\":\"2026-11-12 12:26:30\",\"subject\":\"english\",\"kind\":\"course\",\"builtin_id\":null}"
+  },
+  {
+    "feature": "保存",
+    "name": "改过的格子存进去了；原行单元格保真；不含价格列",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "保存",
+    "name": "卡片出现，匹配状态“未匹配”，没有任何 AI 匹配结果",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "匹配",
+    "name": "开始之前先显示规模和预计用量（知识点数、课数、请求次数、token），用户点了才调用",
+    "pass": true,
+    "detail": "约 17 个知识点 × 10 课，5 次请求，预计用量约 9400 token（实际以服务商为准）"
+  },
+  {
+    "feature": "匹配",
+    "name": "匹配时显示进度（第几批 / 共几批）和“取消”",
+    "pass": true,
+    "detail": "正在匹配：第 1 批，共 5 批（每批约 30 个知识点；已完成的批次会保留） 取 消"
+  },
+  {
+    "feature": "匹配",
+    "name": "完成：提示“匹配完成”，卡片状态变成“已匹配”",
+    "pass": true,
+    "detail": "匹配完成：9 个知识点找到了对应的课，8 个没有找到"
+  },
+  {
+    "feature": "匹配",
+    "name": "发给 AI 的匹配请求：课程行带 #编号，知识点是 K1 K2…，没有内部代码，没有文件名",
+    "pass": true,
+    "detail": "n=5"
+  },
+  {
+    "feature": "匹配",
+    "name": "落库：有对应；每条高把握的对应都带课程里的原文片段（quote），并且它真的出现在那一课的文本里",
+    "pass": true,
+    "detail": "maps=10"
+  },
+  {
+    "feature": "匹配",
+    "name": "“一般过去时·规则变化”（例词 played / watched）对到了“第 3 课 Last weekend”",
+    "pass": true,
+    "detail": "[\"第 3 课 Last weekend\"]"
+  },
+  {
+    "feature": "匹配",
+    "name": "检查结果缓存：每个知识点一行（含“看过但没找到”），记录体系版本号和模型",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "匹配",
+    "name": "用量记在 ai_usage（认列 + 匹配）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "隐私",
+    "name": "运行日志里没有课程内容、体系名、文件名",
+    "pass": true,
+    "detail": "2026-11-12 12:25:58 INFO  app 启动 {version=1.6.0-beta.1 platform=darwin arch=arm64 electron=45.0.0 chrome=156.0.8078.48 n"
+  },
+  {
+    "feature": "看板",
+    "name": "一句大字结论：“最容易出错的 N 个考点，M 个在「示例体系 A」里能找到对应的课，K 个没有课讲到”，三个数字和行数、有无对应课的行数一致",
+    "pass": true,
+    "detail": "这批试卷里最容易出错的 7 个考点，4 个在「示例体系 A」里能找到对应的课，3 个还没有课讲到。 rows=7 with=4"
+  },
+  {
+    "feature": "看板",
+    "name": "块 1：“一般过去时”这一行的课程数 = 数据库里它名下（含三级）的高 / 中把握对应数",
+    "pass": true,
+    "detail": "{\"code\":\"GR.TENSE.PAST\",\"main\":1}"
+  },
+  {
+    "feature": "看板",
+    "name": "课程胶囊写“体系 · 级别 · 第 N 课《标题》”",
+    "pass": true,
+    "detail": "示例体系 A · 进阶级 · 第 3 课《Last weekend》"
+  },
+  {
+    "feature": "看板",
+    "name": "行上有“易错”标签和白话释义",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "看板",
+    "name": "块 2：体系 × 级别交叉表，格子里写“N 个”和“约占分值 X%”",
+    "pass": true,
+    "detail": "课程体系 基础级 进阶级 示例体系 A 0 个 约占分值 0% 4 个 约占分值 39%"
+  },
+  {
+    "feature": "看板",
+    "name": "块 3：常考但课程没覆盖——有结论或明确说明都没覆盖的考点（不是空白）",
+    "pass": true,
+    "detail": "常考但课程没覆盖\n导出 CSV\n\n下面是在至少 4 份卷子里出现、却没有找到对应课的考点（AI 匹配的结果，请教研核对）。\n\n细节理解\n11/11 份卷子考了\n没有找到对应的课\n其实有对应课\n名词复数\n7/11 份卷子考了 · AI 估计 "
+  },
+  {
+    "feature": "看板",
+    "name": "块 4：家长沟通建议——未生成时有说明和“生成”按钮，标“AI 草稿”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "修正",
+    "name": "点课程胶囊：右侧抽屉显示课次详情、AI 的理由和课程里的原文依据、这个考点在原卷里的题",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "修正",
+    "name": "点“不对”：这条对应变成 rejected 并锁定",
+    "pass": true,
+    "detail": "{\"kp_code\":\"GR.TENSE.PAST.REG\",\"lesson_id\":8,\"state\":\"rejected\",\"locked\":1}"
+  },
+  {
+    "feature": "修正",
+    "name": "看板上的数字立即变化（按数据库重算：被否决的不再算），并且没有再调用 AI",
+    "pass": true,
+    "detail": "before=1"
+  },
+  {
+    "feature": "修正",
+    "name": "重新匹配后：被否决的对应没有被 AI 加回，仍是 rejected 且锁定",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "防幻觉",
+    "name": "quote 不在课次原文里：降为 low、reason 标“仅凭主题推测”、不保存假的 quote；AI 给的不存在的课次(#999999)被丢弃",
+    "pass": true,
+    "detail": "[{\"confidence\":\"low\",\"reason\":\"仅凭主题推测：例词 three 在这一课里出现\",\"quote\":\"\",\"state\":\"suggested\"},{\"confidence\":\"low\",\"reason\":\"仅凭主题推测：例词 sunny 在这一课里出现\",\"quote\":\"\",\"state\":\"suggested\"}]"
+  },
+  {
+    "feature": "防幻觉",
+    "name": "界面提示有条回答对不上课程已丢弃",
+    "pass": true,
+    "detail": "匹配完成：8 个知识点找到了对应的课，9 个没有找到（另有 9 条 AI 回答对不上课程，已丢弃）"
+  },
+  {
+    "feature": "修正",
+    "name": "“我知道是哪一课”：搜课、点一课 → 记为老师手工指定（confirmed、锁定）",
+    "pass": true,
+    "detail": "GR.TENSE.PAST"
+  },
+  {
+    "feature": "没覆盖",
+    "name": "导出 CSV：带 BOM（Excel 直接打开），有说明、范围、课程体系和表头",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "话术",
+    "name": "生成：只调用一次 p5_course_advice；输入里有课令牌 [课#N]、没有内部代码、没有价格 / 机构词",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "话术",
+    "name": "结果：令牌已换成完整课名，没有 [课#N]；存进 course_advice，confirmed_at 为空",
+    "pass": true,
+    "detail": "这类试卷里常见的易错点是一般过去时。孩子在家可以这样练：每天用英语说三句昨天做过的事，家长只要听一听动词有没有变形就能判断对不对。刚开始说错很正常，让孩子多说几遍，慢慢就顺了。如果想系统地复习，可以看看 「示例体系 A · 进阶级 · 第 "
+  },
+  {
+    "feature": "话术",
+    "name": "标“AI 草稿 · 请老师核对”；未点“我已核对”时“复制给家长”是灰的",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "话术",
+    "name": "主进程也拦着：没核对时直接调用复制接口会被拒绝，剪贴板没有变",
+    "pass": true,
+    "detail": "Error invoking remote method 'course:adviceCopy': Error: 请先点“我已核对”，确认这段话没问题再复制"
+  },
+  {
+    "feature": "话术",
+    "name": "点“我已核对”后（未核实的句子要逐句确认）才能复制；confirmed_at 写入",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "话术",
+    "name": "复制的是正文（没有“未核实”标记），可以粘贴到微信",
+    "pass": true,
+    "detail": "这类试卷里常见的易错点是一般过去时。孩子在家可以这样练：每天用英语说三句昨天做过的事，家长只要听一听动词有没有变形就能判断对不对。刚开始说错很正常，让孩子多说几"
+  },
+  {
+    "feature": "话术",
+    "name": "价格 / 优惠 / 保证提分的句子整句删除；不存在的课令牌删除并告警",
+    "pass": true,
+    "detail": "这类试卷里常见的易错点是一般过去时。孩子在家可以这样练：每天用英语说三句昨天做过的事，家长只要听一听动词有没有变形就能判断对不对。刚开始说错很正常，让孩子多说几遍，慢慢就顺了。如果想系统地复习，可以看"
+  },
+  {
+    "feature": "话术",
+    "name": "重新生成后需要重新核对：confirmed_at 清空，复制又变灰",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "话术",
+    "name": "数据有变化（知识点说明改了）：建议标“已过期”，不再允许复制（不自动重新生成）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "话术",
+    "name": "没有自动重新生成：话术请求总数没有增加",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "老板版：“加入课程对照”不可勾，并写明老板版不加",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "老师版：勾选的体系随报告保存（reports.options_json = {course:{outlineIds:[…]}}），列表上有“含课程对照”标签",
+    "pass": true,
+    "detail": "{\"course\":{\"outlineIds\":[\"75fa84e6-a69a-4275-b76a-b0907e1a8fc9\"]}}"
+  },
+  {
+    "feature": "报告课程",
+    "name": "老师版：新小节“课程对照与选课建议”（课程列表由程序拼）+ 子节“可发给家长的话”，课程段状态 ok",
+    "pass": true,
+    "detail": "{\"part\":\"course_teacher\",\"status\":\"ok\",\"message\":null}"
+  },
+  {
+    "feature": "报告课程",
+    "name": "老师版：话术只调用一次 p5_course_advice，不调用家长一句话；课程小节在“学习进步建议”之前",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "老师版：话术里没有价格 / 优惠 / 保证提分",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "“复制给家长”在没点“我已核对”前是灰的",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "主进程也拦着：没核对时直接调用复制接口被拒绝，剪贴板没变",
+    "pass": true,
+    "detail": "Error invoking remote method 'report:copyCourseAdvice': Error: 请先点「我已核对」，确认这段话没问题再复制给家长"
+  },
+  {
+    "feature": "报告课程",
+    "name": "点“我已核对”后才能复制；复制的是那一段话（没有“未核实”标记和 AI 草稿提示）",
+    "pass": true,
+    "detail": "这类试卷里常见的易错点是一般过去时。孩子在家可以这样练：每天用英语说三句昨天做过的事，家长只要听一听动词有没有变形就能判断对不对。刚开始说错很正常，让孩子多说几"
+  },
+  {
+    "feature": "报告课程",
+    "name": "课程体系内容更新（rev + 1）：这份带课程对照的报告显示“已过期”，且没有自动重新生成",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "改回去后又是“最新”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "完整版：末尾“课程对照”表（知识点 | 出现份数 | AI 估计易错题数 | 对应课程 | 把握），全部由程序拼，没有任何 AI 课程请求",
+    "pass": true,
+    "detail": "{\"part\":\"course_full\",\"status\":\"ok\",\"message\":null}"
+  },
+  {
+    "feature": "报告课程",
+    "name": "完整版：表在文末（没有“学习进步建议”之后的别的小节），对应课程是完整课名",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "家长版：p5_course_hint 只调用一次；一句话要么追加（带课名）、要么因加上会超过 300 字被丢弃并记告警；复制到微信字数始终不超过 300",
+    "pass": true,
+    "detail": "kept=false chars=286 warn=[\"家长版里还有家长可能看不懂的写法（词尾、名词），发出去之前请老师改成大白话\",\"加上课程建议会超过 300 字，已省略\"]"
+  },
+  {
+    "feature": "报告课程",
+    "name": "家长版：没有老师版的课程小节 / 表格 / “可发给家长的话”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "不勾“加入课程对照”：没有课程段、options_json 为空、没有任何课程请求（与原来完全一致）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "数据包",
+    "name": "默认导出带课程大纲：manifest 里 courseIncluded = true、courseCount = 1",
+    "pass": true,
+    "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":1,\"schemaVersion\":15,\"appVersion\":\"1.6.0-beta.1\",\"exportedAt\":\"2026-11-12T04:34:42.865Z\",\"paperCount\":23,\"questionCount\":64,\"pageCount\":2,\"fileCount\":2,\"platform\":\"darwin\",\"courseCount\":1,\"courseIncluded\":true,\"contents\":{\"papers\":true,\"reports\":true,\"course\":true,\"datasets\":false,\"documents\":false,\"assets\":false,\"chats\":false},\"scope\":{\"subject\":\"all\",\"selectedPapers\":false},\"counts\":{\"reports\":4,\"chats\":0,\"datasets\":0,\"documents\":0,\"skills\":0,\"roles\":0}}"
+  },
+  {
+    "feature": "数据包",
+    "name": "取消勾选「课程大纲」：manifest 里 courseIncluded = false、courseCount = 0",
+    "pass": true,
+    "detail": "{\"format\":\"ewb-pack\",\"formatVersion\":2,\"schemaVersion\":15,\"appVersion\":\"1.6.0-beta.1\",\"exportedAt\":\"2026-11-12T04:34:44.239Z\",\"paperCount\":23,\"questionCount\":64,\"pageCount\":2,\"fileCount\":2,\"platform\":\"darwin\",\"courseCount\":0,\"courseIncluded\":false,\"contents\":{\"papers\":true,\"reports\":true,\"course\":false,\"datasets\":false,\"documents\":false,\"assets\":false,\"chats\":false},\"scope\":{\"subject\":\"all\",\"selectedPapers\":false},\"counts\":{\"reports\":4,\"chats\":0,\"datasets\":0,\"documents\":0,\"skills\":0,\"roles\":0}}"
+  },
+  {
+    "feature": "草稿",
+    "name": "命令行导入的草稿：卡片写“草稿 · 还没确认，不参与对照”，没有匹配按钮",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "草稿",
+    "name": "草稿不出现在看板的体系选择里",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "草稿",
+    "name": "点“确认使用”后变成正式体系（可以匹配）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "停用",
+    "name": "关掉“参与对照”：看板里不再出现这个体系",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "替换",
+    "name": "拖入文件：读成课程表（显示文件名），没有被当成试卷导入，页面也没有跳走",
+    "pass": true,
+    "detail": "papers=23/23"
+  },
+  {
+    "feature": "替换",
+    "name": "重新上传：名称沿用原来的，不能改",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "替换",
+    "name": "手动模式：列识别条全部“未识别”，没有调用 AI 认列",
+    "pass": true,
+    "detail": "col0= cols请求=0 识别到 0 个级别、共 0 课。有 11 处需要你看一眼。 提示 相对现有的「示例体系 A」：新增 0 课、修改 0 课、删除 10 课；已有的知识点对应里 9 条涉及改动的课，需要重新匹配。老师确认"
+  },
+  {
+    "feature": "替换",
+    "name": "按（级别 + 课次）比对：显示“新增 0 课、修改 1 课、删除 1 课”，并说明涉及多少条知识点对应需要重新匹配",
+    "pass": false,
+    "detail": "提示\n相对现有的「示例体系 A」：新增 0 课、修改 9 课、删除 1 课；已有的知识点对应里 9 条涉及改动的课，需要重新匹配。老师确认过的对应只要课还在就保留。替换后需要整体重新匹配。"
+  },
+  {
+    "feature": "替换",
+    "name": "替换成功：id 不变，rev + 1，课数 10 → 9，确认 / 否决过的锁定对应保留",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "替换",
+    "name": "匹配状态变成“大纲已更新，需要重新匹配”",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "替换",
+    "name": "看板提示还没匹配完，匹配前不显示数字",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "界面",
+    "name": "窄屏（760 宽）下看板“课程对照”页没有横向滚动条",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "删除",
+    "name": "删除体系：课次、对应、检查结果级联删除；试卷不受影响",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "删除",
+    "name": "体系都删掉后，看板回到空状态",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "没有课程大纲时：“加入课程对照”置灰，并指向“课程大纲”页",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "报告课程",
+    "name": "点提示里的“课程大纲”：跳到课程大纲页",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "控制台",
+    "name": "渲染端控制台没有报错、没有出现密钥",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "密钥安全",
+    "name": "主进程输出里没有密钥",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "命令行",
+    "name": "course import（不带 --i-reviewed）：保存为草稿，返回 draft:true、级别 1、课数 2，并提示到窗口里确认",
+    "pass": true,
+    "detail": "{\"ok\":true,\"data\":{\"id\":\"c0187633-0533-451b-9552-8b9efaf4c3a3\",\"name\":\"\\u547d\\u4ee4\\u884c\\u4f53\\u7cfb\",\"status\":\"draft\",\"draft\":true,\"levels\":1,\"lessons\":2,\"columnsFrom\":\"ai\",\"warnings\":[\"\\u300c\\u4ef7\\u683c\\u300d\\u8fd9\\u4e00\\u5217\\u770b\\u8d77\\u6765\\u662f\\u4ef7\\u683c / \\u8d39\\u7528\\u4fe1\\u606f\\uff0c\\"
+  },
+  {
+    "feature": "命令行",
+    "name": "课程内容由程序复制，价格列被忽略（数据库里没有 99）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "命令行",
+    "name": "course list：列出草稿、状态“未匹配”",
+    "pass": true,
+    "detail": "{\"ok\":true,\"data\":{\"outlines\":[{\"id\":\"c0187633-0533-451b-9552-8b9efaf4c3a3\",\"name\":\"\\u547d\\u4ee4\\u884c\\u4f53\\u7cfb\",\"scene\":\"school\",\"status\":\"draft\",\"draft\":true,\"active\":true,\"levels\":1,\"lessons\":2,"
+  },
+  {
+    "feature": "命令行",
+    "name": "course match 草稿：退出码 7（invalid_state），不会调用 AI",
+    "pass": true,
+    "detail": "{\"ok\":false,\"code\":\"invalid_state\",\"message\":\"\\u8bfe\\u7a0b\\u4f53\\u7cfb\\u300c\\u547d\\u4ee4\\u884c\\u4f53\\u7cfb\\u300d\\u8fd8\\u662f\\u8349\\u7a3f\\uff0c\\u8bf7\\u5148\\u5728\\u5377\\u77e5\\u7a97\\u53e3\\u91cc\\u786e\\u8b"
+  },
+  {
+    "feature": "命令行",
+    "name": "course import --i-reviewed：直接保存为正式体系",
+    "pass": true,
+    "detail": "{\"ok\":true,\"data\":{\"id\":\"ade1e784-042f-4ae1-8656-909f8205b930\",\"name\":\"\\u5df2\\u6838\\u5bf9\\u4f53\\u7cfb\",\"status\":\"active\",\"draft\":false,\"levels\":1,\"lessons\":2,\"columnsFrom\":\"ai\",\"warnings\":[\"\\u300c\\u4e"
+  },
+  {
+    "feature": "命令行",
+    "name": "report generate --with-course 指向还没匹配的体系：退出码 15（course_not_matched），提示先 course match",
+    "pass": true,
+    "detail": "{\"ok\":false,\"code\":\"course_not_matched\",\"message\":\"\\u8bfe\\u7a0b\\u4f53\\u7cfb\\u300c\\u5df2\\u6838\\u5bf9\\u4f53\\u7cfb\\u300d\\u8fd8\\u6ca1\\u6709\\u5339\\u914d\\u5b8c\\uff08\\u72b6\\u6001\\uff1anone\\uff09\\u3002\\u8bf7\\"
+  },
+  {
+    "feature": "命令行",
+    "name": "--with-course 指向草稿：退出码 7",
+    "pass": true,
+    "detail": "{\"ok\":false,\"code\":\"invalid_state\",\"message\":\"\\u8bfe\\u7a0b\\u4f53\\u7cfb\\u300c\\u547d\\u4ee4\\u884c\\u4f53\\u7cfb\\u300d\\u8fd8\\u662f\\u8349\\u7a3f\\uff0c\\u8bf7\\u5148\\u5728\\u5377\\u77e5\\u7a97\\u53e3\\u91cc\\u786e\\u8b"
+  },
+  {
+    "feature": "命令行",
+    "name": "--scene 写错：退出码 2",
+    "pass": true,
+    "detail": "{\"ok\":false,\"code\":\"usage\",\"message\":\"--scene \\u53ea\\u80fd\\u662f org\\uff08\\u57f9\\u8bad\\u673a\\u6784\\uff09\\u3001school\\uff08\\u5b66\\u6821\\uff09\\u3001family\\uff08\\u"
+  },
+  {
+    "feature": "命令行",
+    "name": "文件不存在：给白话错误（退出码 7）",
+    "pass": true,
+    "detail": "{\"ok\":false,\"code\":\"invalid_state\",\"message\":\"\\u8bfb\\u4e0d\\u4e86\\u8fd9\\u4e2a\\u6587\\u4ef6\\uff0c\\u53ef\\u80fd\\u88ab\\u5176\\u4ed6\\u7a0b\\u5e8f\\u5360\\u7528\\u6216\\u6ca1\\u6709\\u6743\\u9650\",\"exit\":7}\n"
+  },
+  {
+    "feature": "命令行",
+    "name": "course match：退出码 0，返回批次、matched / none 和用量（usage.calls ≥ 1）",
+    "pass": true,
+    "detail": "{\"ok\":true,\"data\":{\"id\":\"ade1e784-042f-4ae1-8656-909f8205b930\",\"name\":\"\\u5df2\\u6838\\u5bf9\\u4f53\\u7cfb\",\"batches\":5,\"matched\":1,\"none\":16,\"dropped\":0,\"usage\":{\"calls\":5,\"promptTokens\":3718,\"completionTokens\":340},\"note\":\"\\u5339\\u914d\\u7ed3\\u679c\\u662f AI \\u7684\\u5efa\\u8bae\\uff0c\\u6bcf\\u6761\\u90fd\\u5e"
+  },
+  {
+    "feature": "命令行",
+    "name": "匹配后 course list 的状态是“done”，--with-course 不再报 15",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "命令行",
+    "name": "report generate --with-course：体系 id 作为 options 传进报告生成（options_json = {course:{outlineIds:[…]}}，不再是没人读的第 4 个参数）",
+    "pass": true,
+    "detail": "{\"ok\":true,\"data\":{\"id\":\"df847404-f5ca-4655-98e1-ea3aa6c1d70a\",\"title\":\"\\u4e8c\\u3001\\u56db\\u3001\\u4e94\\u3001\\u516d\\u5e74\\u7ea7 2022\\u20132026\\u5b66\\u5e74 \\u8003\\u60c5\\u5206\\u6790\\u62a5\\u544a\\uff08\\u5b8c\\u6574\\u6570\\u636e\\u7248\\uff09\\u00b7 2026-11-12\",\"reader\":\"full\",\"readerLabel\":\"\\u5b8c\\u6574\\u6570 {\"course\":{\"outlineIds\":[\"ade1e784-042f-4ae1-8656-909f8205b930\"]}}"
+  },
+  {
+    "feature": "命令行",
+    "name": "帮助里有 course list / import / match 和退出码 course_not_matched = 15",
+    "pass": true,
+    "detail": "{\"ok\":0,\"internal\":1,\"usage\":2,\"app_running\":3,\"cli_busy\":4,\"ai_not_configured\":5,\"not_found\":6,\"invalid_state\":7,\"confi"
+  }
+]

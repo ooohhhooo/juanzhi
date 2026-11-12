@@ -169,6 +169,8 @@ async function phaseMisc() {
   const badge = await waitFor(async () => (await page.locator('[data-testid=badge-review]').count()) > 0, 8000)
   const nRev = withDb(ctx.ud, d => d.prepare("SELECT COUNT(*) c FROM papers WHERE status = 'reviewing'").get().c)
   check('审核徽标（M2 缺口）', '侧栏"审核"旁的徽标数字 = 待审核卷子数', badge && Number((await page.locator('[data-testid=badge-review]').innerText()).trim()) === nRev && nRev >= 2, `${nRev}`)
+  const nSider = Number((await page.locator('[data-testid=badge-papers]').innerText().catch(() => '0')).trim())
+  check('试卷角标', '侧栏「试卷」角标 = 处理中 + 待审核（不小于待审核数）', nSider >= nRev, `${nSider}`)
   // 关于页 / 安装指南入口
   await goto('#/settings?tab=about')
   await T('about-card').waitFor()

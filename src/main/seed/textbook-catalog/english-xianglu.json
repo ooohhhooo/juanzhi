@@ -1,0 +1,1188 @@
+{
+  "id": "english-xianglu",
+  "subject": "english",
+  "edition": "湘鲁版",
+  "textbookValue": "湘鲁版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 湘教版（湘鲁版）小学英语各册目录（3s_2024 / 3x_2025 / 4s_2025 / 4x_2026 / 5s_2026 / 6s_2026 / 5x / 6x）",
+      "url": "http://www.dzkbw.com/books/xjb/yingyu/"
+    },
+    {
+      "title": "电子课本网 · 小学英语电子课本总目录（湘鲁版各册入口）",
+      "url": "http://www.dzkbw.com/books/xiaoxue-yingyu/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Hello!",
+          "lessons": [
+            "话题：打招呼",
+            "句型（概括）：Hello! / Hi! I'm …",
+            "模块：Module 1 Making Friends"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.VERB.BE",
+            "PH.LETTER"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Nice to meet you!",
+          "lessons": [
+            "话题：初次见面",
+            "句型（概括）：Nice to meet you! — Nice to meet you, too.",
+            "模块：Module 1 Making Friends"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 How are you today?",
+          "lessons": [
+            "话题：问候近况",
+            "句型（概括）：How are you today? — I'm fine / great …",
+            "模块：Module 1 Making Friends"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.HOW"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 She is my grandmother",
+          "lessons": [
+            "话题：家庭成员",
+            "句型（概括）：She is my … / He is my …",
+            "模块：Module 2 Meeting People"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.PERSONAL",
+            "GR.VERB.BE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 He is a cook",
+          "lessons": [
+            "话题：职业",
+            "句型（概括）：He is a … / She is a …",
+            "模块：Module 2 Meeting People"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.NOUN.ARTICLE.A_AN",
+            "GR.VERB.BE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 His hair is short",
+          "lessons": [
+            "话题：外貌描述",
+            "句型（概括）：His hair is short. / Her eyes are big.",
+            "模块：Module 2 Meeting People"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.ADJ.USE",
+            "VO.TOPIC.BODY",
+            "GR.PRON.POSS.ADJ"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Do you like birds?",
+          "lessons": [
+            "话题：动物与喜好",
+            "句型（概括）：Do you like …? — Yes, I do. / No, I don't.",
+            "模块：Module 3 Keeping Pets"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.YESNO.DO",
+            "GR.NOUN.PLURAL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 How many dogs are there?",
+          "lessons": [
+            "话题：数量",
+            "句型（概括）：How many … are there? — There are …",
+            "模块：Module 3 Keeping Pets"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.NUM.CARD",
+            "GR.NOUN.PLURAL",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 I have a white rabbit",
+          "lessons": [
+            "话题：宠物描述",
+            "句型（概括）：I have a … It is …",
+            "模块：Module 3 Keeping Pets"
+          ],
+          "kps": [
+            "GR.VERB.HAVE",
+            "VO.TOPIC.ANIMAL",
+            "GR.ADJ.USE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 It's time to go to school",
+          "lessons": [
+            "话题：上学、时间",
+            "句型（概括）：It's time to … / What time is it?"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Where is my pen?",
+          "lessons": [
+            "话题：文具与位置",
+            "句型（概括）：Where is my …? — It's in / on / under …"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What would you like?",
+          "lessons": [
+            "话题：食物点餐",
+            "句型（概括）：What would you like? — I'd like …"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.VERB.MODAL.WOULD",
+            "FN.POLITE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Can you play football?",
+          "lessons": [
+            "话题：运动能力",
+            "句型（概括）：Can you play …? — Yes, I can. / No, I can't."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL",
+            "VO.TOPIC.HOBBY"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 We play basketball on Monday",
+          "lessons": [
+            "话题：星期与活动",
+            "句型（概括）：We play … on Monday."
+          ],
+          "kps": [
+            "GR.PREP.TIME",
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What sports do you like?",
+          "lessons": [
+            "话题：运动喜好",
+            "句型（概括）：What sports do you like? — I like …"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 What's your favourite season?",
+          "lessons": [
+            "话题：季节",
+            "句型（概括）：What's your favourite season? — I like …"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.WH.WHAT",
+            "FN.WEATHER"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 I wear a coat in winter",
+          "lessons": [
+            "话题：季节与衣服",
+            "句型（概括）：I wear … in winter."
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "VO.TOPIC.WEATHER",
+            "GR.PREP.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 What can you do in Sanya?",
+          "lessons": [
+            "话题：旅行活动",
+            "句型（概括）：What can you do in …? — I can …"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "句型按单元标题和主题概括"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 You look excited",
+          "lessons": [
+            "话题：情绪表达",
+            "句型（概括）：You look excited / happy …"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "FN.DESCRIBE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How do you feel?",
+          "lessons": [
+            "话题：感受",
+            "句型（概括）：How do you feel? — I feel …"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "GR.ADJ.USE",
+            "GR.TENSE.PRES"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Playing the piano makes me happy!",
+          "lessons": [
+            "话题：爱好与心情",
+            "句型（概括）：… makes me happy."
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.FORM.ING",
+            "GR.TENSE.PRES.THIRD"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Be quiet, please!",
+          "lessons": [
+            "话题：公共规则",
+            "句型（概括）：Be quiet, please! / Don't …"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "FN.POLITE",
+            "GR.SENT.NEG"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Can I swim in the lake?",
+          "lessons": [
+            "话题：安全与许可",
+            "句型（概括）：Can I …? — Yes, you can. / No, you can't."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL",
+            "FN.POLITE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 We should wait for the green light",
+          "lessons": [
+            "话题：交通安全",
+            "句型（概括）：We should …"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "VO.TOPIC.PLACE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 What's the weather like?",
+          "lessons": [
+            "话题：天气",
+            "句型（概括）：What's the weather like? — It's …"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 What do you want to do on sunny days?",
+          "lessons": [
+            "话题：天气与活动",
+            "句型（概括）：What do you want to do …? — I want to …"
+          ],
+          "kps": [
+            "GR.VERB.NONFIN",
+            "GR.VERB.MODAL.WOULD",
+            "VO.TOPIC.WEATHER"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 Please stay indoors on rainy days",
+          "lessons": [
+            "话题：天气与安全",
+            "句型（概括）：Please stay indoors … / Don't go out …"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.TOPIC.WEATHER",
+            "FN.SUGGEST"
+          ],
+          "note": "句型按单元标题和主题概括"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What subjects do you like?",
+          "lessons": [
+            "话题：学科",
+            "句型（概括）：What subjects do you like? — I like …",
+            "模块：Module 1 School Life"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 She is good at singing and dancing",
+          "lessons": [
+            "话题：特长",
+            "句型（概括）：She is good at …ing.",
+            "模块：Module 1 School Life"
+          ],
+          "kps": [
+            "GR.VERB.FORM.ING",
+            "GR.PREP.COLLOC",
+            "VO.TOPIC.HOBBY"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What club do you want to join?",
+          "lessons": [
+            "话题：社团",
+            "句型（概括）：What club do you want to join? — I want to join …",
+            "模块：Module 1 School Life"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 She is a helpful girl",
+          "lessons": [
+            "话题：同学品质",
+            "句型（概括）：She is helpful / kind …",
+            "模块：Module 2 Classmates"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.ADJ.USE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 How do you help each other?",
+          "lessons": [
+            "话题：互相帮助",
+            "句型（概括）：How do you help each other? — We …",
+            "模块：Module 2 Classmates"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "GR.TENSE.PRES",
+            "GR.PRON.INDEF"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 May I help you?",
+          "lessons": [
+            "话题：提供帮助、礼貌",
+            "句型（概括）：May I help you? — Yes, please. / No, thanks.",
+            "模块：Module 2 Classmates"
+          ],
+          "kps": [
+            "GR.VERB.MODAL",
+            "FN.POLITE",
+            "FN.SHOP"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 It has a long tail",
+          "lessons": [
+            "话题：动物外形",
+            "句型（概括）：It has a long … / It has big …",
+            "模块：Module 3 Animals"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.HAVE",
+            "GR.TENSE.PRES.THIRD",
+            "FN.DESCRIBE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 They are eating grass",
+          "lessons": [
+            "话题：动物正在做的事",
+            "句型（概括）：They are eating … / What are they doing?",
+            "模块：Module 3 Animals"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 We get milk from cows",
+          "lessons": [
+            "话题：动物与生活",
+            "句型（概括）：We get … from …",
+            "模块：Module 3 Animals"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "VO.TOPIC.FOOD",
+            "GR.PREP.COLLOC"
+          ],
+          "note": "句型按单元标题和主题概括"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 I'm going to tidy my room this weekend",
+          "lessons": [
+            "话题：周末计划",
+            "句型（概括）：I'm going to … this weekend.",
+            "模块：Module 1 Habits"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I always do my homework before dinner",
+          "lessons": [
+            "话题：习惯与频度",
+            "句型（概括）：I always / usually … before …",
+            "模块：Module 1 Habits"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES",
+            "GR.PREP.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 How long do you read every day?",
+          "lessons": [
+            "话题：阅读习惯、时长",
+            "句型（概括）：How long do you …? — For … minutes.",
+            "模块：Module 1 Habits"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "GR.TENSE.PRES",
+            "GR.NUM.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Will you write a book report?",
+          "lessons": [
+            "话题：计划与打算",
+            "句型（概括）：Will you …? — Yes, I will. / No, I won't.",
+            "模块：Module 2 Art Trip"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.SENT.YESNO",
+            "FN.PLAN"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 How can I get to the art museum?",
+          "lessons": [
+            "话题：问路",
+            "句型（概括）：How can I get to …? — Go along … / Turn left …",
+            "模块：Module 2 Art Trip"
+          ],
+          "kps": [
+            "FN.DIR",
+            "GR.VERB.IMPER",
+            "VO.TOPIC.PLACE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Which song are you going to sing?",
+          "lessons": [
+            "话题：表演计划",
+            "句型（概括）：Which … are you going to …?",
+            "模块：Module 2 Art Trip"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "GR.SENT.WH.WHO",
+            "FN.PLAN"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Where does he come from?",
+          "lessons": [
+            "话题：国籍与来自",
+            "句型（概括）：Where does he come from? — He comes from …",
+            "模块：Module 3 Hometown"
+          ],
+          "kps": [
+            "GR.TENSE.PRES.AUX",
+            "GR.TENSE.PRES.THIRD",
+            "GR.SENT.WH.WHERE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Welcome to my hometown!",
+          "lessons": [
+            "话题：介绍家乡",
+            "句型（概括）：Welcome to … There is / are …",
+            "模块：Module 3 Hometown"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "FN.DESCRIBE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 What will our hometown be like in the future?",
+          "lessons": [
+            "话题：家乡的未来",
+            "句型（概括）：What will … be like? — It will …",
+            "模块：Module 3 Hometown"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.SENT.WH.WHAT",
+            "WR.EXPR.FUTURE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2013",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What subjects do you study?",
+          "lessons": [
+            "话题：学科",
+            "句型（概括）：What subjects do you study? — I study …"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.TENSE.PRES"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 We have Art in the art room.",
+          "lessons": [
+            "话题：学校场所与课程",
+            "句型（概括）：We have … in the …"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.VERB.HAVE",
+            "GR.PREP.PLACE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What time do you usually go to school?",
+          "lessons": [
+            "话题：日常作息",
+            "句型（概括）：What time do you usually …? — At …"
+          ],
+          "kps": [
+            "GR.SENT.WH.TIME",
+            "GR.ADJ.ADV.FREQ",
+            "GR.NUM.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 There is homework time.",
+          "lessons": [
+            "话题：课后时间安排",
+            "句型（概括）：There is … time."
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "VO.TOPIC.SCHOOL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 You must come to school on time.",
+          "lessons": [
+            "话题：校规",
+            "句型（概括）：You must … / You mustn't …"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Review 1",
+          "lessons": [
+            "复习测评：Unit 1–5"
+          ],
+          "kps": [
+            "LS.SENT",
+            "FN.DIALOG",
+            "RD.DETAIL",
+            "WR.WORD"
+          ],
+          "note": "复习测评单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Is this a shopping centre?",
+          "lessons": [
+            "话题：城市场所",
+            "句型（概括）：Is this a …? — Yes, it is. / No, it isn't."
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.YESNO.BE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Everyone has something to do.",
+          "lessons": [
+            "话题：各自的工作",
+            "句型（概括）：Everyone has something to do. / He …s."
+          ],
+          "kps": [
+            "GR.PRON.INDEF",
+            "GR.TENSE.PRES.THIRD"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 I will study the moon.",
+          "lessons": [
+            "话题：未来计划、职业理想",
+            "句型（概括）：I will …"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "FN.PLAN"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 10,
+          "title": "Unit 9 What do you want to do?",
+          "lessons": [
+            "话题：愿望",
+            "句型（概括）：What do you want to do? — I want to …"
+          ],
+          "kps": [
+            "GR.VERB.NONFIN",
+            "GR.VERB.MODAL.WOULD",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 11,
+          "title": "Unit 10 It's one of the famous mountains in China.",
+          "lessons": [
+            "话题：名山与风景",
+            "句型（概括）：It's one of the … in China."
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.ADJ.SUPER",
+            "FN.DESCRIBE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 12,
+          "title": "Review 2",
+          "lessons": [
+            "复习测评：Unit 6–10"
+          ],
+          "kps": [
+            "LS.SENT",
+            "FN.DIALOG",
+            "RD.DETAIL",
+            "WR.WORD"
+          ],
+          "note": "复习测评单元"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Were you good at English?",
+          "lessons": [
+            "话题：过去的学习情况",
+            "句型（概括）：Were you good at …? — Yes, I was. / No, I wasn't.",
+            "模块：Module 1 Learning and Growing"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.VERB.BE",
+            "GR.SENT.YESNO.BE"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I asked a lot of questions",
+          "lessons": [
+            "话题：学习经历",
+            "句型（概括）：I asked … / I learned …",
+            "模块：Module 1 Learning and Growing"
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.VERB.FORM.ED"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Never give up!",
+          "lessons": [
+            "话题：坚持与成长",
+            "句型（概括）：Never give up! / I tried again and again.",
+            "模块：Module 1 Learning and Growing"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.TENSE.PAST.IRREG"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Helen Keller is my favorite writer",
+          "lessons": [
+            "话题：名人介绍",
+            "句型（概括）：… is my favorite … She was …",
+            "模块：Module 2 Great People"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.TENSE.PAST",
+            "GR.TENSE.CONTRAST"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Why was Lu Xun a great man?",
+          "lessons": [
+            "话题：名人事迹",
+            "句型（概括）：Why was … a great man? — Because he …",
+            "模块：Module 2 Great People"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.SENT.CONJ",
+            "GR.SENT.WH"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Lei Feng was a model soldier",
+          "lessons": [
+            "话题：榜样人物",
+            "句型（概括）：Lei Feng was … He helped …",
+            "模块：Module 2 Great People"
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.TENSE.PAST.IRREG",
+            "WR.EXPR.PAST"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Fresh air is good for our health",
+          "lessons": [
+            "话题：空气与健康",
+            "句型（概括）：… is good for our health. / We should …",
+            "模块：Module 3 Green Earth"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Water is life",
+          "lessons": [
+            "话题：水资源保护",
+            "句型（概括）：We should save water. / Don't waste …",
+            "模块：Module 3 Green Earth"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.VERB.IMPER",
+            "VO.TOPIC.ANIMAL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 What do trees do for us?",
+          "lessons": [
+            "话题：树木与环境",
+            "句型（概括）：What do trees do for us? — They …",
+            "模块：Module 3 Green Earth"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.TENSE.PRES",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "句型按单元标题和主题概括"
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2013",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 There are four seasons in a year.",
+          "lessons": [
+            "话题：四季",
+            "句型（概括）：There are four seasons in a year. / In spring, …"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.THEREBE",
+            "GR.PREP.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Is she your mum's favourite singer?",
+          "lessons": [
+            "话题：喜爱的人物",
+            "句型（概括）：Is she your …'s favourite …?"
+          ],
+          "kps": [
+            "GR.SENT.YESNO.BE",
+            "GR.NOUN.POSS",
+            "VO.TOPIC.HOBBY"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Who was she?",
+          "lessons": [
+            "话题：历史人物",
+            "句型（概括）：Who was she? — She was …"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.VERB.BE",
+            "GR.SENT.WH.WHO"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 We went on a science field trip.",
+          "lessons": [
+            "话题：科学考察经历",
+            "句型（概括）：We went on … / We saw …"
+          ],
+          "kps": [
+            "GR.TENSE.PAST.IRREG",
+            "WR.EXPR.PAST"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 We are going to learn about Chinese festivals.",
+          "lessons": [
+            "话题：中国节日",
+            "句型（概括）：We are going to learn about …"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 6,
+          "title": "Review 1",
+          "lessons": [
+            "复习测评：Unit 1–5"
+          ],
+          "kps": [
+            "LS.SENT",
+            "FN.DIALOG",
+            "RD.DETAIL",
+            "WR.WORD"
+          ],
+          "note": "复习测评单元"
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 I danced on Children's Day last year.",
+          "lessons": [
+            "话题：过去的节日活动",
+            "句型（概括）：I danced … last year."
+          ],
+          "kps": [
+            "GR.TENSE.PAST.REG",
+            "GR.VERB.FORM.ED",
+            "VO.TOPIC.TIME"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Can you see the lightning?",
+          "lessons": [
+            "话题：自然现象",
+            "句型（概括）：Can you see …? — Yes, I can."
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.WEATHER"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 We will be a junior middle school.",
+          "lessons": [
+            "话题：升入初中",
+            "句型（概括）：We will be … / I will …"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "FN.PLAN"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 10,
+          "title": "Unit 9 China is a great country!",
+          "lessons": [
+            "话题：介绍中国",
+            "句型（概括）：China is … It has …"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "FN.DESCRIBE",
+            "GR.TENSE.PRES.THIRD"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 11,
+          "title": "Unit 10 Goodbye to all our friends.",
+          "lessons": [
+            "话题：毕业告别",
+            "句型（概括）：Goodbye to … / We will miss …"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.TENSE.FUT.WILL"
+          ],
+          "note": "句型按单元标题和主题概括"
+        },
+        {
+          "no": 12,
+          "title": "Review 2",
+          "lessons": [
+            "复习测评：Unit 6–10"
+          ],
+          "kps": [
+            "LS.SENT",
+            "FN.DIALOG",
+            "RD.DETAIL",
+            "WR.WORD"
+          ],
+          "note": "复习测评单元"
+        }
+      ]
+    }
+  ]
+}

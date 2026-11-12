@@ -65,7 +65,7 @@ async function main() {
     check('空状态', '不显示任何“默认课程”', !/示例体系|基础级/.test(t))
     await shot10('empty-light')
     await T('course-go-upload').click()
-    check('空状态', '点“去上传课程大纲”：跳到侧栏的“课程大纲”页（侧栏该项高亮）', await waitFor(async () => (await T('course-settings').count()) > 0 && (await page.evaluate(() => location.hash)) === '#/courses', 8000) && (await page.locator('.ewb-contents__link[aria-current=page]').first().getAttribute('aria-label').catch(() => '')) === '课程大纲')
+    check('空状态', '点“去上传课程大纲”：跳到侧栏的“课程大纲”页（侧栏该项高亮）', await waitFor(async () => (await T('course-settings').count()) > 0 && (await page.evaluate(() => location.hash)) === '#/courses', 8000) && (await page.locator('.ewb-contents__link[aria-current=page]').first().getAttribute('aria-label').catch(() => '')) === '课程' && (await T('nav-tabs').count()) === 1)
   }
 
   // ───────────────────────── 2. 上传向导 ─────────────────────────

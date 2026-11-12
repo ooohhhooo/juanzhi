@@ -327,6 +327,9 @@ html.ewb-design .ant-alert { border-width: 1px; }
 .ewb-page--filter { padding-bottom: 0; }
 .ewb-page--filter .ewb-scope { margin-bottom: 0; }
 .ewb-page--filter + .ewb-page { padding-top: var(--ewb-sp-2); }
+.ewb-page--tabs { padding-top: var(--ewb-sp-4); padding-bottom: 0; }
+.ewb-page--tabs + .ewb-page { padding-top: var(--ewb-sp-3); }
+.ewb-tabcount { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ewb-primary-active); }
 .ewb-sider { flex: none; width: var(--ewb-sider-w); }
 .ewb-main { flex: 1; min-width: 0; overflow: auto; background: var(--ewb-page); border-radius: var(--ewb-r-xl); }
 .ewb-cat-phonics { --cat: var(--ewb-cat-phonics); --cat-soft: var(--ewb-cat-phonics-soft); --cat-soft-strong: var(--ewb-cat-phonics-soft-strong); --cat-line: color-mix(in srgb, var(--ewb-cat-phonics) 55%, transparent); }

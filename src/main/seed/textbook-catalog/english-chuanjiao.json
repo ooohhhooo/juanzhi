@@ -1,0 +1,970 @@
+{
+  "id": "english-chuanjiao",
+  "subject": "english",
+  "edition": "川教版",
+  "textbookValue": "川教版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 川教版英语各册目录（3s_2024 / 3x_2025 / 4s_2025 / 4x_2026 / 5s_2026 / 6s_2026 / 5x / 6x）",
+      "url": "http://www.dzkbw.com/books/cjb/yingyu/"
+    },
+    {
+      "title": "英语朗读宝 · 川教版各册模块目录（三上至六上）",
+      "url": "https://yyld.51jiaoxi.com/sanshang/cjb/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Good Morning!",
+          "lessons": [
+            "话题：早上问候",
+            "Module A Polite Kids"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I'm Li Le",
+          "lessons": [
+            "话题：自我介绍"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.VERB.BE",
+            "GR.PRON.PERSONAL",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 I Can Sing",
+          "lessons": [
+            "话题：能力"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Challenge Yourself A Little Tadpoles Looking for Mummy",
+          "lessons": [
+            "阅读故事：小蝌蚪找妈妈"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "FN.GREET",
+            "FN.POLITE",
+            "GR.VERB.BE",
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 What Colour Is It?",
+          "lessons": [
+            "话题：颜色",
+            "Module B Amazing Colours"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT"
+          ],
+          "note": "电子课本网目录模块名为 Amazing Colours，英语朗读宝写作 Beautiful Colours，采用前者"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Look at My Picture",
+          "lessons": [
+            "话题：我的画"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.VERB.IMPER",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 What's Your Favourite Colour?",
+          "lessons": [
+            "话题：最喜欢的颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.POSS.ADJ"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Challenge Yourself B I'm Sunny Again",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 7 How Old Are You?",
+          "lessons": [
+            "话题：年龄",
+            "Module C Useful Numbers"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 8 Can I Help You?",
+          "lessons": [
+            "话题：购物与数字"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "GR.NUM.CARD",
+            "GR.SENT.YESNO.MODAL"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 9 I Like Fruit Salad",
+          "lessons": [
+            "话题：水果沙拉"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.NUM.CARD",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Challenge Yourself C Zero Is the Hero",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "FN.SHOP"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What's This?",
+          "lessons": [
+            "话题：动物",
+            "Module A Lovely Animals"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I Have a Farm",
+          "lessons": [
+            "话题：农场"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.HAVE",
+            "GR.NOUN.PLURAL.REG"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 I Like This Dog",
+          "lessons": [
+            "话题：喜欢的动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.YESNO.DO",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Challenge Yourself A What Do You See?",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 This Is My Family",
+          "lessons": [
+            "话题：家庭成员",
+            "Module B Happy Family"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 What's Your Job?",
+          "lessons": [
+            "话题：职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Let's Make a Birthday Card",
+          "lessons": [
+            "话题：制作生日卡"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "FN.SUGGEST",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Challenge Yourself B I Can Swim Now",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO",
+            "GR.SENT.WH.WHO",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 7 I Have Great Classmates",
+          "lessons": [
+            "话题：同学",
+            "Module C Great School"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "FN.DESCRIBE",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 8 Is It the Library?",
+          "lessons": [
+            "话题：校园场所"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.YESNO.BE",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 9 Who Is Your English Teacher?",
+          "lessons": [
+            "话题：老师"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Challenge Yourself C Is My School Great?",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.SCHOOL",
+            "FN.DESCRIBE",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Don't Pick the Flowers!",
+          "lessons": [
+            "话题：公共规则",
+            "Module A Important Rules"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Follow the Rules",
+          "lessons": [
+            "话题：遵守规则"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What Should We Do?",
+          "lessons": [
+            "话题：应该怎么做"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Challenge Yourself A The Wolf Is Coming",
+          "lessons": [
+            "阅读故事：狼来了"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.VERB.IMPER",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 How's the Weather?",
+          "lessons": [
+            "话题：天气",
+            "Module B Colourful Seasons"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 What Season Is It?",
+          "lessons": [
+            "话题：季节"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 What's Your Favourite Season?",
+          "lessons": [
+            "话题：最喜欢的季节"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.CONJ"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Challenge Yourself B My Favourite Season",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "GR.SENT.WH.WHAT",
+            "WR.EXPR.PRESENT"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 7 Talk about Your Meals",
+          "lessons": [
+            "话题：一日三餐",
+            "Module C Healthy Habits"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.PREP.TIME",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 8 Do You Like Sports?",
+          "lessons": [
+            "话题：运动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 9 You Have Healthy Habits",
+          "lessons": [
+            "话题：健康习惯"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Challenge Yourself C Sunny's Change",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.TENSE.PRES",
+            "VO.TOPIC.FOOD",
+            "GR.PREP.TIME"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What Time Is It?",
+          "lessons": [
+            "话题：时间",
+            "Module A Colourful School Life"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What's the Missing Number?",
+          "lessons": [
+            "话题：数字"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 I Can Run Fast",
+          "lessons": [
+            "话题：运动能力"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.ADJ.ADV"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Challenge Yourself A The Hare and the Tortoise",
+          "lessons": [
+            "阅读故事：龟兔赛跑"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.NUM.TIME",
+            "FN.TIME",
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 This Is Our Home",
+          "lessons": [
+            "话题：我们的家",
+            "Module B Sweet Home"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Where Are My Glasses?",
+          "lessons": [
+            "话题：找东西"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 I Can Do Chores",
+          "lessons": [
+            "话题：家务"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Challenge Yourself B Three Little Pigs",
+          "lessons": [
+            "阅读故事：三只小猪"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.PREP.PLACE",
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 7 Where Are You From?",
+          "lessons": [
+            "话题：国家",
+            "Module C Our Friendly World"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 8 Look at the Rainbow!",
+          "lessons": [
+            "话题：彩虹与颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 9 A Book about Our Cities",
+          "lessons": [
+            "话题：城市"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Challenge Yourself C The Ladybug",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.SENT.WH.WHERE",
+            "FN.GREET",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 I Have Music Class on Friday",
+          "lessons": [
+            "话题：课程表",
+            "Module A Being a Good Learner"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Do You Often Take Notes?",
+          "lessons": [
+            "话题：学习习惯"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Challenge Yourself A",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 I'm Going to the Park",
+          "lessons": [
+            "话题：周末去公园",
+            "Module B Having a Nice Weekend"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Where Shall We Meet?",
+          "lessons": [
+            "话题：约定见面"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "GR.SENT.WH.WHERE",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Challenge Yourself B",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.PLACE",
+            "GR.ADJ.ADV.FREQ",
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 When Is the Mid-Autumn Festival?",
+          "lessons": [
+            "话题：中秋节",
+            "Module C Experiencing the Culture"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.NUM.ORD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 The Spring Festival Is Coming",
+          "lessons": [
+            "话题：春节"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Challenge Yourself C",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "VO.TOPIC.TIME",
+            "FN.SUGGEST",
+            "GR.SENT.WH.WHERE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 We love nature",
+          "lessons": [
+            "话题：热爱自然",
+            "Lesson 1 Planting trees",
+            "Lesson 2 Talking about squirrels",
+            "Lesson 3 A book about animals"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Four seasons",
+          "lessons": [
+            "话题：四季",
+            "Lesson 1 Seasons and clothes",
+            "Lesson 2 Seasons and months",
+            "Lesson 3 Seasons and culture"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "VO.TOPIC.CLOTHES",
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 A birthday party",
+          "lessons": [
+            "话题：生日聚会",
+            "Lesson 1 Coming to my party",
+            "Lesson 2 Buying a present",
+            "Lesson 3 Having a birthday party"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "FN.SHOP",
+            "GR.NUM.ORD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What's He Famous for?",
+          "lessons": [
+            "话题：名人",
+            "Module A Following the Greats"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.TENSE.PRES.THIRD",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What Are They Doing?",
+          "lessons": [
+            "话题：正在做什么"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Challenge Yourself A",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "FN.DESCRIBE",
+            "GR.TENSE.PRES.THIRD",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 How Much Is It?",
+          "lessons": [
+            "话题：购物",
+            "Module B Living a Smart Life"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 It Is Good for the Environment",
+          "lessons": [
+            "话题：保护环境"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD",
+            "GR.PREP.COLLOC"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Challenge Yourself B",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.TENSE.PRES_CONT",
+            "GR.VERB.FORM.ING",
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 5 What Happened?",
+          "lessons": [
+            "话题：发生了什么",
+            "Module C Staying Safe"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 6 What Will You Do?",
+          "lessons": [
+            "话题：怎么办"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.FUT"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Challenge Yourself C",
+          "lessons": [
+            "阅读故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT",
+            "GR.VERB.MODAL.SHOULD",
+            "GR.PREP.COLLOC",
+            "GR.TENSE.PAST"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Different jobs",
+          "lessons": [
+            "话题：职业、比较、看病",
+            "Lesson 1 What does your father do?",
+            "Lesson 2 Which dress is better?",
+            "Lesson 3 What's wrong with you?"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.AUX",
+            "GR.ADJ.COMPARE.REG",
+            "GR.ADJ.COMPARE.THAN",
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Colourful life",
+          "lessons": [
+            "话题：作息、约定",
+            "Lesson 1 When do you get up?",
+            "Lesson 2 Where shall we meet?",
+            "Lesson 3 Tell what it is by feeling"
+          ],
+          "kps": [
+            "GR.SENT.WH.TIME",
+            "VO.PHRASE.VERB",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Magic world",
+          "lessons": [
+            "话题：变化与描述",
+            "Lesson 1 He was a beautiful butterfly",
+            "Lesson 2 How is New York?",
+            "Lesson 3 It looks like a heart"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.VERB.BE",
+            "FN.DESCRIBE",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    }
+  ]
+}

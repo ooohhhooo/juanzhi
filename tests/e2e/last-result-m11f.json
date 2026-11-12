@@ -1,0 +1,236 @@
+[
+  {
+    "feature": "入口",
+    "name": "侧栏第一个是「助手」，最后一个主入口是「数据」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "推荐问题",
+    "name": "运营的推荐问题面向数据分析（4 条）",
+    "pass": true,
+    "detail": "分析这份问卷的满意度，出一份看板｜哪些班到课率掉得最厉害｜退费原因主要有哪些｜对比两期续费率"
+  },
+  {
+    "feature": "添加数据",
+    "name": "「添加数据文件…」可点（不再置灰）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "添加数据",
+    "name": "导入后自动加为本次数据：顶部出现数据集标签",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "添加数据",
+    "name": "数据集页能看到刚导入的问卷（300 行）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "@提及",
+    "name": "@ 列表里有数据集 survey 和企业微信群「三年级辅导群」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "计划",
+    "name": "先出计划并暂停，计划阶段发给模型的工具里没有 run_query / stat_*，有概况类 list_datasets",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "计划",
+    "name": "本轮调用已经带上数据集：系统提示里有数据集编号",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审批",
+    "name": "执行到 wecom_send 弹出同意框",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "审批",
+    "name": "预览写明发到哪里：企业微信群：三年级辅导群",
+    "pass": true,
+    "detail": "发到：企业微信群：三年级辅导群"
+  },
+  {
+    "feature": "审批",
+    "name": "预览是完整内容，并且是真名和真手机号（不是代号）",
+    "pass": true,
+    "detail": "满意度偏低提醒：王老师04 的班级需要跟进，家长联系方式 13977964796。"
+  },
+  {
+    "feature": "审批",
+    "name": "含个人信息的提醒醒目显示（红框）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "取消不发送",
+    "name": "点「取消，不发送」后假企业微信服务器没有收到任何消息",
+    "pass": true,
+    "detail": "0"
+  },
+  {
+    "feature": "工具步骤",
+    "name": "按剧本顺序调用了数据集、统计、看板、汇报、名单、导出、发送工具",
+    "pass": true,
+    "detail": "list_datasets,dataset_profile,run_query,stat_nps,stat_compare_groups,stat_find_low_groups,board_start,board_add_finding,board_add_section,board_add_block,board_set_caliber,doc_create,doc_write_section,doc_write_section,table_save,output_export,wecom_send"
+  },
+  {
+    "feature": "工具步骤",
+    "name": "只有被拒绝的 wecom_send 是失败的，其余都成功",
+    "pass": true,
+    "detail": "wecom_send"
+  },
+  {
+    "feature": "回答",
+    "name": "回答里显示真名（代号已还原），没有「人员A」代号",
+    "pass": true,
+    "detail": " 从这里追问\n结论\n\n王老师04 的满意度偏低 查询 #6。\n\n依据\n\n按老师分组对比：王老师04 明显低于其他老师 查询 #5。\n\n下一步\n\n建议先和 王老师04 沟通。\n\n（有 1 处引用对不上，已去掉）"
+  },
+  {
+    "feature": "回答",
+    "name": "[[query:N]] 显示成可点击的「查询 N」标签；对不上的假引用被去掉并注明",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "查询记录",
+    "name": "点查询标签打开查询记录：有 SQL 摘要和结果表",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "查询记录",
+    "name": "结果里的敏感值显示真名",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "产出面板",
+    "name": "对话模式右侧默认是「产出」，列出汇报、看板、名单 3 项",
+    "pass": true,
+    "detail": "秋季满意度看板｜满意度汇报｜本周跟进名单"
+  },
+  {
+    "feature": "产出面板",
+    "name": "有「满意度汇报」「秋季满意度看板」「本周跟进名单」",
+    "pass": true,
+    "detail": "秋季满意度看板｜满意度汇报｜本周跟进名单"
+  },
+  {
+    "feature": "产出面板",
+    "name": "汇报预览显示真名，不是代号",
+    "pass": true,
+    "detail": "满意度汇报 一、结论 王老师04 的满意度偏低，需要重点跟进 查询 #6。 二、依据 按老师分组对比见 查询 #5，家长 13977964796 反馈上课时间不合适。"
+  },
+  {
+    "feature": "产出面板",
+    "name": "看板标签用 AnalysisBoard 渲染本会话看板：核心发现、图表，显示真名",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "产出面板",
+    "name": "名单表格预览显示真名和真手机号",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "导出",
+    "name": "output_export 导出的 xlsx 文件存在",
+    "pass": true,
+    "detail": "/var/folders/dh/qqg15f895k30z8l7v5l2tyw40000gn/T/ewb-m4-bqj8IG/userM11f/workbench-data/agent-outputs/999c17dc-a04c-428a-8478-c38730a6549c/exports/本周跟进名单.xlsx"
+  },
+  {
+    "feature": "导出",
+    "name": "xlsx 里是真名和真手机号，没有代号",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "存储",
+    "name": "数据库里的会话记录保持代号（没有真名）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "导出",
+    "name": "面板「导出」另存的 xlsx 也是真名",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "隐私",
+    "name": "发给模型的 17 次请求里没有任何真名和手机号（全是代号）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "画布",
+    "name": "切到画布：显示节点（问题、计划、查询与统计、回答、发现、产出）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "画布",
+    "name": "画布上的节点文字也显示真名",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "画布",
+    "name": "选中发现节点：右侧切到「卡片详情」",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "画布追问",
+    "name": "在发现节点上追问：形成新分支，新增追问节点和回答",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "画布追问",
+    "name": "会话记录里多了一个分支",
+    "pass": true,
+    "detail": "main,bmwd13k7ojsb"
+  },
+  {
+    "feature": "画布追问",
+    "name": "追问时上下文来自该发现所在的路径（请求里带着原来的提问）",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "画布动作",
+    "name": "「加到看板」转成一条追问发给助手",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "对话",
+    "name": "切回对话：回答、输入框都在",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "feature": "启动页",
+    "name": "第一次用运营角色提问后，下次打开卷知默认进入助手（start_page = assistant）",
+    "pass": true,
+    "detail": "assistant"
+  },
+  {
+    "feature": "控制台",
+    "name": "没有未处理的渲染端报错",
+    "pass": true,
+    "detail": ""
+  }
+]

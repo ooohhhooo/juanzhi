@@ -1,0 +1,755 @@
+{
+  "id": "english-eec",
+  "subject": "english",
+  "edition": "教科版（EEC）",
+  "textbookValue": "教科版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 教科版 EEC 英语各册目录（eec3s / eec3x / eec4s / eec4x / eec5s / eec5x / eec6s / eec6x）",
+      "url": "http://www.dzkbw.com/books/jkb/yingyu/eec3s/"
+    },
+    {
+      "title": "英语朗读宝 · 教科版（EEC）三下至六下目录",
+      "url": "https://yyld.51jiaoxi.com/sanxia/jkbe/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What's Your Name?",
+          "lessons": [
+            "话题：姓名"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.POSS.ADJ"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Nice to Meet You",
+          "lessons": [
+            "话题：见面问候"
+          ],
+          "kps": [
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 This Is My Room",
+          "lessons": [
+            "话题：房间"
+          ],
+          "kps": [
+            "GR.PRON.DEMO",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Who's She?",
+          "lessons": [
+            "话题：家人"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.PERSONAL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What is This?",
+          "lessons": [
+            "话题：物品"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What is Your Number?",
+          "lessons": [
+            "话题：数字"
+          ],
+          "kps": [
+            "GR.NUM.CARD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Close Your Eyes",
+          "lessons": [
+            "话题：身体与指令"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Do You Have a Dog?",
+          "lessons": [
+            "话题：宠物"
+          ],
+          "kps": [
+            "GR.SENT.YESNO.DO",
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 I Like Monkeys",
+          "lessons": [
+            "话题：动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.NOUN.PLURAL.REG"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 I'm hungry",
+          "lessons": [
+            "话题：饥饿与食物"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How old are you?",
+          "lessons": [
+            "话题：年龄"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 How much is it?",
+          "lessons": [
+            "话题：价格"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 It's red",
+          "lessons": [
+            "话题：颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 You look great!",
+          "lessons": [
+            "话题：穿着"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 What time is it?",
+          "lessons": [
+            "话题：时间"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Where's Wangwang?",
+          "lessons": [
+            "话题：位置"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 It's hot",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 What day is it?",
+          "lessons": [
+            "话题：星期"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What's for Breakfast?",
+          "lessons": [
+            "话题：早餐"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How Do You Do?",
+          "lessons": [
+            "话题：问候"
+          ],
+          "kps": [
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Whose Bag Is This?",
+          "lessons": [
+            "话题：物品归属"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHO",
+            "GR.NOUN.POSS",
+            "GR.PRON.POSS.NOUN"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 I Like Music",
+          "lessons": [
+            "话题：音乐"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 I Ride My Bike",
+          "lessons": [
+            "话题：日常活动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "VO.PHRASE.VERB",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Can You Play Soccer?",
+          "lessons": [
+            "话题：运动能力"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.MODAL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Let's Go Swimming",
+          "lessons": [
+            "话题：游泳"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Let's Make Some Pancakes",
+          "lessons": [
+            "话题：做煎饼"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.NOUN.COUNT.SOMEANY",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 Do You Like Drawing?",
+          "lessons": [
+            "话题：爱好"
+          ],
+          "kps": [
+            "GR.VERB.NONFIN",
+            "GR.SENT.YESNO.DO",
+            "VO.TOPIC.HOBBY"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 It's the Spring Festival",
+          "lessons": [
+            "话题：春节"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 I like spring",
+          "lessons": [
+            "话题：春天"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What's the matter?",
+          "lessons": [
+            "话题：不舒服"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 This is really fun",
+          "lessons": [
+            "话题：有趣的事"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 What about a robot?",
+          "lessons": [
+            "话题：选礼物"
+          ],
+          "kps": [
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Happy birthday to you!",
+          "lessons": [
+            "话题：生日"
+          ],
+          "kps": [
+            "GR.NUM.ORD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Where's the post office?",
+          "lessons": [
+            "话题：问路"
+          ],
+          "kps": [
+            "FN.DIR",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 In the bathroom",
+          "lessons": [
+            "话题：浴室"
+          ],
+          "kps": [
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 We're taking photos",
+          "lessons": [
+            "话题：拍照"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Where Are You from?",
+          "lessons": [
+            "话题：国籍"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 How Do You Go to School?",
+          "lessons": [
+            "话题：上学方式"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 I'm Getting Dressed Now",
+          "lessons": [
+            "话题：穿衣"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 How Was Your Day?",
+          "lessons": [
+            "话题：一天怎么样"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.VERB.BE"
+          ],
+          "note": "英语朗读宝该单元写作 What Did You Do after School?，两站版次不同，按电子课本网"
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 When's Your Birthday?",
+          "lessons": [
+            "话题：生日日期"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "GR.SENT.WH.TIME"
+          ],
+          "note": "英语朗读宝该单元写作 What's the Date Today?，按电子课本网"
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 How Do You Like This One?",
+          "lessons": [
+            "话题：购物评价"
+          ],
+          "kps": [
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 What's He Wearing?",
+          "lessons": [
+            "话题：穿着"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.TOPIC.CLOTHES"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What would you like to eat?",
+          "lessons": [
+            "话题：点餐"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.WOULD",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 What do you want to be?",
+          "lessons": [
+            "话题：理想职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.VERB.NONFIN"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 What are you going to do?",
+          "lessons": [
+            "话题：计划"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 How long will you stay there?",
+          "lessons": [
+            "话题：旅行安排"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Where is the gift shop?",
+          "lessons": [
+            "话题：问路"
+          ],
+          "kps": [
+            "FN.DIR"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 How's the weather in your country?",
+          "lessons": [
+            "话题：各国天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 How are you feeling now?",
+          "lessons": [
+            "话题：身体状况"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 What Grade Are You in?",
+          "lessons": [
+            "话题：年级"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 New Friend, Jenny",
+          "lessons": [
+            "话题：新朋友"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Can I Try This Shirt On?",
+          "lessons": [
+            "话题：买衣服"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Going to the Amusement Park",
+          "lessons": [
+            "话题：去游乐园"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 At the Amusement Park",
+          "lessons": [
+            "话题：在游乐园"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Qiaoqiao Is Missing",
+          "lessons": [
+            "话题：走失"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Oh! That's My Son!",
+          "lessons": [
+            "话题：家人"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 The talent show is coming soon",
+          "lessons": [
+            "话题：才艺表演"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "GR.TENSE.FUT.GOING"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Can I join you?",
+          "lessons": [
+            "话题：加入"
+          ],
+          "kps": [
+            "GR.SENT.YESNO.MODAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 You did your best",
+          "lessons": [
+            "话题：尽力"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 We usually eat pizza on Sundays",
+          "lessons": [
+            "话题：饮食习惯"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Let's eat dumplings",
+          "lessons": [
+            "话题：包饺子"
+          ],
+          "kps": [
+            "FN.SUGGEST",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 I have to go back to Canada",
+          "lessons": [
+            "话题：告别"
+          ],
+          "kps": [
+            "GR.VERB.NONFIN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 A letter from Jenny",
+          "lessons": [
+            "话题：书信"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    }
+  ]
+}

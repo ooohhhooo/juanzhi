@@ -1,0 +1,806 @@
+{
+  "id": "english-jjyiqi",
+  "subject": "english",
+  "edition": "冀教版（一起）",
+  "textbookValue": "冀教版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "教师之家 · 冀教版英语教材目录（冀教2011版一年级起点一至六年级 12 册 Unit/Lesson 目录）",
+      "url": "https://www.renjiaoshe.com/yingyu/jijiaoban/"
+    },
+    {
+      "title": "英语朗读宝 · 冀教版一起一至六年级各册各单元课文点读页（jjbyq_shangce/xiace_listen1-4）",
+      "url": "https://yy.suyang123.com/xiaoxue/yinianji/jjbyq_shangce_listen1.html"
+    },
+    {
+      "title": "中小学课本网 · 冀教版一年级起点英语电子课本目录（抽查一上 book/881、四下 book/868）",
+      "url": "https://kebenwang.cn/books/jjb?subject=78"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Hello and Goodbye",
+          "lessons": [
+            "话题：问候、介绍姓名、告别",
+            "句型（概括）：Hello! / What's your name? / How are you? / Goodbye!",
+            "课文：Lesson 1 Hello! / Lesson 2 What's Your Name? / Lesson 3 How Are You? / Lesson 4 Nice to Meet You / Lesson 5 Good Morning! / Lesson 6 Goodbye! / Unit 1 Review"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My School",
+          "lessons": [
+            "话题：男孩女孩、老师、学生、朋友",
+            "句型（概括）：I am a student. / This is my teacher.",
+            "课文：Lesson 7 Boy, Girl / Lesson 8 My Teacher / Lesson 9 I Am a Student / Lesson 10 My Friends / Lesson 11 Fun at School / Lesson 12 Happy or Sad? / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.PRON.PERSONAL",
+            "GR.VERB.BE",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My Classroom",
+          "lessons": [
+            "话题：教室物品、数字 1–10",
+            "句型（概括）：What is this? / How many?",
+            "课文：Lesson 13 My Classroom / Lesson 14 What Is This? / Lesson 15 Numbers 1-5 / Lesson 16 How Many? / Lesson 17 Numbers 6-10 / Lesson 18 My Pencil Box / Unit 3 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Colours",
+          "lessons": [
+            "话题：颜色",
+            "句型（概括）：What colour is it? It's red.",
+            "课文：Lesson 19 Red, Green / Lesson 20 Yellow, Blue / Lesson 21 Black, White / Lesson 22 Orange, Brown / Lesson 23 Pink, Purple / Lesson 24 Colours Are Fun! / Unit 4 Review"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT",
+            "VO.FORM.CLASSIFY"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 About Me",
+          "lessons": [
+            "话题：介绍自己、年龄、生日、一天活动",
+            "句型（概括）：How old are you? I'm … / Happy birthday!",
+            "课文：Lesson 1 This Is Me! / Lesson 2 How Old Are You? / Lesson 3 Happy Birthday! / Lesson 4 In the Morning / Lesson 5 In the Afternoon / Lesson 6 Play with My Friends! / Unit 1 Review"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.HOW",
+            "GR.NUM.CARD",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My Family",
+          "lessons": [
+            "话题：家庭成员",
+            "句型（概括）：This is my father. / I love my family!",
+            "课文：Lesson 7 Danny's Family / Lesson 8 Jenny's Family / Lesson 9 Li Ming's Family / Lesson 10 Grandpa and Grandma / Lesson 11 Aunt, Uncle, Cousin / Lesson 12 I Love My Family! / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.NOUN.POSS",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My Home",
+          "lessons": [
+            "话题：家里的房间与物品、方位",
+            "句型（概括）：Where are they? / What do you see?",
+            "课文：Lesson 13 My Home / Lesson 14 Where Are They? / Lesson 15 What Do You See? / Lesson 16 My Bedroom / Lesson 17 At Home / Lesson 18 Fun at Home / Unit 3 Review"
+          ],
+          "kps": [
+            "GR.PREP.PLACE",
+            "GR.SENT.WH.WHERE",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Places to Go!",
+          "lessons": [
+            "话题：街道、商店、公园、动物园、操场",
+            "句型（概括）：Where are you going? / I'm in the park.",
+            "课文：Lesson 19 Where? / Lesson 20 On the Street / Lesson 21 At the Shop / Lesson 22 In the Park / Lesson 23 At the Zoo / Lesson 24 On the Playground / Unit 4 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Welcome to School!",
+          "lessons": [
+            "话题：学校、朋友、教室、书包与文具",
+            "句型（概括）：This is my friend. / Where is it? / May I have a pencil?",
+            "课文：Lesson 1 My School / Lesson 2 This Is My Friend / Lesson 3 In the Classroom / Lesson 4 This Is My Schoolbag / Lesson 5 Where Is It? / Lesson 6 May I Have a Pencil? / Unit 1 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE",
+            "GR.SENT.YESNO.MODAL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My Body",
+          "lessons": [
+            "话题：身体部位与五官",
+            "句型（概括）：This is my face. / I see with my eyes.",
+            "课文：Lesson 7 This Is My Body / Lesson 8 This Is My Face / Lesson 9 I See with My Eyes / Lesson 10 I Hear with My Ears / Lesson 11 I Eat with My Mouth / Lesson 12 I Smell with My Nose / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.PRON.DEMO",
+            "GR.PRON.POSS.ADJ"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Fun with Numbers",
+          "lessons": [
+            "话题：数字 11–20、数数",
+            "句型（概括）：How many …? / Let's count!",
+            "课文：Lesson 13 Let's Count! / Lesson 14 Numbers 11-13 / Lesson 15 Numbers 14-16 / Lesson 16 Numbers 17-19 / Lesson 17 Number 20 / Lesson 18 Fun with Numbers / Unit 3 Review"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "GR.NOUN.PLURAL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 My Clothes",
+          "lessons": [
+            "话题：衣物、新旧",
+            "句型（概括）：I like your dress. / It's new/old.",
+            "课文：Lesson 19 Skirt and Dress / Lesson 20 Shirt and T-shirt / Lesson 21 Shorts and Pants / Lesson 22 Shoes and Socks / Lesson 23 New and Old / Lesson 24 I Like Your Dress / Unit 4 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "VO.FORM.OPPOSITE",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Back to School",
+          "lessons": [
+            "话题：返校、学校场所、课堂指令",
+            "句型（概括）：What do you see? / What do you do? / Open/Close …",
+            "课文：Lesson 1 Back to School / Lesson 2 What Do You See? / Lesson 3 What Do You Do? / Lesson 4 Washroom and Library / Lesson 5 Gym and Playground / Lesson 6 Open and Close / Unit 1 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.IMPER",
+            "VO.FORM.OPPOSITE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Letters Are Fun!",
+          "lessons": [
+            "话题：26 个字母",
+            "句型（概括）：（字母认读与书写）",
+            "课文：Lesson 7 Letters A-D / Lesson 8 Letters E-I / Lesson 9 Letters J-N / Lesson 10 Letters O-R / Lesson 11 Letters S-V / Lesson 12 Letters W-Z / Unit 2 Review"
+          ],
+          "kps": [
+            "PH.LETTER",
+            "PH.PHONICS"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Food and Drink",
+          "lessons": [
+            "话题：饥渴感受、食物饮料、午餐",
+            "句型（概括）：I am hungry/thirsty. / What's for lunch?",
+            "课文：Lesson 13 I Am Hungry! / Lesson 14 Rice and Meat / Lesson 15 I Am Thirsty! / Lesson 16 Fruits / Lesson 17 Let's Have Tea! / Lesson 18 What's for Lunch? / Unit 3 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "VO.TOPIC.BODY",
+            "GR.SENT.WH.WHAT",
+            "FN.SUGGEST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Let's Go and Play!",
+          "lessons": [
+            "话题：去公园、交通灯、公交车、星期天",
+            "句型（概括）：Let's go to the park! / Can you see the bus?",
+            "课文：Lesson 19 Let's Go to the Park! / Lesson 20 Traffic Lights / Lesson 21 Green Light. Go! / Lesson 22 Can You See the Bus? / Lesson 23 Sunday Is Fun! / Lesson 24 In the Park / Unit 4 Review"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.TOPIC.PLACE",
+            "GR.SENT.YESNO.MODAL"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 We Like School!",
+          "lessons": [
+            "话题：上学、星期、学校的一天",
+            "句型（概括）：What day is it? / Where are they?",
+            "课文：Lesson 1 Li Ming Goes to School / Lesson 2 Where Are They? / Lesson 3 What Day Is It? / Lesson 4 My School Day / Lesson 5 No School Today / Lesson 6 Where Is Danny? / Unit 1 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My Favourite Food",
+          "lessons": [
+            "话题：食物、价格、点餐",
+            "句型（概括）：How much is it? / What would you like?",
+            "课文：Lesson 7 What Food Do You Like? / Lesson 8 How Much Is It? / Lesson 9 How Much Are They? / Lesson 10 What Would You Like? / Lesson 11 Would You Like Some Dumplings? / Lesson 12 The Magic Stone / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "FN.SHOP.PRICE",
+            "GR.VERB.MODAL.WOULD",
+            "GR.NOUN.COUNT.SOMEANY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 I Love My Family",
+          "lessons": [
+            "话题：家庭成员、家人爱好",
+            "句型（概括）：What do they like to do? They like to …",
+            "课文：Lesson 13 Meet Jenny's Family / Lesson 14 Meet Li Ming's Family / Lesson 15 Meet Danny's Family / Lesson 16 What Do They Like to Do? / Lesson 17 Li Ming's Big Family / Lesson 18 Stick Together / Unit 3 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.VERB.NONFIN",
+            "GR.TENSE.PRES.AUX",
+            "GR.NOUN.POSS"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Look at Me",
+          "lessons": [
+            "话题：身体部位、左右、外貌",
+            "句型（概括）：What do they look like? / long/short",
+            "课文：Lesson 19 My Body / Lesson 20 Left and Right / Lesson 21 Look at Me! / Lesson 22 What Do They Look Like? / Lesson 23 Long and Short / Lesson 24 We Look Different / Unit 4 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "FN.DESCRIBE",
+            "VO.FORM.OPPOSITE",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 How Do You Feel?",
+          "lessons": [
+            "话题：感受、冷暖、生病看医生",
+            "句型（概括）：How do you feel? / What's the matter?",
+            "课文：Lesson 1 How Do You Feel? / Lesson 2 Warm and Cool / Lesson 3 Are You Okay? / Lesson 4 What's the Matter? / Lesson 5 Danny Isn't at School / Lesson 6 Lynn Sees a Doctor / Unit 1 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.SENT.WH.HOW",
+            "GR.SENT.WH.WHAT",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Animal Friends",
+          "lessons": [
+            "话题：动物及其能力、农场",
+            "句型（概括）：What can they do? / Is it a chicken?",
+            "课文：Lesson 7 We Are Friends / Lesson 8 What Can They Do? / Lesson 9 On the Farm / Lesson 10 Is It a Chicken? / Lesson 11 What Can You See? / Lesson 12 Can I Help You? / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.YESNO.BE",
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 My Day",
+          "lessons": [
+            "话题：钟点、一天作息",
+            "句型（概括）：What time is it? It's … / I get up at …",
+            "课文：Lesson 13 What Time Is It? / Lesson 14 In the Morning / Lesson 15 In the Afternoon / Lesson 16 In the Evening / Lesson 17 Good Night! / Lesson 18 Danny's Early Day / Unit 3 Review"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "GR.SENT.WH.TIME",
+            "VO.PHRASE.VERB",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Healthy Me",
+          "lessons": [
+            "话题：锻炼、健康饮食、好习惯、母亲节",
+            "句型（概括）：Let's exercise! / Eat good food!",
+            "课文：Lesson 19 Let's Exercise! / Lesson 20 Eat Good Food! / Lesson 21 Good Habits / Lesson 22 Mother's Day / Lesson 23 Visiting Mrs. Zhou / Lesson 24 A Little Monkey / Unit 4 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "VO.TOPIC.FOOD",
+            "GR.VERB.IMPER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 A New School Year",
+          "lessons": [
+            "话题：新学年、物品归属、数量",
+            "句型（概括）：Is this your pencil? / Whose pen is this? / How many books do you have?",
+            "课文：Lesson 1 A New School Year / Lesson 2 Is This Your Pencil? / Lesson 3 Whose Pen Is This? / Lesson 4 How Many Books Do You Have? / Lesson 5 Where Are They? / Lesson 6 Little Zeke / Unit 1 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHO",
+            "GR.PRON.POSS",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 We Love Animals",
+          "lessons": [
+            "话题：动物园动物、栖息地与食物",
+            "句型（概括）：Where do they live? / What do they eat? / What are they doing?",
+            "课文：Lesson 7 At the Zoo / Lesson 8 Tiger and Bear / Lesson 9 Where Do They Live? / Lesson 10 What Do They Eat? / Lesson 11 What Are They Doing? / Lesson 12 The Clever Monkey / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHERE",
+            "GR.TENSE.PRES.AUX",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 In the City",
+          "lessons": [
+            "话题：购物、城市场所、问路",
+            "句型（概括）：Let's go shopping! / Where is …?",
+            "课文：Lesson 13 Let's Go Shopping! / Lesson 14 At the Store / Lesson 15 In the City / Lesson 16 At the Supermarket / Lesson 17 On the Street / Lesson 18 Lost in the City / Unit 3 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "FN.SHOP",
+            "FN.DIR",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 My Favourites",
+          "lessons": [
+            "话题：最喜欢的颜色、衣服、食物、学科、活动",
+            "句型（概括）：What's your favourite …? My favourite … is …",
+            "课文：Lesson 19 My Favourite Colour / Lesson 20 My Favourite Clothes / Lesson 21 My Favourite Food / Lesson 22 My Favourite Subject / Lesson 23 My Favourite Thing to Do / Lesson 24 The Diffos / Unit 4 Review"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHAT",
+            "VO.TOPIC.CLOTHES",
+            "VO.TOPIC.FOOD",
+            "VO.TOPIC.SCHOOL"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Days and Months",
+          "lessons": [
+            "话题：序数词、星期、月份、生日",
+            "句型（概括）：When is your birthday? It's in/on …",
+            "课文：Lesson 1 First, Second, Third / Lesson 2 Days of the Week / Lesson 3 Months of the Year / Lesson 4 When Is Your Birthday? / Lesson 5 When Is It? / Lesson 6 Mr. Moon's Birthday / Unit 1 Review"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Seasons",
+          "lessons": [
+            "话题：四季、天气、穿衣",
+            "句型（概括）：How's the weather? / What's your favourite season?",
+            "课文：Lesson 7 Seasons of the Year / Lesson 8 Sun and Rain / Lesson 9 How's the Weather? / Lesson 10 Seasons and Weather / Lesson 11 What's Your Favourite Season? / Lesson 12 What Can I Wear? / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "FN.WEATHER",
+            "VO.TOPIC.CLOTHES",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 More About Me",
+          "lessons": [
+            "话题：年龄、身高、住址、上学方式、爱好",
+            "句型（概括）：How tall are you? / Where do you live? / How do you go to school?",
+            "课文：Lesson 13 How Old Are You? / Lesson 14 How Tall Are You? / Lesson 15 Where Do You Live? / Lesson 16 How Do You Go to School? / Lesson 17 What Do You Like to Do? / Lesson 18 A Little Horse Crosses the River / Unit 3 Review"
+          ],
+          "kps": [
+            "GR.SENT.WH.HOW",
+            "GR.SENT.WH.WHERE",
+            "GR.VERB.NONFIN",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Countries We Know",
+          "lessons": [
+            "话题：世界地图、中国、加拿大、美英、澳大利亚",
+            "句型（概括）：This is China. / … is in …",
+            "课文：Lesson 19 A Map of the World / Lesson 20 China / Lesson 21 Canada / Lesson 22 The U.S. and the U.K. / Lesson 23 Australia / Lesson 24 Maddy's Family Photos / Unit 4 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "FN.DESCRIBE",
+            "GR.SENT.WH.WHERE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 A Trip to Beijing",
+          "lessons": [
+            "话题：旅行计划、交通方式、旅行物品",
+            "句型（概括）：May I go to Beijing? / How can we get to Beijing?",
+            "课文：Lesson 1 May I Go to Beijing? / Lesson 2 May I Invite Jenny and Danny? / Lesson 3 How Can We Get to Beijing? / Lesson 4 Jenny and Danny Arrive / Lesson 5 What Do We Need for the Trip? / Lesson 6 Danny Is Lost! / Unit 1 Review"
+          ],
+          "kps": [
+            "GR.SENT.YESNO.MODAL",
+            "GR.SENT.WH.HOW",
+            "VO.TOPIC.PLACE",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 In Beijing",
+          "lessons": [
+            "话题：北京名胜、购物",
+            "句型（概括）：We went to … / How much is …?",
+            "课文：Lesson 7 Arriving in Beijing / Lesson 8 Tian'anmen Square / Lesson 9 The Palace Museum / Lesson 10 The Great Wall / Lesson 11 Shopping in Beijing / Lesson 12 Billy Bee / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Writing Home",
+          "lessons": [
+            "话题：明信片、电子邮件",
+            "句型（概括）：I bought … / I sent …",
+            "课文：Lesson 13 Let's Buy Postcards! / Lesson 14 Jenny Writes a Postcard / Lesson 15 Sending the Postcards / Lesson 16 An Email Is Fast / Lesson 17 Danny's Email / Lesson 18 Little Zeke Sends an Email / Unit 3 Review"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.REG",
+            "WR.EXPR.PAST"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Did You Have a Nice Trip?",
+          "lessons": [
+            "话题：旅行回顾、礼物",
+            "句型（概括）：Did you have a nice trip? Yes, I did.",
+            "课文：Lesson 19 Li Ming Comes Home / Lesson 20 Jenny Goes Home / Lesson 21 Gifts for Everyone! / Lesson 22 Show Us Your Pictures / Lesson 23 An Email from Li Ming / Lesson 24 A Wonderful Trip / Unit 4 Review"
+          ],
+          "kps": [
+            "GR.TENSE.PAST.AUX",
+            "GR.SENT.YESNO.DO",
+            "GR.TENSE.PAST.IRREG",
+            "WR.EXPR.PAST"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Li Ming Goes to Canada",
+          "lessons": [
+            "话题：到加拿大、家居生活、做饭",
+            "句型（概括）：We are making breakfast. / This is the living room.",
+            "课文：Lesson 1 At the Airport / Lesson 2 Jenny's House / Lesson 3 Making Breakfast / Lesson 4 Making Dinner / Lesson 5 In the Living Room / Lesson 6 Baby Becky at Home / Unit 1 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "VO.TOPIC.FOOD",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 School in Canada",
+          "lessons": [
+            "话题：加拿大学校、课堂、交通安全",
+            "句型（概括）：Always do your homework! / Be safe on the way.",
+            "课文：Lesson 7 Here Comes the School Bus! / Lesson 8 At Jenny's School / Lesson 9 Li Ming Meets Jenny's Class / Lesson 10 Mr. Wood's Science Class / Lesson 11 Always Do Your Homework! / Lesson 12 Be Safe on the Way / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.VERB.IMPER",
+            "GR.ADJ.ADV.FREQ"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 We Love Sports",
+          "lessons": [
+            "话题：球类运动、比赛、体育明星",
+            "句型（概括）：Who won? / Let's play …",
+            "课文：Lesson 13 Ping-pong and Basketball / Lesson 14 At the Sports Store / Lesson 15 At the Gym / Lesson 16 A Basketball Game / Lesson 17 Who Won? / Lesson 18 A Famous Football Player / Unit 3 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Good Habits",
+          "lessons": [
+            "话题：健康习惯、诚实",
+            "句型（概括）：Eat more …! / Always …! / Go to bed early!",
+            "课文：Lesson 19 Eat More Vegetables and Fruit / Lesson 20 Always Brush Your Teeth! / Lesson 21 Exercise! / Lesson 22 Go to Bed Early! / Lesson 23 I Can't Tell a Lie / Lesson 24 Helen Keller / Unit 4 Review"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.ADJ.ADV.FREQ",
+            "VO.TOPIC.BODY",
+            "VO.TOPIC.FOOD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "上",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Fun for You and Me",
+          "lessons": [
+            "话题：看电视、电影、聚会、演戏",
+            "句型（概括）：Let's watch TV! / Turn off the computer!",
+            "课文：Lesson 1 Let's Watch TV! / Lesson 2 Turn off the Computer! / Lesson 3 At the Cinema / Lesson 4 Let's Have a Party! / Lesson 5 Let's Perform a Play! / Lesson 6 The Ugly Duckling / Unit 1 Review"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "VO.PHRASE.VERB",
+            "FN.SUGGEST",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Winter in Canada",
+          "lessons": [
+            "话题：冬天、冬装、滑冰与冬季活动",
+            "句型（概括）：It's winter. / I like all seasons!",
+            "课文：Lesson 7 Snow! It's Winter! / Lesson 8 Danny's Winter Clothes / Lesson 9 A Skating Lesson / Lesson 10 Winter Fun / Lesson 11 I Like All Seasons! / Lesson 12 The Snowman / Unit 2 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "VO.TOPIC.CLOTHES",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Christmas",
+          "lessons": [
+            "话题：圣诞节、贺卡、礼物",
+            "句型（概括）：Christmas is coming! / Merry Christmas!",
+            "课文：Lesson 13 Christmas Is Coming! / Lesson 14 Christmas Cards / Lesson 15 Christmas Gifts / Lesson 16 Christmas Eve / Lesson 17 It's Christmas Morning! / Lesson 18 Maddy's Christmas / Unit 3 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES_CONT",
+            "GR.TENSE.FUT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 The Spring Festival",
+          "lessons": [
+            "话题：春节、生肖、包饺子、中国节日",
+            "句型（概括）：What year is it? / Let's clean the house!",
+            "课文：Lesson 19 The Spring Festival / Lesson 20 What Year Is It? / Lesson 21 Let's Clean the House! / Lesson 22 Making Dumplings / Lesson 23 Special Holidays in China / Lesson 24 Year Animals / Unit 4 Review"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "VO.TOPIC.FOOD",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.IMPER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "semester": "下",
+      "editionYear": "2011",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Phoning Home",
+          "lessons": [
+            "话题：打电话",
+            "句型（概括）：Is Danny there? / This is … speaking.",
+            "课文：Lesson 1 Let's Call a Friend! / Lesson 2 Is Danny There? / Lesson 3 Dad Calls Home / Lesson 4 I Need to Call My Mother / Lesson 5 Li Ming Calls China / Lesson 6 Baby Becky Answers the Phone / Unit 1 Review"
+          ],
+          "kps": [
+            "FN.DIALOG",
+            "FN.POLITE",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Tell Me a Story",
+          "lessons": [
+            "话题：讲故事、寓言",
+            "句型（概括）：Once upon a time … / … went …",
+            "课文：Lesson 7 Jenny Tells a Story / Lesson 8 The Tortoise and the Rabbit / Lesson 9 Danny Tells a Story / Lesson 10 Li Ming Tells a Story / Lesson 11 An Old Man and a Wolf / Lesson 12 The Three Bears / Unit 2 Review"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "RD.SKILL.ORDER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Summer Is Coming!",
+          "lessons": [
+            "话题：暑假计划、夏令营",
+            "句型（概括）：What will you do this summer? I will …",
+            "课文：Lesson 13 Jenny's Summer Holiday / Lesson 14 Li Ming's Summer Holiday / Lesson 15 Danny's Summer Holiday / Lesson 16 Joe and His Basketball / Lesson 17 Summer Camp in Canada / Lesson 18 Three Kites in the Sky / Unit 3 Review"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.WILL",
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN",
+            "WR.EXPR.FUTURE"
+          ],
+          "note": "单元名末尾感叹号两个来源不一致，按英语朗读宝"
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Li Ming Comes Home",
+          "lessons": [
+            "话题：买礼物、看照片、告别聚会",
+            "句型（概括）：I bought … / Goodbye!",
+            "课文：Lesson 19 Buying Gifts / Lesson 20 Looking at Photos / Lesson 21 A Party for Li Ming / Lesson 22 Surprise! / Lesson 23 Goodbye! / Lesson 24 Danny's Surprise Cake / Unit 4 Review"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.CONTRAST",
+            "FN.POLITE"
+          ]
+        }
+      ]
+    }
+  ]
+}
