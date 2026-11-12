@@ -24,8 +24,8 @@ import type { TaxonomyContext } from '../ai/taxonomy'
 import type { AiConfig } from '../ai/types'
 import { buildRows, rowsFromPlainText } from './lines'
 import type { Row, RawLine } from './lines'
-import { planBatches, halveBatch, ocrTextFor, batchInfoText, pageListText, fillTemplate, DEFAULT_LIMITS } from './batch'
-import type { Batch, PageInput } from './batch'
+import { planBatches, halveBatch, splitPageBatch, remapAnchor, ocrTextFor, batchInfoText, pageListText, fillTemplate, DEFAULT_LIMITS } from './batch'
+import type { Batch, PageInput, PagePart } from './batch'
 import { TextOutputSchema, VisionOutputSchema, formatZodError, extractJson, FLAGS_TEXT, FLAGS_VISION } from './schema'
 import type { AnyQuestion } from './schema'
 import { mergeBatch, newMergeState, buildPrevContext } from './merge'
@@ -190,15 +190,23 @@ function checkAbort(ctx: ParseContext): void {
 export const MAX_IMAGE_SIDE = 1600
 
 /** 页面图转 data URL：长边不超过上限的原样发 PNG；超过的等比缩小并转 JPEG（文字仍清晰，体积小很多） */
-async function readImageDataUrl(paperId: string, rel: string): Promise<string> {
+async function readImageDataUrl(paperId: string, rel: string, part?: PagePart): Promise<string> {
   const file = path.join(getFilesDir(), paperId, rel)
-  const img = nativeImage.createFromPath(file)
+  let img = nativeImage.createFromPath(file)
+  // 单页写不完、拆成上下两半识别时，只发这一页里的一块（按高度裁）
+  if (part?.kind === 'image') {
+    const full = img.getSize()
+    const y = Math.max(0, Math.round(part.y0 * full.height))
+    const h = Math.min(full.height - y, Math.max(1, Math.round((part.y1 - part.y0) * full.height)))
+    if (full.height > 0) img = img.crop({ x: 0, y, width: full.width, height: h })
+  }
   const { width, height } = img.getSize()
   if (width > 0 && Math.max(width, height) > MAX_IMAGE_SIDE) {
     const k = MAX_IMAGE_SIDE / Math.max(width, height)
     const small = img.resize({ width: Math.round(width * k), height: Math.round(height * k), quality: 'best' })
     return `data:image/jpeg;base64,${small.toJPEG(88).toString('base64')}`
   }
+  if (part?.kind === 'image') return `data:image/png;base64,${img.toPNG().toString('base64')}`
   const buf = await fs.promises.readFile(file)
   return `data:image/png;base64,${buf.toString('base64')}`
 }
@@ -233,18 +241,18 @@ async function runAiStage(
       QUESTION_TYPES: tax.qtypeText,
       FILE_NAME: fileName,
       KNOWN_META: knownMeta,
-      BATCH_INFO: batchInfoText({ seq: plannedNo ?? seqNo, total: plannedNo ? totalBatches : null, pages: batch.pages, pageCount }),
+      BATCH_INFO: batchInfoText({ seq: plannedNo ?? seqNo, total: plannedNo ? totalBatches : null, pages: batch.pages, pageCount, part: batch.part }),
       BATCH_PREFIX: `b${seqNo}`,
       PREV_CONTEXT: buildPrevContext(state, batch.mode)
     }
     if (batch.mode === 'text') {
-      vars.OCR_TEXT = ocrTextFor(prepared.inputs, batch.pages)
+      vars.OCR_TEXT = ocrTextFor(prepared.inputs, batch.pages, batch.part)
       return [{ role: 'system', content: sysText }, { role: 'user', content: fillTemplate(userText, vars) }]
     }
     vars.PAGE_LIST = pageListText(batch.pages)
     const images = await Promise.all(batch.pages.map(async i => {
       const rel = prepared.inputs.find(p => p.idx === i)!.imageRel
-      return { type: 'image_url' as const, image_url: { url: await readImageDataUrl(paperId, rel) } }
+      return { type: 'image_url' as const, image_url: { url: await readImageDataUrl(paperId, rel, batch.part) } }
     }))
     return [{ role: 'system', content: sysVision }, { role: 'user', content: [{ type: 'text', text: fillTemplate(userVision, vars) }, ...images] }]
   }
@@ -269,6 +277,7 @@ async function runAiStage(
     let feedback: { raw: string; error: string } | null = null
     let lastProblem = ''
     let lastDetail = ''
+    let lastErr: AiError | null = null
     const lim = effectiveMaxTokens(cfg, model)
     const batchT0 = Date.now()
     let attemptsTotal = 0
@@ -284,7 +293,8 @@ async function runAiStage(
         const page = batch.pages.includes(q.page) ? q.page
           : batch.pages.reduce((best, p) => (Math.abs(p - q.page) < Math.abs(best - q.page) ? p : best), batch.pages[0])
         return {
-          ...q, page, anchor_ref: 'anchor_ref' in q ? q.anchor_ref : '',
+          ...q, page, anchor: batch.part && Array.isArray(q.anchor) ? remapAnchor(q.anchor, batch.part) : q.anchor,
+          anchor_ref: 'anchor_ref' in q ? q.anchor_ref : '',
           flags: q.flags.filter((f: string) => allowed.includes(f))
         } as AnyQuestion
       })
@@ -333,6 +343,7 @@ async function runAiStage(
           if (e.code === 'truncated') sawTruncated = true
           lastProblem = e.message
           lastDetail = e.detail
+          lastErr = e
           break
         }
         // 读图时这个密钥没有权限 / 找不到模型：本机文字能用就改用本机文字，别让整份卷子失败
@@ -396,7 +407,20 @@ async function runAiStage(
       for (const h of halves) await runBatch(h, null)
       return
     }
+    // 单页还是写不完：加大上限后仍被截断时，把这一页拆成上下两半分别识别（重叠处由合并去重），不直接失败
+    if (sawTruncated && !batch.part) {
+      const parts = splitPageBatch(batch, prepared.inputs.find(p => p.idx === batch.pages[0]))
+      if (parts) {
+        prepared.notes.push(`第 ${batch.pages[0]} 页内容太多，已拆成上下两半分别识别`)
+        for (const h of parts) await runBatch(h, null)
+        return
+      }
+    }
     // 给用户看的是白话（已经自动加大上限重试过、也拆小过）；技术原因放进详情
+    // 正文很短却用满额度：说明是模型在后台思考，建议改设置
+    if (lastErr && friendlyAiError(lastErr).message.includes('后台思考')) {
+      throw new ParseError('ai', `AI 没能完整读懂第 ${batch.pages[0]} 页（已经自动加大、拆小重试过）：${friendlyAiError(lastErr).message}`, `第 ${batch.pages[0]} 页：${lastProblem}；${lastDetail}`)
+    }
     throw new ParseError('ai', `AI 没能完整读懂第 ${batch.pages[0]} 页（已经自动重试过）；${RETRY_HINT}`, `第 ${batch.pages[0]} 页：${lastProblem || '模型输出不可用'}${lastDetail ? `；${lastDetail}` : ''}`)
   }
 

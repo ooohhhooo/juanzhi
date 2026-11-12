@@ -69,42 +69,74 @@ export function getPreset(id: string): ProviderPreset | undefined {
 export interface ModelProfile { reasoning: boolean; defaultMaxTokens: number; ceiling: number }
 
 export const REASONING_DEFAULT_MAX_TOKENS = 32768
-export const PLAIN_DEFAULT_MAX_TOKENS = 8192
+/** 表里没有的模型（自定义服务商 / 新模型）的默认输出上限：8192 太小，常被「后台思考」占满 */
+export const PLAIN_DEFAULT_MAX_TOKENS = 32768
+/** 天花板的上限：自动加大最多到这里 */
+export const MAX_CEILING = 65536
+/** 最保守的安全值：被服务商拒绝时最后降到它 */
+export const SAFE_MAX_TOKENS = 8192
 /** 旧版本的默认值：设置里等于它的，视为「用户没改过」，迁移成新默认（见 db.ts v10） */
 export const LEGACY_DEFAULT_MAX_TOKENS = 8192
 
+const p = (reasoning: boolean, defaultMaxTokens: number, ceiling: number): ModelProfile => ({ reasoning, defaultMaxTokens, ceiling })
+
 const KNOWN_MODELS: Record<string, ModelProfile> = {
-  'deepseek-v4-pro': { reasoning: true, defaultMaxTokens: 32768, ceiling: 65536 },
-  'deepseek-flash': { reasoning: true, defaultMaxTokens: 32768, ceiling: 65536 },
-  'qwen-plus': { reasoning: false, defaultMaxTokens: 8192, ceiling: 8192 },
-  'qwen-max': { reasoning: false, defaultMaxTokens: 8192, ceiling: 8192 },
-  'qwen3-vl-plus': { reasoning: true, defaultMaxTokens: 16384, ceiling: 32768 },
-  'doubao-seed-1-6-250615': { reasoning: true, defaultMaxTokens: 16384, ceiling: 32768 },
-  'doubao-seed-1-6-vision-250815': { reasoning: true, defaultMaxTokens: 16384, ceiling: 32768 },
-  'kimi-k2-0905-preview': { reasoning: false, defaultMaxTokens: 8192, ceiling: 16384 },
-  'moonshot-v1-32k-vision-preview': { reasoning: false, defaultMaxTokens: 8192, ceiling: 8192 },
-  'glm-4.6': { reasoning: true, defaultMaxTokens: 32768, ceiling: 65536 },
-  'glm-4.6v': { reasoning: true, defaultMaxTokens: 16384, ceiling: 32768 }
+  'deepseek-v4-pro': p(true, 32768, 65536),
+  'deepseek-flash': p(true, 32768, 65536),
+  'qwen-plus': p(false, 16384, 32768),
+  'qwen-max': p(false, 8192, 8192),
+  'qwen-vl-max': p(false, 8192, 8192),
+  'qwen-vl-plus': p(false, 8192, 8192),
+  'qwen3-vl-plus': p(true, 16384, 32768),
+  'doubao-seed-1-6-250615': p(true, 16384, 32768),
+  'doubao-seed-1-6-vision-250815': p(true, 16384, 32768),
+  'doubao-seed-1-6-flash': p(false, 16384, 16384),
+  'kimi-k2-0905-preview': p(false, 8192, 16384),
+  'moonshot-v1-32k-vision-preview': p(false, 8192, 8192),
+  'glm-4.6': p(true, 32768, 65536),
+  'glm-4.6v': p(true, 16384, 32768)
 }
-const REASONING_NAME_RE = /reason|think|(^|[-_/])r1($|[-_])|qwq|(^|[-_/])o[134]($|[-_])|deepseek-v\d|deepseek-flash/i
+
+/** 按名字关键字认的常见模型家族（精确名先查上面的表）；ceiling 取各家公开的最大输出，查不到的写保守值 */
+const FAMILY_MODELS: Array<[RegExp, ModelProfile]> = [
+  [/(^|[-_/])gemini-(2\.5|3)/, p(true, 32768, 65536)],
+  [/(^|[-_/])gemini-/, p(false, 8192, 8192)],
+  [/(^|[-_/])gpt-5/, p(true, 32768, 65536)],
+  [/(^|[-_/])o[34]($|[-_])/, p(true, 32768, 65536)],
+  [/(^|[-_/])gpt-4\.1/, p(false, 16384, 32768)],
+  [/(^|[-_/])gpt-4o/, p(false, 16384, 16384)],
+  [/qwen3-vl-flash/, p(false, 16384, 32768)],
+  [/qwen3-vl/, p(true, 16384, 32768)],
+  [/claude-(3-5|3-haiku|3-sonnet|3-opus)/, p(false, 8192, 8192)],
+  [/claude-.*opus/, p(true, 16384, 32000)],
+  [/claude-/, p(true, 32768, 64000)]
+]
+const REASONING_NAME_RE = /reason|think|(^|[-_/])r1($|[-_])|qwq|(^|[-_/])o[134]($|[-_])|deepseek-v\d|deepseek-flash|gemini-(2\.5|3)|gpt-5/i
 
 export function modelProfile(model: string): ModelProfile {
   const m = model.trim().toLowerCase()
   const known = KNOWN_MODELS[m]
   if (known) return known
-  if (REASONING_NAME_RE.test(m)) return { reasoning: true, defaultMaxTokens: REASONING_DEFAULT_MAX_TOKENS, ceiling: 65536 }
-  return { reasoning: false, defaultMaxTokens: PLAIN_DEFAULT_MAX_TOKENS, ceiling: PLAIN_DEFAULT_MAX_TOKENS }
+  for (const [re, prof] of FAMILY_MODELS) if (re.test(m)) return prof
+  if (REASONING_NAME_RE.test(m)) return { reasoning: true, defaultMaxTokens: REASONING_DEFAULT_MAX_TOKENS, ceiling: MAX_CEILING }
+  return { reasoning: false, defaultMaxTokens: PLAIN_DEFAULT_MAX_TOKENS, ceiling: MAX_CEILING }
+}
+
+/** 默认值被服务商拒绝时，依次降到的安全值（比默认值小的才有意义）：16384，再不行 8192 */
+export function fallbackSteps(start: number): number[] | undefined {
+  const steps = [16384, SAFE_MAX_TOKENS].filter(n => n < start)
+  return steps.length ? steps : undefined
 }
 
 /**
  * 一次调用实际用的输出上限、天花板和「被拒绝时的安全值」：
- *  - 「自动」（max_tokens_auto，默认开）：取该模型的默认值；写不完时可以翻倍到模型天花板；
- *    名字猜错、首个请求被服务商拒绝（400）时降到 fallback 重试一次；
- *  - 手动：用设置里的数，**永远不翻倍、不降级**（ceiling = 手填值，fallback 为空）——管理员明确要的数，程序不替他改。
+ *  - 「自动」（max_tokens_auto，默认开）：取该模型的默认值；写不完时可以连续翻倍（最多两次）到模型天花板；
+ *    名字猜错、首个请求被服务商拒绝（400）时依次降到 fallback 重试；
+ *  - 手动：从手填的数开始；写不完时自动加大，最多到 65536 / 模型天花板；不降级（管理员明确要的数，被拒绝要让他知道）。
  */
-export function effectiveMaxTokens(cfg: { max_tokens: number; max_tokens_auto?: boolean }, model: string): { maxTokens: number; ceiling: number; auto: boolean; fallback: number | undefined } {
+export function effectiveMaxTokens(cfg: { max_tokens: number; max_tokens_auto?: boolean }, model: string): { maxTokens: number; ceiling: number; auto: boolean; fallback: number[] | undefined } {
   const prof = modelProfile(model)
   const auto = cfg.max_tokens_auto !== false
-  if (!auto) return { maxTokens: cfg.max_tokens, ceiling: cfg.max_tokens, auto: false, fallback: undefined }
-  return { maxTokens: prof.defaultMaxTokens, ceiling: prof.ceiling, auto: true, fallback: prof.defaultMaxTokens > PLAIN_DEFAULT_MAX_TOKENS ? PLAIN_DEFAULT_MAX_TOKENS : undefined }
+  if (!auto) return { maxTokens: cfg.max_tokens, ceiling: Math.max(cfg.max_tokens, prof.ceiling), auto: false, fallback: undefined }
+  return { maxTokens: prof.defaultMaxTokens, ceiling: prof.ceiling, auto: true, fallback: fallbackSteps(prof.defaultMaxTokens) }
 }

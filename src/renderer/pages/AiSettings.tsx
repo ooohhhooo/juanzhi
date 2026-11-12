@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { App, AutoComplete, Collapse, Form, Input, InputNumber, Select, Space, Switch, Table, Tooltip } from 'antd'
+import { App, AutoComplete, Collapse, Form, Input, InputNumber, Select, Space, Switch, Table, Tooltip, Typography } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, Panel, UsageNote } from '../design'
 import '../design/page-report.css'
@@ -177,11 +177,12 @@ export default function AiSettings() {
               <Form.Item label="每批最多页数" extra="长卷分批发给模型"><InputNumber min={1} max={10} value={cfg.batch_pages} onChange={v => set({ batch_pages: v ?? 3 })} /></Form.Item>
               <Form.Item label="单次请求超时（秒）"><InputNumber min={2} max={600} value={cfg.timeout_sec} onChange={v => set({ timeout_sec: v ?? 180 })} /></Form.Item>
               <Form.Item label="AI 一次最多写多长" extra={cfg.max_tokens_auto
-                ? '自动（推荐）：按所选模型决定。推理模型（如 deepseek-v4-pro）会先思考再写，思考也占额度，所以给得更大；写不完时程序还会自动加长一次；如果服务商不接受更大的数，会自动降到 8192 再试。'
-                : '手动指定（单位 tokens）。手填的数不会被自动加长；服务商限制更小时请调低；一般建议保持「自动」。'}>
+                ? '自动（推荐）：按所选模型决定。有的模型会在后台思考，思考也占额度（不显示出来），所以默认给得大；写不完时程序会自动加长，最多两次；如果服务商不接受更大的数，会自动降到 16384、再不行 8192 重试。'
+                : '手动指定（单位 tokens）：从你填的数开始写，写不完时程序会自动加大，最多到 65536（或该模型的上限）。服务商不接受你填的数时不会替你改，请调低；一般建议保持「自动」。'}>
                 <Space>
                   <Switch data-testid="ai-max-auto" checked={cfg.max_tokens_auto} checkedChildren="自动" unCheckedChildren="手动" onChange={v => set({ max_tokens_auto: v })} />
-                  {!cfg.max_tokens_auto && <InputNumber data-testid="ai-max-tokens" min={1000} max={131072} step={1000} value={cfg.max_tokens} onChange={v => set({ max_tokens: v ?? 8192 })} />}
+                  {!cfg.max_tokens_auto && <InputNumber data-testid="ai-max-tokens" min={1000} max={131072} step={1000} value={cfg.max_tokens} onChange={v => set({ max_tokens: v ?? 32768 })} />}
+                  {!cfg.max_tokens_auto && cfg.max_tokens < 16384 && <Typography.Text type="warning" data-testid="ai-max-tokens-warn">这个数偏小，试卷内容多时容易写不完；建议 16384 以上，或改回「自动」。</Typography.Text>}
                 </Space>
               </Form.Item>
             </Space>

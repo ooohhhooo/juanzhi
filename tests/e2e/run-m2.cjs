@@ -466,7 +466,10 @@ async function phaseFailures() {
 
   // 被截断的批次
   o = await run('truncated×1', [{ type: 'truncated', times: 1 }])
-  check('故障：批次被截断', '输出被长度上限截断（finish_reason=length）：不硬解析残缺 JSON，把批次对半拆小重试 → 成功', o.p.status === 'reviewing' && o.reqs.length === 3 && o.reqs[1].pages.join() === '1' && o.reqs[2].pages.join() === '2' && (await getQs(page, id)).questions.length === 36, o.reqs.map(r => r.pages.join('-')).join(' / '))
+  check('故障：批次被截断', '输出被长度上限截断（finish_reason=length）：不硬解析残缺 JSON，先把输出上限翻倍重试（不拆批）→ 成功', o.p.status === 'reviewing' && o.reqs.length === 2 && o.reqs[1].pages.join() === o.reqs[0].pages.join() && o.reqs[1].maxTokens === o.reqs[0].maxTokens * 2 && (await getQs(page, id)).questions.length === 36, o.reqs.map(r => r.pages.join('-') + '@' + r.maxTokens).join(' / '))
+  // 加大两次（32768 → 65536 到顶）后仍写不完：才把批次对半拆小重试 → 成功
+  o = await run('truncated×2', [{ type: 'truncated', times: 2 }])
+  check('故障：批次被截断', '加大到顶仍被截断（共 2 次请求）→ 批次对半拆小 → 成功', o.p.status === 'reviewing' && o.reqs.length === 4 && o.reqs[2].pages.join() === '1' && o.reqs[3].pages.join() === '2' && (await getQs(page, id)).questions.length === 36, o.reqs.map(r => r.pages.join('-') + '@' + r.maxTokens).join(' / '))
   o = await run('truncated×10', [{ type: 'truncated', times: 10 }])
   check('故障：批次被截断', '单页也被截断 → failed，白话提示并指明页码，「长度上限」这类技术原因收在详情里', o.p.status === 'failed' && /第 1 页/.test(o.p.error) && /长度上限/.test(o.p.error_detail) && !/长度上限|token/.test(o.p.error) && bad(o.p.error), `${o.p.error}｜详情：${o.p.error_detail}`)
   await recover()

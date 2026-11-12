@@ -13,6 +13,8 @@ const { check, sleep, waitFor, withDb, fs, path, work, SECRET, pageImg, ctx, T, 
 const mammoth = require(path.join(root, 'node_modules/mammoth'))
 
 const FRIENDLY = 'AI 这次没写完，已经自动重试过；可以点「重试」，多次失败请联系管理员'
+// 模拟 AI 写出的半截内容很短（远不到上限的三分之一）：会被认成「正文很短却用满额度 = 后台思考」，白话换成这一句；两种都算对
+const isTruncMsg = m => m.includes(FRIENDLY) || (/后台思考/.test(m) && /自动/.test(m) && /重试」，多次失败请联系管理员/.test(m))
 const TECH = /token|tokens|输出上限|输出长度|max_tokens|finish_reason|HTTP|\b[45]\d\d\b/i
 const reports = () => withDb(ctx.ud, d => d.prepare("SELECT * FROM reports WHERE kind = 'report' ORDER BY created_at, rowid").all())
 const p3reqs = () => ctx.mock.p3Requests
@@ -154,9 +156,9 @@ async function main() {
     const msg = g3.ok ? await txt('report-error') : ''
     await T('report-error').locator('.ant-collapse-header').first().click(); await sleep(300)
     const detail = await txt('report-error-detail').catch(() => '')
-    check('A1 白话报错', `两次都写不完：提示「${FRIENDLY}」，不出现 token、输出上限、HTTP 这类词`, g3.ok && msg.includes(FRIENDLY) && !TECH.test(msg.replace('查看详情（给管理员看）', '')) && p3reqs().length === 2 && reports().length === 2, msg)
+    check('A1 白话报错', `两次都写不完：提示「${FRIENDLY}」，不出现 token、输出上限、HTTP 这类词`, g3.ok && isTruncMsg(msg) && !TECH.test(msg.replace('查看详情（给管理员看）', '')) && p3reqs().length === 2 && reports().length === 2, msg)
     check('A1 查看详情', '「查看详情」折叠里才有技术原因（finish_reason=length、上限 32768→65536），给管理员看', /finish_reason=length/.test(detail) && /65536/.test(detail), detail.slice(0, 120))
-    check('A1 未完成草稿', '失败时已生成的部分存成「未完成草稿」（ai_drafts 一行、有内容），不进历史报告', drafts().length === 1 && drafts()[0].kind === 'report' && drafts()[0].markdown.length > 20 && reports().length === 2 && /AI 这次没写完/.test(drafts()[0].message))
+    check('A1 未完成草稿', '失败时已生成的部分存成「未完成草稿」（ai_drafts 一行、有内容），不进历史报告', drafts().length === 1 && drafts()[0].kind === 'report' && drafts()[0].markdown.length > 20 && reports().length === 2 && (/AI 这次没写完/.test(drafts()[0].message) || /后台思考/.test(drafts()[0].message)))
     await T('report-dismiss').click()
     await T('report-draft-box').waitFor({ timeout: 8000 }).catch(() => undefined)
     check('A1 查看草稿', '关掉报错后，页面上仍有「未完成草稿」入口，点开能看到已写出的内容，并写明「不算有效结果」', (await T('report-draft-box').count()) === 1 && /不算有效结果/.test(await txt('report-draft-box')), await txt('report-draft-box').catch(() => ''))
@@ -171,7 +173,7 @@ async function main() {
     mock.resetStats(); mock.script([{ type: 'length', times: 2, only: 'p2' }])
     const res = await api(sc => window.api.ai.analyzeCompare(sc, crypto.randomUUID()), scope)
     const st = await api(sc => window.api.ai.compareAnalysis(sc), scope)
-    check('A1 P2 失败', 'P2 两次都写不完：白话报错 + 技术详情；已写出的部分存成草稿，缓存状态仍是「还没有分析」', res.ok === false && res.message === FRIENDLY && /finish_reason=length/.test(res.detail) && st.status === 'none' && !!st.draft && st.draft.markdown.length > 10 && st.aiDraft === true, JSON.stringify([res.message, st.status, !!st.draft]))
+    check('A1 P2 失败', 'P2 两次都写不完：白话报错 + 技术详情；已写出的部分存成草稿，缓存状态仍是「还没有分析」', res.ok === false && isTruncMsg(res.message) && /finish_reason=length/.test(res.detail) && st.status === 'none' && !!st.draft && st.draft.markdown.length > 10 && st.aiDraft === true, JSON.stringify([res.message, st.status, !!st.draft]))
     mock.resetStats()
     const res2 = await api(sc => window.api.ai.analyzeCompare(sc, crypto.randomUUID()), scope)
     const st2 = await api(sc => window.api.ai.compareAnalysis(sc), scope)
@@ -196,6 +198,17 @@ async function main() {
     })(), p1r[0].user.slice(0, 60))
     check('A1 P1 新版提示词', 'P1 的 system 要求：同类题难度 / 易错一致、error_reason 用白话（docs/prompts/v2 的原文）', /同类题要一致/.test(p1r[0].system) && /用不懂英语的老师也看得懂的白话写/.test(p1r[0].system))
 
+    // 手动模式 8192 + 连续两次写不完：从手填的数开始，自动连续加大两次（8192 → 16384 → 32768）后成功，用户无感
+    await saveCfg(cfgFor(mock, { model: 'mock-text-model', max_tokens_auto: false, max_tokens: 8192 }), SECRET)
+    const f3 = L.copyWithTag(path.join(root, 'samples/g4-2026.pdf'), path.join(work, 'g4-2026-twice.pdf'), 'twice')
+    mock.resetStats(); mock.script([{ type: 'length', times: 2, only: 'p1' }])
+    await L.dropFiles(page, [f3])
+    const pt = await L.waitStatus(page, 'g4-2026-twice.pdf', ['failed', 'reviewing'], 120000)
+    mock.clearScript()
+    const tr = mock.p1Requests.map(x => x.maxTokens)
+    check('A1 连续加大两次', '手动 8192：连续两次写不完 → 自动加大到 16384、再到 32768 → 成功进待审核，没有失败', pt.status === 'reviewing' && tr[0] === 8192 && tr[1] === 16384 && tr[2] === 32768, JSON.stringify(tr.slice(0, 5)))
+    { const tid = withDb(ctx.ud, d => d.prepare("SELECT id FROM papers WHERE file_name = 'g4-2026-twice.pdf'").get())?.id; if (tid) await api(x => window.api.papers.remove(x), tid) }   // 用完就删：免得它算成「疑似重复」，影响后面 A4 的计数
+
     // 失败：持续写不完（非推理模型不翻倍，直接拆小再失败）→ 白话 + 详情；队列只有「重试」主按钮，其它收进「更多」
     await saveCfg(cfgFor(mock, { model: 'mock-text-model', max_tokens_auto: true }), SECRET)
     const f2 = L.copyWithTag(path.join(root, 'samples/g4-2026.pdf'), path.join(work, 'g4-2026-fail.pdf'), 'fail')
@@ -210,7 +223,7 @@ async function main() {
     const perr = await row.locator('[data-testid=paper-error]').innerText().catch(() => '')
     await row.locator('.ant-collapse-header').first().click().catch(() => undefined); await sleep(300)
     const pdetail = await row.locator('[data-testid=paper-error-detail]').innerText().catch(() => '')
-    check('A1 队列白话报错', 'P1 持续写不完：失败原因是白话「AI 没能完整读懂第 N 页（已经自动重试过）…点「重试」，多次失败请联系管理员」，不出现技术词；技术原因在「查看详情」里', pf.status === 'failed' && /AI 没能完整读懂第 \d 页（已经自动重试过）；可以点「重试」，多次失败请联系管理员/.test(perr) && !TECH.test(perr) && /长度上限|length/.test(pdetail) && !!pf.error_detail, `${perr}｜${pdetail}`.slice(0, 160))
+    check('A1 队列白话报错', 'P1 持续写不完：失败原因是白话「AI 没能完整读懂第 N 页（已经自动重试过）…点「重试」，多次失败请联系管理员」，不出现技术词；技术原因在「查看详情」里', pf.status === 'failed' && /AI 没能完整读懂第 \d 页（已经自动(加大、拆小)?重试过）[；：]/.test(perr) && /重试」，多次失败请联系管理员/.test(perr) && !TECH.test(perr) && /长度上限|length/.test(pdetail) && !!pf.error_detail, `${perr}｜${pdetail}`.slice(0, 160))
     check('A1 队列重试按钮', '失败的卷子只有一个「重试」主按钮，其它三个选项收进「更多」', (await row.locator('[data-testid=retry-parse]').innerText()).trim() === '重试' && (await row.locator('[data-testid=retry-menu]').innerText()).trim() === '更多' && (await row.locator('button', { hasText: '重试' }).count()) === 1)
     await row.locator('[data-testid=retry-menu]').click()
     const items = await page.locator('.ant-dropdown-menu-item').allInnerTexts()

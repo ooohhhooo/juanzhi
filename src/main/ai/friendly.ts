@@ -3,7 +3,7 @@
  * 技术细节（原因、字数、上限、HTTP 状态）放在 detail 里，界面收在「查看详情」折叠中，给管理员排查用。
  * 纯函数，不依赖 electron，单测直接加载。
  */
-import { AiError, NO_TIME_TO_RETRY } from './client.ts'
+import { AiError, NO_TIME_TO_RETRY, HIDDEN_THINKING } from './client.ts'
 
 export const RETRY_HINT = '可以点「重试」，多次失败请联系管理员'
 
@@ -13,7 +13,9 @@ export function friendlyAiError(e: unknown): FriendlyError {
   if (!(e instanceof AiError)) return { message: `AI 这次没有成功。${RETRY_HINT}`, detail: (e as Error)?.message ?? String(e) }
   const d = [e.code, e.status ? `HTTP ${e.status}` : '', e.message, e.detail].filter(Boolean).join('；')
   switch (e.code) {
-    case 'truncated': return { message: e.detail.includes(NO_TIME_TO_RETRY) ? `AI 这次写得太慢、没写完，剩下的时间也不够再自动加长重试了；已保留写出的部分；${RETRY_HINT}` : `AI 这次没写完，已经自动重试过；${RETRY_HINT}`, detail: d }
+    case 'truncated':
+      if (e.detail.includes(HIDDEN_THINKING) && !e.detail.includes(NO_TIME_TO_RETRY)) return { message: `AI 写出来的内容很短，额度却用完了：模型多半在后台思考，用掉了大部分额度（思考过程不会显示出来）。可以到「设置 → 管理员设置 → AI 服务」，把「AI 一次最多写多长」设为「自动」，或换一个不带思考的模型；${RETRY_HINT}`, detail: d }
+      return { message: e.detail.includes(NO_TIME_TO_RETRY) ? `AI 这次写得太慢、没写完，剩下的时间也不够再自动加长重试了；已保留写出的部分；${RETRY_HINT}` : `AI 这次没写完，已经自动重试过；${RETRY_HINT}`, detail: d }
     case 'empty': return { message: `AI 这次没有返回内容，已经自动重试过；${RETRY_HINT}`, detail: d }
     case 'timeout': return { message: e.detail === 'total-timeout' ? `AI 这次写了太久，已经停止；${RETRY_HINT}` : `AI 等了太久没有回应；${RETRY_HINT}`, detail: d }
     case 'network': return { message: `连不上 AI 服务，请检查网络；${RETRY_HINT}`, detail: d }

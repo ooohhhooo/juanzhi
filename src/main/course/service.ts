@@ -195,13 +195,13 @@ export interface SuggestResult { items: Record<string, SuggestItem>; model: stri
 const emptyMapping = (): SheetMapping => ({ headerRows: 1, levelName: '', columns: [], skipMarkers: [], uncertain: [] })
 const aiReady = () => { const c = loadConfig(); return !!(c.base_url && parseModelOf(c) && getApiKey()) }
 
-export async function jsonCall(o: { kind: string; model: string; system: string; user: string; signal?: AbortSignal; maxTokens?: number }): Promise<{ content: string; model: string }> {
+export async function jsonCall(o: { kind: string; model: string; system: string; user: string; signal?: AbortSignal; /** 已不再限制输出长度：统一用 effectiveMaxTokens（调用方原来传的小数在后台思考的模型上会被占满） */ maxTokens?: number }): Promise<{ content: string; model: string }> {
   const cfg = loadConfig()
   const lim = effectiveMaxTokens(cfg, o.model)
   const t0 = Date.now()
   try {
     const r = await chat({
-      baseUrl: cfg.base_url, apiKey: getApiKey()!, model: o.model, temperature: 0.1, maxTokens: o.maxTokens ? Math.min(o.maxTokens, lim.ceiling) : lim.maxTokens, jsonMode: true, stream: true,
+      baseUrl: cfg.base_url, apiKey: getApiKey()!, model: o.model, temperature: 0.1, maxTokens: lim.maxTokens, jsonMode: true, stream: true,
       messages: [{ role: 'system', content: o.system }, { role: 'user', content: o.user }],
       timeoutMs: cfg.timeout_sec * 1000, signal: o.signal, fetchImpl: net.fetch as unknown as typeof fetch,
       escalateOnLength: { ceiling: lim.ceiling }, maxTokensFallback: lim.fallback,
@@ -270,13 +270,24 @@ async function organiseText(sessionId: string, s: Session, signal: AbortSignal, 
     const sub = childAbort(signal)
     const parts = await mapLimit(chunks, 3, async chunk => {
       if (sub.signal.aborted) throw new AiError('aborted', '已取消')
-      const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: chunk })
-      let r
-      try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal: sub.signal }) } catch (err) {
-        if (err instanceof AiError && err.code === 'aborted') throw err
-        throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
+      // 这一段写不完（加大上限后仍被截断）：按行对半拆开分别整理再合并，直到拆不动为止
+      const runChunk = async (text: string): Promise<ExtractParse> => {
+        const user = fillTemplate(promptText('p5_course_extract', 'user'), { SOURCE_KIND: label, SOURCE_TEXT: text })
+        let r
+        try { r = await jsonCall({ kind: 'course-extract', model, system: promptText('p5_course_extract', 'system'), user, signal: sub.signal }) } catch (err) {
+          if (err instanceof AiError && err.code === 'aborted') throw err
+          const ls = text.split('\n')
+          if (err instanceof AiError && err.code === 'truncated' && ls.length > 1) {
+            const mid = Math.ceil(ls.length / 2)
+            const a = await runChunk(ls.slice(0, mid).join('\n'))
+            const b = await runChunk(ls.slice(mid).join('\n'))
+            return { ok: a.ok && b.ok, lessons: [...a.lessons, ...b.lessons], dropped: [...a.dropped, ...b.dropped], problems: [...a.problems, ...b.problems] }
+          }
+          throw new CourseFileError(`AI 整理没成功（${friendlyAiError(err).message}），可以稍后重试，或改传 Excel`)
+        }
+        return parseExtractResponse(r.content, e.lines)
       }
-      const part = parseExtractResponse(r.content, e.lines)
+      const part = await runChunk(chunk)
       if (!part.ok) throw new CourseFileError('AI 的回答格式不对，没能整理出课程表，可以重试一次，或改传 Excel')
       onProgress?.(++finished, chunks.length, '段')
       return part
@@ -333,7 +344,7 @@ async function organiseTextbook(sessionId: string, s: Session, signal: AbortSign
           SUBJECT_NAME: SUBJECTS[subj].name, UNIT_TITLE: u.title, UNIT_NO: String(u.id), UNIT_TOTAL: String(units.length), PAGE_RANGE: pageRangeText(u).replace(/^第 | 页$/g, ''),
           UNIT_HEADINGS: u.headings.length ? u.headings.join('\n') : '（没有读到小节标题）', UNIT_OPENING: u.opening.length ? u.opening.join('\n') : '（没有读到正文）', KP_CANDIDATES: cands.text
         })
-        const r = await jsonCall({ kind: 'course-textbook', model, system: promptText('p5_course_textbook', 'system'), user, signal: sub.signal, maxTokens: 2000 })
+        const r = await jsonCall({ kind: 'course-textbook', model, system: promptText('p5_course_textbook', 'system'), user, signal: sub.signal })
         const parsed = parseUnitKpResponse(r.content, cands.codes, u.sourceLines)
         if (!parsed.ok) throw new CourseFileError('AI 的回答格式不对')
         tb.results.set(u.id, parsed.kps)
@@ -429,7 +440,7 @@ async function suggestInner(sessionId: string, s: Session, mode: 'ai' | 'guess' 
     try {
       if (sub.signal.aborted) throw new AiError('aborted', '已取消')
       const user = fillTemplate(promptText('p5_course_cols', 'user', s.subject), { SHEET_NAME: sheet.name, SHEET_PREVIEW: sheetPreview(sheet) })
-      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system', s.subject), user, signal: sub.signal, maxTokens: 8000 })
+      const r = await jsonCall({ kind: 'course-cols', model, system: promptText('p5_course_cols', 'system', s.subject), user, signal: sub.signal })
       const p = parseColsResponse(r.content, sheet)
       if (p.ok && p.mapping) return { mapping: p.mapping, problems: p.problems, source: 'ai' }
       return { mapping: guessMapping(sheet, s.subject) ?? emptyMapping(), problems: p.problems, source: 'guess', error: 'AI 没能认出这张表的列，已按表头文字猜了一遍，请核对' }
@@ -572,15 +583,22 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
       await mapLimit(batches, 3, async batch => {
         try {
           if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
-          const blk = kpBatchBlock(batch)
-          const parts = await Promise.all(chunks.map((chunk, ci) => gate(async () => {
-            if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
-            const user = fillTemplate(userTpl, { OUTLINE_LINES: chunk.join('\n'), KP_BATCH: blk.text })
+          // 一次问「这批考点 × 这段课程」；写不完（加大上限后仍被截断）就把这批考点对半拆开分别问，再合并
+          const askOne = async (kpPart: typeof batch, ci: number): Promise<MatchEntry[]> => {
+            const blk = kpBatchBlock(kpPart)
+            const user = fillTemplate(userTpl, { OUTLINE_LINES: chunks[ci].join('\n'), KP_BATCH: blk.text })
             const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
             // 本地解析不出有效内容：同一调用自动重试一次，仍失败再报错（problems 写日志，不含密钥 / 课程原文）
             let p = parseMatchResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
             for (let attempt = 1; attempt <= 2; attempt++) {
-              const r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal })
+              let r
+              try { r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal }) } catch (err) {
+                if (err instanceof AiError && err.code === 'truncated' && kpPart.length > 1) {
+                  const mid = Math.ceil(kpPart.length / 2)
+                  return mergeEntries([await askOne(kpPart.slice(0, mid), ci), await askOne(kpPart.slice(mid), ci)])
+                }
+                throw err
+              }
               p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
               if (p.entries.length || !p.problems.length) break
               log.warn('course', '匹配回答解析失败', { attempt, problems: p.problems.slice(0, 3), chars: r.content.length })
@@ -588,6 +606,10 @@ export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boole
             if (!p.entries.length && p.problems.length) throw new AiError('bad_output', 'AI 的回答解析失败', null, `解析问题：${p.problems.slice(0, 3).join('；')}`)
             dropped += p.dropped
             return p.entries
+          }
+          const parts = await Promise.all(chunks.map((_chunk, ci) => gate(async () => {
+            if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
+            return askOne(batch, ci)
           })))
           if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
           const merged = chunks.length > 1 ? mergeEntries(parts) : parts[0]

@@ -84,16 +84,16 @@ export interface ChatRequest {
   /** 推理模型在输出 reasoning_content 时回调（节流：约每秒一次，第一次立即）；不计入正文 */
   onThinking?: (info: ThinkingInfo) => void
   /**
-   * 输出被长度上限截断（finish_reason=length）时：把 max_tokens 翻倍（不超过 ceiling）自动重试一次。
+   * 输出被长度上限截断（finish_reason=length）时：把 max_tokens 翻倍（不超过 ceiling）自动重试，最多连续加大两次。
    * ceiling ≤ 当前 maxTokens 时不重试。重试前回调 onRetry，界面据此提示「输出内容较长，正在自动加长篇幅重试」。
    */
   escalateOnLength?: { ceiling: number }
   onRetry?: (info: { reason: 'length'; maxTokens: number; previousMaxTokens: number }) => void
   /**
-   * 「自动」上限猜错了：服务商拒绝了第一次请求的 max_tokens（400，报错里提到 max_tokens / 超出范围）时，降到这个安全值重试一次。
-   * 只给自动模式用——管理员手填的值被拒绝是他该知道的事，不替他改。
+   * 上限猜错了：服务商拒绝了第一次请求的 max_tokens（400，报错里提到 max_tokens / 超出范围）时，依次降到这些安全值重试（如 [16384, 8192]）。
+   * 只给没有明确指定上限的情况用；管理员手填的值被拒绝是他该知道的事，不替他改。
    */
-  maxTokensFallback?: number
+  maxTokensFallback?: number | number[]
   /** 一次调用（含所有重试、加长重试）的总时限，毫秒；默认 20 分钟。超过就报超时，不再重试 */
   maxTotalMs?: number
 }
@@ -368,8 +368,12 @@ async function once(req: ChatRequest, jsonMode: boolean, sendTemperature: boolea
   }
 }
 
+/** 写不完时最多连续加大几次上限（每次翻倍） */
+const MAX_ESCALATIONS = 2
 const DEFAULT_TOTAL_MS = 20 * 60_000
 /** 写在 truncated 错误的 detail 里的标记：没有加长重试是因为总时限不够（friendly.ts 据此换一句更准确的话） */
+/** 写在 truncated 错误的 detail 里的标记：正文很短却用满了额度，多半是模型在后台思考用掉了 */
+export const HIDDEN_THINKING = 'hidden-thinking'
 export const NO_TIME_TO_RETRY = 'no-time-to-retry'
 const RETRYABLE = new Set<AiErrorCode>(['rate_limit', 'server', 'timeout', 'network'])
 
@@ -382,8 +386,11 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
   let attempt = 0
   let emptyRetried = false
   let maxTokens = req.maxTokens
+  let escalations = 0
   let escalated = false
   let fellBack: number | null = null
+  let fallbackStep = 0
+  const fallbackList = (Array.isArray(req.maxTokensFallback) ? req.maxTokensFallback : req.maxTokensFallback ? [req.maxTokensFallback] : []).filter(n => n > 0)
   let lastTruncated: AiError | null = null
   const deadline = Date.now() + (req.maxTotalMs ?? DEFAULT_TOTAL_MS)
 
@@ -395,7 +402,9 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
       req.onAttempt?.({ attempt, ok: true, usage: r.usage })
       emitCall(req, startedAt, { usage: r.usage })
       if (r.finishReason === 'length') {
-        const why = `finish_reason=length；max_tokens=${maxTokens ?? '默认'}；正文 ${r.content.length} 字；思考 ${r.reasoningChars} 字${r.usage.reasoningTokens ? `（${r.usage.reasoningTokens} tokens）` : ''}${escalated ? '；已自动加大上限重试过' : ''}`
+        // 正文很短却用满了额度：额度多半被服务商「后台思考」吃掉了（思考内容不返回，但占额度）
+        const hiddenThinking = !!maxTokens && r.content.length < maxTokens / 3 && r.reasoningChars < r.content.length
+        const why = `finish_reason=length；max_tokens=${maxTokens ?? '默认'}；正文 ${r.content.length} 字；思考 ${r.reasoningChars} 字${r.usage.reasoningTokens ? `（${r.usage.reasoningTokens} tokens）` : ''}${escalated ? '；已自动加大上限重试过' : ''}${hiddenThinking ? `；[${HIDDEN_THINKING}]` : ''}`
         const te = new AiError('truncated', '模型输出被长度上限截断（内容太多）', null, why)
         te.partial = r.content
         throw te
@@ -411,23 +420,25 @@ export async function chat(req: ChatRequest): Promise<ChatResult> {
       const lastMs = Date.now() - startedAt
       // 被长度上限截断：上限翻倍（不超过模型的天花板）再来一次；只试一次
       // 加长重试最多要写到上一次的两倍长：剩余总时限不够跑完它就不开始（开始了也必然死在总时限上，白白多花一次钱），直接按「没写完」报错，已写出的部分留作草稿
-      const wouldEscalate = err.code === 'truncated' && !escalated && req.escalateOnLength && maxTokens && req.escalateOnLength.ceiling > maxTokens
+      const wouldEscalate = err.code === 'truncated' && escalations < MAX_ESCALATIONS && req.escalateOnLength && maxTokens && req.escalateOnLength.ceiling > maxTokens
       if (wouldEscalate && deadline - Date.now() < lastMs * 2) {
         err.detail += `；剩余总时限 ${Math.max(0, Math.round((deadline - Date.now()) / 1000))} 秒，不够再加长重试一次（上一次用了 ${Math.round(lastMs / 1000)} 秒）[${NO_TIME_TO_RETRY}]`
         throw err
       }
-      if (err.code === 'truncated' && !escalated && req.escalateOnLength && maxTokens && req.escalateOnLength.ceiling > maxTokens) {
+      if (err.code === 'truncated' && escalations < MAX_ESCALATIONS && req.escalateOnLength && maxTokens && req.escalateOnLength.ceiling > maxTokens) {
         const next = Math.min(req.escalateOnLength.ceiling, maxTokens * 2)
         req.onRetry?.({ reason: 'length', maxTokens: next, previousMaxTokens: maxTokens })
         maxTokens = next
+        escalations++
         escalated = true
         attempt--   // 不占网络重试的次数
         continue
       }
       // 「自动」上限猜错了：第一次请求就被服务商拒绝（max_tokens 超出它的范围）→ 降到安全值重试一次，不当成最终失败
-      if (err.code === 'bad_request' && !escalated && fellBack === null && req.maxTokensFallback && maxTokens && req.maxTokensFallback < maxTokens
+      while (fallbackStep < fallbackList.length && fallbackList[fallbackStep] >= (maxTokens ?? 0)) fallbackStep++   // 跳过不比当前小的
+      if (err.code === 'bad_request' && !escalated && fallbackStep < fallbackList.length && maxTokens
         && /max_tokens|max tokens|maximum|too large|out of range|exceed|上限|最大/i.test(err.detail + err.message)) {
-        fellBack = req.maxTokensFallback
+        fellBack = fallbackList[fallbackStep++]
         maxTokens = fellBack
         attempt--
         continue
