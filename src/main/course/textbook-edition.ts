@@ -23,7 +23,10 @@ const PUBLISHERS: Array<[RegExp, string]> = [
   [/北京师范大学出版社|北师大/, '北师大版'],
   [/江苏凤凰教育出版社|苏教/, '苏教版'],
   [/上海教育出版社|沪教/, '沪教版'],
-  [/冀教/, '冀教版'],
+  [/河北教育出版社|冀教/, '冀教版'],
+  [/西南大学出版社|西南师范大学出版社|西师/, '西师版'],
+  [/北京出版社/, '北京版'],
+  [/青岛出版社|青岛版/, '青岛版'],
   [/浙江教育出版社|浙教/, '浙教版']
 ]
 const CN_GRADE: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
@@ -42,8 +45,10 @@ export function detectEdition(text: string): EditionInfo | null {
   else if (g3) grade = Number(g3[1])
   if (!grade) return null
   const semester: 1 | 2 | null = /上册|第一学期|(?:book|Book)1(?!\d)/.test(t) ? 1 : /下册|第二学期|(?:book|Book)2(?!\d)/.test(t) ? 2 : null
-  const label = `${pub[1]} ${['', '一', '二', '三', '四', '五', '六', '七', '八', '九'][grade]}年级${semester === 1 ? '上册' : semester === 2 ? '下册' : ''}`
-  return { edition: pub[1], grade, semester, label }
+  // 青岛版分六三制、五四制两套：认得出「五四」就是五四制，否则按用得多的六三制
+  const edition = pub[1] === '青岛版' ? (/五[·•・]?四(学)?制/.test(t) ? '青岛版（五四制）' : '青岛版（六三制）') : pub[1]
+  const label = `${edition} ${['', '一', '二', '三', '四', '五', '六', '七', '八', '九'][grade]}年级${semester === 1 ? '上册' : semester === 2 ? '下册' : ''}`
+  return { edition, grade, semester, label }
 }
 
 export interface CatalogUnit {

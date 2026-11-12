@@ -37,6 +37,13 @@ import englishXianglu from './english-xianglu.json' with { type: 'json' }
 import englishXiangshao from './english-xiangshao.json' with { type: 'json' }
 import englishXinjiaoji from './english-xinjiaoji.json' with { type: 'json' }
 import englishYuejiao from './english-yuejiao.json' with { type: 'json' }
+import mathBeijing from './math-beijing.json' with { type: 'json' }
+import mathHujiao from './math-hujiao.json' with { type: 'json' }
+import mathJijiao from './math-jijiao.json' with { type: 'json' }
+import mathQingdao from './math-qingdao.json' with { type: 'json' }
+import mathQingdaowusi from './math-qingdaowusi.json' with { type: 'json' }
+import mathSujiao from './math-sujiao.json' with { type: 'json' }
+import mathXishi from './math-xishi.json' with { type: 'json' }
 
 /** 原始 JSON（未校验；校验见 tests/unit/textbook-catalog.test.mjs，用的是 textbook-builtin.ts 的 validateEdition） */
 export const CATALOG_RAW: unknown[] = [
@@ -74,4 +81,11 @@ export const CATALOG_RAW: unknown[] = [
   englishXiangshao,
   englishXinjiaoji,
   englishYuejiao,
+  mathBeijing,
+  mathHujiao,
+  mathJijiao,
+  mathQingdao,
+  mathQingdaowusi,
+  mathSujiao,
+  mathXishi,
 ]
