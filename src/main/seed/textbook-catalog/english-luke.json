@@ -1,0 +1,847 @@
+{
+  "id": "english-luke",
+  "subject": "english",
+  "edition": "鲁科版（五四制）",
+  "textbookValue": "鲁科版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 鲁科版（五四制）英语各册目录（3s_2024 / 3x_2025 / 4s_2025 / 4x_2026 / 5s_2026 / ws5x）",
+      "url": "http://www.dzkbw.com/books/lkb/yingyu/"
+    },
+    {
+      "title": "英语朗读宝 · 鲁科版五四制三上至五下目录",
+      "url": "https://yyld.51jiaoxi.com/sanxia/lkbwsz/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2024",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Greetings",
+          "lessons": [
+            "话题：问候",
+            "Lesson 1 Hi! I'm Jenny",
+            "Lesson 2 How are you?",
+            "Lesson 3 Nice to meet you",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "FN.GREET",
+            "FN.POLITE",
+            "GR.VERB.BE",
+            "PH.LETTER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Friends",
+          "lessons": [
+            "话题：朋友",
+            "Lesson 1 This is Wang Hong",
+            "Lesson 2 What's your name?",
+            "Lesson 3 He's my friend",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.DEMO",
+            "GR.SENT.WH.WHAT",
+            "GR.PRON.PERSONAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Parts of the body",
+          "lessons": [
+            "话题：身体部位",
+            "Lesson 1 This is my head",
+            "Lesson 2 It's a small nose",
+            "Lesson 3 I have two wings",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.ADJ.USE",
+            "GR.VERB.HAVE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 School things",
+          "lessons": [
+            "话题：文具",
+            "Lesson 1 I have a new pen",
+            "Lesson 2 What's that?",
+            "Lesson 3 Put it in your bag",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.PRON.DEMO",
+            "GR.SENT.WH.WHAT",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.PRON.DEMO",
+            "GR.SENT.WH.WHAT",
+            "FN.POLITE",
+            "GR.VERB.BE",
+            "PH.LETTER"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Colours around us",
+          "lessons": [
+            "话题：颜色",
+            "Lesson 1 What colour is this?",
+            "Lesson 2 I see red and orange",
+            "Lesson 3 I like brown",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Numbers",
+          "lessons": [
+            "话题：数字",
+            "Lesson 1 Five balloons, please",
+            "Lesson 2 I'm eight",
+            "Lesson 3 How many books?",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "GR.NOUN.PLURAL.REG"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Family",
+          "lessons": [
+            "话题：家庭",
+            "Lesson 1 This is my mother",
+            "Lesson 2 Is this your brother?",
+            "Lesson 3 My father is a PE teacher",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO",
+            "GR.SENT.YESNO.BE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT",
+            "GR.NUM.CARD",
+            "GR.SENT.WH.HOW",
+            "GR.NOUN.PLURAL.REG",
+            "VO.TOPIC.FAMILY"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Food and drink",
+          "lessons": [
+            "话题：食物和饮料"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.VERB.MODAL.WOULD"
+          ],
+          "note": "单元名取自英语朗读宝；电子课本网该册页面写作 Food and Drinks / Clothes / Animals / Home / School / Time，疑为另一版次"
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Our clothes",
+          "lessons": [
+            "话题：衣服"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES",
+            "GR.SENT.WH.WHO",
+            "GR.NOUN.POSS"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 In the zoo",
+          "lessons": [
+            "话题：动物园"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.NOUN.PLURAL.REG",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.SENT.YESNO.DO",
+            "GR.VERB.MODAL.WOULD",
+            "VO.TOPIC.CLOTHES",
+            "GR.SENT.WH.WHO",
+            "GR.NOUN.POSS"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 My home",
+          "lessons": [
+            "话题：家"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.WH.WHERE",
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 At school",
+          "lessons": [
+            "话题：学校"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 My day",
+          "lessons": [
+            "话题：一天"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Review 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHERE",
+            "VO.TOPIC.PLACE",
+            "GR.PREP.PLACE",
+            "VO.TOPIC.SCHOOL",
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 9,
+          "title": "A project of social studies",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2025",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 School life",
+          "lessons": [
+            "话题：学科与课程",
+            "Lesson 1 We have English and PE",
+            "Lesson 2 What subjects do you like?",
+            "Lesson 3 What do we do today?",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Days of the week",
+          "lessons": [
+            "话题：星期",
+            "Lesson 1 What day is it today?",
+            "Lesson 2 I dance on Tuesday",
+            "Lesson 3 What do you do on Saturdays?",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Colourful seasons",
+          "lessons": [
+            "话题：季节",
+            "Lesson 1 What season is this?",
+            "Lesson 2 It's cool in autumn",
+            "Lesson 3 What season do you like?",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Weather and our life",
+          "lessons": [
+            "话题：天气",
+            "Lesson 1 It's sunny and warm",
+            "Lesson 2 How's the weather?",
+            "Lesson 3 It's snowing",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.SENT.WH.WHAT",
+            "VO.TOPIC.WEATHER",
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.TIME",
+            "GR.SENT.WH.TIME",
+            "GR.PREP.TIME"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Hobbies",
+          "lessons": [
+            "话题：爱好",
+            "Lesson 1 Do you like running?",
+            "Lesson 2 She likes dancing",
+            "Lesson 3 What's your hobby?",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Family members",
+          "lessons": [
+            "话题：家人与职业",
+            "Lesson 1 Your father is strong",
+            "Lesson 2 What does he do?",
+            "Lesson 3 She works in a hospital",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD",
+            "GR.TENSE.PRES.AUX"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Ways of communication",
+          "lessons": [
+            "话题：交流方式",
+            "Lesson 1 This is Jenny speaking",
+            "Lesson 2 I'm writing an email",
+            "Lesson 3 I'm watching it online",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "FN.DIALOG"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.TENSE.PRES.THIRD",
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN",
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.AUX",
+            "GR.TENSE.PRES_CONT"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Foreign friends in China",
+          "lessons": [
+            "话题：外国朋友",
+            "Lesson 1 Welcome to China!",
+            "Lesson 2 I live in London",
+            "Lesson 3 He likes kung fu",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.TENSE.PRES.THIRD",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Chores at home",
+          "lessons": [
+            "话题：家务",
+            "Lesson 1 Can you sweep the floor?",
+            "Lesson 2 What are you doing?",
+            "Lesson 3 He's feeding the fish",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.TENSE.PRES_CONT",
+            "VO.PHRASE.VERB",
+            "GR.SENT.YESNO.MODAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 At the restaurant",
+          "lessons": [
+            "话题：餐馆点餐",
+            "Lesson 1 I want to eat noodles",
+            "Lesson 2 What would you like?",
+            "Lesson 3 Have some salad",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.VERB.MODAL.WOULD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.TENSE.PRES.THIRD",
+            "GR.SENT.WH.WHERE",
+            "GR.TENSE.PRES_CONT",
+            "VO.PHRASE.VERB",
+            "GR.SENT.YESNO.MODAL"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Weekend activities",
+          "lessons": [
+            "话题：周末活动",
+            "Lesson 1 What do you do at weekends?",
+            "Lesson 2 He often plays the piano",
+            "Lesson 3 Sometimes he goes fishing",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES.THIRD",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Going shopping",
+          "lessons": [
+            "话题：购物",
+            "Lesson 1 I'd like a toy bus, please",
+            "Lesson 2 Do you have a blue one?",
+            "Lesson 3 How much is it?",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.VERB.MODAL.WOULD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Travel plans",
+          "lessons": [
+            "话题：旅行计划",
+            "Lesson 1 I'm going to Mount Taishan",
+            "Lesson 2 How are you going there?",
+            "Lesson 3 I'm going to see the sunrise",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Review 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.ADJ.ADV.FREQ",
+            "GR.TENSE.PRES.THIRD",
+            "VO.TOPIC.HOBBY",
+            "FN.SHOP",
+            "FN.SHOP.PRICE",
+            "GR.VERB.MODAL.WOULD"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 9,
+          "title": "A project of social studies",
+          "lessons": [
+            "项目课"
+          ],
+          "kps": [
+            "WR.EXPR"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Teachers' Day",
+          "lessons": [
+            "话题：教师节",
+            "Lesson 1 She's very kind",
+            "Lesson 2 Your teacher was young",
+            "Lesson 3 I'm so happy to see you",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.VERB.BE",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Different feelings",
+          "lessons": [
+            "话题：情绪",
+            "Lesson 1 He's excited",
+            "Lesson 2 Were you happy?",
+            "Lesson 3 Don't worry",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.VERB.BE",
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Happy birthday",
+          "lessons": [
+            "话题：生日",
+            "Lesson 1 When is your birthday?",
+            "Lesson 2 Let's sing the birthday song",
+            "Lesson 3 They had a birthday party",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "GR.SENT.WH.TIME",
+            "GR.TENSE.PAST.IRREG"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Country life",
+          "lessons": [
+            "话题：乡村生活",
+            "Lesson 1 There is a river near the village",
+            "Lesson 2 Are there any potatoes?",
+            "Lesson 3 He is picking apples",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.NOUN.COUNT.SOMEANY",
+            "GR.TENSE.PRES_CONT"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Review 1",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.VERB.BE",
+            "GR.TENSE.PAST",
+            "FN.DESCRIBE",
+            "GR.ADJ.USE",
+            "GR.NUM.ORD",
+            "GR.SENT.WH.TIME"
+          ],
+          "note": "复习单元"
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Sports",
+          "lessons": [
+            "话题：运动",
+            "Lesson 1 What sports do you like?",
+            "Lesson 2 The boys are playing basketball",
+            "Lesson 3 What a goal!",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.EXCL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Role models",
+          "lessons": [
+            "话题：榜样",
+            "Lesson 1 He wrote a great book",
+            "Lesson 2 He worked hard",
+            "Lesson 3 My father is my role model",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.TENSE.PAST.REG"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Traditional festivals",
+          "lessons": [
+            "话题：传统节日",
+            "Lesson 1 My family get together",
+            "Lesson 2 We visit our relatives",
+            "Lesson 3 Happy Spring Festival!",
+            "Lesson 4 Again, please"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Review 2",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.TENSE.PRES_CONT",
+            "GR.SENT.EXCL",
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.IRREG",
+            "GR.TENSE.PAST.REG"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 Winter Holidays",
+          "lessons": [
+            "话题：寒假",
+            "Lesson 1 What did you do in the holidays?",
+            "Lesson 2 I didn't ski.",
+            "Lesson 3 Everyone was happy that day.",
+            "Lesson 4 Again, please!"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.AUX"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Good Behaviour",
+          "lessons": [
+            "话题：文明行为",
+            "Lesson 1 Let's stop and wait",
+            "Lesson 2 Don't shout, please.",
+            "Lesson 3 They are in the zoo.",
+            "Lesson 4 Again, please!"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Health",
+          "lessons": [
+            "话题：健康",
+            "Lesson 1 What's wrong with you?",
+            "Lesson 2 How are you feeling today?",
+            "Lesson 3 How can we keep healthy?",
+            "Lesson 4 Again, please!"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Neighbourhood",
+          "lessons": [
+            "话题：邻里社区",
+            "Lesson 1 He lives next to me.",
+            "Lesson 2 Is there a gym around?",
+            "Lesson 3 They are having lots of fun.",
+            "Lesson 4 Again, please!"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.SENT.THEREBE",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Country Life",
+          "lessons": [
+            "话题：乡村生活",
+            "Lesson 1 There is a river near the village.",
+            "Lesson 2 How many ducks do you have?",
+            "Lesson 3 He goes to school by school bus.",
+            "Lesson 4 Again, please!"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 Plan for the Summer",
+          "lessons": [
+            "话题：暑假计划",
+            "Lesson 1 What are you going to do this summer holiday?",
+            "Lesson 2 You'd better take an umbrella.",
+            "Lesson 3 Get ready for a new school life!",
+            "Lesson 4 Again, please!"
+          ],
+          "kps": [
+            "GR.TENSE.FUT.GOING",
+            "FN.PLAN"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Review",
+          "lessons": [
+            "复习单元"
+          ],
+          "kps": [
+            "GR.SENT.THEREBE",
+            "GR.TENSE.PAST",
+            "GR.TENSE.PAST.AUX",
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG",
+            "VO.TOPIC.BODY"
+          ],
+          "note": "复习单元"
+        }
+      ]
+    }
+  ]
+}

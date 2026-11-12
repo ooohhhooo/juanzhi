@@ -1,0 +1,1306 @@
+{
+  "id": "english-hjsh",
+  "subject": "english",
+  "edition": "牛津上海版（一起）",
+  "textbookValue": "沪教版",
+  "checkedAt": "2026-11-12",
+  "sources": [
+    {
+      "title": "电子课本网 · 沪教版（五四制）新版 ws3s_2026 / ws4s_2026 / ws5s_2026",
+      "url": "http://www.dzkbw.com/books/hjb/yingyu/ws3s_2026/"
+    },
+    {
+      "title": "电子课本网 · 牛津上海版（五四制，试用本）oxford1s–oxford5x 各册目录",
+      "url": "http://www.dzkbw.com/books/hjb/yingyu/oxford1s/"
+    },
+    {
+      "title": "英语朗读宝 · 牛津上海本地版一上至五下目录（下册模块名）",
+      "url": "https://yyld.51jiaoxi.com/sanxia/njshbdb/"
+    }
+  ],
+  "books": [
+    {
+      "grade": 1,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Greetings",
+          "lessons": [
+            "Module 1 Getting to know you",
+            "话题：问候"
+          ],
+          "kps": [
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 My classmates",
+          "lessons": [
+            "话题：同学"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 My face",
+          "lessons": [
+            "话题：五官"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 My abilities",
+          "lessons": [
+            "Module 2 Me, my family and friends",
+            "话题：能力"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 My family",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 My friends",
+          "lessons": [
+            "话题：朋友"
+          ],
+          "kps": [
+            "FN.DESCRIBE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 In the classroom",
+          "lessons": [
+            "Module 3 Places and activities",
+            "话题：教室"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 In the fruit shop",
+          "lessons": [
+            "话题：水果店"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "FN.SHOP"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 In the restaurant",
+          "lessons": [
+            "话题：餐馆"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.VERB.MODAL.WOULD"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 On the farm",
+          "lessons": [
+            "Module 4 The natural world",
+            "话题：农场"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 In the zoo",
+          "lessons": [
+            "话题：动物园"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 In the park",
+          "lessons": [
+            "话题：公园"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE",
+            "GR.ADJ.USE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 1,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Look and see",
+          "lessons": [
+            "Module 1 Using my five senses",
+            "话题：看"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 Listen and hear",
+          "lessons": [
+            "话题：听"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 Taste and smell",
+          "lessons": [
+            "话题：尝和闻"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 Toys I like",
+          "lessons": [
+            "Module 2 My favourite things",
+            "话题：玩具"
+          ],
+          "kps": [
+            "GR.SENT.YESNO.DO"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 Food I like",
+          "lessons": [
+            "话题：食物"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 Drinks I like",
+          "lessons": [
+            "话题：饮料"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 Seasons",
+          "lessons": [
+            "Module 3 Things around us",
+            "话题：季节"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 Weather",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 Clothes",
+          "lessons": [
+            "话题：衣服"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 Activities",
+          "lessons": [
+            "Module 4 Things we do",
+            "话题：活动"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 New Year's Day",
+          "lessons": [
+            "话题：元旦"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 Story time",
+          "lessons": [
+            "话题：故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "上",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Hello",
+          "lessons": [
+            "Module 1 Getting to know you",
+            "话题：问候"
+          ],
+          "kps": [
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 I'm Danny",
+          "lessons": [
+            "话题：自我介绍"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.VERB.BE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 A new classmate",
+          "lessons": [
+            "话题：新同学"
+          ],
+          "kps": [
+            "FN.GREET",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 I can swim",
+          "lessons": [
+            "Module 2 Me, my family and friends",
+            "话题：能力"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 That's my family",
+          "lessons": [
+            "话题：家庭"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.PRON.DEMO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 My hair is short",
+          "lessons": [
+            "话题：外貌"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 In the children's garden",
+          "lessons": [
+            "Module 3 Places and activities",
+            "话题：游乐场"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 In my room",
+          "lessons": [
+            "话题：房间"
+          ],
+          "kps": [
+            "GR.PREP.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 In the kitchen",
+          "lessons": [
+            "话题：厨房"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 In the sky",
+          "lessons": [
+            "Module 4 The natural world",
+            "话题：天空"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 In the forest",
+          "lessons": [
+            "话题：森林"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 In the street",
+          "lessons": [
+            "话题：街道"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 What can you see?",
+          "lessons": [
+            "Module 1 Using my five senses",
+            "话题：看"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 Touch and feel",
+          "lessons": [
+            "话题：摸"
+          ],
+          "kps": [
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 What can you hear?",
+          "lessons": [
+            "话题：听"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 Things I like doing",
+          "lessons": [
+            "Module 2 My favourite things",
+            "话题：爱好"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY",
+            "GR.VERB.NONFIN"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 My favourite food",
+          "lessons": [
+            "话题：食物"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 Animals I like",
+          "lessons": [
+            "话题：动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 The four seasons",
+          "lessons": [
+            "Module 3 Things around us",
+            "话题：四季"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 Rules",
+          "lessons": [
+            "话题：规则"
+          ],
+          "kps": [
+            "GR.VERB.IMPER",
+            "GR.SENT.NEG"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 My clothes",
+          "lessons": [
+            "话题：衣服"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 Activities",
+          "lessons": [
+            "Module 4 More things to learn",
+            "话题：活动"
+          ],
+          "kps": [
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 Mother's Day",
+          "lessons": [
+            "话题：母亲节"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME",
+            "VO.TOPIC.FAMILY"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 Story time",
+          "lessons": [
+            "话题：故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 A new start",
+          "lessons": [
+            "话题：新学年"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 Proud of you, proud of myself",
+          "lessons": [
+            "话题：欣赏自己和他人"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Our garden",
+          "lessons": [
+            "话题：花园"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Water in our life",
+          "lessons": [
+            "话题：生活中的水"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 I can help",
+          "lessons": [
+            "话题：帮忙"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.PHRASE.VERB"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 How do you feel?",
+          "lessons": [
+            "话题：感受"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 Jobs",
+          "lessons": [
+            "话题：职业"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES.THIRD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Finding places",
+          "lessons": [
+            "话题：找地方"
+          ],
+          "kps": [
+            "FN.DIR",
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 Special days in China",
+          "lessons": [
+            "话题：中国节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 10 Foods around the world",
+          "lessons": [
+            "话题：世界美食"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 Seeing and hearing",
+          "lessons": [
+            "Module 1 Using my five senses",
+            "话题：看和听"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 Touch and feeling",
+          "lessons": [
+            "话题：触摸"
+          ],
+          "kps": [
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 Tasting and smelling",
+          "lessons": [
+            "话题：尝和闻"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD",
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 Animals",
+          "lessons": [
+            "Module 2 My favourite things",
+            "话题：动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 Toys",
+          "lessons": [
+            "话题：玩具"
+          ],
+          "kps": [
+            "GR.NOUN.POSS",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 Clothes",
+          "lessons": [
+            "话题：衣服"
+          ],
+          "kps": [
+            "VO.TOPIC.CLOTHES"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 Shapes",
+          "lessons": [
+            "Module 3 Things around us",
+            "话题：形状"
+          ],
+          "kps": [
+            "GR.ADJ.USE"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 Colours",
+          "lessons": [
+            "话题：颜色"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.WHAT"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 Seasons",
+          "lessons": [
+            "话题：季节"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 My body",
+          "lessons": [
+            "Module 4 More things to learn",
+            "话题：身体"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 Children's Day",
+          "lessons": [
+            "话题：儿童节"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 Story time",
+          "lessons": [
+            "话题：故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Unit 1 My school",
+          "lessons": [
+            "话题：学校"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "GR.SENT.THEREBE"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 2 My classmates",
+          "lessons": [
+            "话题：同学"
+          ],
+          "kps": [
+            "FN.DESCRIBE",
+            "GR.SENT.WH.WHO"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 3 Animals and their homes",
+          "lessons": [
+            "话题：动物的家"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL",
+            "GR.SENT.WH.WHERE"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 4 Our birthday",
+          "lessons": [
+            "话题：生日"
+          ],
+          "kps": [
+            "GR.NUM.ORD",
+            "GR.SENT.WH.TIME"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 5 Visiting places",
+          "lessons": [
+            "话题：参观"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 6 It's autumn!",
+          "lessons": [
+            "话题：秋天"
+          ],
+          "kps": [
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 7 My healthy breakfast",
+          "lessons": [
+            "话题：健康早餐"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 8 Be honest",
+          "lessons": [
+            "话题：诚实"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 9 What time is it?",
+          "lessons": [
+            "话题：时间"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 10 Weather",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 What can you smell and taste?",
+          "lessons": [
+            "Module 1 Using my five senses",
+            "话题：闻和尝"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN",
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 How does it feel?",
+          "lessons": [
+            "话题：感觉"
+          ],
+          "kps": [
+            "GR.ADJ.USE",
+            "GR.SENT.WH.HOW"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 Look at the shadow",
+          "lessons": [
+            "话题：影子"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 Sports",
+          "lessons": [
+            "Module 2 My favourite things",
+            "话题：运动"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 Cute animals",
+          "lessons": [
+            "话题：可爱的动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 Home life",
+          "lessons": [
+            "话题：家庭生活"
+          ],
+          "kps": [
+            "VO.TOPIC.FAMILY",
+            "GR.TENSE.PRES"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 Sounds",
+          "lessons": [
+            "Module 3 Things around us",
+            "话题：声音"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 Time",
+          "lessons": [
+            "话题：时间"
+          ],
+          "kps": [
+            "GR.NUM.TIME",
+            "FN.TIME"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 Days of the week",
+          "lessons": [
+            "话题：星期"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 A music class",
+          "lessons": [
+            "Module 4 More things to learn",
+            "话题：音乐课"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 Festivals in China",
+          "lessons": [
+            "话题：中国节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 Story time",
+          "lessons": [
+            "话题：故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "上",
+      "editionYear": "2026",
+      "units": [
+        {
+          "no": 1,
+          "title": "Starter",
+          "lessons": [
+            "话题：开学准备"
+          ],
+          "kps": [
+            "FN.GREET"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Unit 1 Clubs in our school",
+          "lessons": [
+            "话题：学校社团"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL",
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Unit 2 Traditional games",
+          "lessons": [
+            "话题：传统游戏"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Unit 3 Amazing plants",
+          "lessons": [
+            "话题：植物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Unit 4 Together with animals",
+          "lessons": [
+            "话题：人与动物"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Unit 5 Seeing a doctor",
+          "lessons": [
+            "话题：看病"
+          ],
+          "kps": [
+            "VO.TOPIC.BODY",
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Unit 6 Rise to the challenge",
+          "lessons": [
+            "话题：迎接挑战"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Unit 7 Great scientists",
+          "lessons": [
+            "话题：科学家"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Unit 8 Useful inventions",
+          "lessons": [
+            "话题：发明"
+          ],
+          "kps": [
+            "GR.TENSE.PAST"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Unit 9 Using computers",
+          "lessons": [
+            "话题：使用电脑"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.CAN"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Unit 10 A greener life",
+          "lessons": [
+            "话题：绿色生活"
+          ],
+          "kps": [
+            "GR.VERB.MODAL.SHOULD"
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "semester": "下",
+      "units": [
+        {
+          "no": 1,
+          "title": "Module 1 Unit 1 What a mess!",
+          "lessons": [
+            "Module 1 Using my five senses",
+            "话题：一团糟"
+          ],
+          "kps": [
+            "GR.SENT.EXCL"
+          ]
+        },
+        {
+          "no": 2,
+          "title": "Module 1 Unit 2 Watch it grow!",
+          "lessons": [
+            "话题：观察生长"
+          ],
+          "kps": [
+            "VO.TOPIC.ANIMAL"
+          ]
+        },
+        {
+          "no": 3,
+          "title": "Module 1 Unit 3 How noisy!",
+          "lessons": [
+            "话题：噪音"
+          ],
+          "kps": [
+            "GR.SENT.EXCL"
+          ]
+        },
+        {
+          "no": 4,
+          "title": "Module 2 Unit 1 Food and drinks",
+          "lessons": [
+            "Module 2 My favourite things",
+            "话题：饮食"
+          ],
+          "kps": [
+            "VO.TOPIC.FOOD"
+          ]
+        },
+        {
+          "no": 5,
+          "title": "Module 2 Unit 2 Films",
+          "lessons": [
+            "话题：电影"
+          ],
+          "kps": [
+            "VO.TOPIC.HOBBY"
+          ]
+        },
+        {
+          "no": 6,
+          "title": "Module 2 Unit 3 School subjects",
+          "lessons": [
+            "话题：学科"
+          ],
+          "kps": [
+            "VO.TOPIC.SCHOOL"
+          ]
+        },
+        {
+          "no": 7,
+          "title": "Module 3 Unit 1 Signs",
+          "lessons": [
+            "Module 3 Things around us",
+            "话题：标志"
+          ],
+          "kps": [
+            "GR.VERB.IMPER"
+          ]
+        },
+        {
+          "no": 8,
+          "title": "Module 3 Unit 2 Weather",
+          "lessons": [
+            "话题：天气"
+          ],
+          "kps": [
+            "FN.WEATHER",
+            "VO.TOPIC.WEATHER"
+          ]
+        },
+        {
+          "no": 9,
+          "title": "Module 3 Unit 3 Changes",
+          "lessons": [
+            "话题：变化"
+          ],
+          "kps": [
+            "GR.TENSE.PAST",
+            "GR.TENSE.CONTRAST"
+          ]
+        },
+        {
+          "no": 10,
+          "title": "Module 4 Unit 1 Museums",
+          "lessons": [
+            "Module 4 More things to learn",
+            "话题：博物馆"
+          ],
+          "kps": [
+            "VO.TOPIC.PLACE"
+          ]
+        },
+        {
+          "no": 11,
+          "title": "Module 4 Unit 2 Western holidays",
+          "lessons": [
+            "话题：西方节日"
+          ],
+          "kps": [
+            "VO.TOPIC.TIME"
+          ]
+        },
+        {
+          "no": 12,
+          "title": "Module 4 Unit 3 Story time",
+          "lessons": [
+            "话题：故事"
+          ],
+          "kps": [
+            "RD.DETAIL.FACT"
+          ]
+        }
+      ]
+    }
+  ]
+}
