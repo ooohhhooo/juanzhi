@@ -61,7 +61,7 @@ export const SUBJECTS: Record<SubjectId, SubjectDef> = {
       { key: 'reading', label: '阅读', gloss: '阅读理解与听力理解（理解类）', codes: ['RD', 'LS'], slot: 5 },
       { key: 'writing', label: '写作', gloss: '写句子、书面表达', codes: ['WR'], slot: 6 }
     ],
-    textbooks: ['人教PEP', '外研版', '北师大版', '译林版', '沪教版', '科普版', '教科版', '人教新起点', '人教精通', '冀教版', '湘少版', '湘鲁版', '闽教版', '陕旅版', '重大版'],
+    textbooks: ['人教PEP', '外研版', '北师大版', '译林版', '沪教版', '科普版', '教科版', '人教新起点', '人教精通', '冀教版', '湘少版', '湘鲁版', '闽教版', '陕旅版', '重大版', '川教版', '接力版', '辽师大版', '鲁科版', '北京版', '清华版', '外研剑桥版'],
     visionDefault: 'auto'
   },
   chinese: {
