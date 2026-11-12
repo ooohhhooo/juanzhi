@@ -53,7 +53,7 @@ import { parseColsResponse, sheetPreview } from './cols-ai'
 import { chunkLines, kpBatchBlock, lessonQuoteText, mergeCandidates, outlineLine, parseLessonResponse } from './match'
 import { computeRulePass, applyRulePass } from './match-rules'
 import { CATALOG } from './catalog'
-import { applyLessonMatches, lessonRows, matchState, targetKps } from './store'
+import { applyLessonMatches, fromBookOf, lessonRows, matchState, targetKps } from './store'
 import { courseDashboard } from './stats'
 import type { CourseDashboard } from './stats'
 import { buildAdviceInputs, buildHintInputs, courseRowsOf } from './report-section'
@@ -570,8 +570,9 @@ const aiAvailable = (): boolean => aiReady()
  */
 export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boolean; onProgress?: (p: MatchProgress) => void }): Promise<MatchResult> {
   const fail = (code: string, message: string): MatchResult => ({ ok: false, code, message, done: 0, total: 0, matched: 0, none: 0, dropped: 0 })
-  const o = db.prepare('SELECT id, rev, status FROM course_outlines WHERE id = ?').get(outlineId) as any
+  const o = db.prepare('SELECT id, rev, status, mapping_json FROM course_outlines WHERE id = ?').get(outlineId) as any
   if (!o) return fail('not_found', '找不到这个课程体系')
+  if (fromBookOf(o.mapping_json)) return fail('from_book', '这本教材的单元和知识点来自课本原文库，由程序算出，不需要 AI 匹配')
   if (matchJobs.has(outlineId)) return fail('busy', '这个课程体系正在匹配')
   const lessonsAll = lessonRows(db, [outlineId])
   if (!lessonsAll.length) return fail('empty', '这个课程体系里没有课')

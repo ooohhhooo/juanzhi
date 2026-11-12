@@ -173,6 +173,16 @@ function finish(file) {
   return failed.length
 }
 
+/** 当前代码的最新库版本（= src/main/db.ts 里 MIGRATIONS 的步数）：只求值数组字面量、不执行迁移，断言不用每加一次迁移就手改 */
+function latestSchema() {
+  const src = fs.readFileSync(path.join(root, 'src/main/db.ts'), 'utf8')
+  const m = /const MIGRATIONS: Array<\(db: any\) => void> = (\[[\s\S]*?\n\])\r?\n\r?\nlet db: any/.exec(src)
+  if (!m) throw new Error('db.ts 里找不到 MIGRATIONS 数组')
+  const js = require('node:module').stripTypeScriptTypes(`const MIGRATIONS = ${m[1]}`)
+  return new Function(`${js}\nreturn MIGRATIONS`)().length
+}
+const LATEST_SCHEMA = latestSchema()
+
 module.exports = {
-  root, results, sleep, check, waitFor, readDb, withDb, launch, dropFiles, listPapers, paperByFile, statusOf, waitStatus, copyWithTag, cropPage, ocrText, stableBox, buildRealV4Db, procOutput, docsPrompt, finish, os, fs, path
+  LATEST_SCHEMA, root, results, sleep, check, waitFor, readDb, withDb, launch, dropFiles, listPapers, paperByFile, statusOf, waitStatus, copyWithTag, cropPage, ocrText, stableBox, buildRealV4Db, procOutput, docsPrompt, finish, os, fs, path
 }

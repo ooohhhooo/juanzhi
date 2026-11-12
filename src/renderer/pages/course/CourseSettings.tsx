@@ -38,6 +38,10 @@ export default function CourseSettings() {
     queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),
     refetchInterval: q => ((q.state.data ?? []).some(j => j.status === 'queued' || j.status === 'running') ? 1500 : false)
   })
+  // 整本教材的书库正在建：建好后课次会自动换成书库切出的单元，这期间不让新手去点花 token 的匹配
+  const hasTextbook = (cards ?? []).some(c => c.kind === 'textbook' && !c.builtinId && !c.fromBook)
+  const { data: buildRows } = useQuery({ queryKey: ['books', 'status'], queryFn: () => window.api.books.status(), enabled: hasTextbook, refetchInterval: q => ((q.state.data ?? []).some(s => s.state === 'queued' || s.state === 'running') ? 1500 : false) })
+  const bookBuilding = (id: string) => (buildRows ?? []).some(s => s.outlineId === id && (s.state === 'queued' || s.state === 'running'))
   // 搜索（名字、学期）+ 机构课程按学期分组；教材排在后面
   const found = searchOutlines(cards ?? [], q)
   const ordered: Array<{ c: CourseOutlineCard; term: string }> = [
@@ -115,7 +119,10 @@ export default function CourseSettings() {
                 {c.status === 'draft' ? (
                   <UsageNote kind="caution">这是用命令行导入的草稿：AI 认列的结果还没有人核对过。请点“查看”核对课次，没问题就点“确认使用”。</UsageNote>
                 ) : (
-                  c.builtinId ? <p className="ewb-rep-note" style={{ margin: 0 }}>知识点对应来自内置目录，不需要 AI 匹配。</p> : <MatchBox card={c} />
+                  c.builtinId ? <p className="ewb-rep-note" style={{ margin: 0 }}>知识点对应来自内置目录，不需要 AI 匹配。</p>
+                    : c.fromBook ? <p className="ewb-rep-note" style={{ margin: 0 }} data-testid="course-from-book">单元按课本原文切分，知识点由程序按单元词表算出，不需要 AI 匹配。</p>
+                    : c.kind === 'textbook' && bookBuilding(c.id) ? <p className="ewb-rep-note" style={{ margin: 0 }} data-testid="course-book-building">正在读整本课本（建课本原文库），读完后单元和知识点会自动更新，先不用点匹配。</p>
+                    : <MatchBox card={c} />
                 )}
                 <div className="ewb-crs-card__actions">
                   {c.status === 'active' && (
@@ -171,7 +178,7 @@ function CourseDetail({ id, onClose }: { id: string | null; onClose: () => void 
             building.state === 'error'
               ? <span data-testid="book-build-error">没有建成：{building.error || '原因不明'}（不影响这份教材的其他功能）</span>
               : <span data-testid="book-build-progress">{building.state === 'queued' ? '排队中' : `${building.what || '建库中'}${building.total ? ` · ${building.done}/${building.total}` : ''}`}</span>
-          ) : <span data-testid="book-summary-line">{book!.summary?.line || `共 ${book!.totalPages} 页`}</span>}
+          ) : <span data-testid="book-summary-line">{book!.summary?.line || `共 ${book!.totalPages} 页`}{data.card.fromBook ? '。下面的课次就是这本书的单元（程序按课本原文切分）' : ''}</span>}
         </div>
       )}
       {data && (
@@ -194,7 +201,7 @@ function CourseDetail({ id, onClose }: { id: string | null; onClose: () => void 
           },
           {
             key: 'maps', label: `知识点对应（${rows.length}）`,
-            children: rows.length === 0 ? <p className="ewb-rep-note">还没有匹配结果。回到设置页点“开始匹配”。</p> : (
+            children: rows.length === 0 ? <p className="ewb-rep-note">{data.card.fromBook ? '程序没有从这本书的单元词表和内置目录里认出知识点。' : '还没有匹配结果。回到设置页点“开始匹配”。'}</p> : (
               <Table size="small" pagination={{ pageSize: 15 }} rowKey={r => `${r.kp}-${r.lessonId}`} dataSource={rows} data-testid="course-maps"
                 columns={[
                   { title: '知识点', dataIndex: 'kpName', width: 140 },
