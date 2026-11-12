@@ -14,10 +14,12 @@ import englishBsdsanqi from './english-bsdsanqi.json' with { type: 'json' }
 import englishBsdyiqi from './english-bsdyiqi.json' with { type: 'json' }
 import englishChongda from './english-chongda.json' with { type: 'json' }
 import englishChuanjiao from './english-chuanjiao.json' with { type: 'json' }
+import englishDatong from './english-datong.json' with { type: 'json' }
 import englishEec from './english-eec.json' with { type: 'json' }
 import englishGzjk from './english-gzjk.json' with { type: 'json' }
 import englishHjsh from './english-hjsh.json' with { type: 'json' }
 import englishHjsq from './english-hjsq.json' with { type: 'json' }
+import englishHjyiqi from './english-hjyiqi.json' with { type: 'json' }
 import englishJieli from './english-jieli.json' with { type: 'json' }
 import englishJjsanqi from './english-jjsanqi.json' with { type: 'json' }
 import englishJjyiqi from './english-jjyiqi.json' with { type: 'json' }
@@ -33,6 +35,8 @@ import englishShanlv from './english-shanlv.json' with { type: 'json' }
 import englishWyyiqi from './english-wyyiqi.json' with { type: 'json' }
 import englishXianglu from './english-xianglu.json' with { type: 'json' }
 import englishXiangshao from './english-xiangshao.json' with { type: 'json' }
+import englishXinjiaoji from './english-xinjiaoji.json' with { type: 'json' }
+import englishYuejiao from './english-yuejiao.json' with { type: 'json' }
 
 /** 原始 JSON（未校验；校验见 tests/unit/textbook-catalog.test.mjs，用的是 textbook-builtin.ts 的 validateEdition） */
 export const CATALOG_RAW: unknown[] = [
@@ -47,10 +51,12 @@ export const CATALOG_RAW: unknown[] = [
   englishBsdyiqi,
   englishChongda,
   englishChuanjiao,
+  englishDatong,
   englishEec,
   englishGzjk,
   englishHjsh,
   englishHjsq,
+  englishHjyiqi,
   englishJieli,
   englishJjsanqi,
   englishJjyiqi,
@@ -66,4 +72,6 @@ export const CATALOG_RAW: unknown[] = [
   englishWyyiqi,
   englishXianglu,
   englishXiangshao,
+  englishXinjiaoji,
+  englishYuejiao,
 ]
