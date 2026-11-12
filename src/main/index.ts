@@ -37,6 +37,7 @@ import { registerConnectorsIpc } from './ipc/connectors'
 import { closeAllMcp } from './connectors/mcp-client'
 import { registerCourseIpc } from './ipc/course'
 import { registerBookIndexIpc } from './ipc/bookindex'
+import { syncPendingOutlines } from './bookindex/service'
 import { registerDatasetsIpc } from './ipc/datasets'
 import { registerAgentOutputsIpc } from './ipc/agent-outputs'
 import { registerCardsIpc } from './ipc/cards'
@@ -289,6 +290,8 @@ if (cliArgs) {
     registerAgentIpc()
     createWindow()
     sweepStaleStages()
+    // 升级前上传、已经建好书库的教材：课次换成书库切出的单元（只做需要的，失败只写日志）
+    setTimeout(() => syncPendingOutlines(), 1500)
     startAutoCheck()   // 启动时静默查一次（间隔至少 1 小时），开着时每 4 小时再查；命令行模式不走这里，测试（自定义数据目录）默认不查
     // 升级后给库里已有的卷子补扫一遍重复卷：后台分片跑，不挡窗口（失败只写日志）
     if (takeUpgradeScan()) startSimilarScan().then(r => console.log(`[db] 升级后扫描重复试卷：检查 ${r.checked} 份，疑似重复 ${r.suspects} 份`), e => console.warn(`[db] 升级后扫描重复试卷失败: ${(e as Error).message}`))

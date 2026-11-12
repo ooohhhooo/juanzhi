@@ -40,6 +40,11 @@ export interface OutlineInput {
   builtinId?: string
 }
 
+/** 上传的教材，课次来自书库时 course_outlines.mapping_json = { fromBook: 书库 id }（见 bookindex/outline.ts）；返回书库 id */
+export const fromBookOf = (mappingJson: string | null | undefined): string | null => {
+  try { const v = mappingJson ? JSON.parse(mappingJson) : null; return v && typeof v === 'object' && !Array.isArray(v) && typeof v.fromBook === 'string' ? v.fromBook : null } catch { return null }
+}
+
 export type OutlineKind = 'course' | 'textbook'
 export const asKind = (v: unknown): OutlineKind => (v === 'textbook' ? 'textbook' : 'course')
 
@@ -254,9 +259,9 @@ export type MatchStateKind = 'none' | 'partial' | 'stale' | 'done'
 export interface MatchState { state: MatchStateKind; total: number; checked: number }
 
 export function matchState(db: Db, id: string, kps: KpTarget[] = targetKps(db)): MatchState {
-  const o = db.prepare('SELECT rev, builtin_id FROM course_outlines WHERE id = ?').get(id) as any
+  const o = db.prepare('SELECT rev, builtin_id, mapping_json FROM course_outlines WHERE id = ?').get(id) as any
   if (!o) return { state: 'none', total: kps.length, checked: 0 }
-  if (o.builtin_id) return { state: 'done', total: kps.length, checked: kps.length }   // 内置教材：对应来自目录，不需要 AI 匹配
+  if (o.builtin_id || fromBookOf(o.mapping_json)) return { state: 'done', total: kps.length, checked: kps.length }   // 内置教材 / 课次来自书库的上传教材：对应由程序算，不需要 AI 匹配
   // 只看现在要匹配的知识点：老师在二级考点上手工指定的课（那个二级考点自己不是匹配对象）留下的检查记录不算，免得它的旧版本号让状态永远是“需要重新匹配”
   const targets = new Set(kps.map(k => k.code))
   const rows = (db.prepare('SELECT kp_code, outline_rev, kp_sig FROM course_kp_check WHERE outline_id = ?').all(id) as any[]).filter(r => targets.has(r.kp_code))
@@ -273,6 +278,8 @@ export interface OutlineCard {
   kind: OutlineKind
   /** 内置来源；空 = 用户自己上传的 */
   builtinId: string
+  /** 上传的教材，课次来自课本原文库（程序切的单元）：这时不需要 AI 匹配 */
+  fromBook: boolean
   levels: number; lessons: number; createdAt: string; updatedAt: string; aiModel: string; warnings: MapWarning[]
   match: MatchState
 }
@@ -283,7 +290,7 @@ export function listOutlines(db: Db, subject?: unknown): OutlineCard[] {
   const rows = db.prepare(`SELECT o.*, (SELECT COUNT(*) FROM course_levels WHERE outline_id = o.id) levels, (SELECT COUNT(*) FROM course_lessons WHERE outline_id = o.id) lessons
     FROM course_outlines o WHERE o.subject = ? ORDER BY o.created_at DESC, o.rowid DESC`).all(sub) as any[]
   return rows.map(r => ({
-    id: r.id, kind: asKind(r.kind), builtinId: r.builtin_id ?? '', name: r.name, scene: r.scene, termNote: r.term_note ?? '', sourceName: r.source_name ?? '', status: r.status, active: !!r.active, rev: r.rev,
+    id: r.id, kind: asKind(r.kind), builtinId: r.builtin_id ?? '', fromBook: !!fromBookOf(r.mapping_json), name: r.name, scene: r.scene, termNote: r.term_note ?? '', sourceName: r.source_name ?? '', status: r.status, active: !!r.active, rev: r.rev,
     levels: r.levels, lessons: r.lessons, createdAt: r.created_at, updatedAt: r.updated_at, aiModel: r.ai_model ?? '', warnings: json(r.warnings_json, []), match: matchState(db, r.id, kps)
   }))
 }

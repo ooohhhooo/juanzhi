@@ -10,6 +10,7 @@ import { searchBooks } from '../bookindex/search.ts'
 import type { BookHit } from '../bookindex/search.ts'
 import { patternTerms, vocabTerms } from './lesson-match.ts'
 import type { LessonText } from './lesson-match.ts'
+import { matchLessonRules } from './rules.ts'
 
 type Db = any
 
@@ -78,4 +79,60 @@ export function pickBookUnits(ms: BookUnitHit[], minScore = 35): BookUnitHit[] {
   const out = [sorted[0]]
   if (sorted[1] && sorted[1].score >= sorted[0].score * 0.75) out.push(sorted[1])
   return out
+}
+
+// ───────────────────────── 课在课本里命中的单元 → 这节课的知识点 ─────────────────────────
+
+/**
+ * 教材单元的一个知识点是怎么来的（只认程序 / 老师得出的，AI 挑的不算）：
+ *  words = 单元自己的词表 / 句子套标志词规则过线；catalog = 内置教材目录里这个单元列了它；teacher = 老师确认 / 手工指定。
+ */
+export interface UnitKpEv { code: string; via: 'words' | 'catalog' | 'teacher' }
+export interface BookUnitForKp { unitTitle: string; /** 第 4 页 */ pages: string; score: number; kps: UnitKpEv[] }
+export interface BookKpPick { code: string; score: number; via: UnitKpEv['via']; /** 课上命中这个知识点的标志词（目录得出的为空） */ words: string[]; evidence: string }
+
+/** 只靠目录 / 老师确认（课上没有这个知识点的标志词）时，课在课本里的命中要够强（同句型，或至少 3 个单词） */
+export const BOOK_KP_STRONG_HIT = 60
+const VIA_TAIL: Record<UnitKpEv['via'], string> = { words: '，单元词表也是这一类', catalog: '，目录里这个单元也列了它', teacher: '，老师确认过这个单元讲它' }
+
+/**
+ * 课在课本原文里命中了某个单元（原文逐字命中，一类强依据），这个单元有程序得出的知识点：
+ *  ① 课上自己也有这个知识点的标志词（1 个强词，或至少 2 个不同的弱词）→ 两类依据（课本原文 + 命中词），挂上；
+ *  ② 课上没有标志词，但知识点来自内置目录 / 老师确认、且课本命中够强 → 两类依据（课本原文 + 目录），把握「比较像」；
+ *     这种只在这节课别的知识点一个都没有时补（见 capBookKps），免得把单元里别的内容硬塞给这节课；
+ *  只有一个常用词、或单元的知识点只是词表推出来而课上没有对应词的，一律不挂。
+ * near(code)：这节课已经有相同 / 父子的知识点了就跳过。按分数从高到低返回（调用方再按每课 3 个的上限截）。
+ */
+export function bookLessonKps(lessonText: string, units: BookUnitForKp[], near: (code: string) => boolean): BookKpPick[] {
+  const best = new Map<string, BookKpPick>()
+  for (const u of units) {
+    const where = `${u.unitTitle} ${u.pages}`
+    for (const k of u.kps) {
+      if (near(k.code)) continue
+      const r = matchLessonRules(lessonText, [k.code])[0]
+      let pick: BookKpPick | null = null
+      if (r && (r.strongN >= 1 || r.weakN >= 2)) {
+        const words = r.hits.map(h => h.word)
+        pick = { code: k.code, via: k.via, words, score: Math.max(66, Math.min(90, r.score + 16)), evidence: `课本原文 + 命中词：${joinWords(words, 4)}（课本 ${where}${VIA_TAIL[k.via]}）` }
+      } else if (k.via !== 'words' && u.score >= BOOK_KP_STRONG_HIT) {
+        pick = { code: k.code, via: k.via, words: [], score: 62, evidence: k.via === 'catalog' ? `课本原文 + 目录：课本 ${where}，目录里这个单元列了它` : `课本原文 + 老师确认：课本 ${where}，老师确认过这个单元讲它` }
+      }
+      if (!pick) continue
+      const had = best.get(k.code)
+      if (!had || pick.score > had.score) best.set(k.code, pick)
+    }
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score || b.words.length - a.words.length || (a.code < b.code ? -1 : 1))
+}
+
+/** 只靠目录 / 老师确认补的知识点每节课最多几个 */
+export const BOOK_KP_FALLBACK_MAX = 2
+/**
+ * 这节课实际挂哪些：先挂课上有标志词的（补到每课 cap 个为止）；
+ * 只有这节课一个知识点都没有（已有的 + 有标志词的都没有）时，才用目录 / 老师确认的补，最多 BOOK_KP_FALLBACK_MAX 个。
+ */
+export function capBookKps(picks: BookKpPick[], existing: number, cap: number): BookKpPick[] {
+  const own = picks.filter(p => p.words.length)
+  if (existing + own.length > 0) return own.slice(0, Math.max(0, cap - existing))
+  return picks.filter(p => !p.words.length).slice(0, Math.min(BOOK_KP_FALLBACK_MAX, cap))
 }

@@ -120,7 +120,8 @@ async function main() {
     await T('course-wizard').waitFor({ state: 'detached', timeout: 20000 })
     const o1 = q('SELECT id FROM course_outlines WHERE name = ?', '体系-教材')[0]
     const lessons = o1 ? q('SELECT id, seq, title FROM course_lessons WHERE outline_id = ? ORDER BY seq', o1.id) : []
-    check(L1, '保存：一个单元一行（5 行），标题是单元名', lessons.length === 5 && lessons[0].title === 'Unit 1 Hello' && lessons[4].title === 'Unit 5 Review', JSON.stringify(lessons.map(x => x.title)))
+    // 书库在后台建；小 PDF 可能已经建好、课次已换成书库单元（6 个，含核对时删掉的 Unit 6）。两种情况前 5 个单元都一样
+    check(L1, '保存：一个单元一行（AI 整理的 5 行，或书库建好后换成书库的单元），标题是单元名', (lessons.length === 5 || lessons.length === 6) && lessons[0].title === 'Unit 1 Hello' && lessons[4].title === 'Unit 5 Review', JSON.stringify(lessons.map(x => x.title)))
     const maps = o1 ? q('SELECT m.kp_code, m.lesson_id, m.confidence, m.source, m.state, m.locked, (SELECT COUNT(*) FROM kps k WHERE k.code = m.kp_code) inTree FROM course_kp_map m WHERE m.outline_id = ?', o1.id) : []
     check(L1, '知识点写进 course_kp_map，代码全部在知识点树里（AI 编的 ZZ.NOT.IN.TREE 被丢弃）', maps.length >= 8 && maps.every(m => m.inTree === 1) && !maps.some(m => m.kp_code === 'ZZ.NOT.IN.TREE'), `n=${maps.length}`)
     check(L1, '每个单元 2–8 个以内；Review 单元只有手工加的（source=manual，已确认并锁定）', (() => { const by = {}; for (const m of maps) (by[m.lesson_id] ??= []).push(m); return Object.values(by).every(a => a.length <= 8) && (by[lessons[4].id] ?? []).every(m => m.source === 'manual' && m.state === 'confirmed' && m.locked === 1) && (by[lessons[4].id] ?? []).length >= 1 })(), JSON.stringify(maps.filter(m => m.lesson_id === lessons[4].id)))
@@ -138,6 +139,17 @@ async function main() {
       check(L1, '书库：单元和逐页文字都存下来了', bu.length >= 5 && bp > 20, `units=${bu.length} pages=${bp}`)
       const sr = await ctx.page.evaluate(() => window.api.books.search('Unit 1 Hello', { limit: 3 }))
       check(L1, '书库：能按原文搜到', sr.hits.length >= 1, JSON.stringify(sr.hits.slice(0, 1).map(h => [h.page, h.unitTitle])))
+      // 书库建好后：教材的课次换成书库切出的单元（不依赖 AI），不再需要匹配；老师手工加的对应按单元保留
+      let card = null
+      for (let i = 0; i < 40 && !card?.fromBook; i++) { card = (await ctx.page.evaluate(() => window.api.course.list('english'))).find(c => c.id === o1.id); if (!card?.fromBook) await sleep(500) }
+      const ls2 = q('SELECT id, title FROM course_lessons WHERE outline_id = ? ORDER BY seq', o1.id)
+      check(L1, '书库建好后：课次 = 书库单元，匹配状态为已完成（不用 AI 匹配）', !!card?.fromBook && card.match.state === 'done' && JSON.stringify(ls2.map(x => x.title)) === JSON.stringify(bu.map(x => x.title)), JSON.stringify({ fromBook: card?.fromBook, lessons: ls2.map(x => x.title), units: bu.map(x => x.title) }))
+      const rv = ls2.find(x => x.title === 'Unit 5 Review')
+      const kept = rv ? q("SELECT source, state, locked FROM course_kp_map WHERE lesson_id = ? AND source = 'manual'", rv.id) : []
+      check(L1, '书库建好后：老师手工加在 Unit 5 Review 上的对应还在（按单元搬过去）', kept.length >= 1 && kept.every(m => m.state === 'confirmed' && m.locked === 1), JSON.stringify(kept))
+      await goto('#/courses'); await T(`course-card-${o1.id}`).waitFor()
+      await T(`course-card-${o1.id}`).locator('[data-testid=course-from-book]').waitFor({ timeout: 10000 }).catch(() => {})
+      check(L1, '书库建好后：教材卡片不再显示花 token 的匹配按钮，说明知识点由程序算', (await T(`course-card-${o1.id}`).locator('[data-testid=course-from-book]').count()) === 1 && (await T(`course-card-${o1.id}`).locator('[data-testid=match-start], [data-testid=match-redo]').count()) === 0, (await T(`course-card-${o1.id}`).innerText()).replace(/\s+/g, ' ').slice(0, 200))
     }
     await ctx.page.evaluate(id => window.api.course.remove(id), o1.id)
     mock.quirks = {}

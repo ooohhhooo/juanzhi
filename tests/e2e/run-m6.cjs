@@ -86,7 +86,7 @@ async function main() {
     // 迁移 v10：新库的版本和内置白话
     check('迁移 v10', '全新库（v10 的内容在 v11 里仍然齐全）：知识点表有白话 / 例句 / 例词四列，145 个内置节点全部有内容；reports 有 reader / confirmed_at / verify_json；有 ai_drafts 表', withDb(udFirst, d => {
       const cols = t => d.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name)
-      return d.prepare('PRAGMA user_version').get().user_version === 15 && ['plain', 'example_en', 'example_zh', 'hint_words'].every(c => cols('kps').includes(c)) && d.prepare('SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND example_en IS NOT NULL AND hint_words IS NOT NULL AND subject = \'english\'').get().c === 145
+      return d.prepare('PRAGMA user_version').get().user_version === L.LATEST_SCHEMA && ['plain', 'example_en', 'example_zh', 'hint_words'].every(c => cols('kps').includes(c)) && d.prepare('SELECT COUNT(*) c FROM kps WHERE builtin = 1 AND plain IS NOT NULL AND example_en IS NOT NULL AND hint_words IS NOT NULL AND subject = \'english\'').get().c === 145
         && ['reader', 'confirmed_at', 'verify_json'].every(c => cols('reports').includes(c)) && cols('ai_drafts').includes('markdown') && ['similar_state', 'similar_to', 'error_detail'].every(c => cols('papers').includes(c))
     }))
     // 旧默认输出上限 8192 → 自动

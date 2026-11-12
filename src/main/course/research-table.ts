@@ -24,7 +24,10 @@ import { formatLoc } from '../../shared/tb-loc.ts'
 import { coursewareOfLesson, lessonKey, listCourseware } from './courseware.ts'
 import { listBooks } from '../bookindex/store.ts'
 import { searchQuestion } from '../bookindex/search.ts'
-import { bookUnitHits, pickBookUnits } from './book-hit.ts'
+import { bookLessonKps, bookUnitHits, capBookKps, pickBookUnits } from './book-hit.ts'
+import type { BookKpPick, UnitKpEv } from './book-hit.ts'
+import { lessonQuoteText } from './match.ts'
+import { MAX_MAIN_PER_LESSON } from './score.ts'
 
 type Db = any
 
@@ -53,8 +56,8 @@ export interface RKp {
   matchLabel: string
   /** 依据：命中词 / 原文 / 对标教材 */
   evidence: string
-  /** 这条「课 ↔ 知识点」是怎么得出来的：规则命中词 / 原文 / 老师确认（没有 = 只是 AI 的判断，不当独立依据） */
-  basis?: 'rule' | 'quote' | 'teacher'
+  /** 这条「课 ↔ 知识点」是怎么得出来的：规则命中词 / 原文 / 老师确认 / 课本原文（课在上传的课本里命中的单元有这个知识点，见 book-hit.ts）；没有 = 只是 AI 的判断，不当独立依据 */
+  basis?: 'rule' | 'quote' | 'teacher' | 'book'
   basisText?: string
   /** 校内约占几分（每份卷子平均）/ 易错率 / 排序用的重要度 × 匹配分 */
   avgScore: number
@@ -67,7 +70,7 @@ export interface RKp {
   bLessons: BRef[]
 }
 /** 这节课对应的教材单元（程序直接拿课和单元比出来的，不绕知识点代码） */
-export interface UnitRef extends TbLoc { score: number; similarity: string; evidence: string; /** 只是按目录概括的单元（界面加小字「按目录」） */ byCatalog: boolean; /** 书库命中时：书 id#单元 key（内部用，给原题加分） */ unitKey?: string; /** 书库命中时：这个单元在教材目录里对应的知识点（内部用） */ unitKps?: string[]; /** 在上传的整本教材原文里逐字搜到的（书库命中；强依据，界面标「课本原文」） */ byBook?: boolean }
+export interface UnitRef extends TbLoc { score: number; similarity: string; evidence: string; /** 只是按目录概括的单元（界面加小字「按目录」） */ byCatalog: boolean; /** 书库命中时：书 id#单元 key（内部用，给原题加分） */ unitKey?: string; /** 书库命中时：这个单元在教材目录里对应的知识点（内部用） */ unitKps?: string[]; /** 在上传的整本教材原文里逐字搜到的（书库命中；强依据，界面标「课本原文」） */ byBook?: boolean; /** 书库命中时：这个单元的知识点是怎么来的（只含程序 / 老师得出的，内部用） */ unitKpEv?: UnitKpEv[] }
 export type AdviceKind = 'add' | 'align' | 'swap' | 'trim'
 export const ADVICE_LABEL: Record<AdviceKind, string> = { add: '要补', align: '要对齐', swap: '换例题', trim: '可减或超前' }
 export interface AdviceItem { kind: AdviceKind; text: string; /** 依据（程序算出来的事实，AI 润色时只能引用它们） */ basis: string[]; kpCode?: string }
@@ -187,7 +190,7 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
   const kpRows = new Map((db.prepare('SELECT code, parent_code, name, level, sort, hint_words FROM kps').all() as any[]).map(r => [r.code as string, r]))
   const sub = subtree(db)
   const imp = kpImportance(db, filter)
-  const scoreByKey = new Map<string, { score: number; evidence: string; basis?: 'rule' | 'quote' | 'teacher'; basisText?: string }>()   // 机构大纲 A：课|知识点 → 匹配分、依据
+  const scoreByKey = new Map<string, { score: number; evidence: string; basis?: 'rule' | 'quote' | 'teacher' | 'book'; basisText?: string; source?: string; state?: string }>()   // 机构大纲 A：课|知识点 → 匹配分、依据
   const nameOf = (c: string) => safeKpName(kpRows.get(c)?.name ?? c)
   const minPapers = Math.max(2, Math.ceil(counts.papers * 0.3))
   const smallSample = counts.papers < GAP_MIN_PAPERS
@@ -196,7 +199,7 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
 
   // 知识点 → 课（某个体系内）
   type ByKp = Map<string, Set<number>>
-  const byKpOf = (outlineId: string): ByKp => { const m: ByKp = new Map(); for (const x of mainMaps(db, outlineId)) { if (!m.has(x.kp_code)) m.set(x.kp_code, new Set()); m.get(x.kp_code)!.add(x.lesson_id); scoreByKey.set(`${outlineId}|${x.lesson_id}|${x.kp_code}`, { score: x.score, evidence: x.evidence, ...basisOf(x) }) } return m }
+  const byKpOf = (outlineId: string): ByKp => { const m: ByKp = new Map(); for (const x of mainMaps(db, outlineId)) { if (!m.has(x.kp_code)) m.set(x.kp_code, new Set()); m.get(x.kp_code)!.add(x.lesson_id); scoreByKey.set(`${outlineId}|${x.lesson_id}|${x.kp_code}`, { score: x.score, evidence: x.evidence, ...basisOf(x), source: x.source, state: x.state }) } return m }
   /** 自己、子孙 = 直接；只有祖先 = 较粗 */
   const relatedLessons = (byKp: ByKp, code: string): { direct: number[]; coarse: number[] } => {
     const direct = new Set<number>(), coarse = new Set<number>()
@@ -274,6 +277,11 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
     const i = importanceOf(imp, code)
     return { ...base, examples: [], matchScore, matchLabel: scoreLabel(matchScore), evidence: sc?.evidence ?? '', basis: sc?.basis, basisText: sc?.basisText, avgScore: i.avgScore, errorRate: Math.round(i.errorRate * 100) / 100, weight: Math.round(i.weight * matchScore) / 100 }
   }
+  /** 课本原文命中带出来的知识点（这节课 × 这个知识点）：分数、依据由 bookLessonKps 给 */
+  const bookKp = (p: BookKpPick): RKp => {
+    const i = importanceOf(imp, p.code)
+    return { ...kpOf(p.code), examples: [], matchScore: p.score, matchLabel: scoreLabel(p.score), evidence: p.evidence, basis: 'book', basisText: p.words.join('、'), avgScore: i.avgScore, errorRate: Math.round(i.errorRate * 100) / 100, weight: Math.round(i.weight * p.score) / 100 }
+  }
   const kpNear = (a: string, b: string): boolean => a === b || (sub.get(a) ?? [a]).includes(b) || (sub.get(b) ?? [b]).includes(a)
 
   // 课 ↔ 教材单元：课的标题 / 主题 / 词汇 / 句型 / 知识点，直接和每个单元比（不调用 AI，同样的输入同样的结果）
@@ -317,6 +325,19 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
     for (const [code, ls] of t.byKp) if (ls.has(info.id)) out.push(code)
     return out
   }
+  /** 书库单元的知识点来历：单元词表规则命中 / 内置目录 / 老师确认；AI 挑的、教材桥不算 */
+  const unitKpEvOf = (t: (typeof tbs)[number], title: string, key: string): UnitKpEv[] => {
+    const info = infoOfUnit(t, title, key)
+    if (!info) return []
+    const out: UnitKpEv[] = []
+    for (const [code, ls] of t.byKp) {
+      if (!ls.has(info.id)) continue
+      const sc = scoreByKey.get(`${t.b.id}|${info.id}|${code}`)
+      const via: UnitKpEv['via'] | null = sc?.state === 'confirmed' || sc?.source === 'manual' ? 'teacher' : sc?.source === 'rule' ? 'words' : sc?.source === 'builtin' ? 'catalog' : null
+      if (via) out.push({ code, via })
+    }
+    return out
+  }
   const bookUnitsOf = (lt: LessonText): UnitRef[] => {
     const byEd = new Map<string, Array<{ t: (typeof tbs)[number]; h: ReturnType<typeof bookUnitHits>[number] }>>()
     for (const t of tbs) {
@@ -328,7 +349,7 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
     for (const list of byEd.values()) {
       for (const h of pickBookUnits(list.map(x => x.h))) {
         const t = list.find(x => x.h === h)!.t
-        out.push({ unitKps: unitKpsOf(t, h.unitTitle, h.unitKey), unitKey: `${h.bookId}#${h.unitKey}`, outlineId: t.b.id, outlineName: t.b.name, edition: t.edition, levelName: levelOfUnit(t, h.unitTitle, h.unitKey), label: '', title: h.unitTitle, pages: `第 ${h.page} 页`, coarse: false, score: h.score, similarity: similarityLabel(h.score), evidence: h.evidence, byCatalog: false, byBook: true })
+        out.push({ unitKps: unitKpsOf(t, h.unitTitle, h.unitKey), unitKpEv: unitKpEvOf(t, h.unitTitle, h.unitKey), unitKey: `${h.bookId}#${h.unitKey}`, outlineId: t.b.id, outlineName: t.b.name, edition: t.edition, levelName: levelOfUnit(t, h.unitTitle, h.unitKey), label: '', title: h.unitTitle, pages: `第 ${h.page} 页`, coarse: false, score: h.score, similarity: similarityLabel(h.score), evidence: h.evidence, byCatalog: false, byBook: true })
       }
     }
     return out
@@ -407,6 +428,34 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
     tbNotInA = cmp.uncovered.map(u => ({ code: u.code, name: u.name, group: topOf(u.code).name, units: u.units, papers: u.papers, paperTotal: u.paperTotal, errorCount: u.errorCount, frequent: !smallSample && u.papers >= minPapers, avgScore: importanceOf(imp, u.code).avgScore }))
     for (const t of tbs) for (const [code, ls] of t.byKp) for (const l of ls) { const key = `${t.b.id}|${l}`; if (!tbUnitKps.has(key)) tbUnitKps.set(key, new Set()); tbUnitKps.get(key)!.add(code) }
   }
+
+  // 每节课先算：排好序的知识点、对应的教材单元，以及课本原文命中带出来的知识点（book-hit.ts 的 bookLessonKps）。
+  // 带出来的知识点要先从「教材有、A 没讲」里扣掉，所以放在逐课生成之前
+  const sortKps = (raw: RKp[]): RKp[] => {
+    const best = new Map<string, number>()
+    for (const k of raw) best.set(k.groupCode, Math.max(best.get(k.groupCode) ?? 0, k.weight))
+    return raw.sort((x, y) => (best.get(y.groupCode) ?? 0) - (best.get(x.groupCode) ?? 0) || groupOrder(x.groupCode, y.groupCode) || kpOrder(x, y))
+  }
+  const pre = new Map<number, { lt: LessonText; kps: RKp[]; units: UnitRef[] }>()
+  for (const l of aLessons) {
+    if (opts.lessonFilter && !opts.lessonFilter(l)) continue
+    const codes = aByLesson.get(l.id) ?? []
+    const lt: LessonText = { title: l.title, theme: l.theme, points: l.points.map(p => ({ kind: p.kind, text: p.text })) }
+    // 排序：校内重要度 × 匹配分（高的在前）；知识点大类也按其中最高的排
+    const kps = sortKps(codes.map(c => lessonKp(c, l.id)))
+    const units = unitIndex.length ? unitsOf(lt, kps.map(k => ({ code: k.code, name: k.name }))) : []
+    const room = Math.max(0, MAX_MAIN_PER_LESSON - kps.length)
+    const fromBook = room ? units.filter(u => u.byBook && u.unitKpEv?.length) : []
+    if (fromBook.length) {
+      const picks = bookLessonKps(lessonQuoteText(l), fromBook.map(u => ({ unitTitle: u.title, pages: u.pages, score: u.score, kps: u.unitKpEv! })), c => kps.some(k => kpNear(k.code, c)))
+      const chosen = capBookKps(picks, kps.length, MAX_MAIN_PER_LESSON)
+      for (const p of chosen) kps.push(bookKp(p))
+      if (chosen.length) sortKps(kps)
+    }
+    pre.set(l.id, { lt, kps, units })
+  }
+  const bookCodes = new Set([...pre.values()].flatMap(x => x.kps.filter(k => k.basis === 'book').map(k => k.code)))
+  if (bookCodes.size) tbNotInA = tbNotInA.filter(u => !hasRelated(bookCodes, u.code))
   const uncoveredByCode = new Map(tbNotInA.map(u => [u.code, u]))
 
   // 每节课
@@ -418,13 +467,7 @@ export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOption
       alignAdvice({ tbs, relatedLessons, runningMax }, codes.map(lightKp), [])   // 不在要的课里：只更新「前面已讲到哪一册」
       continue
     }
-    const lt: LessonText = { title: l.title, theme: l.theme, points: l.points.map(p => ({ kind: p.kind, text: p.text })) }
-    const raw = codes.map(c => lessonKp(c, l.id))
-    // 排序：校内重要度 × 匹配分（高的在前）；知识点大类也按其中最高的排
-    const best = new Map<string, number>()
-    for (const k of raw) best.set(k.groupCode, Math.max(best.get(k.groupCode) ?? 0, k.weight))
-    const kps = raw.sort((x, y) => (best.get(y.groupCode) ?? 0) - (best.get(x.groupCode) ?? 0) || groupOrder(x.groupCode, y.groupCode) || kpOrder(x, y))
-    const units = unitIndex.length ? unitsOf(lt, kps.map(k => ({ code: k.code, name: k.name }))) : []
+    const { lt, kps, units } = pre.get(l.id)!
     for (const e of examplesForLesson(lt, kps, units.map(u => u.unitKey).filter((x): x is string => !!x), units.flatMap(u => u.unitKps ?? []))) {
       const target = kps.find(k => k.code === e.m.kpCode) ?? kps[0]
       if (target) target.examples.push({ ...e.q, why: e.m.evidence })
