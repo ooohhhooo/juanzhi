@@ -13,6 +13,7 @@ import TaxonomySettings from './TaxonomySettings'
 import DiagnosticsPanel from '../components/DiagnosticsPanel'
 import { useAdminOpen, useShowCodes } from '../hooks/useUiPrefs'
 import { Btn, Glossary, Page, Panel, StatusLabel, UsageNote, useTheme } from '../design'
+import ThemeSwitch from '../design/ThemeSwitch'
 import '../design/page-report.css'
 
 type TabId = 'show' | 'kp' | 'connectors' | 'about' | 'admin' | 'ai' | 'data' | 'prompts' | 'cli'
@@ -100,6 +101,7 @@ export default function Settings() {
               <label className="ewb-rep-switchlabel"><Switch data-testid="big-text-switch" checked={bigText} onChange={v => setBigText(v)} /> <span data-testid="big-text-label">投屏大字</span></label>
             </div>
             {note('投屏讲解时打开，整个界面放大到 115%。只记在这台电脑上。')}
+            <div style={{ marginTop: 12 }} data-testid="settings-theme"><ThemeSwitch /></div>
           </Panel>
         </div>
         <div className="ewb-set-panel">

@@ -76,7 +76,7 @@ export default function AppLayout() {
   return (
     <div className="ewb-shell" data-testid="app-shell">
       <aside className="ewb-sider">
-        <Contents items={NAV_ITEMS(active, reviewing, courseReview)} footerItems={NAV_FOOTER} footerExtra={updateEntry} brandExtra={<SubjectSwitch />} activeKey={selectedKey} onNavigate={navigate} />
+        <Contents showThemeSwitch={false} items={NAV_ITEMS(active, reviewing, courseReview)} footerItems={NAV_FOOTER} footerExtra={updateEntry} brandExtra={<SubjectSwitch />} activeKey={selectedKey} onNavigate={navigate} />
       </aside>
       <main className="ewb-main" data-testid="app-main">
         {tabGroup && (
