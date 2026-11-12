@@ -36,6 +36,7 @@ import { registerDiagnosticsIpc } from './ipc/diagnostics'
 import { registerConnectorsIpc } from './ipc/connectors'
 import { closeAllMcp } from './connectors/mcp-client'
 import { registerCourseIpc } from './ipc/course'
+import { registerBookIndexIpc } from './ipc/bookindex'
 import { registerDatasetsIpc } from './ipc/datasets'
 import { registerAgentOutputsIpc } from './ipc/agent-outputs'
 import { registerCardsIpc } from './ipc/cards'
@@ -279,6 +280,7 @@ if (cliArgs) {
     registerUpdateIpc()
     registerDiagnosticsIpc()
     registerCourseIpc()
+    registerBookIndexIpc()
     registerDatasetsIpc()
     registerConnectorsIpc()
     registerAgentOutputsIpc()

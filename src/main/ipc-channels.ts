@@ -21,6 +21,7 @@ export const WRITE_CHANNELS = new Set([
   'data:pickPack',  // 解包到旧数据目录的 .import-staging 里
   'data:importPack', 'data:loadSample', 'data:clearSample', 'data:changeDir', 'data:resetDir', 'data:deleteBackup',
   // 课程对照（beta.2）：写课程表、匹配结果、话术缓存；course:suggest / course:match / course:adviceGenerate 会调用 AI 并写 ai_usage，所以归写入类
+  'books:addFile', 'books:cancel', 'books:remove',
   'course:setActive', 'course:rename', 'course:confirmDraft', 'course:remove', 'course:suggest', 'course:save', 'course:addBuiltin', 'course:refreshBuiltin', 'course:jobStart', 'course:match', 'course:mapEdit', 'course:adviceGenerate', 'course:adviceConfirm', 'course:researchTable', 'course:researchAdvice', 'course:researchExport', 'course:coursewareAdd', 'course:coursewareRemove',
   // 数据集（分析 Agent 的数据底座）：导入 / 删除 / 改标记 / 改名 / 备注都写 <数据目录>/datasets/
   'cards:setDefault', 'cards:setChildName',
@@ -50,6 +51,7 @@ export const READONLY_CHANNELS = new Set([
   'taxonomy:tree',
   'update:state', 'update:check', 'update:download', 'update:cancel', 'update:install', 'update:skip', 'update:openReleasePage',   // 应用内更新：只写临时目录和一个小状态文件，不动数据
   // 课程对照的读取类：列表 / 详情 / 看板 / 状态；pickFile、readFile、readText 只读用户选的文件到内存；template、exportGaps 只写用户选的位置；adviceCopy 只写剪贴板；matchCancel 只改内存
+  'books:list', 'books:status', 'books:search', 'books:units', 'books:page', 'books:unitWords',
   'course:list', 'course:get', 'course:maps', 'course:search', 'course:pickFile', 'course:readFile', 'course:textbookUnits', 'course:textbookPage', 'course:useBuiltinCatalog', 'course:readText', 'course:preview', 'course:diff', 'course:template',
   'course:coursewareList', 'course:researchAdviceCount', 'course:researchAdviceCancel', 'course:suggestCancel', 'course:jobs', 'course:jobTake', 'course:jobCancel', 'course:jobRemove', 'course:jobRetry', 'course:matchEstimate', 'course:matchProgress', 'course:matchCancel', 'course:dashboard', 'course:exportGaps', 'course:catalog', 'course:compare', 'course:compareCopy', 'course:compareExport', 'course:adviceState', 'course:adviceCopy',
   // 数据集的读取类：pick 只弹对话框；list / profile / preview / profileText 只读

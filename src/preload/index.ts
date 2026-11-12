@@ -220,6 +220,17 @@ const api = {
     setNote: (id: string, note: string): Promise<boolean> => ipcRenderer.invoke('datasets:setNote', id, note)
   },
   /** 课程对照：上传向导、课程体系管理、知识点对应、看板「课程对照」页签、家长沟通建议 */
+  books: {
+    list: (): Promise<any[]> => ipcRenderer.invoke('books:list'),
+    status: (): Promise<any[]> => ipcRenderer.invoke('books:status'),
+    search: (query: string, opts?: { bookIds?: string[]; subject?: string; limit?: number; question?: boolean; includeFront?: boolean }): Promise<any> => ipcRenderer.invoke('books:search', query, opts),
+    units: (id: string): Promise<any[]> => ipcRenderer.invoke('books:units', id),
+    page: (id: string, page: number): Promise<any> => ipcRenderer.invoke('books:page', id, page),
+    unitWords: (id: string, unitKey: string): Promise<any[]> => ipcRenderer.invoke('books:unitWords', id, unitKey),
+    addFile: (p: { path: string; name?: string; subject?: string }): Promise<any> => ipcRenderer.invoke('books:addFile', p),
+    cancel: (hash: string): Promise<boolean> => ipcRenderer.invoke('books:cancel', hash),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('books:remove', id)
+  },
   course: {
     list: (subject?: string): Promise<any[]> => ipcRenderer.invoke('course:list', subject),
     get: (id: string): Promise<any> => ipcRenderer.invoke('course:get', id),

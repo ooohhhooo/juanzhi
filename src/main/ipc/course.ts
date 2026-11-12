@@ -22,9 +22,10 @@ import { SCENES, applyTextbookMaps, confirmDraft, createOutline, setOutlineKind,
 import {
   adviceState, cancelMatch, confirmAdvice, copyAdvice, estimateMatch, generateAdvice, makeTemplate, matchProgressOf, previewOutline,
   cancelSuggest, setJobHooks, setSessionSubject, outlineBusy, readSourceFile, resolveLevels, readSourceText, runMatch, sessionOf, suggestMappings, sourceInfo, keepSession, dropSession,
-  sessionKind, sessionBuiltinId, textbookPageOf, textbookUnitsOf, useBuiltinCatalog
+  sessionKind, sessionBuiltinId, sessionTextbookSource, textbookPageOf, textbookUnitsOf, useBuiltinCatalog
 } from '../course/service'
 import { promptVersionFor } from '../ai/prompts'
+import { scheduleBookBuild } from '../bookindex/service'
 import type { SuggestResult } from '../course/service'
 import { createJobQueue } from '../course/job-queue'
 import { researchTableWithCourseware, clampPerKp } from '../course/research-table'
@@ -33,6 +34,14 @@ import { polishAdvice, adviceCallCount, aiConfigured } from '../course/research-
 import { addCourseware, dropCoursewareOf, listCourseware, lessonKey, removeCourseware } from '../course/courseware'
 import { readCoursewareFile } from '../course/doc-read'
 import type { AdviceScope } from '../course/service'
+
+/** 整本教材 PDF 保存成课程体系后，顺带在后台建“教材书库”（逐页原文 + 单元 + 书后词表，可搜索）；失败不影响保存 */
+function buildBookFor(sessionId: string | undefined, outlineId: string): void {
+  try {
+    const src = sessionTextbookSource(sessionId)
+    if (src) scheduleBookBuild({ ...src, outlineId })
+  } catch (e) { log.warn('bookindex', '排队建书库失败', { msg: (e as Error).message.slice(0, 80) }) }
+}
 
 const FilterArg = StatsFilterSchema.default({})
 const MAX_FILES = 20
@@ -251,6 +260,7 @@ export function registerCourseIpc(): void {
       setOutlineKind(db(), p.replaceId, kind)
       if (p.unitKps?.length) applyTextbookMaps(db(), p.replaceId, p.unitKps, { model: p.aiModel, promptVersion: promptVersionFor('p5_course_textbook') }, false)
       log.info('course', '替换课程体系', { added: r.added, changed: r.changed, removed: r.removed })
+      buildBookFor(p.sessionId, p.replaceId)
       notifyDataChanged('course')
       return { id: p.replaceId, replaced: true, ...r }
     }
@@ -258,6 +268,7 @@ export function registerCourseIpc(): void {
     if (p.unitKps?.length) applyTextbookMaps(db(), id, p.unitKps, { model: p.aiModel, promptVersion: promptVersionFor('p5_course_textbook') })
     if (bid) markBuiltinChecked(db(), id, asSubject(src?.subject ?? p.subject))   // 用内置目录整理的：和「添加学校教材」一样，知识点都记为已检查、不需要 AI 匹配   // 学科以整理会话里锁定的为准，其次才是界面传来的
     log.info('course', '保存课程体系', { levels: levels.length, lessons: levels.reduce((n, l) => n + l.lessons.length, 0) })
+    buildBookFor(p.sessionId, id)
     notifyDataChanged('course')
     return { id, replaced: false }
   })

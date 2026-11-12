@@ -110,6 +110,14 @@ export function sessionKind(id: string | undefined): 'course' | 'textbook' | und
   return s ? (s.extract?.textbook ? 'textbook' : 'course') : undefined
 }
 
+/** 这次是整本教材 PDF 时，返回文件路径等信息（保存课程体系后顺带建“教材书库”用）；不是教材 PDF 返回 undefined */
+export function sessionTextbookSource(id: string | undefined): { file: string; hash: string; name: string; subject?: string; edition?: string; totalPages: number } | undefined {
+  const s = id ? sessions.get(id) : undefined
+  const tb = s?.extract?.textbook
+  if (!s || !tb || tb.plan.fileKind !== 'pdf') return undefined
+  return { file: tb.plan.file, hash: s.hash, name: s.name, subject: s.subject, edition: tb.plan.edition?.label, totalPages: tb.plan.totalPages }
+}
+
 /** 这次教材整理用的是内置目录时，返回目录里这一册的 id（如 'math-renjiao:1上'）；保存时写进 builtin_id，和「添加学校教材」的结果一致 */
 export function sessionBuiltinId(id: string | undefined): string | undefined {
   const s = id ? sessions.get(id) : undefined
