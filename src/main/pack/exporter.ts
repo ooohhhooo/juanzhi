@@ -106,6 +106,9 @@ export function makeCleanSnapshot(deps: Pick<ExportDeps, 'db' | 'openDb' | 'tmpD
     if (!sel.chats && hasTable('agent_sessions')) s.exec('DELETE FROM agent_sessions')
     // 这几张表永远不带：用量记录（这台电脑花了多少钱）、未完成的报告草稿、解析过程的记录和统计（原始输出很大，导入后点「重试」会重新提取）
     for (const t of ['ai_usage', 'ai_drafts', 'parse_batches', 'parse_runs']) if (hasTable(t)) s.exec(`DELETE FROM ${t}`)
+    // 教材书库（book_*：整本教材的逐页原文）目前不随数据包走：书的原文体积大、也不该悄悄带出去；全文索引是虚拟表，先丢掉（导入端可能没有 FTS5）
+    try { if (hasTable('book_fts')) s.exec('DROP TABLE book_fts') } catch { /* 这个 SQLite 没有 FTS5：本来就没法读，留着也无害 */ }
+    for (const t of ['book_items', 'book_pages', 'book_units', 'book_files']) if (hasTable(t)) s.exec(`DELETE FROM ${t}`)
     // 示例数据派生的东西也不带走：基于示例筛选生成的 P3 报告、P2 分析缓存（它们引用的是示例卷的题目）
     s.exec(`DELETE FROM reports WHERE COALESCE(filter_json, '') LIKE '%"sample":true%'`)
     s.exec(`DELETE FROM ai_analyses WHERE COALESCE(scope_json, '') LIKE '%"sample":true%'`)

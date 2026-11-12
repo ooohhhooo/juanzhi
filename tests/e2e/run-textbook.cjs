@@ -128,6 +128,17 @@ async function main() {
     const kindCol = q("SELECT name FROM pragma_table_info('course_outlines') WHERE name = 'kind'")
     if (kindCol.length) check(L1, 'course_outlines.kind = textbook', q('SELECT kind FROM course_outlines WHERE id = ?', o1.id)[0].kind === 'textbook')
     else check(L1, '库里还没有 kind 列（v15 由另一个子任务加）：保存时忽略它，没有报错', !!o1)
+    // 保存整本教材 PDF 后，后台顺带建好“教材书库”（逐页原文 + 单元），可以按原文搜索
+    let bk = []
+    for (let i = 0; i < 40 && !bk.length; i++) { bk = q("SELECT id, outline_id, total_pages FROM book_files WHERE outline_id = ?", o1.id); if (!bk.length) await sleep(500) }
+    check(L1, '书库：保存后自动建好（关联这个课程体系）', bk.length === 1 && bk[0].total_pages > 30, JSON.stringify(bk))
+    if (bk.length) {
+      const bu = q('SELECT title FROM book_units WHERE book_id = ? ORDER BY seq', bk[0].id)
+      const bp = q('SELECT COUNT(*) c FROM book_pages WHERE book_id = ? AND length(text) > 0', bk[0].id)[0].c
+      check(L1, '书库：单元和逐页文字都存下来了', bu.length >= 5 && bp > 20, `units=${bu.length} pages=${bp}`)
+      const sr = await ctx.page.evaluate(() => window.api.books.search('Unit 1 Hello', { limit: 3 }))
+      check(L1, '书库：能按原文搜到', sr.hits.length >= 1, JSON.stringify(sr.hits.slice(0, 1).map(h => [h.page, h.unitTitle])))
+    }
     await ctx.page.evaluate(id => window.api.course.remove(id), o1.id)
     mock.quirks = {}
   }

@@ -712,6 +712,57 @@ export const MIGRATIONS: Array<(db: any) => void> = [
     addCol('course_outlines', 'builtin_id', 'TEXT')
     db.exec('CREATE INDEX IF NOT EXISTS idx_course_outlines_kind ON course_outlines(subject, kind)')
     if (revBefore !== undefined) db.prepare('UPDATE data_rev SET rev = ? WHERE id = 1').run(revBefore)
+  },
+  // v15 → v16：教材书库（整本教材的逐页原文、单元、书后词表，只在本机，用来按单词 / 句型 / 题干查“在课本哪一单元哪一页”）。
+  // 只新增 book_* 四张表，不碰旧表；全文索引（FTS5 虚拟表）不进迁移，由代码按需建，丢了也能从 book_pages 重建
+  (db) => {
+    db.exec(`CREATE TABLE IF NOT EXISTS book_files (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT,
+      edition TEXT,
+      total_pages INTEGER NOT NULL,
+      unit_via TEXT,
+      summary_json TEXT NOT NULL,
+      outline_id TEXT,
+      built_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS book_units (
+      book_id TEXT NOT NULL REFERENCES book_files(id) ON DELETE CASCADE,
+      seq INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      title TEXT NOT NULL,
+      page_start INTEGER NOT NULL,
+      page_end INTEGER NOT NULL,
+      printed_start INTEGER,
+      sections_json TEXT NOT NULL DEFAULT '[]',
+      PRIMARY KEY (book_id, seq)
+    );
+    CREATE TABLE IF NOT EXISTS book_pages (
+      book_id TEXT NOT NULL REFERENCES book_files(id) ON DELETE CASCADE,
+      page INTEGER NOT NULL,
+      printed INTEGER,
+      unit_seq INTEGER,
+      kind TEXT NOT NULL,
+      via TEXT NOT NULL,
+      text TEXT NOT NULL,
+      pinyin_removed INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (book_id, page)
+    );
+    CREATE TABLE IF NOT EXISTS book_items (
+      book_id TEXT NOT NULL REFERENCES book_files(id) ON DELETE CASCADE,
+      seq INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      text TEXT NOT NULL,
+      gloss TEXT NOT NULL DEFAULT '',
+      unit_key TEXT,
+      printed_ref INTEGER,
+      pdf_ref INTEGER,
+      app_page INTEGER NOT NULL,
+      lesson_no INTEGER,
+      PRIMARY KEY (book_id, seq)
+    );
+    CREATE INDEX IF NOT EXISTS idx_book_files_outline ON book_files(outline_id);`)
   }
 ]
 

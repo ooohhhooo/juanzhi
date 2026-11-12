@@ -151,7 +151,7 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
 // ───── v12 迁移 + 会话记录 ─────
 {
   const { db, version } = newDb()
-  assert.equal(version, 15)
+  assert.equal(version, 16)
   const cols = t => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name)
   for (const c of ['id', 'role', 'title', 'created_at', 'updated_at', 'status']) assert.ok(cols('agent_sessions').includes(c), c)
   for (const c of ['session_id', 'seq', 'kind', 'payload_json', 'tokens', 'ms', 'created_at']) assert.ok(cols('agent_steps').includes(c), c)

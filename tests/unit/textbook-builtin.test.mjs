@@ -22,7 +22,7 @@ const FIX = {
 // ── 迁移 v15：只加列 / 索引，旧课程全部是「机构课程」，修订号不变，重复执行无害 ──
 {
   const ms = migrations()
-  assert.equal(ms.length, 15)
+  assert.equal(ms.length, 16)
   const { db } = newDb(':memory:', 14)
   db.prepare("INSERT INTO course_outlines (id, name, scene) VALUES ('o1', '旧课程', 'org')").run()
   const rev0 = q1(db, 'SELECT rev FROM data_rev WHERE id = 1').rev
@@ -35,7 +35,7 @@ const FIX = {
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_course_outlines_kind'").get())
   ms[14](db)   // 重复执行无害
   assert.equal(listOutlines(db, 'english')[0].kind, 'course')
-  assert.equal(newDb().version, 15)
+  assert.equal(newDb().version, 16)
 }
 
 // ── 夹具：英语，3 份卷子 ──

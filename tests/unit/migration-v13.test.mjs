@@ -35,7 +35,7 @@ const en = await import('../../src/main/seed/taxonomy.ts')
 // ───── 新装：直接建到 v14 ─────
 {
   const { db, version } = newDb()
-  assert.equal(version, 15)
+  assert.equal(version, 16)
   const c = (sql, ...a) => db.prepare(sql).get(...a).c
   assert.equal(c("SELECT COUNT(*) c FROM kps WHERE subject = 'math'"), ma.MA_KP_SEEDS_V1.length)
   assert.equal(c("SELECT COUNT(*) c FROM kps WHERE subject = 'chinese'"), cn.CN_KP_SEEDS_V1.length)
