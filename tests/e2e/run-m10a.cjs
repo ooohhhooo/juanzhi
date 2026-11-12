@@ -492,7 +492,8 @@ async function main() {
     const sel = async (c, v) => { await T(`course-col-${c}`).selectOption(v) }
     for (const [c, f] of [[0, 'seq'], [1, 'level'], [2, 'theme'], [3, 'title'], [4, 'phonics'], [5, 'word'], [6, 'pattern'], [7, 'expression'], [8, 'textbook_ref'], [9, 'skill'], [10, 'note']]) await sel(c, f)
     await T('course-lesson-0').waitFor({ timeout: 10000 })
-    const diffText = await T('course-diff').innerText()
+    // 列逐个选完后比对结果会再刷新一次：等它稳定到最终结果（最多 10 秒）
+    const diffText = (await waitFor(async () => { const s = await T('course-diff').innerText(); return /新增 0 课、修改 1 课、删除 1 课/.test(s) ? s : null }, 10000)) || await T('course-diff').innerText()
     check('替换', '按（级别 + 课次）比对：显示“新增 0 课、修改 1 课、删除 1 课”，并说明涉及多少条知识点对应需要重新匹配', /新增 0 课、修改 1 课、删除 1 课/.test(diffText) && /条涉及改动的课，需要重新匹配/.test(diffText), diffText)
     await T('course-save').click()
     await T('course-replace-ok').click()

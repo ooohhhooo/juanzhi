@@ -82,7 +82,7 @@ async function main() {
   check('删除', 'catalog.json 只剩 classes.csv 一项', rest.length === 1 && rest[0].sourceFile === 'classes.csv')
 
   // 错误提示：不支持的文件
-  const bad = path.join(work, '不支持.pdf'); fs.writeFileSync(bad, 'x')
+  const bad = path.join(work, '不支持.mp3'); fs.writeFileSync(bad, 'x')
   await stubOpen(bad)
   await T('datasets-drop').click()
   const msg = await waitFor(async () => (await ctx.page.locator('.ant-message-notice').allInnerTexts()).find(t => /只支持 Excel/.test(t)), 15000)

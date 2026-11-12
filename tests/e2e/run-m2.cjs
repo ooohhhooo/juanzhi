@@ -759,8 +759,8 @@ async function phaseReview() {
   const iconLinks = await page.locator('.ewb-sider .ewb-contents__link').count()
   const iconTags = await page.locator('.ewb-sider .ewb-contents__tag').allInnerTexts()
   const mainW = (await page.locator('.ewb-main').boundingBox()).width
-  check('审核页', '审核页的侧栏是窄图标栏：宽度 < 100px，图标栏的 6 个入口 + 设置 + 外观都在，每个入口图标下面有两字标签，画布占满其余宽度',
-    siderW < 100 && iconLinks >= 8 && ['助手', '分析', '试卷', '报告', '课程', '数据'].every(t => iconTags.includes(t)) && mainW > 1000, `${Math.round(siderW)}px，${iconLinks} 个入口，标签 ${iconTags.join('/')}，画布 ${Math.round(mainW)}px`)
+  check('审核页', '审核页的侧栏是窄图标栏：宽度 < 100px，图标栏的 6 个入口 + 设置都在（外观切换在设置页），每个入口图标下面有两字标签，画布占满其余宽度',
+    siderW < 100 && iconLinks >= 7 && ['助手', '分析', '试卷', '报告', '课程', '数据'].every(t => iconTags.includes(t)) && mainW > 1000, `${Math.round(siderW)}px，${iconLinks} 个入口，标签 ${iconTags.join('/')}，画布 ${Math.round(mainW)}px`)
   await page.getByText(/需关注 \d+/).first().click()
   const nAttn = await items().count()
   await page.getByText(/待确认 \d+/).first().click()
