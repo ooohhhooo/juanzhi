@@ -23,12 +23,15 @@ export default function ReviewList() {
   const rows = papers.filter(p => p.status === tab)
   const nReviewing = papers.filter(p => p.status === 'reviewing').length
   const nDone = papers.filter(p => p.status === 'done').length
+  // 待审核的卷子里：多少题已自动通过（AI 和规则一致），还剩多少题要老师看一眼
+  const todo = useMemo(() => { let auto = 0, left = 0; for (const p of papers) if (p.status === 'reviewing') { const s = bySummary.get(p.id); if (s) { auto += s.auto ?? 0; left += s.total - (s.reviewed ?? 0) } } return { auto, left } }, [papers, bySummary])
 
   return (
     <Page>
       <SectionTitle aside={<Segmented value={tab} onChange={v => setTab(v as 'reviewing' | 'done')} options={[
         { label: `待审核 ${nReviewing}`, value: 'reviewing' }, { label: `已完成 ${nDone}`, value: 'done' }
       ]} />}>审核</SectionTitle>
+      {tab === 'reviewing' && todo.auto > 0 && <p data-testid="review-auto-note" style={{ margin: '0 0 12px', color: 'var(--ewb-ink-2, #555)' }}>{todo.auto} 道已自动通过（AI 和规则一致），剩下 {todo.left} 道请看一眼。自动通过的题点进去仍然可以改。</p>}
       {rows.length === 0 && !isLoading ? (
         tab === 'reviewing' ? (
           <div data-testid="review-empty">

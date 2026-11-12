@@ -19,6 +19,8 @@ export const AiConfigSchema = z.object({
   concurrency: z.number().int().min(1).max(16),
   /** 提取完成后是否自动开始 AI 解析（需已配置） */
   auto_parse: z.boolean(),
+  /** 新解析出的题：AI 的主知识点和标志词规则一致时自动标为审核通过（默认开；老数据不动） */
+  auto_approve: z.boolean().default(true),
   /** 高级：单批最多几页 / 单次请求超时秒数 / 输出上限 */
   batch_pages: z.number().int().min(1).max(10),
   timeout_sec: z.number().int().min(2).max(600),
@@ -44,6 +46,7 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   vision_policy: 'auto',
   concurrency: 2,
   auto_parse: true,
+  auto_approve: true,
   batch_pages: 3,
   timeout_sec: 180,
   max_tokens: 32768,

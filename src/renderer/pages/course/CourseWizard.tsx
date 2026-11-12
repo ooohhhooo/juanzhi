@@ -31,7 +31,7 @@ type Mappings = Record<string, CourseSheetMapping | null>
  *  2. 预览并修改——AI 只认列，课程内容由程序从单元格原文复制；保存之前什么都不落库。
  * replace 有值 = 重新上传替换这个体系（按“级别 + 课次”比对，已确认的对应只要课还在就保留）。
  */
-export default function CourseWizard({ open, onClose, replace, job }: { open: boolean; onClose: () => void; replace?: CourseOutlineCard; /** 后台已整理好的任务：直接进入第 2 步核对 */ job?: CourseJob }) {
+export default function CourseWizard({ open, onClose, replace, job, prefill }: { open: boolean; onClose: () => void; replace?: CourseOutlineCard; /** 后台已整理好的任务：直接进入第 2 步核对 */ job?: CourseJob; /** 从「选学校教材」点「上传这册课本 PDF」进来：按整本教材处理，名字预填成「版本 年级册」 */ prefill?: { label: string } }) {
   const { message, modal } = App.useApp()
   const qc = useQueryClient()
   const { subject } = useSubject()
@@ -72,7 +72,8 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
     if (!open) return
     setStep(1); setSrc(null); setSrcs([]); setPasteText(''); setName(replace?.name ?? ''); setScene((replace?.scene as Scene) ?? 'org'); setTermNote(replace?.termNote ?? ''); setMode('ai')
     setEdited(false); setMappings({}); setSugg({}); setParsed(null); setSheetName(''); setLevelIdx(0); setDiff(null); setCollide(null)
-    setKindPick('auto'); setPageRange(''); setSuggest(null); setTbUnits(null); setUnitKps({}); setConfirmedUnits(new Set()); setSkipCatalog(false)
+    setKindPick(prefill ? 'textbook' : 'auto'); setPageRange(''); setSuggest(null); setTbUnits(null); setUnitKps({}); setConfirmedUnits(new Set()); setSkipCatalog(false)
+    if (prefill && !replace) setName(prefill.label)
   }, [open, replace?.id, job?.id])
 
   // 打开的是后台整理好的任务：取出结果，直接到第 2 步
@@ -315,6 +316,7 @@ export default function CourseWizard({ open, onClose, replace, job }: { open: bo
 
       {step === 1 && (
         <div data-testid="course-step1">
+          {prefill && <UsageNote kind="tip" data-testid="course-prefill">要上传的是「{prefill.label}」的整本课本 PDF（电子版）。上传后软件会把课本原文存在本机，教研对照表就能在原文里逐字查、写出页码。</UsageNote>}
           <div className="ewb-crs-form" style={{ marginBottom: 8 }}>
             <div className="ewb-crs-field">
               <span className="ewb-crs-field__label">文件是</span>

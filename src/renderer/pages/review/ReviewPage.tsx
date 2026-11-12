@@ -210,6 +210,7 @@ export default function ReviewPage() {
   }, [boxKey, hasImage, cur])
 
   const reviewedCount = questions.filter(q => q.reviewed).length
+  const autoCount = questions.filter(q => q.reviewed && q.flags.includes('auto_approved')).length
   const material = cur?.material_id ? list?.materials.find(m => m.mid === cur.material_id) : undefined
 
   const finish = async () => {
@@ -259,6 +260,7 @@ export default function ReviewPage() {
               </Tooltip>
             )}
             <span data-testid="review-progress">已确认 {reviewedCount} / {questions.length}</span>
+            {autoCount > 0 && <span data-testid="review-auto-note">{autoCount} 道已自动通过（AI 和规则一致），剩下 {questions.length - reviewedCount} 道请看一眼</span>}
             <span className="ewb-rev__keys">按 J / K 切换题目 · 按 Enter 确认这道题</span>
           </div>
         </div>

@@ -68,6 +68,7 @@ export function pipelineStep(paper: Paper, runtimeStage?: string): { index: numb
 
 /** 题目上的小标签：一句白话 + 悬停说明，告诉老师「请你看一眼什么」。内部标记名（kp_uncertain 等）不出现在界面上 */
 export const flagLabel: Record<string, { text: string; hint: string }> = {
+  auto_approved: { text: '自动通过', hint: 'AI 标的主知识点和程序用标志词认出的一致，已自动通过审核；不放心可以直接改' },
   kp_uncertain: { text: '知识点请核对', hint: 'AI 对这道题主要考什么没把握，或知识点表里没有合适的项，请核对一下' },
   kp_invalid: { text: '知识点请核对', hint: 'AI 给的知识点不在知识点表里，已退回最接近的大类，请改成合适的' },
   ocr_unclear: { text: '文字看不清', hint: '原卷这里没读清楚，题干里有 [?]，请对着原卷补全' },

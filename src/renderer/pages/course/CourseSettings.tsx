@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useSubject } from '../../subject/SubjectContext'
-import { App, Drawer, Popconfirm, Switch, Table, Tabs } from 'antd'
+import { App, Drawer, Input, Popconfirm, Table, Tabs } from 'antd'
 import { Plus } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Btn, EmptyState, Panel, UsageNote } from '../../design'
@@ -8,6 +8,7 @@ import MatchBox, { MATCH_LABEL, clean } from '../../components/CourseMatch'
 import CourseWizard from './CourseWizard'
 import TextbookAdd from './TextbookAdd'
 import LessonPicker from './LessonPicker'
+import { groupByTerm, searchOutlines } from '../../../shared/report-course-pick'
 import { CONF_LABEL, SCENE_LABEL, lessonText, wordsOf } from './format'
 import '../../design/page-report.css'
 import '../../design/page-course.css'
@@ -30,12 +31,19 @@ export default function CourseSettings() {
   const [wizard, setWizard] = useState<{ open: boolean; replace?: CourseOutlineCard; job?: CourseJob }>({ open: false })
   const [detail, setDetail] = useState<string | null>(null)
   const [addBook, setAddBook] = useState(false)
+  const [q, setQ] = useState('')
   const { data: cards } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject) })
   // 后台整理的任务（主进程内存里）：有排队 / 整理中的就隔几秒刷新一次
   const { data: jobs } = useQuery({
     queryKey: ['course', 'jobs'], queryFn: () => window.api.course.jobs(),
     refetchInterval: q => ((q.state.data ?? []).some(j => j.status === 'queued' || j.status === 'running') ? 1500 : false)
   })
+  // 搜索（名字、学期）+ 机构课程按学期分组；教材排在后面
+  const found = searchOutlines(cards ?? [], q)
+  const ordered: Array<{ c: CourseOutlineCard; term: string }> = [
+    ...groupByTerm(found.filter(c => c.kind === 'course')).flatMap(g => g.items.map(c => ({ c, term: g.term }))),
+    ...found.filter(c => c.kind !== 'course').map(c => ({ c, term: '' }))
+  ]
   const refresh = () => qc.invalidateQueries({ queryKey: ['course'] })
   const tpl = async (kind: 'blank' | 'sample') => { try { const r = await window.api.course.template(kind, subject); if (r.saved) message.success(`已保存：${r.path}`) } catch (e) { message.error(clean(e)) } }
   const run = async (fn: () => Promise<unknown>, ok?: string) => { try { await fn(); if (ok) message.success(ok); refresh() } catch (e) { message.error(clean(e)) } }
@@ -59,6 +67,7 @@ export default function CourseSettings() {
               <Btn tone="secondary" data-testid="course-empty-sample" onClick={() => void tpl('sample')}>看示例</Btn>
             </span>} />
         )}
+        {(cards ?? []).length > 0 && <Input.Search allowClear style={{ maxWidth: 360, marginBottom: 12 }} data-testid="course-search" placeholder="搜大纲名字或学期" value={q} onChange={e => setQ(e.target.value)} />}
         <div className="ewb-crs-cards" data-testid="course-cards">
           {(jobs ?? []).map(j => (
             <article key={j.id} className="ewb-crs-card" data-testid={`course-job-${j.id}`} data-status={j.status}>
@@ -80,12 +89,16 @@ export default function CourseSettings() {
               </div>
             </article>
           ))}
-          {[...(cards ?? [])].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'course' ? -1 : 1)).map((c, i, arr) => {
+          {q && ordered.length === 0 && (cards ?? []).length > 0 && <p className="ewb-rep-note" data-testid="course-search-none">没有找到名字或学期里带「{q}」的大纲。</p>}
+          {ordered.map(({ c, term }, i, arr0) => {
+            const arr = arr0.map(x => x.c)
+            const termHead = c.kind === 'course' && (i === 0 || arr0[i - 1].term !== term) && new Set(arr0.filter(x => x.c.kind === 'course').map(x => x.term)).size > 1
             const w = wordsOf(c.scene)
             const both = arr.some(x => x.kind === 'course') && arr.some(x => x.kind === 'textbook')
             const head = both && (i === 0 || arr[i - 1].kind !== c.kind)
             return (
               <React.Fragment key={c.id}>
+              {termHead && <h5 className="ewb-crs-group" data-testid="course-term-group" style={{ margin: '8px 0 4px', fontWeight: 500 }}>{term}</h5>}
               {head && <h4 className="ewb-crs-group" data-testid={`course-group-${c.kind}`}>{c.kind === 'course' ? '机构课程' : '学校教材'}（{arr.filter(x => x.kind === c.kind).length}）</h4>}
               <article className="ewb-crs-card" data-testid={`course-card-${c.id}`} data-draft={c.status === 'draft'} data-match={c.match.state}>
                 <div className="ewb-crs-card__head">
@@ -106,7 +119,7 @@ export default function CourseSettings() {
                 )}
                 <div className="ewb-crs-card__actions">
                   {c.status === 'active' && (
-                    <label className="ewb-crs-switch"><Switch size="small" checked={c.active} data-testid="course-active" onChange={v => run(() => window.api.course.setActive(c.id, v))} />参与对照</label>
+                    <Btn tone="secondary" size="small" data-testid="course-active" data-active={c.active ? '1' : '0'} onClick={() => run(() => window.api.course.setActive(c.id, !c.active), c.active ? '已停用：不再出现在报告和对照里' : '已启用')}>{c.active ? '停用' : '启用'}</Btn>
                   )}
                   {c.status === 'draft' && <Btn tone="primary" size="small" data-testid="course-confirm-draft" onClick={() => run(() => window.api.course.confirmDraft(c.id), '已确认，现在可以参与对照了')}>确认使用</Btn>}
                   <Btn tone="secondary" size="small" data-testid="course-view" onClick={() => setDetail(c.id)}>查看</Btn>
@@ -140,12 +153,27 @@ function CourseDetail({ id, onClose }: { id: string | null; onClose: () => void 
   const { data } = useQuery({ queryKey: ['course', 'get', id], queryFn: () => window.api.course.get(id!), enabled: !!id })
   const { data: maps } = useQuery({ queryKey: ['course', 'maps', id], queryFn: () => window.api.course.maps(id!), enabled: !!id })
   const [pick, setPick] = useState<{ code: string; name: string } | null>(null)
+  // 整本教材的书库摘要（上传整本 PDF 时在后台建的；建库进度和失败原因也在这里看）
+  const { data: bookRows } = useQuery({ queryKey: ['books', 'list'], queryFn: () => window.api.books.list(), enabled: !!id })
+  const { data: buildRows } = useQuery({ queryKey: ['books', 'status'], queryFn: () => window.api.books.status(), enabled: !!id, refetchInterval: q => ((q.state.data ?? []).some(s => s.state === 'queued' || s.state === 'running') ? 1500 : false) })
+  const book = (bookRows ?? []).find(b => b.outlineId === id) ?? null
+  const building = (buildRows ?? []).find(s => s.outlineId === id && s.state !== 'done' && s.state !== 'skipped') ?? null
   const lessonBy = new Map((data?.levels ?? []).flatMap(l => l.lessons.map(x => [x.id, { ...x, levelName: l.name }] as const)))
   const edit = async (e: CourseMapEdit) => { try { await window.api.course.mapEdit(e); qc.invalidateQueries({ queryKey: ['course'] }) } catch (err) { message.error(clean(err)) } }
   const STATE: Record<string, string> = { suggested: 'AI 建议', confirmed: '已确认', rejected: '已否决' }
   const rows = (maps ?? []).map(m => ({ ...m, lesson: lessonBy.get(m.lessonId) }))
   return (
     <Drawer open={!!id} onClose={onClose} width="min(900px, 96vw)" destroyOnHidden title={data ? `${data.card.name} · ${data.card.levels} 个${wordsOf(data.card.scene).level}、${data.card.lessons} 课` : '课程体系'} data-testid="course-detail">
+      {data && data.card.kind === 'textbook' && (book || building) && (
+        <div className="ewb-rep-note" data-testid="book-summary" style={{ marginBottom: 12 }}>
+          <b>课本原文库</b>：
+          {building ? (
+            building.state === 'error'
+              ? <span data-testid="book-build-error">没有建成：{building.error || '原因不明'}（不影响这份教材的其他功能）</span>
+              : <span data-testid="book-build-progress">{building.state === 'queued' ? '排队中' : `${building.what || '建库中'}${building.total ? ` · ${building.done}/${building.total}` : ''}`}</span>
+          ) : <span data-testid="book-summary-line">{book!.summary?.line || `共 ${book!.totalPages} 页`}</span>}
+        </div>
+      )}
       {data && (
         <Tabs items={[
           {

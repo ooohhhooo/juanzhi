@@ -137,14 +137,34 @@ export const similarityLabel = (score: number): string => (score >= UNIT_STRONG 
 
 // ───────────────────────── 课 ↔ 校内原题 ─────────────────────────
 
-export interface QuestionInfo { id: string; stem: string; options: string[]; errorProne: boolean; /** 题目已审核的知识点代码（主知识点 isPrimary） */ kps: Array<{ code: string; primary: boolean }> }
+export type ReviewState = 'manual' | 'auto' | 'none'
+export interface QuestionInfo {
+  id: string; stem: string; options: string[]; errorProne: boolean
+  /** 题目的知识点代码（主知识点 primary） */
+  kps: Array<{ code: string; primary: boolean }>
+  /** 题目的知识点审核状态：manual = 老师审核过；auto = 自动通过（AI 和标志词规则一致）；none = 没审核（不当独立依据） */
+  review?: ReviewState
+  /** 题干在书库原文里命中的单元（key 集合）；和课的书库命中单元重合就加分 */
+  bookUnits?: string[]
+}
 export interface ExampleMatch { id: string; score: number; evidence: string; kinds: string[]; verbatim: boolean; /** 关联到的课的知识点（用来把例题排到对应知识点下面） */ kpCode: string | null }
 
+/** 课这一边的知识点：过线的主知识点；basis = 它是怎么得出来的（规则命中词 / 原文 / 老师确认），没有 basis 的只能当弱信号 */
+export interface LessonKp { code: string; name: string; /** 旧口径：匹配分很高（规则强词等） */ strong: boolean; basis?: 'rule' | 'quote' | 'teacher' | 'book'; /** 规则命中词 / 原文 */ basisText?: string }
+const basisLabel = (k: LessonKp): string => k.basis === 'rule' ? `命中 ${k.basisText ?? ''}`.trim() : k.basis === 'quote' ? `原文“${k.basisText ?? ''}”` : k.basis === 'book' ? '课本原文' : '老师确认'
+const reviewLabel = (r: ReviewState | undefined): string => r === 'auto' ? '自动通过' : '已审核'
+
+/** 课和题在课本里落在同一个单元：加分依据（不能单独让题进表） */
+export const BOOK_UNIT_BONUS = 10
+
 /**
- * 一道题和一节课：词汇 / 句型在题干（含选项）里逐字找，加分；再用题目已审核的知识点代码和课的知识点对上。
- * lessonKps.strong = 这条「课 ↔ 知识点」本身有原文依据（规则命中强词，或老师确认过）——知识点代码相同 + 这个依据，算两类依据。
+ * 一道题和一节课。可以进表的情况：
+ *  ① 两边各有一份独立依据：课这边是过线的主知识点、且由规则命中词 / 原文（或老师确认）得出；题这边的主知识点已审核（老师审核，或自动通过）。两个代码相同或父子——「同知识点：一般过去时（课：命中 visited；题：已审核）」；
+ *  ② 词汇 / 句型在题干（含选项）里逐字找得到；
+ *  ③ 其他至少两类不同的依据。
+ * 题干和课在书库原文里命中同一个单元：加分（lessonBookUnits 传课的命中单元 key）。
  */
-export function matchExample(lesson: LessonText, lessonKps: Array<{ code: string; name: string; strong: boolean }>, q: QuestionInfo, kpNear: (a: string, b: string) => boolean): ExampleMatch | null {
+export function matchExample(lesson: LessonText, lessonKps: LessonKp[], q: QuestionInfo, kpNear: (a: string, b: string) => boolean, lessonBookUnits: string[] = []): ExampleMatch | null {
   const hay = norm([q.stem, ...q.options].join('\n'))
   const haySent = normSentence([q.stem, ...q.options].join('\n'))
   const parts: string[] = [], kinds: string[] = []
@@ -154,19 +174,27 @@ export function matchExample(lesson: LessonText, lessonKps: Array<{ code: string
   const pats = patternTerms(lesson).filter(p => haySent.includes(p))
   if (pats.length) { score += Math.min(50, 30 + 10 * (pats.length - 1)); parts.push(`题里有课上的句型：${joinWords(pats, 2)}`); kinds.push('pattern'); verbatim = true }
   let kpCode: string | null = null
-  let strongKp = false
+  let both = false
+  const reviewed = q.review === 'manual' || q.review === 'auto'
   for (const lk of lessonKps) {
     const hit = q.kps.find(k => kpNear(lk.code, k.code))
     if (!hit) continue
-    if (!kpCode || (hit.primary && lk.strong)) kpCode = lk.code
-    if (lk.strong) strongKp = true
-    score += hit.primary ? 20 : 8
-    parts.push(`知识点相同：${lk.name}`)
+    kpCode = lk.code
+    if (lk.basis && hit.primary && reviewed) {
+      both = true
+      score += 45
+      parts.push(`同知识点：${lk.name}（课：${basisLabel(lk)}；题：${reviewLabel(q.review)}）`)
+      kinds.push('kp', 'kp-both')
+    } else {
+      score += hit.primary ? 20 : 8
+      parts.push(`知识点相同：${lk.name}`)
+      kinds.push('kp')
+    }
     break
   }
-  if (kpCode) kinds.push('kp')
-  if (kpCode && strongKp) { kinds.push('kp-evidence'); score += 10 }
-  if (!(verbatim || new Set(kinds).size >= 2)) return null
+  if (!(verbatim || both || new Set(kinds).size >= 2)) return null
+  const shared = (q.bookUnits ?? []).filter(u => lessonBookUnits.includes(u))
+  if (shared.length) { score += BOOK_UNIT_BONUS; parts.push('题干和这节课在课本里是同一个单元'); kinds.push('book-unit') }
   if (q.errorProne) score += 3
   return { id: q.id, score: Math.min(100, score), evidence: parts.join(' · '), kinds, verbatim, kpCode }
 }

@@ -170,6 +170,9 @@ export default function AiSettings() {
           <Form.Item label="提取完成后自动开始解析" style={{ marginBottom: 8 }}>
             <Switch data-testid="ai-auto-parse" checked={cfg.auto_parse} onChange={v => set({ auto_parse: v })} />
           </Form.Item>
+          <Form.Item label="AI 和规则认的知识点一致时，自动通过审核" extra="只对新解析的题生效；不一致、认不出或把握低的题仍留在待审核。自动通过的题可以手动改。" style={{ marginBottom: 8 }}>
+            <Switch data-testid="ai-auto-approve" checked={cfg.auto_approve !== false} onChange={v => set({ auto_approve: v })} />
+          </Form.Item>
         </Space>
         <Collapse ghost size="small" items={[{
           key: 'adv', label: '高级', children: (

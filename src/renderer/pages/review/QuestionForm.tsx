@@ -112,7 +112,7 @@ export default function QuestionForm(p: Props) {
       {(q.flags.length > 0) && (
         <div className="ewb-rev-form__flags" data-testid="flags">
           {q.flags.map(f => (
-            <Tooltip key={f} title={flagLabel[f]?.hint ?? f}><Pill kind="warn" tabIndex={0}>{flagLabel[f]?.text ?? f}</Pill></Tooltip>
+            <Tooltip key={f} title={flagLabel[f]?.hint ?? f}><Pill kind={f === 'auto_approved' ? 'done' : 'warn'} tabIndex={0} data-testid={f === 'auto_approved' ? 'auto-approved-tag' : undefined}>{flagLabel[f]?.text ?? f}</Pill></Tooltip>
           ))}
         </div>
       )}

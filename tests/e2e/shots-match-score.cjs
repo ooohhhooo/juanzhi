@@ -4,7 +4,7 @@ const M = require('./m4-lib.cjs')
 const { seed } = require('./fixtures-m3.cjs')
 const { check, path, fs, work, SECRET, pageImg, ctx, T, goto, setFilter, cfgFor, saveCfg, startMock, open } = M
 
-const OUT = process.env.MATCH_SHOTS || '/tmp/claude-501/match-shots'
+const OUT = process.env.MATCH_SHOTS || path.join(process.env.TMPDIR || '/tmp', 'r3-shots')
 fs.mkdirSync(OUT, { recursive: true })
 const pep = JSON.parse(fs.readFileSync(path.join(__dirname, '../../src/main/seed/textbook-catalog/english-pep.json'), 'utf8'))
 
@@ -39,6 +39,15 @@ async function main() {
   const res = await page.evaluate(id => window.api.course.match(id, false), saved.id)
   check('匹配', '匹配完成（规则先认，AI 补充）', res.ok, JSON.stringify({ matched: res.matched, byRule: res.byRule, aiLessons: res.aiLessons }))
 
+  // 数字：每节课有没有教材位置、有没有例题（改前改后对比用）
+  {
+    const t = (await page.evaluate(a => window.api.course.researchTable(a), { filter: {}, courseId: saved.id, textbookIds: [tb.id], perKp: 3 })).table
+    const withUnits = t.lessons.filter(l => l.units.length).length
+    const withEx = t.lessons.filter(l => l.kps.some(k => k.examples.length)).length
+    const exN = t.lessons.reduce((n, l) => n + l.kps.reduce((m, k) => m + k.examples.length, 0), 0)
+    const noWhy = t.lessons.flatMap(l => l.kps.flatMap(k => k.examples)).filter(e => !e.why).length
+    console.log('STATS', JSON.stringify({ lessons: t.lessons.length, withUnits, withExamples: withEx, examples: exN, examplesWithoutWhy: noWhy, sample: t.lessons.map(l => ({ t: l.title, kps: l.kps.map(k => `${k.code}|${k.matchScore}|${k.basis ?? '-'}|${k.papers}p|${k.examples.length}ex`), units: l.units.map(u => u.evidence), ex: l.kps.flatMap(k => k.examples.map(e => e.why)) })) }, null, 1))
+  }
   await goto('#/courses/research'); await T('research-table').waitFor({ timeout: 20000 })
   await T('research-pick-books').click(); await T('research-book-search').waitFor()
   await T('research-book-search').fill('译林')

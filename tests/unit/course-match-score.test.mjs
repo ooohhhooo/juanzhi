@@ -213,9 +213,25 @@ const mapsOf = () => db.prepare('SELECT kp_code, lesson_id, source, state, confi
   const Q = (stem, kps = []) => ({ id: stem, stem, options: [], errorProne: false, kps })
   assert.ok(matchExample(lt, [], Q('Yesterday I visited my grandma.'), near)?.verbatim, '课里的词在题干里逐字出现')
   assert.ok(matchExample(lt, [], Q('What did you do yesterday? I ____.'), near)?.score >= 30, '句型逐字命中加分更多')
-  assert.equal(matchExample(lt, [{ code: 'K', name: '甲', strong: false }], Q('随便一道题', [{ code: 'K', primary: true }]), near), null, '只靠知识点代码一类（课 ↔ 知识点本身没有原文依据）：不进')
-  const ok = matchExample(lt, [{ code: 'K', name: '甲', strong: true }], Q('随便一道题', [{ code: 'K', primary: true }]), near)
-  assert.ok(ok && ok.kpCode === 'K' && ok.kinds.includes('kp-evidence'), '知识点代码相同 + 课 ↔ 知识点有原文依据 = 两类依据')
+  // 两边各一份独立依据：课这边是规则命中词 / 原文得出的主知识点；题这边知识点已审核（老师）或自动通过
+  const K = (basis, basisText) => [{ code: 'K', name: '一般过去时', strong: false, basis, basisText }]
+  const QR = (review, primary = true) => ({ ...Q('随便一道题', [{ code: 'K', primary }]), review })
+  assert.equal(matchExample(lt, K(undefined), QR('manual'), near), null, '课这边只是 AI 的判断（没有命中词 / 原文）：不进')
+  assert.equal(matchExample(lt, K('rule', 'visited'), QR('none'), near), null, '题这边没审核：不进')
+  assert.equal(matchExample(lt, K('rule', 'visited'), QR('manual', false), near), null, '题这边只是次知识点：不进')
+  const ok = matchExample(lt, K('rule', 'visited'), QR('manual'), near)
+  assert.ok(ok && ok.kpCode === 'K' && ok.kinds.includes('kp-both'), '两边各一份独立依据：进')
+  assert.equal(ok.evidence, '同知识点：一般过去时（课：命中 visited；题：已审核）')
+  assert.equal(matchExample(lt, K('quote', 'I visited my uncle'), QR('auto'), near).evidence, '同知识点：一般过去时（课：原文“I visited my uncle”；题：自动通过）')
+  assert.equal(matchExample(lt, K('teacher'), QR('manual'), near).evidence, '同知识点：一般过去时（课：老师确认；题：已审核）')
+  // 父子关系也算同一个知识点
+  const kin = (a, b) => a === b || (a === 'K' && b === 'K.SUB')
+  assert.ok(matchExample(lt, K('rule', 'visited'), { ...Q('x', [{ code: 'K.SUB', primary: true }]), review: 'manual' }, kin))
+  // 书库同一单元：加分，不能单独进表
+  const base = matchExample(lt, K('rule', 'visited'), QR('manual'), near, ['b1#unit:1'])
+  const plus = matchExample(lt, K('rule', 'visited'), { ...QR('manual'), bookUnits: ['b1#unit:1'] }, near, ['b1#unit:1'])
+  assert.equal(plus.score - base.score, 10); assert.ok(/同一个单元/.test(plus.evidence))
+  assert.equal(matchExample(lt, [], { ...Q('随便'), bookUnits: ['b1#unit:1'] }, near, ['b1#unit:1']), null, '只有书库同单元一类：不进')
 }
 
 // ── 对照表整合：匹配把握、占分、教材单元、例题、排序 ──
