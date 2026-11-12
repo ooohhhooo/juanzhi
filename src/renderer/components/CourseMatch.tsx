@@ -36,7 +36,7 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
     setBusy(true); setLast(null)
     try {
       const r = await window.api.course.match(card.id, again ? false : onlyNew)
-      setLast(r.ok ? `匹配完成：${r.matched} 个知识点找到了对应的课，${r.none} 个没有找到${r.dropped ? `（另有 ${r.dropped} 条 AI 回答对不上课程，已丢弃）` : ''}` : r.message ?? '匹配没有完成')
+      setLast(r.ok ? `匹配完成：${r.matched} 个知识点找到了对应的课，${r.none} 个没有找到；程序按标志词直接认出 ${r.byRule ?? 0} 条${r.aiLessons ? `，${r.aiLessons} 节课交给 AI 补充` : ''}${r.aiSkipped ? '（没配置 AI 服务，认不出的课先空着）' : ''}${r.dropped ? `（另有 ${r.dropped} 条 AI 回答对不上课程，已丢弃）` : ''}` : r.message ?? '匹配没有完成')
       if (r.ok) message.success('匹配完成'); else if (!r.cancelled) { message.error(r.message ?? '匹配失败'); setFailed(n => n + 1) }
       qc.invalidateQueries({ queryKey: ['course'] })
       onDone?.()
@@ -48,7 +48,7 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
     <div data-testid={`match-box-${card.id}`} data-state={card.match.state}>
       {busy ? (
         <div data-testid="match-progress">
-          <span className="ewb-rep-note">正在匹配：第 {Math.min((prog?.done ?? 0) + 1, prog?.total ?? 1)} 批，共 {prog?.total ?? '…'} 批（每批约 30 个知识点；已完成的批次会保留）</span>
+          <span className="ewb-rep-note">正在匹配：第 {Math.min((prog?.done ?? 0) + 1, prog?.total ?? 1)} 步，共 {prog?.total ?? '…'} 步（先由程序按标志词认，再让 AI 补充认不出的课；已完成的部分会保留）</span>
           <div className="ewb-crs-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}><i style={{ width: `${pct}%` }} /></div>
           <Btn tone="secondary" size="small" data-testid="match-cancel" onClick={() => window.api.course.matchCancel(card.id)}>取消</Btn>
         </div>
@@ -62,9 +62,9 @@ export default function MatchBox({ card, onDone }: { card: Pick<CourseOutlineCar
           {card.match.state === 'partial' && <Popconfirm title="整体重新匹配会再调用多次模型（产生 token 费用），人工确认过的对应会保留。确定吗？" okText="重新匹配" cancelText="取消" onConfirm={() => run(true)}><Btn tone="secondary" size="small" data-testid="match-redo">整体重新匹配</Btn></Popconfirm>}
           {card.match.state === 'done' && <Popconfirm title="重新匹配会再调用多次模型（产生 token 费用）。人工确认 / 否决过的对应会保留。确定吗？" okText="重新匹配" cancelText="取消" onConfirm={() => run(true)}><Btn tone="quiet" size="small" data-testid="match-redo">重新匹配</Btn></Popconfirm>}
           {est && card.match.state !== 'done' && est.kps > 0 && (
-            <span className="ewb-rep-note" data-testid="match-estimate">约 {est.kps} 个知识点 × {est.lessons} 课，{est.batches} 次请求，预计用量约 {wan(est.tokens)} token（实际以服务商为准）</span>
+            <span className="ewb-rep-note" data-testid="match-estimate">{est.lessons} 课里约 {est.ruleLessons} 课由程序直接认出，{est.aiAvailable ? `其余 ${est.aiLessons} 课交给 AI 补充（${est.batches} 次请求，预计用量约 ${wan(est.tokens)} token，实际以服务商为准）` : `其余 ${est.aiLessons} 课需要 AI（还没配置 AI 服务，先空着）`}</span>
           )}
-          {est && card.match.state !== 'done' && est.kps > 0 && <CostHint task="course-match" calls={est.batches} fallbackTokens={est.tokens} />}
+          {est && card.match.state !== 'done' && est.kps > 0 && est.batches > 0 && <CostHint task="course-match" calls={est.batches} fallbackTokens={est.tokens} />}
         </div>
       )}
       {!busy && card.match.state === 'partial' && (

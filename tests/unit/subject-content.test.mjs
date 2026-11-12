@@ -42,7 +42,7 @@ const ROUTE = {
   p3_report: [['system', '考情分析报告'], ['user', '【知识点分布】']], p3_boss: [['system', '【读者：老板】'], ['system', '考情分析报告']],
   p3_parent: [['system', '【读者：家长】']], p3_teacher: [['system', '【读者：辅导老师】'], ['system', '考情分析报告']],
   p3_tricks: [['system', '【任务：口诀大招】']], p4_variant_gen: [['system', '【任务：同类变形题】']], p4_variant_check: [['system', '【任务：独立解答】']],
-  p5_course_cols: [['system', '请只判断「哪几行是表头']], p5_course_match: [['system', '请判断每个考点在大纲的哪几课里讲到']],
+  p5_course_cols: [['system', '请只判断「哪几行是表头']], p5_course_match: [['system', '请以课为单位判断每节课主要讲了哪些考点']],
   p5_course_advice: [['system', '要写一段能直接发给家长的话（150–200 字']], p5_course_hint: [['system', '要给家长版报告写结尾处的一句课程建议']]
 }
 let nFiles = 0

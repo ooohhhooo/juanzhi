@@ -61,7 +61,7 @@ applyMatchBatch(db, oid, [E('GR.PLU', ['Plural', 'high'])], meta)
 
 applyMatchBatch(db, oid, [
   E('GR.PAST.REG', ['Past', 'high']),               // 三级知识点的对应算在二级考点「一般过去时」名下
-  E('GR.COMP', ['Compare', 'medium'], ['Hello', 'low']),
+  E('GR.COMP', ['Compare', 'high'], ['Hello', 'low']),
   E('GR.PLU', ['Plural', 'high']),
   E('RD.DET')                                         // 阅读细节：AI 看过，没有对应
 ], meta)
@@ -75,7 +75,7 @@ applyMatchBatch(db, oid, [
   assert.equal(by['GR.PAST'].errorCount, 2)
   assert.deepEqual(by['GR.PAST'].tags.includes('易错'), true)
   assert.deepEqual(by['GR.PAST'].main.map(m => m.title), ['Past'], '三级知识点的对应并进二级考点')
-  assert.deepEqual(by['GR.COMP'].main.map(m => m.title), ['Compare'], 'medium 算主要对应')
+  assert.deepEqual(by['GR.COMP'].main.map(m => m.title), ['Compare'], '核对通过的 AI 对应（65 分）算主要对应')
   assert.deepEqual(by['GR.COMP'].maybe.map(m => m.title), ['Hello'], 'low 单独放在“可能相关”，不进主要对应')
   assert.equal(by['GR.COMP'].main[0].levelName, '进阶级')
   assert.ok(d.rows[0].errorCount >= d.rows[1].errorCount, '易错题多的排前面')

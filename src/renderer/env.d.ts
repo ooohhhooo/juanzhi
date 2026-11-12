@@ -193,10 +193,10 @@ interface ElectronAPI {
     diff(req: { id: string; sessionId?: string; mappings?: Record<string, CourseSheetMapping | null>; levels?: CourseLevelDraft[] }): Promise<{ added: number; changed: number; removed: number; affectedMaps: number; lockedLost: number; lockedRecheck: number }>
     save(req: CourseSaveRequest): Promise<{ id: string; replaced: boolean; added?: number; changed?: number; removed?: number; affectedMaps?: number }>
     template(kind: 'blank' | 'sample', subject?: import('../shared/subject').SubjectId): Promise<{ saved: boolean; path?: string }>
-    matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number; needsConfirm: boolean }>
+    matchEstimate(id: string, onlyNew: boolean): Promise<{ lessons: number; kps: number; batches: number; tokens: number; needsConfirm: boolean; ruleLessons: number; aiLessons: number; aiAvailable: boolean }>
     matchProgress(id: string): Promise<CourseMatchProgress | null>
     matchCancel(id: string): Promise<boolean>
-    match(id: string, onlyNew: boolean): Promise<{ ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; done: number; total: number; matched: number; none: number; dropped: number }>
+    match(id: string, onlyNew: boolean): Promise<{ ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; done: number; total: number; matched: number; none: number; dropped: number; byRule?: number; aiLessons?: number; aiSkipped?: boolean }>
     mapEdit(edit: CourseMapEdit): Promise<boolean>
     dashboard(scope: CourseScope): Promise<CourseDashboard>
     exportGaps(scope: CourseScope): Promise<{ saved: boolean; path?: string; rows?: number }>
@@ -750,7 +750,7 @@ type CourseOutlineCard = import('../main/course/store').OutlineCard
 type CourseCatalogEdition = import('../main/course/textbook-builtin').CatalogInfo
 type CourseCompareResult = import('../main/course/compare').CompareResult
 interface CourseCompareScope { filter: StatsFilter; courseId: string; textbookIds: string[] }
-interface ResearchScope { filter: StatsFilter; courseId: string; courseBId?: string; textbookIds: string[]; perKp: number; aiAdvice?: Record<string, string> }
+interface ResearchScope { grades?: string[]; filter: StatsFilter; courseId: string; courseBId?: string; textbookIds: string[]; perKp: number; aiAdvice?: Record<string, string> }
 type CourseOutlineDetail = import('../main/course/store').OutlineDetail
 type CourseLessonRow = import('../main/course/store').LessonRow
 type CourseMapEdit = import('../main/course/store').MapEdit
@@ -771,7 +771,7 @@ type CourseMatchProgress = import('../main/course/service').MatchProgress
 type CourseAdviceState = import('../main/course/service').AdviceState
 interface CourseScope { filter: StatsFilter; outlineIds: string[] }
 interface CourseAdviceScope { kind: 'course_advice'; filter: StatsFilter; outlineIds: string[] }
-interface CourseMapRow { kp: string; kpName: string; lessonId: number; confidence: string; reason: string; quote: string; source: string; state: string; locked: boolean }
+interface CourseMapRow { kp: string; kpName: string; lessonId: number; confidence: string; reason: string; quote: string; source: string; state: string; locked: boolean; score: number; role: 'main' | 'side' | 'weak' | 'rejected'; evidence: string }
 interface CourseSaveRequest {
   sessionId?: string
   /** 学科（新建时；整理会话里已锁定的优先） */

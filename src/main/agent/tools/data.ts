@@ -10,7 +10,7 @@ import { loadKps, nodeStats, questionsOfKp, scopeCounts } from '../../stats/core
 import { compareKps, papersByKps, overlapKind, OVERLAP_LABEL } from '../../stats/kp-compare.ts'
 import { collectEvidence } from '../../stats/evidence.ts'
 import { checkRules, checkRulesFor } from '../../../shared/factcheck.ts'
-import { isMainMap } from '../../course/match.ts'
+import { mainMapRows } from '../../course/store.ts'
 import { lessonName } from '../../course/map.ts'
 import type { ToolDef, ToolCtx } from '../types.ts'
 import { sessionSubject } from '../store.ts'
@@ -153,12 +153,14 @@ export const courseForKp: ToolDef = {
     const outlines = db.prepare("SELECT COUNT(*) c FROM course_outlines WHERE active = 1 AND status = 'active' AND subject = ?").get(subjectOf(ctx)).c as number
     if (!outlines) return { text: '软件里还没有导入（或启用）课程大纲，无法查对应的课。', count: 0 }
     const rows = db.prepare(`WITH RECURSIVE ${CLOSURE_CTE}
-      SELECT m.kp_code, m.lesson_id, m.confidence, m.state, m.reason, l.seq, l.no_label, l.title, lv.name AS level_name, o.name AS outline_name
+      SELECT m.kp_code, m.outline_id, m.lesson_id, m.confidence, m.state, m.reason, l.seq, l.no_label, l.title, lv.name AS level_name, o.name AS outline_name
       FROM closure c JOIN course_kp_map m ON m.kp_code = c.code
       JOIN course_lessons l ON l.id = m.lesson_id JOIN course_levels lv ON lv.id = l.level_id
       JOIN course_outlines o ON o.id = m.outline_id AND o.active = 1 AND o.status = 'active' AND o.subject = '${subjectOf(ctx)}'
       WHERE c.anc = ? ORDER BY o.name, lv.sort, l.seq`).all(p.kp.code) as any[]
-    const main = rows.filter(isMainMap)
+    // 只列「主要匹配」：匹配分过线（每节课最多 3 个主知识点）或老师确认过的
+    const mainKeys = new Set(mainMapRows(db, [...new Set(rows.map(r => r.outline_id as string))]).map(m => `${m.kp_code}|${m.lesson_id}`))
+    const main = rows.filter(r => mainKeys.has(`${r.kp_code}|${r.lesson_id}`))
     if (main.length === 0) {
       const checked = (db.prepare("SELECT COUNT(*) c FROM course_kp_check k JOIN course_outlines o ON o.id = k.outline_id WHERE k.kp_code = ? AND o.active = 1 AND o.subject = ?").get(p.kp.code, subjectOf(ctx)) as any).c as number
       return { text: `「${p.kp.name}」在课程大纲里${checked ? '没有找到对应的课（已经检查过）' : '暂时没有对应的课（可能还没做课程匹配）'}。`, count: 0 }
@@ -278,7 +280,8 @@ export const courseCoverage: ToolDef = {
     const nodes = nodeStats(db, scope, 2).filter(n => n.level === 2 && n.papers > 0).sort((x, y) => y.papers - x.papers || y.errorCount - x.errorCount)
     const covered = new Set<string>()
     const checkedKps = new Set<string>()
-    for (const r of db.prepare(`WITH RECURSIVE ${CLOSURE_CTE} SELECT DISTINCT c.anc AS node, m.confidence, m.state FROM course_kp_map m JOIN closure c ON c.code = m.kp_code WHERE m.outline_id IN (${ph}) AND m.state <> 'rejected'`).all(...ids) as any[]) if (isMainMap(r)) covered.add(r.node)
+    const parentOf = new Map((db.prepare('SELECT code, parent_code FROM kps').all() as any[]).map(r => [r.code as string, r.parent_code as string | null]))
+    for (const m of mainMapRows(db, ids)) { let cur: string | null | undefined = m.kp_code; for (let i = 0; cur && i < 8; i++) { covered.add(cur); cur = parentOf.get(cur) } }   // 主要匹配的知识点和它的各级上级都算「有课讲到」
     for (const r of db.prepare(`WITH RECURSIVE ${CLOSURE_CTE} SELECT DISTINCT c.anc AS node FROM course_kp_check k JOIN closure c ON c.code = k.kp_code WHERE k.outline_id IN (${ph})`).all(...ids) as any[]) checkedKps.add(r.node)
     const minPapers = Math.max(2, Math.ceil(c.papers * 0.3))
     const gaps = nodes.filter(n => n.papers >= minPapers && checkedKps.has(n.code) && !covered.has(n.code))

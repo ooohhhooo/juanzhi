@@ -31,8 +31,12 @@ const openCourseTab = async () => {
   await ctx.page.waitForSelector('[data-testid=dashboard]', { timeout: 30000 })
   await ctx.page.getByRole('tab', { name: '课程对照' }).click()
 }
-/** 数据库里某个二级考点（含三级）的高 / 中把握或老师确认过的对应课数（不含被否决的） */
-const dbMain2 = code => q(`SELECT DISTINCT m.lesson_id FROM course_kp_map m WHERE m.state <> 'rejected' AND (m.state = 'confirmed' OR m.confidence IN ('high','medium')) AND (m.kp_code = ? OR m.kp_code LIKE ?)`, code, code + '.%').length
+/** 某个二级考点（含三级）的「主要匹配」课数：匹配分过线或老师确认过、每节课最多 3 个主知识点（不含被否决的）。按主进程算出来的角色数，和界面同一口径 */
+const dbMain2 = async code => {
+  const id = q1('SELECT id FROM course_outlines').id
+  const rows = await ctx.page.evaluate(i => window.api.course.maps(i), id)
+  return new Set(rows.filter(r => r.role === 'main' && (r.kp === code || r.kp.startsWith(code + '.'))).map(r => r.lessonId)).size
+}
 const clipboard = () => ctx.app.evaluate(({ clipboard }) => clipboard.readText())
 const FORBID = /优惠|折扣|报名|价格|保证|提分|\d+\s*元/
 
@@ -131,13 +135,13 @@ async function main() {
   const oid = q1('SELECT id FROM course_outlines').id
   {
     const est = await T('match-estimate').innerText()
-    check('匹配', '开始之前先显示规模和预计用量（知识点数、课数、请求次数、token），用户点了才调用', /个知识点 × 10 课/.test(est) && /预计用量约/.test(est) && mock.courseRequests.filter(r => r.courseKind === 'match').length === 0, est)
+    check('匹配', '开始之前先显示规模和预计用量（课数、程序直接认出几课、交给 AI 补充几课、token），用户点了才调用', /10 课里约 \d+ 课由程序直接认出/.test(est) && /预计用量约/.test(est) && mock.courseRequests.filter(r => r.courseKind === 'match').length === 0, est)
     mock.resetStats()
     mock.courseDelayMs = 700
     await T('match-start').click()
     const prog = await T('match-progress').waitFor({ timeout: 10000 }).then(() => true, () => false)
-    const progText = await waitFor(async () => { const t = await txt('match-progress').catch(() => ''); return /第 \d+ 批，共 \d+ 批/.test(t) ? t : null }, 8000)
-    check('匹配', '匹配时显示进度（第几批 / 共几批）和“取消”', prog && !!progText && (await T('match-cancel').count()) === 1, String(progText))
+    const progText = await waitFor(async () => { const t = await txt('match-progress').catch(() => ''); return /第 \d+ 步，共 \d+ 步/.test(t) ? t : null }, 8000)
+    check('匹配', '匹配时显示进度（第几步 / 共几步）和“取消”', prog && !!progText && (await T('match-cancel').count()) === 1, String(progText))
     await shot10('match-progress-light')
     await waitFor(async () => (await T('match-result').count()) > 0, 60000)
     mock.courseDelayMs = 0
@@ -145,8 +149,8 @@ async function main() {
     const m = mock.courseRequests.filter(r => r.courseKind === 'match')
     check('匹配', '完成：提示“匹配完成”，卡片状态变成“已匹配”', /匹配完成/.test(res) && (await T('course-match-state').first().innerText()) === '已匹配', res)
     check('匹配', '发给 AI 的匹配请求：课程行带 #编号，知识点是 K1 K2…，没有内部代码，没有文件名', m.length >= 1 && m.every(r => /#\d+ \|/.test(r.user) && /\nK1 \| /.test(r.user) && !/\b(GR|PH|RD|FN|VO)\.[A-Z]/.test(r.user) && !r.user.includes('课程表示例')) && m.every(r => r.jsonMode), `n=${m.length}`)
-    const maps = q('SELECT kp_code, lesson_id, confidence, quote, state, locked FROM course_kp_map')
-    check('匹配', '落库：有对应；每条高把握的对应都带课程里的原文片段（quote），并且它真的出现在那一课的文本里', maps.length >= 3 && maps.filter(x => x.confidence === 'high').every(x => x.quote && q1('SELECT search_text FROM course_lessons WHERE id = ?', x.lesson_id).search_text.toLowerCase().includes(x.quote.toLowerCase())), `maps=${maps.length}`)
+    const maps = q('SELECT kp_code, lesson_id, confidence, quote, state, locked, source FROM course_kp_map')
+    check('匹配', '落库：有对应；每条高把握的对应都带依据（AI 的原文片段 quote / 规则命中的词），并且它真的出现在那一课的文本里', maps.length >= 3 && maps.filter(x => x.confidence === 'high').every(x => x.quote && x.quote.split('、').every(w => q1('SELECT search_text FROM course_lessons WHERE id = ?', x.lesson_id).search_text.toLowerCase().includes(w.toLowerCase()))), `maps=${maps.length}`)
     const past = q('SELECT l.title FROM course_kp_map m JOIN course_lessons l ON l.id = m.lesson_id WHERE m.kp_code = ?', 'GR.TENSE.PAST.REG').map(x => x.title)
     check('匹配', '“一般过去时·规则变化”（例词 played / watched）对到了“第 3 课 Last weekend”', past.includes('第 3 课 Last weekend'), JSON.stringify(past))
     check('匹配', '检查结果缓存：每个知识点一行（含“看过但没找到”），记录体系版本号和模型', q1("SELECT COUNT(*) c FROM course_kp_check WHERE result = 'none'").c >= 1 && q1('SELECT COUNT(*) c FROM course_kp_check WHERE outline_rev = 1').c === q1('SELECT COUNT(*) c FROM course_kp_check').c)
@@ -166,7 +170,7 @@ async function main() {
     // 数字和数据库独立核对：二级考点“一般过去时”名下所有知识点的高 / 中把握对应
     const dbMain = dbMain2
     const pastRow = rows.find(r => r.code === 'GR.TENSE.PAST')
-    check('看板', '块 1：“一般过去时”这一行的课程数 = 数据库里它名下（含三级）的高 / 中把握对应数', !!pastRow && pastRow.main === dbMain('GR.TENSE.PAST') && pastRow.main >= 1, JSON.stringify(pastRow))
+    check('看板', '块 1：“一般过去时”这一行的课程数 = 它名下（含三级）的主要匹配课数（匹配分过线、每课最多 3 个）', !!pastRow && pastRow.main === await dbMain('GR.TENSE.PAST') && pastRow.main >= 1, JSON.stringify(pastRow))
     const chip = await page.locator('[data-testid=course-row-GR\\.TENSE\\.PAST] [data-testid=course-chip]').first().innerText()
     check('看板', '课程胶囊写“体系 · 级别 · 第 N 课《标题》”', /示例体系 A · 进阶级 · 第 3 课《Last weekend》/.test(chip), chip)
     check('看板', '行上有“易错”标签和白话释义', /易错/.test(await txt('course-row-GR.TENSE.PAST')))
@@ -192,7 +196,7 @@ async function main() {
     const lessonId = rejRow.lesson_id, rejKp = rejRow.kp_code
     check('修正', '点“不对”：这条对应变成 rejected 并锁定', rejRow.state === 'rejected' && rejRow.locked === 1, JSON.stringify(rejRow))
     // 同一课也可能经另一个三级知识点（比如“不规则变化”的例词 visited）对到这个考点，所以按数据库重算期望值
-    check('修正', '看板上的数字立即变化（按数据库重算：被否决的不再算），并且没有再调用 AI', await waitFor(async () => Number(await T('course-row-GR.TENSE.PAST').getAttribute('data-main')) === dbMain2('GR.TENSE.PAST'), 8000) && mock.courseRequests.length === 0, `before=${before}`)
+    check('修正', '看板上的数字立即变化（按数据库重算：被否决的不再算），并且没有再调用 AI', await waitFor(async () => Number(await T('course-row-GR.TENSE.PAST').getAttribute('data-main')) === await dbMain2('GR.TENSE.PAST'), 8000) && mock.courseRequests.length === 0, `before=${before}`)
     // 重新匹配不恢复被否决的、不覆盖锁定的
     await goto('#/courses'); await T('course-settings').waitFor()
     mock.resetStats()

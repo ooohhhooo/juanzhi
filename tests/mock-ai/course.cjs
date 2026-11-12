@@ -18,7 +18,7 @@
 //   adviceBadToken—— 话术里写了输入里没有的课令牌 [课#999999]（应删除并告警）
 //   adviceRule    —— 话术里多一句证据里没有的英语规则（应标「未核实」）
 const COLS_RE = /请只判断「哪几行是表头/
-const MATCH_RE = /请判断每个考点在大纲的哪几课里讲到/
+const MATCH_RE = /请以课为单位判断每节课主要讲了哪些考点/
 const ADVICE_RE = /要写一段能直接发给家长的话（150–200 字/
 const EXTRACT_RE = /请把其中的「每一课」整理成表格的行/
 const HINT_RE = /要给家长版报告写结尾处的一句课程建议/
@@ -48,25 +48,30 @@ function buildCols(user) {
   return { header_rows: headerRows, level_name: '', columns, skip_markers: [], uncertain: [] }
 }
 
-/** 匹配：每个知识点拿例词（第 4 段）和名字去课程行里找；找到的原样摘一段做 quote */
+/** 匹配（以课为单位）：每节课的行里找哪些知识点的例词（第 4 段）出现了，最多 3 个；找到的原样摘一段做 quote。「已认出:K..」的不重复给 */
 function buildMatch(user, quirks) {
-  const outline = (/【课程大纲】[^\n]*\n([\s\S]*?)\n\n【考点】/.exec(user)?.[1] ?? '').split('\n').filter(Boolean)
-  const kps = (/【考点】[^\n]*\n([\s\S]*?)\n\n请按 system/.exec(user)?.[1] ?? '').split('\n').filter(Boolean)
-  const results = []
-  for (const line of kps) {
+  const outline = (/【课程大纲】[^\n]*\n([\s\S]*?)\n\n【考点表】/.exec(user)?.[1] ?? '').split('\n').filter(Boolean)
+  const kps = (/【考点表】[^\n]*\n([\s\S]*?)\n\n请按 system/.exec(user)?.[1] ?? '').split('\n').filter(Boolean).map(line => {
     const [tok, name, , hints] = line.split(' | ')
-    const words = (hints || '').split(/[\/、,，\s]+/).map(w => w.trim()).filter(w => w.length >= 3 && w !== '—')
-    const hits = []
-    for (const l of outline) {
-      const id = /^#(\d+)/.exec(l)?.[1]
-      const w = words.find(x => l.toLowerCase().includes(x.toLowerCase()))
-      if (id && w) hits.push({ id, quote: l.slice(l.toLowerCase().indexOf(w.toLowerCase()), l.toLowerCase().indexOf(w.toLowerCase()) + w.length) })
+    return { tok, name, words: (hints || '').split(/[\/、,，\s]+/).map(w => w.trim()).filter(w => w.length >= 3 && w !== '—') }
+  })
+  const results = []
+  for (const l of outline) {
+    const id = /^#(\d+)/.exec(l)?.[1]
+    if (!id) continue
+    const known = new Set((/已认出:([^|]*)/.exec(l)?.[1] ?? '').trim().split(/\s+/).filter(Boolean))
+    const items = []
+    for (const k of kps) {
+      if (known.has(k.tok) || items.length >= 3) continue
+      const w = k.words.find(x => l.toLowerCase().includes(x.toLowerCase()))
+      if (!w) continue
+      const at = l.toLowerCase().indexOf(w.toLowerCase())
+      items.push({ kp: k.tok, confidence: items.length === 0 ? 'high' : 'medium', quote: quirks.matchBadQuote && items.length === 0 ? '这一句课程里根本没有' : l.slice(at, at + w.length), reason: `例词 ${w} 在这一课里出现` })
     }
-    if (!hits.length) { results.push({ kp: tok, none: true }); continue }
-    hits.slice(0, 3).forEach((h, i) => results.push({ kp: tok, lesson: `#${h.id}`, confidence: i === 0 ? 'high' : 'medium', quote: quirks.matchBadQuote && i === 0 ? '这一句课程里根本没有' : h.quote, reason: `例词 ${h.quote} 在这一课里出现`, _n: name }))
-    if (quirks.matchBadLesson) results.push({ kp: tok, lesson: '#999999', confidence: 'high', quote: 'x', reason: '不存在的课' })
+    results.push({ lesson: `#${id}`, kps: items })
   }
-  return JSON.stringify({ results: results.map(({ _n, ...r }) => r) })
+  if (quirks.matchBadLesson) results.push({ lesson: '#999999', kps: [{ kp: kps[0]?.tok ?? 'K1', confidence: 'high', quote: 'x', reason: '不存在的课' }] })
+  return JSON.stringify({ results })
 }
 
 /** 话术：用输入里的课令牌和考点名写一段约 170 字的话 */

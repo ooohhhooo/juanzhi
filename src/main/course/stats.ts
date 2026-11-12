@@ -8,7 +8,8 @@
 import { hot, nodeStats, scopeCounts } from '../stats/core.ts'
 import { paperScope } from '../stats/filter.ts'
 import type { StatsFilter } from '../stats/filter.ts'
-import { isMainMap } from './match.ts'
+import { classifyMaps, evidenceOf } from './score.ts'
+import type { MapRole } from './score.ts'
 import { lessonName } from './map.ts'
 import { listOutlines } from './store.ts'
 import type { OutlineCard } from './store.ts'
@@ -33,6 +34,11 @@ export interface LessonRef {
   quote: string
   /** 来自哪个知识点（子树里的三级知识点也算在二级考点名下） */
   kp: string
+  /** 匹配分 0–100（程序算）；main = 主要匹配（每节课最多 3 个），side = 顺带，weak = 把握不高 */
+  score: number
+  role: MapRole
+  /** 依据：命中词 / 原文 / 对标教材 */
+  evidence: string
 }
 
 export interface CourseRow {
@@ -94,7 +100,7 @@ export function subtree(db: Db): Map<string, string[]> {
   return out
 }
 
-interface MapRowDb { outline_id: string; kp_code: string; lesson_id: number; confidence: string; reason: string | null; quote: string | null; source: string; state: string }
+interface MapRowDb { outline_id: string; kp_code: string; lesson_id: number; confidence: string; reason: string | null; quote: string | null; source: string; state: string; kind?: string }
 
 /** 选中体系里所有知识点 → 课次的对应（没被否决的） */
 function loadRefs(db: Db, outlineIds: string[]): { byKp: Map<string, LessonRef[]>; checked: Set<string> } {
@@ -103,7 +109,8 @@ function loadRefs(db: Db, outlineIds: string[]): { byKp: Map<string, LessonRef[]
   if (!outlineIds.length) return { byKp, checked }
   const ph = outlineIds.map(() => '?').join(',')
   for (const r of db.prepare(`SELECT outline_id, kp_code FROM course_kp_check WHERE outline_id IN (${ph})`).all(...outlineIds) as any[]) checked.add(r.kp_code)
-  const maps = db.prepare(`SELECT outline_id, kp_code, lesson_id, confidence, reason, quote, source, state FROM course_kp_map WHERE outline_id IN (${ph}) AND state <> 'rejected'`).all(...outlineIds) as MapRowDb[]
+  const kindOf = new Map((db.prepare(`SELECT id, kind FROM course_outlines WHERE id IN (${ph})`).all(...outlineIds) as any[]).map(r => [r.id as string, String(r.kind ?? 'course')]))
+  const maps = classifyMaps((db.prepare(`SELECT outline_id, kp_code, lesson_id, confidence, reason, quote, source, state FROM course_kp_map WHERE outline_id IN (${ph}) AND state <> 'rejected'`).all(...outlineIds) as MapRowDb[]).map(m => ({ ...m, kind: kindOf.get(m.outline_id) ?? 'course' })))
   const lessons = new Map((db.prepare(`SELECT l.id, l.level_id, lv.name level_name, lv.sort lv_sort, l.seq, l.no_label, l.title, l.theme, l.textbook_ref, o.name outline_name
     FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id JOIN course_outlines o ON o.id = l.outline_id WHERE l.outline_id IN (${ph})`).all(...outlineIds) as any[]).map(l => [l.id as number, l]))
   for (const m of maps) {
@@ -112,7 +119,7 @@ function loadRefs(db: Db, outlineIds: string[]): { byKp: Map<string, LessonRef[]
     const ref: LessonRef = {
       outlineId: m.outline_id, outlineName: l.outline_name, levelId: l.level_id, levelName: l.level_name, lessonId: l.id, seq: l.seq, noLabel: l.no_label ?? '', title: l.title ?? '',
       theme: l.theme ?? '', textbookRef: l.textbook_ref ?? '', confidence: m.confidence as LessonRef['confidence'], state: m.state as LessonRef['state'], source: m.source as LessonRef['source'],
-      reason: m.reason ?? '', quote: m.quote ?? '', kp: m.kp_code
+      reason: m.reason ?? '', quote: m.quote ?? '', kp: m.kp_code, score: m.score, role: m.role, evidence: evidenceOf(m)
     }
     if (!byKp.has(m.kp_code)) byKp.set(m.kp_code, [])
     byKp.get(m.kp_code)!.push(ref)
@@ -160,8 +167,8 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
     const seen = new Set<number>()
     const all: LessonRef[] = []
     for (const c of codes) for (const ref of byKp.get(c) ?? []) if (!seen.has(ref.lessonId)) { seen.add(ref.lessonId); all.push(ref) }
-    r.main = all.filter(isMainMap).sort(order)
-    r.maybe = all.filter(x => !isMainMap(x)).sort(order)
+    r.main = all.filter(x => x.role === 'main').sort(order)
+    r.maybe = all.filter(x => x.role !== 'main').sort(order)
     r.checked = codes.some(c => checked.has(c))
   }
   // 排序：有易错的在前（易错题数多的靠前），其余按原来的重难点顺序
@@ -189,7 +196,7 @@ export function courseDashboard(db: Db, filter: StatsFilter, outlineIds: string[
       const codes = sub.get(n.code) ?? [n.code]
       // 还有没匹配的知识点时：这个考点下一个都没匹配过的，不算“课程没覆盖”（只是还没匹配）
       if (unmatched > 0 && !codes.every(c => checked.has(c))) continue
-      const has = codes.some(c => (byKp.get(c) ?? []).some(isMainMap))
+      const has = codes.some(c => (byKp.get(c) ?? []).some(x => x.role === 'main'))
       if (!has) gapRows.push({ code: n.code, name: n.name, papers: n.papers, paperTotal: counts.papers, errorCount: n.errorCount, questions: n.questions })
     }
     gapRows = gapRows.sort((a, b) => b.papers - a.papers || b.errorCount - a.errorCount || (a.code < b.code ? -1 : 1))

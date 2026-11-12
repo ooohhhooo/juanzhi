@@ -371,13 +371,13 @@ export function registerCourseIpc(): void {
 
   // ───── 教研对照表：机构大纲 A（+B）× 学校教材 × 校内试卷；课件按节挂在大纲上（只在本机读文字，存在数据目录里） ─────
   const ResearchScope = z.object({
-    filter: FilterArg, courseId: IdSchema, courseBId: IdSchema.optional(), textbookIds: z.array(IdSchema).max(60).default([]), perKp: z.number().int().min(1).max(10).default(3),
+    filter: FilterArg, courseId: IdSchema, courseBId: IdSchema.optional(), textbookIds: z.array(IdSchema).max(60).default([]), perKp: z.number().int().min(1).max(10).default(3), grades: z.array(z.enum(['1', '2', '3', '4', '5', '6'])).max(6).optional(),
     /** 导出时带回界面上已有的 AI 小结（key = 级别|课次）：导出不再调 AI */
     aiAdvice: z.record(z.string().max(400)).optional()
   })
   const buildResearch = (raw: unknown) => {
     const s = ResearchScope.parse(raw)
-    const table = researchTableWithCourseware(db(), getDataDir(), s.filter, { courseId: s.courseId, courseBId: s.courseBId, textbookIds: s.textbookIds, perKp: clampPerKp(s.perKp) })
+    const table = researchTableWithCourseware(db(), getDataDir(), s.filter, { courseId: s.courseId, courseBId: s.courseBId, textbookIds: s.textbookIds, perKp: clampPerKp(s.perKp), grades: s.grades })
     if (table.ready && s.aiAdvice) for (const l of table.lessons) { const v = s.aiAdvice[lessonKey(l.levelName, l.seq)]; if (v && l.advice.length) l.aiAdvice = v }
     return { table, scope: s, filterDesc: describeFilter(s.filter, 0) }
   }

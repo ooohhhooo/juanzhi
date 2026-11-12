@@ -50,9 +50,10 @@ import { applyMapping, buildOutline, guessMapping } from './map'
 import type { MapWarning, ParsedLevel, ParsedOutline, SheetMapping } from './map'
 import { MAX_LESSONS, MAX_LEVELS } from './store'
 import { parseColsResponse, sheetPreview } from './cols-ai'
-import { batchKps, chunkLines, kpBatchBlock, lessonQuoteText, mergeEntries, outlineLine, parseMatchResponse } from './match'
-import type { MatchEntry } from './match'
-import { applyMatchBatch, lessonRows, matchState, targetKps } from './store'
+import { chunkLines, kpBatchBlock, lessonQuoteText, mergeCandidates, outlineLine, parseLessonResponse } from './match'
+import { computeRulePass, applyRulePass } from './match-rules'
+import { CATALOG } from './catalog'
+import { applyLessonMatches, lessonRows, matchState, targetKps } from './store'
 import { courseDashboard } from './stats'
 import type { CourseDashboard } from './stats'
 import { buildAdviceInputs, buildHintInputs, courseRowsOf } from './report-section'
@@ -519,19 +520,20 @@ export function cancelMatch(outlineId: string): boolean { const j = matchJobs.ge
 /** 预计用量超过这个数（token）就必须先明确确认：界面弹确认，命令行要加 --yes */
 export const MATCH_CONFIRM_TOKENS = 200_000
 
-/** 预估规模（点「开始匹配」之前给用户看）：课数、知识点数、批次数、预计 token */
+/** 预估规模（点「开始匹配」之前给用户看）：课数、知识点数、AI 请求数、预计 token。规则先认，只有认得不够的课才交给 AI */
 export function estimateMatch(db: Db, outlineId: string, onlyNew: boolean) {
   const subject = outlineSubject(db, outlineId)
   const kps = pendingKps(db, outlineId, onlyNew)
-  const lessons = lessonRows(db, [outlineId])
-  const lines = lessons.map(l => outlineLine(l, subject))
-  const chunks = chunkLines(lines).length
-  const batches = batchKps(kps).length
+  const pass = computeRulePass(db, outlineId, subject, kps, CATALOG)
+  const need = new Set(pass.needAi)
+  const lines = pass.lessons.filter(l => need.has(l.id)).map(l => outlineLine(l, subject))
+  const chunks = aiAvailable() ? chunkLines(lines, AI_CHUNK_CHARS).filter(c => c.length) : []
+  const kpChars = kpBatchBlock(kps).text.length
   const outlineChars = lines.reduce((n, l) => n + l.length + 1, 0)
-  const promptTokens = Math.ceil((batches * chunks * (outlineChars / Math.max(1, chunks) + 1400)) / 1.6)
-  const outTokens = kps.length * 60
-  const tokens = promptTokens + outTokens
-  return { lessons: lessons.length, kps: kps.length, batches: batches * chunks, tokens, needsConfirm: tokens > MATCH_CONFIRM_TOKENS }
+  const promptTokens = Math.ceil((chunks.length * (kpChars + 1400) + outlineChars) / 1.6)
+  const outTokens = need.size * 120
+  const tokens = chunks.length ? promptTokens + outTokens : 0
+  return { lessons: pass.lessons.length, kps: kps.length, batches: chunks.length, tokens, needsConfirm: tokens > MATCH_CONFIRM_TOKENS, ruleLessons: pass.lessons.length - need.size, aiLessons: need.size, aiAvailable: aiAvailable() }
 }
 
 /** 课程体系的学科：从体系自己的行读（不信传入值） */
@@ -547,99 +549,109 @@ function pendingKps(db: Db, outlineId: string, onlyNew: boolean) {
   return all.filter(k => { const d = done.get(k.code); return !d || d.outline_rev !== o?.rev || (d.kp_sig && d.kp_sig !== k.sig) })
 }
 
-export interface MatchResult { ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; done: number; total: number; matched: number; none: number; dropped: number }
+export interface MatchResult { ok: boolean; cancelled?: boolean; code?: string; message?: string; detail?: string; done: number; total: number; matched: number; none: number; dropped: number; /** 程序直接认出（规则 / 教材桥）的匹配条数 */ byRule?: number; /** 交给 AI 补充的课数 */ aiLessons?: number; /** 没配 AI，只用了规则 */ aiSkipped?: boolean }
 
-/** 运行匹配。onlyNew = 只补没检查过的知识点（新增的知识点、改了释义的）；否则整体重跑（锁定的人工结果保留）。逐批落库，取消后已完成的批次保留 */
+/** 每次问 AI 的课次行不超过这么多字 */
+const AI_CHUNK_CHARS = 14000
+const aiAvailable = (): boolean => aiReady()
+
+/**
+ * 运行匹配（以课找知识点）。onlyNew = 只补没检查过的知识点；否则整体重跑（锁定 / 确认 / 否决过的永远保留）。
+ *  1. 程序先认：标志词规则 + 教材桥（不调用 AI，没配 AI 也能用），先落库；
+ *  2. 规则认不出来、或认得不够（过线的不到 2 个）的课，才以课为单位问 AI 补充（每课最多 3 个主知识点），逐批落库，可取消，已完成的批次保留。
+ */
 export async function runMatch(db: Db, outlineId: string, opts: { onlyNew: boolean; onProgress?: (p: MatchProgress) => void }): Promise<MatchResult> {
   const fail = (code: string, message: string): MatchResult => ({ ok: false, code, message, done: 0, total: 0, matched: 0, none: 0, dropped: 0 })
   const o = db.prepare('SELECT id, rev, status FROM course_outlines WHERE id = ?').get(outlineId) as any
   if (!o) return fail('not_found', '找不到这个课程体系')
-  if (!aiReady()) return fail('no_ai', '尚未配置 AI 服务（设置 → 管理员设置 → AI 服务）')
   if (matchJobs.has(outlineId)) return fail('busy', '这个课程体系正在匹配')
-  const lessons = lessonRows(db, [outlineId])
-  if (!lessons.length) return fail('empty', '这个课程体系里没有课')
+  const lessonsAll = lessonRows(db, [outlineId])
+  if (!lessonsAll.length) return fail('empty', '这个课程体系里没有课')
   const kps = pendingKps(db, outlineId, opts.onlyNew)
   if (!kps.length) return fail('no_kps', opts.onlyNew ? '没有需要补匹配的知识点' : '库里还没有标过知识点的题目，没有可匹配的内容')
   const cfg = loadConfig()
   const model = cfg.model
   const subject = outlineSubject(db, outlineId)
-  const system = promptText('p5_course_match', 'system', subject)
-  const userTpl = promptText('p5_course_match', 'user', subject)
   const version = promptVersionFor('p5_course_match', subject)
-  const chunks = chunkLines(lessons.map(l => outlineLine(l, subject)))
-  const lessonText = new Map(lessons.map(l => [l.id, { searchText: l.searchText, quoteText: lessonQuoteText(l) }]))
-  const kpInfo = new Map(kps.map(k => [k.code, k]))
-  const chunkIds = (() => { let i = 0; return chunks.map(c => { const ids = lessons.slice(i, i + c.length).map(l => l.id); i += c.length; return new Set(ids) }) })()
-  const batches = batchKps(kps)
+  const withAi = aiReady()
   const ctl = new AbortController()
-  const progress: MatchProgress = { outlineId, done: 0, total: batches.length, phase: 'running' }
+  const progress: MatchProgress = { outlineId, done: 0, total: 1, phase: 'running' }
   matchJobs.set(outlineId, { ctl, progress })
   const emit = (p: Partial<MatchProgress>) => { Object.assign(progress, p); opts.onProgress?.({ ...progress }) }
   emit({})
   let matched = 0, none = 0, dropped = 0
   const t0 = Date.now()
   try {
-    // 批次并发（上限 3），总在途 AI 调用不超过 4；每批完成后立刻落库并进度 +1。任一批出错：中止其余在途调用，已落库的批次保留
-    const gate = createGate(4)
-    let firstErr: unknown
-    try {
-      await mapLimit(batches, 3, async batch => {
-        try {
-          if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
-          // 一次问「这批考点 × 这段课程」；写不完（加大上限后仍被截断）就把这批考点对半拆开分别问，再合并
-          // 思考吃光额度的截断不拆；最多拆 3 层，每批每段最多 12 次调用
-          let askBudget = 12
-          const askOne = async (kpPart: typeof batch, ci: number, depth = 0): Promise<MatchEntry[]> => {
-            const blk = kpBatchBlock(kpPart)
-            const user = fillTemplate(userTpl, { OUTLINE_LINES: chunks[ci].join('\n'), KP_BATCH: blk.text })
-            const sub = new Map([...lessonText].filter(([id]) => chunkIds[ci].has(id)))
-            // 本地解析不出有效内容：同一调用自动重试一次，仍失败再报错（problems 写日志，不含密钥 / 课程原文）
-            let p = parseMatchResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
-            for (let attempt = 1; attempt <= 2; attempt++) {
-              let r
-              askBudget--
-              try { r = await jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal }) } catch (err) {
-                if (err instanceof AiError && err.code === 'truncated' && !err.detail.includes(HIDDEN_THINKING) && kpPart.length > 1 && depth < 3 && askBudget >= 2) {
-                  const mid = Math.ceil(kpPart.length / 2)
-                  return mergeEntries([await askOne(kpPart.slice(0, mid), ci, depth + 1), await askOne(kpPart.slice(mid), ci, depth + 1)])
-                }
-                throw err
-              }
-              p = parseMatchResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
-              if (p.entries.length || !p.problems.length) break
-              log.warn('course', '匹配回答解析失败', { attempt, problems: p.problems.slice(0, 3), chars: r.content.length })
+    // ── 第 1 步：程序先认（规则 + 教材桥）──
+    const pass = computeRulePass(db, outlineId, subject, kps, CATALOG)
+    const w0 = applyRulePass(db, outlineId, pass, kps, { rev: o.rev, model: withAi ? model : 'rules', promptVersion: version })
+    matched = w0.matched; none = w0.none
+    const byRule = pass.candidates.length
+    const need = new Set(pass.needAi)
+    const needLines = pass.lessons.filter(l => need.has(l.id))
+    const chunks = withAi ? chunkLines(needLines.map(l => outlineLine(l, subject)), AI_CHUNK_CHARS).filter(c => c.length) : []
+    emit({ done: 1, total: 1 + chunks.length })
+    if (chunks.length) {
+      // ── 第 2 步：规则没认出来 / 认得不够的课，问 AI ──
+      const system = promptText('p5_course_match', 'system', subject)
+      const userTpl = promptText('p5_course_match', 'user', subject)
+      const blk = kpBatchBlock(kps)
+      const tokenOf = new Map([...blk.tokens].map(([t, c]) => [c, t]))
+      const kpInfo = new Map(kps.map(k => [k.code, k]))
+      const lessonText = new Map(needLines.map(l => [l.id, { searchText: l.searchText, quoteText: lessonQuoteText(l) }]))
+      const ruleBy = new Map<number, typeof pass.candidates>()
+      for (const c of pass.candidates) { if (!ruleBy.has(c.lessonId)) ruleBy.set(c.lessonId, []); ruleBy.get(c.lessonId)!.push(c) }
+      // 每段的课次 id（chunkLines 按顺序切）
+      let at = 0
+      const chunkIds = chunks.map(c => { const ids = needLines.slice(at, at + c.length).map(l => l.id); at += c.length; return ids })
+      const gate = createGate(4)
+      let firstErr: unknown
+      const ask = async (ids: number[], depth = 0): Promise<void> => {
+        if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
+        const rows = needLines.filter(l => ids.includes(l.id))
+        const lines = rows.map(l => {
+          const known = (ruleBy.get(l.id) ?? []).map(c => tokenOf.get(c.code)).filter(Boolean)
+          return outlineLine(l, subject) + (known.length ? ` | 已认出:${known.join(' ')}` : '')
+        })
+        const user = fillTemplate(userTpl, { OUTLINE_LINES: lines.join('\n'), KP_BATCH: blk.text })
+        const sub = new Map([...lessonText].filter(([id]) => ids.includes(id)))
+        let p = parseLessonResponse('', { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          let r
+          try { r = await gate(() => jsonCall({ kind: 'course-match', model, system, user, signal: ctl.signal })) } catch (err) {
+            if (err instanceof AiError && err.code === 'truncated' && !err.detail.includes(HIDDEN_THINKING) && ids.length > 1 && depth < 3) {
+              const mid = Math.ceil(ids.length / 2)
+              await ask(ids.slice(0, mid), depth + 1); await ask(ids.slice(mid), depth + 1)
+              return
             }
-            if (!p.entries.length && p.problems.length) throw new AiError('bad_output', 'AI 的回答解析失败', null, `解析问题：${p.problems.slice(0, 3).join('；')}`)
-            dropped += p.dropped
-            return p.entries
+            throw err
           }
-          const parts = await Promise.all(chunks.map((_chunk, ci) => gate(async () => {
-            if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
-            return askOne(batch, ci)
-          })))
-          if (ctl.signal.aborted) throw new AiError('aborted', '已取消')
-          const merged = chunks.length > 1 ? mergeEntries(parts) : parts[0]
-          const sigs = new Map(batch.map(k => [k.code, k.sig]))
-          const w = applyMatchBatch(db, outlineId, merged, { rev: o.rev, model, promptVersion: version, sigs })
-          matched += w.matched; none += w.none
-          emit({ done: progress.done + 1 })
-        } catch (err) {
-          if (firstErr === undefined && !ctl.signal.aborted) firstErr = err
-          ctl.abort()
-          throw err
+          p = parseLessonResponse(r.content, { tokens: blk.tokens, lessons: sub, kps: kpInfo, subject })
+          if (p.entries.length || !p.problems.length) break
+          log.warn('course', '匹配回答解析失败', { attempt, problems: p.problems.slice(0, 3), chars: r.content.length })
         }
-      })
-    } catch (err) {
-      throw firstErr ?? err
+        if (!p.entries.length && p.problems.length) throw new AiError('bad_output', 'AI 的回答解析失败', null, `解析问题：${p.problems.slice(0, 3).join('；')}`)
+        dropped += p.dropped
+        // 规则 / 教材桥的候选和 AI 的合并后一起落库（只动这批课）
+        const aiCands = p.entries.flatMap(e => e.maps)
+        const merged = mergeCandidates([...pass.candidates.filter(c => ids.includes(c.lessonId)), ...aiCands])
+        const w = applyLessonMatches(db, outlineId, ids, merged, { rev: o.rev, model, promptVersion: version, scopeKps: new Set(kps.map(k => k.code)), sigs: new Map(kps.map(k => [k.code, k.sig])) })
+        matched = w.matched; none = w.none
+      }
+      try {
+        await mapLimit(chunkIds, 3, async ids => {
+          try { await ask(ids); emit({ done: progress.done + 1 }) } catch (err) { if (firstErr === undefined && !ctl.signal.aborted) firstErr = err; ctl.abort(); throw err }
+        })
+      } catch (err) { throw firstErr ?? err }
     }
     emit({ phase: 'done' })
-    log.info('course', '匹配完成', { batches: batches.length, kps: kps.length, matched, none, dropped, ms: Date.now() - t0 })
-    return { ok: true, done: progress.done, total: progress.total, matched, none, dropped }
+    log.info('course', '匹配完成', { lessons: pass.lessons.length, kps: kps.length, byRule, aiLessons: need.size, aiCalls: chunks.length, matched, none, dropped, ms: Date.now() - t0 })
+    return { ok: true, done: progress.done, total: progress.total, matched, none, dropped, byRule, aiLessons: withAi ? need.size : 0, aiSkipped: !withAi && need.size > 0 }
   } catch (e) {
-    if (e instanceof AiError && e.code === 'aborted') { emit({ phase: 'cancelled' }); return { ok: false, cancelled: true, code: 'aborted', message: '已取消，已完成的批次已保留', done: progress.done, total: progress.total, matched, none, dropped } }
+    if (e instanceof AiError && e.code === 'aborted') { emit({ phase: 'cancelled' }); return { ok: false, cancelled: true, code: 'aborted', message: '已取消，已完成的部分已保留', done: progress.done, total: progress.total, matched, none, dropped } }
     const fr = friendlyAiError(e)
     emit({ phase: 'error', message: fr.message })
-    return { ok: false, code: e instanceof AiError ? e.code : 'error', detail: fr.detail, message: `${fr.message}（已完成 ${progress.done}/${progress.total} 批，已保留；可以再点“继续匹配”）`, done: progress.done, total: progress.total, matched, none, dropped }
+    return { ok: false, code: e instanceof AiError ? e.code : 'error', detail: fr.detail, message: `${fr.message}（程序认出的部分已保留；可以再点“继续匹配”）`, done: progress.done, total: progress.total, matched, none, dropped }
   } finally {
     setTimeout(() => matchJobs.delete(outlineId), 0)
   }

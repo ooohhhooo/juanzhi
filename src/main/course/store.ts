@@ -5,8 +5,11 @@
 import crypto from 'node:crypto'
 import { safeKpName } from '../../shared/code-guard.ts'
 import { asSubject } from '../../shared/subject.ts'
-import { lessonSearchText, lessonQuoteText, kpSig, planMerge } from './match.ts'
-import type { KpLite, LessonLite, MatchEntry, ExistingMap } from './match.ts'
+import { lessonSearchText, lessonQuoteText, kpSig, planLessonMerge } from './match.ts'
+import type { KpLite, LessonLite, Candidate, ExistingMap } from './match.ts'
+import { hintWordsOf } from './rules.ts'
+import { classifyMaps, evidenceOf, scoreOf } from './score.ts'
+import type { MapRole } from './score.ts'
 import { lessonHash, planReplace, countsOf } from './replace-diff.ts'
 import type { OldLesson, ReplaceCounts } from './replace-diff.ts'
 import type { MapWarning, ParsedLesson, ParsedLevel, PointKind } from './map.ts'
@@ -242,7 +245,7 @@ export function targetKps(db: Db, subject?: unknown): KpTarget[] {
   let rows = q(0)
   if (!rows.length) rows = q(1)
   return rows.map(r => {
-    const kp: KpLite = { code: r.code, name: safeKpName(r.name), plain: r.plain ?? '', exampleEn: (sub === 'english' ? r.example_en : r.example_en || r.example_zh) ?? '', hintWords: r.hint_words ?? '' }
+    const kp: KpLite = { code: r.code, name: safeKpName(r.name), plain: r.plain ?? '', exampleEn: (sub === 'english' ? r.example_en : r.example_en || r.example_zh) ?? '', hintWords: r.hint_words || hintWordsOf(r.code) }
     return { ...kp, sig: kpSig(kp) }
   })
 }
@@ -318,30 +321,38 @@ export function searchLessons(db: Db, outlineIds: string[], q: string, limit = 2
 
 // ───────────────────────── 匹配结果的写入与人工修正 ─────────────────────────
 
-export function existingMaps(db: Db, outlineId: string, kpCode: string): ExistingMap[] {
-  return (db.prepare('SELECT lesson_id, locked, state, source FROM course_kp_map WHERE outline_id = ? AND kp_code = ?').all(outlineId, kpCode) as any[])
-    .map(r => ({ lessonId: r.lesson_id, locked: !!r.locked, state: r.state, source: r.source }))
+export function existingMapsOfLesson(db: Db, lessonId: number): ExistingMap[] {
+  return (db.prepare('SELECT kp_code, locked, state, source FROM course_kp_map WHERE lesson_id = ?').all(lessonId) as any[])
+    .map(r => ({ kp: r.kp_code, locked: !!r.locked, state: r.state, source: r.source }))
 }
 
-/** 把一批匹配结果落库（一个事务）；见 match.ts 的 planMerge。none / matched 一起写进 course_kp_check */
-export function applyMatchBatch(db: Db, outlineId: string, entries: MatchEntry[], meta: { rev: number; model: string; promptVersion: string; sigs: Map<string, string> }): { matched: number; none: number } {
+/**
+ * 把规则 / AI / 教材桥的候选落库（一个事务，以课为单位）：锁定、确认、否决过的不动（否决过的不会再被加回）；
+ * 本次范围（scopeKps）内旧的自动结果整体换成新的。每个知识点另记一条 course_kp_check（matched = 有过线的匹配，none = 没有）。
+ * 返回有对应的知识点数 / 没有的知识点数。
+ */
+export function applyLessonMatches(db: Db, outlineId: string, lessonIds: number[], cands: Candidate[], meta: { rev: number; model: string; promptVersion: string; scopeKps: Set<string>; sigs: Map<string, string> }): { matched: number; none: number } {
   let matched = 0, none = 0
+  const byLesson = new Map<number, Candidate[]>()
+  for (const c of cands) { if (!byLesson.has(c.lessonId)) byLesson.set(c.lessonId, []); byLesson.get(c.lessonId)!.push(c) }
   db.exec('BEGIN')
   try {
-    const delMap = db.prepare('DELETE FROM course_kp_map WHERE kp_code = ? AND lesson_id = ?')
-    const insMap = db.prepare(`INSERT OR REPLACE INTO course_kp_map (outline_id, kp_code, lesson_id, confidence, reason, quote, source, state, locked) VALUES (?, ?, ?, ?, ?, ?, 'ai', 'suggested', 0)`)
+    const del = db.prepare('DELETE FROM course_kp_map WHERE kp_code = ? AND lesson_id = ?')
+    const ins = db.prepare(`INSERT OR REPLACE INTO course_kp_map (outline_id, kp_code, lesson_id, confidence, reason, quote, source, state, locked) VALUES (?, ?, ?, ?, ?, ?, ?, 'suggested', 0)`)
+    for (const lid of lessonIds) {
+      const plan = planLessonMerge(existingMapsOfLesson(db, lid), byLesson.get(lid) ?? [], meta.scopeKps)
+      for (const k of plan.deleteKps) del.run(k, lid)
+      for (const c of plan.insert) ins.run(outlineId, c.code, lid, c.confidence, c.reason, c.quote, c.source)
+    }
     const upCheck = db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, ?, ?, ?, ?, ?)`)
     const userNone = db.prepare("SELECT 1 FROM course_kp_check WHERE outline_id = ? AND kp_code = ? AND result = 'user_none'")
-    for (const e of entries) {
-      if (userNone.get(outlineId, e.code)) {   // 老师说过「没有对应的课」：不覆盖结果，但版本号要跟上，免得匹配状态一直停在“需要重新匹配”
-        db.prepare('UPDATE course_kp_check SET outline_rev = ?, kp_sig = ? WHERE outline_id = ? AND kp_code = ?').run(meta.rev, meta.sigs.get(e.code) ?? '', outlineId, e.code)
-        continue
-      }
-      const plan = planMerge(existingMaps(db, outlineId, e.code), e)
-      for (const lid of plan.deleteLessonIds) delMap.run(e.code, lid)
-      for (const m of plan.insert) insMap.run(outlineId, e.code, m.lessonId, m.confidence, m.reason, m.quote)
-      upCheck.run(outlineId, e.code, plan.result, meta.rev, meta.sigs.get(e.code) ?? '', meta.model, meta.promptVersion)
-      if (plan.result === 'matched') matched++; else none++
+    const rows = db.prepare("SELECT kp_code, lesson_id, confidence, state, source, quote, reason FROM course_kp_map WHERE outline_id = ? AND state <> 'rejected'").all(outlineId) as any[]
+    const good = new Set(rows.filter(r => r.state === 'confirmed' || scoreOf(r) >= 60).map(r => r.kp_code as string))
+    for (const code of meta.scopeKps) {
+      if (userNone.get(outlineId, code)) { db.prepare('UPDATE course_kp_check SET outline_rev = ?, kp_sig = ? WHERE outline_id = ? AND kp_code = ?').run(meta.rev, meta.sigs.get(code) ?? '', outlineId, code); continue }   // 老师说过「没有对应的课」：不覆盖，但版本号要跟上
+      const has = good.has(code)
+      upCheck.run(outlineId, code, has ? 'matched' : 'none', meta.rev, meta.sigs.get(code) ?? '', meta.model, meta.promptVersion)
+      if (has) matched++; else none++
     }
     db.exec('COMMIT')
   } catch (err) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw err }
@@ -386,10 +397,50 @@ export function editMap(db: Db, e: MapEdit): boolean {
   return true
 }
 
-/** 所有「知识点 → 课次」的对应（设置 → 体系详情 → 知识点对应 用） */
-export function mapRows(db: Db, outlineId: string): Array<{ kp: string; kpName: string; lessonId: number; confidence: string; reason: string; quote: string; source: string; state: string; locked: boolean }> {
-  return (db.prepare(`SELECT m.kp_code, k.name kp_name, m.lesson_id, m.confidence, m.reason, m.quote, m.source, m.state, m.locked FROM course_kp_map m LEFT JOIN kps k ON k.code = m.kp_code
-    WHERE m.outline_id = ? ORDER BY k.sort, m.kp_code, m.lesson_id`).all(outlineId) as any[]).map(r => ({
-    kp: r.kp_code, kpName: safeKpName(r.kp_name), lessonId: r.lesson_id, confidence: r.confidence, reason: r.reason ?? '', quote: r.quote ?? '', source: r.source, state: r.state, locked: !!r.locked
+export interface MapRowOut { kp: string; kpName: string; lessonId: number; confidence: string; reason: string; quote: string; source: string; state: string; locked: boolean; /** 匹配分 0–100（程序算：老数据打开时按现有字段补算） */ score: number; /** main = 主要匹配；side = 顺带；weak = 把握不高（没列入对照）；rejected = 否决 */ role: MapRole; /** 依据（命中词 / 原文 / 教材单元） */ evidence: string }
+
+/** 所有「知识点 → 课次」的对应（设置 → 体系详情 → 知识点对应 用）。分数和角色由程序现算，不存库 */
+export function mapRows(db: Db, outlineId: string): MapRowOut[] {
+  const kind = (db.prepare('SELECT kind FROM course_outlines WHERE id = ?').get(outlineId) as any)?.kind ?? 'course'
+  const rows = (db.prepare(`SELECT m.kp_code, k.name kp_name, m.lesson_id, m.confidence, m.reason, m.quote, m.source, m.state, m.locked FROM course_kp_map m LEFT JOIN kps k ON k.code = m.kp_code
+    WHERE m.outline_id = ? ORDER BY k.sort, m.kp_code, m.lesson_id`).all(outlineId) as any[]).map(r => ({ ...r, kind }))
+  return classifyMaps(rows).map(r => ({
+    kp: r.kp_code, kpName: safeKpName(r.kp_name), lessonId: r.lesson_id, confidence: r.confidence, reason: r.reason ?? '', quote: r.quote ?? '', source: r.source, state: r.state, locked: !!r.locked,
+    score: r.score, role: r.role, evidence: evidenceOf(r)
   }))
+}
+
+/** 若干体系里的「主要匹配」（匹配分过线或老师确认；机构课程每节课最多 3 个主知识点，教材单元不限）。助手工具、看板共用 */
+export function mainMapRows(db: Db, outlineIds: string[]): Array<{ outline_id: string; kp_code: string; lesson_id: number; score: number }> {
+  if (!outlineIds.length) return []
+  const ph = outlineIds.map(() => '?').join(',')
+  const kindOf = new Map((db.prepare(`SELECT id, kind FROM course_outlines WHERE id IN (${ph})`).all(...outlineIds) as any[]).map(r => [r.id as string, String(r.kind ?? 'course')]))
+  const rows = (db.prepare(`SELECT outline_id, kp_code, lesson_id, confidence, state, source, quote, reason FROM course_kp_map WHERE outline_id IN (${ph}) AND state <> 'rejected'`).all(...outlineIds) as any[]).map(m => ({ ...m, kind: kindOf.get(m.outline_id) ?? 'course' }))
+  return classifyMaps(rows).filter(r => r.role === 'main').map(r => ({ outline_id: r.outline_id, kp_code: r.kp_code, lesson_id: r.lesson_id, score: r.score }))
+}
+
+/** 按知识点写入一批 AI 结果（旧的写法，测试和数据迁移工具用）：锁定 / 确认 / 否决过的不动，旧的自动结果换成新的。正式的匹配流程见 applyLessonMatches（以课为单位） */
+export interface KpEntry { code: string; none: boolean; maps: Array<{ lessonId: number; confidence: 'high' | 'medium' | 'low'; quote: string; reason: string; quoteOk?: boolean; source?: string }> }
+export function applyMatchBatch(db: Db, outlineId: string, entries: KpEntry[], meta: { rev: number; model: string; promptVersion: string; sigs: Map<string, string> }): { matched: number; none: number } {
+  let matched = 0, none = 0
+  db.exec('BEGIN')
+  try {
+    const delMap = db.prepare('DELETE FROM course_kp_map WHERE kp_code = ? AND lesson_id = ?')
+    const insMap = db.prepare(`INSERT OR REPLACE INTO course_kp_map (outline_id, kp_code, lesson_id, confidence, reason, quote, source, state, locked) VALUES (?, ?, ?, ?, ?, ?, ?, 'suggested', 0)`)
+    const upCheck = db.prepare(`INSERT OR REPLACE INTO course_kp_check (outline_id, kp_code, result, outline_rev, kp_sig, model, prompt_version) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    const userNone = db.prepare("SELECT 1 FROM course_kp_check WHERE outline_id = ? AND kp_code = ? AND result = 'user_none'")
+    for (const e of entries) {
+      if (userNone.get(outlineId, e.code)) { db.prepare('UPDATE course_kp_check SET outline_rev = ?, kp_sig = ? WHERE outline_id = ? AND kp_code = ?').run(meta.rev, meta.sigs.get(e.code) ?? '', outlineId, e.code); continue }
+      const existing = db.prepare('SELECT lesson_id, locked, state FROM course_kp_map WHERE outline_id = ? AND kp_code = ?').all(outlineId, e.code) as any[]
+      const fixed = new Set(existing.filter(x => x.locked || x.state !== 'suggested').map(x => x.lesson_id as number))
+      for (const x of existing) if (!fixed.has(x.lesson_id)) delMap.run(e.code, x.lesson_id)
+      let n = 0
+      for (const m of e.maps) if (!fixed.has(m.lessonId)) { insMap.run(outlineId, e.code, m.lessonId, m.confidence, m.reason, m.quote, m.source ?? 'ai'); n++ }
+      const has = n > 0 || existing.some(x => x.state === 'confirmed')
+      upCheck.run(outlineId, e.code, has ? 'matched' : 'none', meta.rev, meta.sigs.get(e.code) ?? '', meta.model, meta.promptVersion)
+      if (has) matched++; else none++
+    }
+    db.exec('COMMIT')
+  } catch (err) { try { db.exec('ROLLBACK') } catch { /* 已回滚 */ } throw err }
+  return { matched, none }
 }

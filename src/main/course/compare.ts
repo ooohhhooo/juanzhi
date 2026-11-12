@@ -4,14 +4,14 @@
  *  · 机构课程讲了、所选教材里没有的知识点（超前 / 拓展）；
  *  · 叠加试卷：学校常考（在较多份卷子里出现）但机构课没覆盖的考点，标成优先。
  * 「讲到」的判断：知识点树上相关就算——机构课对应的知识点是教材知识点自己、它的子孙、或它的祖先（匹配结果常落在二级考点）。
- * 只看高 / 中把握或老师确认过的对应（isMainMap），和看板其余部分一致。
+ * 只看「主要匹配」（匹配分过线或老师确认过的对应，见 score.ts），和看板其余部分一致。
  */
 import { nodeStats, scopeCounts } from '../stats/core.ts'
 import { paperScope } from '../stats/filter.ts'
 import type { StatsFilter } from '../stats/filter.ts'
 import { safeKpName } from '../../shared/code-guard.ts'
 import { asSubject } from '../../shared/subject.ts'
-import { isMainMap } from './match.ts'
+import { selectMain } from './score.ts'
 import { subtree, GAP_MIN_PAPERS } from './stats.ts'
 import { listOutlines } from './store.ts'
 import { lessonName } from './map.ts'
@@ -65,10 +65,12 @@ const emptyResult = (reason: string, over: Partial<CompareResult> = {}): Compare
   summary: { textbookKps: 0, covered: 0, uncovered: 0, priority: 0, extraKps: 0, extraLessons: 0 }, ...over
 })
 
-interface MapLite { kp_code: string; lesson_id: number; confidence: string; state: string }
+interface MapLite { kp_code: string; lesson_id: number; confidence: string; state: string; source?: string; quote?: string; reason?: string; kind?: string }
+/** 主要匹配（匹配分过线；机构课程每节课最多 3 个主知识点，教材单元不限） */
 const mainMaps = (db: Db, outlineIds: string[]): MapLite[] => {
   const ph = outlineIds.map(() => '?').join(',')
-  return (db.prepare(`SELECT kp_code, lesson_id, confidence, state FROM course_kp_map WHERE outline_id IN (${ph}) AND state <> 'rejected'`).all(...outlineIds) as MapLite[]).filter(isMainMap)
+  const kindOf = new Map((db.prepare(`SELECT id, kind FROM course_outlines WHERE id IN (${ph})`).all(...outlineIds) as any[]).map(r => [r.id as string, String(r.kind ?? 'course')]))
+  return selectMain((db.prepare(`SELECT outline_id, kp_code, lesson_id, confidence, state, source, quote, reason FROM course_kp_map WHERE outline_id IN (${ph}) AND state <> 'rejected'`).all(...outlineIds) as any[]).map(m => ({ ...m, kind: kindOf.get(m.outline_id) ?? 'course' })))
 }
 
 export function compareCourseTextbook(db: Db, filter: StatsFilter, courseId: string, textbookIds: string[]): CompareResult {

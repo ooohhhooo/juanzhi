@@ -9,11 +9,15 @@ import { CLOSURE_CTE, paperScope } from '../stats/filter.ts'
 import type { PaperScope, StatsFilter } from '../stats/filter.ts'
 import { safeKpName } from '../../shared/code-guard.ts'
 import { asSubject } from '../../shared/subject.ts'
-import { isMainMap } from './match.ts'
+import { classifyMaps, evidenceOf, scoreLabel, selectMain } from './score.ts'
+import type { MapRole } from './score.ts'
 import { GAP_MIN_PAPERS, subtree } from './stats.ts'
 import { listOutlines } from './store.ts'
 import { lessonName } from './map.ts'
 import { compareCourseTextbook } from './compare.ts'
+import { importanceOf, kpImportance } from './importance.ts'
+import { isUnverifiedNote, matchExample, matchUnit, patternTerms, pickUnits, similarityLabel, vocabTerms } from './lesson-match.ts'
+import type { ExampleMatch, LessonText, QuestionInfo, UnitInfo } from './lesson-match.ts'
 import { findEdition } from './catalog.ts'
 import { parseBuiltinId } from './textbook-builtin.ts'
 import { formatLoc } from '../../shared/tb-loc.ts'
@@ -31,9 +35,9 @@ export type CoursewareLookup = (outlineId: string, levelName: string, seq: numbe
 
 /** 只要其中几节课时给：不命中的课不算例题 / 建议，只保留「要对齐」需要的顺序信息（助手的 lesson_kps 用） */
 export type LessonPick = (l: { id: number; levelName: string; seq: number; noLabel: string; label: string; title: string }) => boolean
-export interface ResearchOptions { courseId: string; courseBId?: string; textbookIds: string[]; perKp?: number; courseware?: CoursewareLookup; lessonFilter?: LessonPick }
+export interface ResearchOptions { /** 试卷范围的默认：和所选教材同年级的全部试卷（筛选条件里没写年级时才用；老师在“更多设置”里选了年级就听老师的） */ grades?: string[]; courseId: string; courseBId?: string; textbookIds: string[]; perKp?: number; courseware?: CoursewareLookup; lessonFilter?: LessonPick }
 
-export interface ExampleQ { id: string; paperId: string; paperTitle: string; no: string; stem: string; options: string[]; answer: string; errorProne: boolean; errorReason: string }
+export interface ExampleQ { id: string; paperId: string; paperTitle: string; no: string; stem: string; options: string[]; answer: string; errorProne: boolean; errorReason: string; /** 为什么挂在这节课下（题里有课上的词 / 句型，知识点相同） */ why?: string }
 export interface TbLoc { outlineId: string; outlineName: string; /** 版本显示名（内置教材取目录里的版本名；上传的教材用它自己的名字） */ edition: string; levelName: string; label: string; title: string; pages: string; coarse: boolean }
 export interface BRef { levelName: string; label: string; coarse: boolean }
 export interface RKp {
@@ -41,12 +45,23 @@ export interface RKp {
   /** 范围内在几份卷子里考到 / 总份数 / 题数 / 易错题数 */
   papers: number; paperTotal: number; questions: number; errorCount: number
   frequent: boolean
+  /** 这节课 × 这个知识点的匹配把握：很像 / 比较像（界面只显示文字；matchScore 0–100 只给 Excel 和排序） */
+  matchScore: number
+  matchLabel: string
+  /** 依据：命中词 / 原文 / 对标教材 */
+  evidence: string
+  /** 校内约占几分（每份卷子平均）/ 易错率 / 排序用的重要度 × 匹配分 */
+  avgScore: number
+  errorRate: number
+  weight: number
   /** 各教材里的位置（直接对应优先；只有祖先对应时才给，并标较粗） */
   locs: TbLoc[]
   examples: ExampleQ[]
   /** 选了 B 时，B 里对应的课 */
   bLessons: BRef[]
 }
+/** 这节课对应的教材单元（程序直接拿课和单元比出来的，不绕知识点代码） */
+export interface UnitRef extends TbLoc { score: number; similarity: string; evidence: string; /** 只是按目录概括的单元（界面加小字「按目录」） */ byCatalog: boolean }
 export type AdviceKind = 'add' | 'align' | 'swap' | 'trim'
 export const ADVICE_LABEL: Record<AdviceKind, string> = { add: '要补', align: '要对齐', swap: '换例题', trim: '可减或超前' }
 export interface AdviceItem { kind: AdviceKind; text: string; /** 依据（程序算出来的事实，AI 润色时只能引用它们） */ basis: string[]; kpCode?: string }
@@ -56,13 +71,15 @@ export interface RLesson {
   noLabel?: string
   groups: Array<{ name: string; code: string; kps: RKp[] }>
   kps: RKp[]
+  /** 对应的教材单元（每个版本最像的 1–2 个，带依据） */
+  units: UnitRef[]
   courseware: Array<{ id: string; name: string; chars: number }>
   advice: AdviceItem[]
   /** AI 写的一两句话（没配 AI 时为空，只有规则结论） */
   aiAdvice: string
 }
 export interface OnlyRow { code: string; name: string; group: string; lessons: string[]; papers: number; paperTotal: number }
-export interface TbNotInA { code: string; name: string; group: string; units: string[]; papers: number; paperTotal: number; errorCount: number; frequent: boolean }
+export interface TbNotInA { code: string; name: string; group: string; units: string[]; papers: number; paperTotal: number; errorCount: number; frequent: boolean; avgScore?: number }
 
 export interface ResearchTable {
   ready: boolean
@@ -79,30 +96,46 @@ export interface ResearchTable {
   onlyA: OnlyRow[]
   onlyB: OnlyRow[]
   tbNotInA: TbNotInA[]
+  /** 另有多少条把握不高（或排在每节课前 3 个之后）、没列入对照的；items 最多 60 条，只给老师点开看 */
+  weakCount: number
+  weak: WeakItem[]
+  /** 范围内的试卷有没有填分值（没有就不说“约占几分”） */
+  hasScores: boolean
   summary: { lessons: number; kps: number; kpsWithExamples: number; examples: number; adviceItems: number; coursewareFiles: number; onlyA: number; onlyB: number; tbNotInA: number }
 }
 
 const emptyResult = (reason: string, over: Partial<ResearchTable> = {}): ResearchTable => ({
   ready: false, reason, subject: 'english', course: null, courseB: null, textbooks: [], papers: 0, minPapers: 2, smallSample: true, perKp: DEFAULT_PER_KP,
-  lessons: [], onlyA: [], onlyB: [], tbNotInA: [], summary: { lessons: 0, kps: 0, kpsWithExamples: 0, examples: 0, adviceItems: 0, coursewareFiles: 0, onlyA: 0, onlyB: 0, tbNotInA: 0 }, ...over
+  lessons: [], onlyA: [], onlyB: [], tbNotInA: [], weakCount: 0, weak: [], hasScores: false, summary: { lessons: 0, kps: 0, kpsWithExamples: 0, examples: 0, adviceItems: 0, coursewareFiles: 0, onlyA: 0, onlyB: 0, tbNotInA: 0 }, ...over
 })
 
-interface MapLite { kp_code: string; lesson_id: number; confidence: string; state: string }
-const mainMaps = (db: Db, outlineId: string): MapLite[] =>
-  (db.prepare("SELECT kp_code, lesson_id, confidence, state FROM course_kp_map WHERE outline_id = ? AND state <> 'rejected'").all(outlineId) as MapLite[]).filter(isMainMap)
+interface MapLite { kp_code: string; lesson_id: number; confidence: string; state: string; source?: string; quote?: string; reason?: string; kind?: string; score?: number }
+/** 一个体系里的主要匹配（匹配分过线；机构课程每节课最多 3 个主知识点，教材单元不限）。带分数和依据 */
+const mainMaps = (db: Db, outlineId: string): Array<MapLite & { score: number; evidence: string }> => {
+  const kind = String((db.prepare('SELECT kind FROM course_outlines WHERE id = ?').get(outlineId) as any)?.kind ?? 'course')
+  return selectMain((db.prepare("SELECT kp_code, lesson_id, confidence, state, source, quote, reason FROM course_kp_map WHERE outline_id = ? AND state <> 'rejected'").all(outlineId) as MapLite[]).map(m => ({ ...m, kind }))).map(m => ({ ...m, evidence: evidenceOf(m) }))
+}
+/** 把握不高、没列入对照的匹配（表下面折叠小字用；只看，不要求操作） */
+export interface WeakItem { lesson: string; kp: string; evidence: string }
+export const weakOf = (db: Db, outlineId: string, label: (lessonId: number) => string, nameOf: (code: string) => string, max = 60): { count: number; items: WeakItem[] } => {
+  const kind = String((db.prepare('SELECT kind FROM course_outlines WHERE id = ?').get(outlineId) as any)?.kind ?? 'course')
+  const weak = classifyMaps((db.prepare("SELECT kp_code, lesson_id, confidence, state, source, quote, reason FROM course_kp_map WHERE outline_id = ? AND state <> 'rejected'").all(outlineId) as MapLite[]).map(m => ({ ...m, kind }))).filter(m => m.role === 'weak' || m.role === 'side')
+  weak.sort((x, y) => y.score - x.score)
+  return { count: weak.length, items: weak.slice(0, max).map(m => ({ lesson: label(m.lesson_id), kp: nameOf(m.kp_code), evidence: evidenceOf(m) || m.reason || '' })) }
+}
 
 const PAGE_RE = /第\s*\d+(?:\s*[–\-—~～]\s*\d+)?\s*页/
 const json = <T>(s: string | null | undefined, fb: T): T => { try { const v = s ? JSON.parse(s) : fb; return (v ?? fb) as T } catch { return fb } }
 
-interface LessonInfo { noLabel: string; id: number; outlineId: string; outlineName: string; levelName: string; levelIdx: number; seq: number; label: string; title: string; pages: string }
+interface LessonInfo { theme: string; points: Array<{ kind: string; label?: string; text: string }>; noLabel: string; id: number; outlineId: string; outlineName: string; levelName: string; levelIdx: number; seq: number; label: string; title: string; pages: string }
 function lessonsOf(db: Db, outlineId: string, outlineName: string): LessonInfo[] {
   const levelIdx = new Map((db.prepare('SELECT id FROM course_levels WHERE outline_id = ? ORDER BY sort, id').all(outlineId) as any[]).map((r, i) => [r.id as number, i]))
-  const rows = db.prepare(`SELECT l.id, l.level_id, l.seq, l.no_label, l.title, l.points_json, lv.name level_name FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id
+  const rows = db.prepare(`SELECT l.id, l.level_id, l.seq, l.no_label, l.title, l.theme, l.points_json, lv.name level_name FROM course_lessons l JOIN course_levels lv ON lv.id = l.level_id
     WHERE l.outline_id = ? ORDER BY lv.sort, lv.id, l.seq, l.id`).all(outlineId) as any[]
   return rows.map(r => {
     const pts = json<Array<{ text?: string }>>(r.points_json, [])
     const pages = pts.map(p => PAGE_RE.exec(String(p?.text ?? ''))?.[0] ?? '').find(Boolean) ?? ''
-    return { noLabel: String(r.no_label ?? ''), id: r.id, outlineId, outlineName, levelName: r.level_name, levelIdx: levelIdx.get(r.level_id) ?? 0, seq: r.seq, label: lessonName({ seq: r.seq, noLabel: r.no_label ?? '', title: r.title ?? '' }), title: r.title ?? '', pages: pages.replace(/\s+/g, ' ') }
+    return { theme: String(r.theme ?? ''), points: json<Array<{ kind: string; label?: string; text: string }>>(r.points_json, []).filter(x => x && typeof x.text === 'string'), noLabel: String(r.no_label ?? ''), id: r.id, outlineId, outlineName, levelName: r.level_name, levelIdx: levelIdx.get(r.level_id) ?? 0, seq: r.seq, label: lessonName({ seq: r.seq, noLabel: r.no_label ?? '', title: r.title ?? '' }), title: r.title ?? '', pages: pages.replace(/\s+/g, ' ') }
   })
 }
 
@@ -112,7 +145,18 @@ export const editionNameOf = (c: { name: string; builtinId?: string }): string =
 const oneLine = (s: string, n: number): string => { const t = (s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t }
 const norm = (s: string): string => s.normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '')
 
-export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions): ResearchTable {
+/** 范围默认 = 当前学科、和所选教材同年级的全部试卷；筛选条件里已经有年级 / 指定了试卷就不动 */
+export function withGradeScope(db: Db, filter: StatsFilter, grades?: string[]): StatsFilter {
+  const gs = [...new Set((grades ?? []).filter(g => /^[1-6]$/.test(g)))]
+  if (!gs.length || filter.grade || filter.paperIds) return filter
+  if (gs.length === 1) return { ...filter, grade: gs[0] as StatsFilter['grade'] }
+  const sc = paperScope(filter)
+  const ids = (db.prepare(`SELECT p.id FROM papers p WHERE ${sc.where} AND p.grade IN (${gs.map(() => '?').join(',')}) LIMIT 1000`).all(...sc.params, ...gs) as any[]).map(r => r.id as string)
+  return { ...filter, paperIds: ids.length ? ids : ['00000000-0000-4000-8000-000000000000'] }
+}
+
+export function researchTable(db: Db, filter0: StatsFilter, opts: ResearchOptions): ResearchTable {
+  const filter = withGradeScope(db, filter0, opts.grades)
   const subject = asSubject(filter.subject)
   const perKp = clampPerKp(opts.perKp ?? DEFAULT_PER_KP)
   const cards = listOutlines(db, subject).filter(o => o.status === 'active')
@@ -129,6 +173,8 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
   const stat = new Map(nodeStats(db, scope).map(n => [n.code, n]))
   const kpRows = new Map((db.prepare('SELECT code, parent_code, name, level, sort, hint_words FROM kps').all() as any[]).map(r => [r.code as string, r]))
   const sub = subtree(db)
+  const imp = kpImportance(db, filter)
+  const scoreByKey = new Map<string, { score: number; evidence: string }>()   // 机构大纲 A：课|知识点 → 匹配分、依据
   const nameOf = (c: string) => safeKpName(kpRows.get(c)?.name ?? c)
   const minPapers = Math.max(2, Math.ceil(counts.papers * 0.3))
   const smallSample = counts.papers < GAP_MIN_PAPERS
@@ -137,7 +183,7 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
 
   // 知识点 → 课（某个体系内）
   type ByKp = Map<string, Set<number>>
-  const byKpOf = (outlineId: string): ByKp => { const m: ByKp = new Map(); for (const x of mainMaps(db, outlineId)) { if (!m.has(x.kp_code)) m.set(x.kp_code, new Set()); m.get(x.kp_code)!.add(x.lesson_id) } return m }
+  const byKpOf = (outlineId: string): ByKp => { const m: ByKp = new Map(); for (const x of mainMaps(db, outlineId)) { if (!m.has(x.kp_code)) m.set(x.kp_code, new Set()); m.get(x.kp_code)!.add(x.lesson_id); scoreByKey.set(`${outlineId}|${x.lesson_id}|${x.kp_code}`, { score: x.score, evidence: x.evidence }) } return m }
   /** 自己、子孙 = 直接；只有祖先 = 较粗 */
   const relatedLessons = (byKp: ByKp, code: string): { direct: number[]; coarse: number[] } => {
     const direct = new Set<number>(), coarse = new Set<number>()
@@ -194,7 +240,7 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
       const st = stat.get(code)
       const g = topOf(code)
       const papers = st?.papers ?? 0
-      k = { code, name: nameOf(code), group: g.name, groupCode: g.code, papers, paperTotal: counts.papers, questions: st?.questions ?? 0, errorCount: st?.errorCount ?? 0, frequent: !smallSample && papers >= minPapers, locs: locsOf(code), examples: examplesOf(code), bLessons: bRefsOf(code) }
+      k = { code, name: nameOf(code), group: g.name, groupCode: g.code, papers, paperTotal: counts.papers, questions: st?.questions ?? 0, errorCount: st?.errorCount ?? 0, frequent: !smallSample && papers >= minPapers, matchScore: 0, matchLabel: '', evidence: '', avgScore: importanceOf(imp, code).avgScore, errorRate: importanceOf(imp, code).errorRate, weight: 0, locs: locsOf(code), examples: [], bLessons: bRefsOf(code) }
       kpCache.set(code, k)
     }
     return k
@@ -202,10 +248,83 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
   /** 轻量版：只有名字和校内统计，不查教材位置 / 例题（只为「要对齐」排顺序用） */
   const lightKp = (code: string): RKp => {
     const st = stat.get(code)
-    return { code, name: nameOf(code), group: '', groupCode: '', papers: st?.papers ?? 0, paperTotal: counts.papers, questions: st?.questions ?? 0, errorCount: st?.errorCount ?? 0, frequent: false, locs: [], examples: [], bLessons: [] }
+    return { code, name: nameOf(code), group: '', groupCode: '', papers: st?.papers ?? 0, paperTotal: counts.papers, questions: st?.questions ?? 0, errorCount: st?.errorCount ?? 0, frequent: false, matchScore: 0, matchLabel: '', evidence: '', avgScore: 0, errorRate: 0, weight: 0, locs: [], examples: [], bLessons: [] }
   }
-  const kpOrder = (x: RKp, y: RKp) => (y.errorCount > 0 ? 1 : 0) - (x.errorCount > 0 ? 1 : 0) || y.papers - x.papers || y.questions - x.questions || (kpRows.get(x.code)?.sort ?? 0) - (kpRows.get(y.code)?.sort ?? 0) || (x.code < y.code ? -1 : 1)
+  const kpOrder = (x: RKp, y: RKp) => y.weight - x.weight || (y.errorCount > 0 ? 1 : 0) - (x.errorCount > 0 ? 1 : 0) || y.papers - x.papers || y.questions - x.questions || (kpRows.get(x.code)?.sort ?? 0) - (kpRows.get(y.code)?.sort ?? 0) || (x.code < y.code ? -1 : 1)
   const groupOrder = (a: string, b: string) => (kpRows.get(a)?.sort ?? 0) - (kpRows.get(b)?.sort ?? 0) || (a < b ? -1 : 1)
+
+  /** 这一节课里的这个知识点：知识点的校内统计 + 这节课 × 这个知识点的匹配分和依据；排序用「校内重要度 × 匹配分」 */
+  const lessonKp = (code: string, lessonId: number): RKp => {
+    const base = kpOf(code)
+    const sc = scoreByKey.get(`${A.id}|${lessonId}|${code}`)
+    const matchScore = sc?.score ?? 0
+    const i = importanceOf(imp, code)
+    return { ...base, examples: [], matchScore, matchLabel: scoreLabel(matchScore), evidence: sc?.evidence ?? '', avgScore: i.avgScore, errorRate: Math.round(i.errorRate * 100) / 100, weight: Math.round(i.weight * matchScore) / 100 }
+  }
+  const kpNear = (a: string, b: string): boolean => a === b || (sub.get(a) ?? [a]).includes(b) || (sub.get(b) ?? [b]).includes(a)
+
+  // 课 ↔ 教材单元：课的标题 / 主题 / 词汇 / 句型 / 知识点，直接和每个单元比（不调用 AI，同样的输入同样的结果）
+  const unitIndex = tbs.map(t => {
+    const rev = new Map<number, string[]>()
+    for (const [code, ls] of t.byKp) for (const l of ls) { if (!rev.has(l)) rev.set(l, []); rev.get(l)!.push(code) }
+    const units: Array<{ info: LessonInfo; u: UnitInfo }> = []
+    for (const info of t.info.values()) {
+      const body = info.points.filter(p => p.label !== '说明').map(p => p.text).join('、')
+      const lines = body.split(/、?(?=(?:话题|核心问题|句型（概括）|句型\(概括\)|句型|语法)[：:])/).map(x => x.trim()).filter(Boolean)
+      const note = info.points.filter(p => p.label === '说明').map(p => p.text).join(' ')
+      units.push({ info, u: { id: info.id, title: info.title, lines, kps: rev.get(info.id) ?? [], unverified: isUnverifiedNote(note) || lines.some(x => /^句型（概括）|^句型\(概括\)/.test(x)) } })
+    }
+    return { t, units }
+  })
+  const unitsOf = (lt: LessonText, lessonKps: Array<{ code: string; name: string }>): UnitRef[] => {
+    const byEdition = new Map<string, Array<{ ix: (typeof unitIndex)[number]; info: LessonInfo; m: ReturnType<typeof matchUnit> & {} }>>()
+    for (const ix of unitIndex) for (const { info, u } of ix.units) {
+      const m = matchUnit(lt, lessonKps, u, kpNear)
+      if (!m) continue
+      if (!byEdition.has(ix.t.edition)) byEdition.set(ix.t.edition, [])
+      byEdition.get(ix.t.edition)!.push({ ix, info, m })
+    }
+    const out: UnitRef[] = []
+    for (const list of byEdition.values()) {
+      const chosen = pickUnits(list.map(x => x.m))
+      for (const c of chosen) {
+        const x = list.find(y => y.m === c)!
+        out.push({ outlineId: x.ix.t.b.id, outlineName: x.ix.t.b.name, edition: x.ix.t.edition, levelName: x.info.levelName, label: x.info.label, title: x.info.title, pages: x.info.pages, coarse: false, score: c.score, similarity: similarityLabel(c.score), evidence: c.evidence, byCatalog: c.byCatalog })
+      }
+    }
+    return out
+  }
+
+  // 课 ↔ 校内原题：课的词汇 / 句型在题干里逐字找，再用题目已审核的知识点代码对上；每节课只列最相关的几道
+  const qCache = new Map<string, ExampleQ[]>()
+  const rowsOfKp = (code: string): ExampleQ[] => { let r = qCache.get(code); if (!r) { r = exampleRows(db, scope, code, 30); qCache.set(code, r) } return r }
+  const examplesForLesson = (lt: LessonText, lessonKps: RKp[]): Array<{ q: ExampleQ; m: ExampleMatch }> => {
+    const pool = new Map<string, ExampleQ>()
+    for (const k of lessonKps) for (const q of rowsOfKp(k.code)) pool.set(q.id, q)
+    for (const q of textExampleRows(db, scope, [...vocabTerms(lt), ...patternTerms(lt)].slice(0, 14), 60)) pool.set(q.id, q)
+    if (!pool.size) return []
+    const ids = [...pool.keys()]
+    const kpsOf = new Map<string, Array<{ code: string; primary: boolean }>>()
+    for (let i = 0; i < ids.length; i += 400) {
+      const part = ids.slice(i, i + 400)
+      for (const r of db.prepare(`SELECT question_id, kp_code, is_primary FROM question_kps WHERE question_id IN (${part.map(() => '?').join(',')})`).all(...part) as any[]) {
+        if (!kpsOf.has(r.question_id)) kpsOf.set(r.question_id, [])
+        kpsOf.get(r.question_id)!.push({ code: r.kp_code, primary: !!r.is_primary })
+      }
+    }
+    const lk = lessonKps.map(k => ({ code: k.code, name: k.name, strong: k.matchScore >= 72 }))
+    const out: Array<{ q: ExampleQ; m: ExampleMatch }> = []
+    for (const q of pool.values()) {
+      const info: QuestionInfo = { id: q.id, stem: q.stem, options: q.options, errorProne: q.errorProne, kps: kpsOf.get(q.id) ?? [] }
+      const m = matchExample(lt, lk, info, kpNear)
+      if (m) out.push({ q, m })
+    }
+    // 最相关的在前；同分易错的在前，再按新学年；同一份卷子尽量不重复
+    out.sort((a, b) => b.m.score - a.m.score || (b.q.errorProne ? 1 : 0) - (a.q.errorProne ? 1 : 0) || (a.q.id < b.q.id ? -1 : 1))
+    const seen = new Set<string>(), first: typeof out = [], rest: typeof out = []
+    for (const x of out) { (seen.has(x.q.paperId) ? rest : first).push(x); seen.add(x.q.paperId) }
+    return [...first, ...rest].slice(0, perKp)
+  }
 
   // 教材有、A 没讲（复用 compare.ts）
   let tbNotInA: TbNotInA[] = []
@@ -213,7 +332,7 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
   if (books.length) {
     const cmp = compareCourseTextbook(db, filter, A.id, books.map(b => b.id))
     if (!cmp.ready) return emptyResult(cmp.reason, head)
-    tbNotInA = cmp.uncovered.map(u => ({ code: u.code, name: u.name, group: topOf(u.code).name, units: u.units, papers: u.papers, paperTotal: u.paperTotal, errorCount: u.errorCount, frequent: !smallSample && u.papers >= minPapers }))
+    tbNotInA = cmp.uncovered.map(u => ({ code: u.code, name: u.name, group: topOf(u.code).name, units: u.units, papers: u.papers, paperTotal: u.paperTotal, errorCount: u.errorCount, frequent: !smallSample && u.papers >= minPapers, avgScore: importanceOf(imp, u.code).avgScore }))
     for (const t of tbs) for (const [code, ls] of t.byKp) for (const l of ls) { const key = `${t.b.id}|${l}`; if (!tbUnitKps.has(key)) tbUnitKps.set(key, new Set()); tbUnitKps.get(key)!.add(code) }
   }
   const uncoveredByCode = new Map(tbNotInA.map(u => [u.code, u]))
@@ -227,12 +346,22 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
       alignAdvice({ tbs, relatedLessons, runningMax }, codes.map(lightKp), [])   // 不在要的课里：只更新「前面已讲到哪一册」
       continue
     }
-    const kps = codes.map(kpOf).sort((x, y) => groupOrder(x.groupCode, y.groupCode) || kpOrder(x, y))
+    const lt: LessonText = { title: l.title, theme: l.theme, points: l.points.map(p => ({ kind: p.kind, text: p.text })) }
+    const raw = codes.map(c => lessonKp(c, l.id))
+    // 排序：校内重要度 × 匹配分（高的在前）；知识点大类也按其中最高的排
+    const best = new Map<string, number>()
+    for (const k of raw) best.set(k.groupCode, Math.max(best.get(k.groupCode) ?? 0, k.weight))
+    const kps = raw.sort((x, y) => (best.get(y.groupCode) ?? 0) - (best.get(x.groupCode) ?? 0) || groupOrder(x.groupCode, y.groupCode) || kpOrder(x, y))
+    const units = unitIndex.length ? unitsOf(lt, kps.map(k => ({ code: k.code, name: k.name }))) : []
+    for (const e of examplesForLesson(lt, kps)) {
+      const target = kps.find(k => k.code === e.m.kpCode) ?? kps[0]
+      if (target) target.examples.push({ ...e.q, why: e.m.evidence })
+    }
     const groups: RLesson['groups'] = []
     for (const k of kps) { let g = groups.find(x => x.code === k.groupCode); if (!g) { g = { name: k.group, code: k.groupCode, kps: [] }; groups.push(g) } g.kps.push(k) }
     const cw = opts.courseware?.(A.id, l.levelName, l.seq) ?? []
     const advice = adviceOf({ lesson: l, kps, cw, books: tbs.map(t => t.b), hasBooks: books.length > 0, smallSample, minPapers, paperTotal: counts.papers, uncoveredByCode, tbUnitKps, tbs, aCodes: aMap, relatedLessons, kpOf, kpRows, runningMax, subOf: sub })
-    lessons.push({ lessonId: l.id, outlineId: A.id, levelName: l.levelName, seq: l.seq, noLabel: l.noLabel, label: l.label, title: l.title, groups, kps, courseware: cw.map(c => ({ id: c.id, name: c.name, chars: c.text.length })), advice, aiAdvice: '' })
+    lessons.push({ lessonId: l.id, outlineId: A.id, levelName: l.levelName, seq: l.seq, noLabel: l.noLabel, label: l.label, title: l.title, groups, kps, units, courseware: cw.map(c => ({ id: c.id, name: c.name, chars: c.text.length })), advice, aiAdvice: '' })
   }
 
   // 只有 A 讲 / 只有 B 讲
@@ -247,13 +376,15 @@ export function researchTable(db: Db, filter: StatsFilter, opts: ResearchOptions
     onlyB = sortRows([...bCodes].filter(c => !hasRelated(aCodes, c)).map(c => row(c, lessonNames(bInfo, bMap.get(c)!))))
   }
 
+  const lessonLabel = new Map(aLessons.map(x => [x.id, `${x.levelName} ${x.label}`]))
+  const wk = weakOf(db, A.id, id => lessonLabel.get(id) ?? '', nameOf)
   const allKps = new Set(lessons.flatMap(x => x.kps.map(k => k.code)))
   const summary = {
-    lessons: lessons.length, kps: allKps.size, kpsWithExamples: [...allKps].filter(c => kpOf(c).examples.length > 0).length,
-    examples: [...allKps].reduce((n, c) => n + kpOf(c).examples.length, 0), adviceItems: lessons.reduce((n, x) => n + x.advice.length, 0),
+    lessons: lessons.length, kps: allKps.size, kpsWithExamples: new Set(lessons.flatMap(x => x.kps.filter(k => k.examples.length > 0).map(k => k.code))).size,
+    examples: lessons.reduce((n, x) => n + x.kps.reduce((m, k) => m + k.examples.length, 0), 0), adviceItems: lessons.reduce((n, x) => n + x.advice.length, 0),
     coursewareFiles: lessons.reduce((n, x) => n + x.courseware.length, 0), onlyA: onlyA.length, onlyB: onlyB.length, tbNotInA: tbNotInA.length
   }
-  return { ready: true, reason: '', ...head, papers: counts.papers, minPapers, smallSample, lessons, onlyA, onlyB, tbNotInA, summary }
+  return { ready: true, reason: '', ...head, papers: counts.papers, minPapers, smallSample, lessons, onlyA, onlyB, tbNotInA, weakCount: wk.count, weak: wk.items, hasScores: imp.hasScores, summary }
 }
 
 /** 范围内考到这个知识点（含子树）的原题：易错 → 主知识点 → 新学年优先；有题干的才算 */
@@ -268,6 +399,21 @@ function exampleRows(db: Db, scope: PaperScope, code: string, limit: number): Ex
     GROUP BY q.id
     ORDER BY q.error_prone DESC, prim DESC, p.school_year_start DESC, p.created_at, p.rowid, q.ord
     LIMIT ?`).all(code, ...scope.params, limit) as any[]
+  return rows.map(r => ({
+    id: r.id, paperId: r.paper_id, paperTitle: r.title ?? '', no: r.no_label ?? String(r.no ?? ''), stem: String(r.stem ?? ''),
+    options: json<string[]>(r.options, []).map(String), answer: String(r.answer ?? ''), errorProne: !!r.error_prone, errorReason: String(r.error_reason ?? '')
+  }))
+}
+
+/** 题干里逐字出现这些词 / 句型的原题（SQL 只做粗筛，是否算数由 lesson-match 判断） */
+function textExampleRows(db: Db, scope: PaperScope, terms: string[], limit: number): ExampleQ[] {
+  const ts = [...new Set(terms.map(t => t.trim()).filter(t => t.length >= 2))].slice(0, 14)
+  if (!ts.length) return []
+  const like = ts.map(() => "q.stem LIKE ? ESCAPE '\\'").join(' OR ')
+  const rows = db.prepare(`SELECT q.id, q.paper_id, p.title, q.no_label, q.no, q.stem, q.options, q.answer, q.error_prone, q.error_reason
+    FROM papers p CROSS JOIN questions q ON q.paper_id = p.id
+    WHERE ${scope.where} AND q.stem IS NOT NULL AND q.stem <> '' AND (${like})
+    ORDER BY q.error_prone DESC, p.school_year_start DESC, p.created_at, p.rowid, q.ord LIMIT ?`).all(...scope.params, ...ts.map(t => `%${t.replace(/[\\%_]/g, m => '\\' + m)}%`), limit) as any[]
   return rows.map(r => ({
     id: r.id, paperId: r.paper_id, paperTitle: r.title ?? '', no: r.no_label ?? String(r.no ?? ''), stem: String(r.stem ?? ''),
     options: json<string[]>(r.options, []).map(String), answer: String(r.answer ?? ''), errorProne: !!r.error_prone, errorReason: String(r.error_reason ?? '')
@@ -295,7 +441,7 @@ const SPIRAL_LEVELS = 3
 /** 每节课「同单元要补」最多列几条 */
 export const MAX_ADD_UNIT = 5
 const locText = (l: TbLoc): string => formatLoc(l)
-const schoolText = (k: RKp): string => `校内 ${k.papers}/${k.paperTotal} 份卷子考过、共 ${k.questions} 题${k.errorCount ? `、其中 ${k.errorCount} 题易错` : ''}`
+const schoolText = (k: RKp): string => `校内 ${k.papers}/${k.paperTotal} 份卷子考过、共 ${k.questions} 题${k.avgScore > 0 ? `、约占 ${k.avgScore} 分` : ''}${k.errorCount ? `、其中 ${k.errorCount} 题易错` : ''}`
 
 /** 课件里有没有提到这个知识点：知识点名，或词表里长一点的词，出现在课件文字里就算 */
 export function courseMentions(textNorm: string, name: string, hintWords: string): boolean {
@@ -363,10 +509,10 @@ function adviceOf(c: AdviceCtx): AdviceItem[] {
         }
       }
     }
-    cand.sort((x, y) => { const a = c.uncoveredByCode.get(x.code)!, b = c.uncoveredByCode.get(y.code)!; return (b.frequent ? 1 : 0) - (a.frequent ? 1 : 0) || b.papers - a.papers || b.errorCount - a.errorCount || (x.code < y.code ? -1 : 1) })
+    cand.sort((x, y) => { const a = c.uncoveredByCode.get(x.code)!, b = c.uncoveredByCode.get(y.code)!; return (b.avgScore ?? 0) - (a.avgScore ?? 0) || (b.frequent ? 1 : 0) - (a.frequent ? 1 : 0) || b.papers - a.papers || b.errorCount - a.errorCount || (x.code < y.code ? -1 : 1) })
     for (const x of cand.slice(0, MAX_ADD_UNIT)) {
       const u = c.uncoveredByCode.get(x.code)!
-      const basis = [`与本节知识点同在教材 ${x.unit}`, `机构大纲 A 整份都没有讲到「${u.name}」`, `校内 ${u.papers}/${u.paperTotal} 份卷子考过${u.errorCount ? `、${u.errorCount} 题易错` : ''}`]
+      const basis = [`与本节知识点同在教材 ${x.unit}`, `机构大纲 A 整份都没有讲到「${u.name}」`, `校内 ${u.papers}/${u.paperTotal} 份卷子考过${(u.avgScore ?? 0) > 0 ? `、约占 ${u.avgScore} 分` : ''}${u.errorCount ? `、${u.errorCount} 题易错` : ''}`]
       out.push({ kind: 'add', kpCode: x.code, basis, text: `「${u.name}」：${basis.join('；')}。` })
     }
     if (cand.length > MAX_ADD_UNIT) {
@@ -386,7 +532,7 @@ function adviceOf(c: AdviceCtx): AdviceItem[] {
     out.push({ kind: 'swap', kpCode: k.code, basis, text: `「${k.name}」建议用校内原题做例题：${basis.join('；')}。` })
   }
   // 可减或超前：这节讲了，教材和校内都没考
-  if (c.hasBooks || !c.smallSample) {
+  if ((c.hasBooks || !c.smallSample) && c.paperTotal > 0) {   // 范围里一份卷子都没有时不说“可减”（什么都没考到是因为没卷子）
     for (const k of c.kps.filter(x => x.papers === 0 && (!c.hasBooks || x.locs.length === 0) && (!hasCw || mentioned(x))).slice(0, 5)) {
       const basis = [c.hasBooks ? '所选教材里没有对应单元' : '没有选教材', `校内 0/${c.paperTotal} 份卷子考过`, hasCw ? '课件里讲了' : '大纲里列了']
       out.push({ kind: 'trim', kpCode: k.code, basis, text: `「${k.name}」：${basis.join('；')}，可以考虑精简，或当作拓展。` })

@@ -30,7 +30,7 @@ async function main() {
   // ───── 造一份机构大纲（两课）和内置教材 ─────
   await goto('#/courses'); await T('course-settings').waitFor()
   const lesson = (seq, title) => ({ seq, noLabel: String(seq), title, theme: '', textbookRef: '', points: [], raw: {} })
-  const saved = await page.evaluate(async lv => window.api.course.save({ name: '示例机构课', scene: 'org', levels: lv, subject: 'english' }), [{ name: '基础级', lessons: [lesson(1, 'Plurals'), lesson(2, 'Past')] }])
+  const saved = await page.evaluate(async lv => window.api.course.save({ name: '示例机构课', scene: 'org', levels: lv, subject: 'english' }), [{ name: '基础级', lessons: [{ ...lesson(1, 'Plurals'), theme: '身边的植物', points: [{ kind: 'word', label: '词汇', text: 'plants, flowers, trees' }] }, lesson(2, 'Past')] }])
   const detail = await page.evaluate(id => window.api.course.get(id), saved.id)
   const lid = Object.fromEntries(detail.levels.flatMap(l => l.lessons).map(l => [l.title, l.id]))
   await page.evaluate(async a => { for (const [kp, lessonId] of a.maps) await window.api.course.mapEdit({ op: 'add', outlineId: a.id, kp, lessonId }) }, { id: saved.id, maps: [['GR.NOUN.PLURAL.REG', lid.Plurals], ['GR.TENSE.PAST.REG', lid.Past]] })
@@ -55,7 +55,10 @@ async function main() {
   // ───── 界面 ─────
   await setFilter({ grade: '4' }, '#/courses/research')
   await T('research-table').waitFor({ timeout: 20000 })
-  check('界面', '课程页第二个标签「教研对照表」（/courses/research）：有「机构大纲 A / B、教材、例题数」', (await T('research-table-page').count()) === 1 && (await T('research-a').count()) === 1 && (await T('research-b').count()) === 1 && (await T('research-perkp').count()) === 1 && (await T('research-pick-books').count()) === 1)
+  // 三步：选我的大纲 → 选教材 → 点“生成”；其余选项收进“更多设置”
+  check('界面', '点“生成对照表”之前不生成表', (await T('research-generate').count()) === 1 && (await T('research-headline').count()) === 0)
+  await T('research-more-settings').locator('.ant-collapse-header').click()
+  check('界面', '课程页第二个标签「教研对照表」（/courses/research）：有「机构大纲 A / B、教材、例题数」', (await T('research-table-page').count()) === 1 && (await T('research-a').count()) === 1 && (await T('research-b').count()) === 1 && (await T('research-perkp').count()) === 1 && (await T('research-pick-books').count()) === 1 && (await T('research-pick-books').count()) === 1)
   // 选教材：搜索 → 版本分组 → 勾册（已经添加过的这两册直接复用）
   await T('research-pick-books').click()
   await T('research-book-search').waitFor()
@@ -67,8 +70,10 @@ async function main() {
   for (const k of BOOK_KEYS) await T(`research-book-english-pep-${k}`).click()
   check('选教材', '同一版本的册放在一组里，已添加的标「已添加」，且不再出现“旧版”字样', /已添加/.test(await T('research-book-picker').innerText()) && !/旧版/.test(await T('research-book-picker').innerText()))
   await T('research-book-ok').click()
+  await T('research-generate').click()
   await T('research-headline').waitFor({ timeout: 20000 })
-  check('界面', '选了教材后出现汇总：2 节课，教材位置列出现', (await T('research-headline').innerText()).includes('2') && (await T('research-loc').count()) > 0)
+  check('界面', '点生成后出现汇总：2 节课；教材位置列出现，每个单元带“很像 / 有点像”和依据；英语内置目录只有概括，标“按目录”', (await T('research-headline').innerText()).includes('2') && (await T('research-loc').count()) > 0 && /很像|有点像/.test(await T('research-loc').first().innerText()) && (await T('research-by-catalog').count()) > 0)
+  check('界面', '匹配把握用文字（很像 / 比较像），不摆 0–100 的数字', (await T('research-match').count()) >= 1 && !/\b\d{2,3}\s*分\b.*匹配/.test(await T('research-match').first().innerText()))
   check('界面', '没有新增重复的教材（复用已添加的）', (await page.evaluate(() => window.api.course.list('english'))).filter(c => c.kind === 'textbook').length === 1)
   check('界面', '表格里有知识点、校内考察和原题（卷名 / 答案行）', (await T('research-school').count()) >= 2 && (await T('research-example').count()) >= 1 && /《.+》第/.test(await T('research-example').first().innerText()))
   await page.screenshot({ path: path.join(M.shots || work, 'research-table.png') })
@@ -123,7 +128,7 @@ async function main() {
   const sheet1 = await zip.file('xl/worksheets/sheet1.xml').async('string')
   const sst = await zip.file('xl/sharedStrings.xml').async('string')
   check('导出', '工作表：对照表、教材有机构没讲、说明（没选 B 没有“只有A、只有B”）', /name="对照表"/.test(wb) && /name="教材有机构没讲"/.test(wb) && /name="说明"/.test(wb) && !/只有A/.test(wb))
-  check('导出', '对照表冻结首行、自动换行；内容含课名、知识点、卷名、修订建议、课件文件名', /state="frozen"/.test(sheet1) && /ht="/.test(sheet1) && ['基础级 第 1 课', '规则复数', '修订建议', '复数课件.docx', '校内试卷考察'].every(s => sst.includes(s)))
+  check('导出', '对照表冻结首行、自动换行；内容含课名、知识点、卷名、修订建议、课件文件名', /state="frozen"/.test(sheet1) && /ht="/.test(sheet1) && ['基础级 第 1 课', '规则复数', '修订建议', '复数课件.docx', '校内约占几分', '匹配把握'].every(s => sst.includes(s)))
   check('导出', '「说明」里写着数据范围、生成时间和各列含义，没有学员信息', ['数据范围', '生成时间', '列含义'].every(s => sst.includes(s)) && !/家长手机|电话/.test(sst))
 
   // 有 B 时

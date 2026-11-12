@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { App, Checkbox, Collapse, InputNumber, Modal, Select, Spin, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Download, Paperclip, Sparkles } from 'lucide-react'
-import { groupLocs } from '../../../shared/tb-loc'
+import { locItem } from '../../../shared/tb-loc'
 import { useSubject } from '../../subject/SubjectContext'
 import { useStatsFilter } from '../../stats/StatsFilter'
 import FilterBar from '../../stats/StatsFilter'
@@ -27,7 +28,7 @@ const parseBuiltin = (s: string): { editionId: string; keys: string[] } | null =
   return m ? { editionId: m[1], keys: m[2].split(',').filter(Boolean) } : null
 }
 
-const schoolText = (k: RKp): string => (k.papers === 0 ? '范围内没有考到' : `${k.questions} 题 · ${k.papers}/${k.paperTotal} 份卷子${k.frequent ? ' · 常考' : ''}${k.errorCount ? ` · 易错 ${k.errorCount} 题` : ''}`)
+const schoolText = (k: RKp, hasScores: boolean): string => (k.papers === 0 ? '范围内没有考到' : `${hasScores && k.avgScore > 0 ? `校内约占 ${k.avgScore} 分 · ` : ''}${k.papers}/${k.paperTotal} 份卷子考过${k.frequent ? ' · 常考' : ''}${k.errorCount ? ` · 易错 ${k.errorCount} 题` : ''}`)
 
 // ───────────────────────── 选教材：能搜索、按版本分组选册 ─────────────────────────
 
@@ -122,6 +123,7 @@ interface Row { key: string; lesson: RLesson; kp: RKp | null; first: boolean; sp
  */
 export default function ResearchTable() {
   const { message } = App.useApp()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { subject } = useSubject()
   const { filter } = useStatsFilter()
@@ -131,6 +133,8 @@ export default function ResearchTable() {
   const [bId, setBId] = useState('')
   const [bookIds, setBookIds] = useState<string[]>([])
   const [perKp, setPerKp] = useState(3)
+  // 三步：选我的大纲 → 选学校教材（版本和年级）→ 点“生成对照表”；其他选项收进“更多设置”
+  const [go, setGo] = useState(false)
   const [picker, setPicker] = useState(false)
   const [shown, setShown] = useState(PREVIEW_STEP)
   // AI 小结：点按钮才调，结果存在这里（换范围就清空）；导出时带给主进程，不再调 AI
@@ -140,9 +144,11 @@ export default function ResearchTable() {
   const bid = bId && bId !== cid && courses.some(c => c.id === bId) ? bId : ''
   const books = useMemo(() => bookIds.filter(id => (cards ?? []).some(c => c.id === id && c.kind === 'textbook')), [bookIds, cards])
   useEffect(() => { setAi(a => { if (a.running && a.reqId) void window.api.course.researchAdviceCancel(a.reqId); return { summaries: {}, note: '', running: false, reqId: '' } }); setShown(PREVIEW_STEP) }, [cid, bid, books.join(','), perKp, filter])
-  const scope: ResearchScope = { filter: { ...filter, subject }, courseId: cid, courseBId: bid || undefined, textbookIds: books, perKp }
+  // 试卷范围的默认：当前学科、和所选教材同年级的全部试卷（选了几册就取这几册的年级）；老师在“更多设置”里选了年级就听老师的
+  const grades = useMemo(() => [...new Set(books.flatMap(id => { const p = parseBuiltin((cards ?? []).find(c => c.id === id)?.builtinId ?? ''); return p ? p.keys.map(k => k.charAt(0)).filter(g => /^[1-6]$/.test(g)) : [] }))], [books, cards])
+  const scope: ResearchScope = { filter: { ...filter, subject }, courseId: cid, courseBId: bid || undefined, textbookIds: books, perKp, ...(grades.length && !filter.grade ? { grades } : {}) }
   const { data, isFetching, error } = useQuery({
-    queryKey: ['course', 'research', scope], queryFn: () => window.api.course.researchTable(scope), enabled: !!cid,
+    queryKey: ['course', 'research', scope], queryFn: () => window.api.course.researchTable(scope), enabled: !!cid && go,
     placeholderData: prev => prev, refetchOnWindowFocus: false
   })
   const t = data?.table
@@ -199,7 +205,7 @@ export default function ResearchTable() {
 
   // 列宽按百分比分：有教材 / 有 B 时各让出一块，加起来 100%
   const W = useMemo(() => {
-    const base: Record<string, number> = { lesson: 12, group: 6, kp: 9, loc: books.length ? 20 : 0, school: 9, ex: 22, b: t?.courseB ? 9 : 0, advice: 22 }
+    const base: Record<string, number> = { lesson: 12, group: 6, kp: 9, match: 11, loc: books.length ? 22 : 0, school: 9, ex: 22, b: t?.courseB ? 9 : 0, advice: 22 }
     const sum = Object.values(base).reduce((a, b) => a + b, 0)
     return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, `${(v * 100 / sum).toFixed(2)}%`])) as Record<string, string>
   }, [books.length, t?.courseB])
@@ -220,26 +226,40 @@ export default function ResearchTable() {
     },
     { title: '大类', width: W.group, render: (_: unknown, r) => r.kp?.group ?? <span className="ewb-ana-meta">这节课没有对应的知识点</span> },
     { title: '知识点', width: W.kp, render: (_: unknown, r) => (r.kp ? <b>{r.kp.name}</b> : '') },
-    ...(books.length ? [{ title: '教材位置', width: W.loc, render: (_: unknown, r: Row) => (r.kp ? (r.kp.locs.length ? groupLocs(r.kp.locs).map((g, gi) => (
-      <div key={gi} className="ewb-rt-loc" data-testid="research-loc">
-        <span className="ewb-rt-loc__ed">{g.edition}</span>
-        <span className="ewb-rt-loc__items">{g.items.map((it, i) => <div key={i}>{it}</div>)}{g.more > 0 && <div className="ewb-ana-meta">等 {g.items.length + g.more} 处</div>}</span>
-      </div>
-    )) : <span className="ewb-ana-meta">教材里没有找到</span>) : '') }] : []),
-    { title: '校内考察', width: W.school, render: (_: unknown, r) => (r.kp ? <span data-testid="research-school">{schoolText(r.kp)}</span> : '') },
+    {
+      title: '匹配把握', width: W.match, render: (_: unknown, r) => (r.kp ? (
+        <div data-testid="research-match" data-label={r.kp.matchLabel}>
+          <Tag color={r.kp.matchScore >= 80 ? 'green' : 'blue'}>{r.kp.matchLabel}</Tag>
+          {r.kp.evidence && <div className="ewb-ana-meta">{r.kp.evidence}</div>}
+        </div>
+      ) : '')
+    },
+    ...(books.length ? [{
+      title: '教材位置', width: W.loc, onCell: (r: Row) => ({ rowSpan: r.span }),
+      render: (_: unknown, r: Row) => (r.lesson.units.length ? r.lesson.units.map((u, i) => (
+        <div key={i} className="ewb-rt-loc" data-testid="research-loc" style={{ marginBottom: 6 }}>
+          <span className="ewb-rt-loc__ed">{u.edition}</span>
+          <span className="ewb-rt-loc__items">
+            <div>{locItem(u)}{u.byCatalog && <span className="ewb-ana-meta" style={{ marginLeft: 4 }} data-testid="research-by-catalog">按目录</span>}<Tag style={{ marginLeft: 6 }} color={u.score >= 60 ? 'green' : 'default'}>{u.similarity}</Tag></div>
+            <div className="ewb-ana-meta">{u.evidence}</div>
+          </span>
+        </div>
+      )) : <span className="ewb-ana-meta">没有找到足够像的单元</span>)
+    }] : []),
+    { title: '校内约占几分', width: W.school, render: (_: unknown, r) => (r.kp ? <span data-testid="research-school">{schoolText(r.kp, t?.hasScores ?? false)}</span> : '') },
     {
       title: '校内例题', width: W.ex, render: (_: unknown, r) => (r.kp ? (r.kp.examples.length ? (
         <div style={{ display: 'grid', gap: 8 }}>
           {r.kp.examples.map(e => (
             <div key={e.id} data-testid="research-example">
-              <div className="ewb-ana-meta">《{e.paperTitle}》第 {e.no} 题{e.errorProne ? <Tag color="red" style={{ marginLeft: 6 }}>易错</Tag> : null}</div>
+              <div className="ewb-ana-meta">《{e.paperTitle}》第 {e.no} 题{e.errorProne ? <Tag color="red" style={{ marginLeft: 6 }}>易错</Tag> : null}{e.why ? <span> · {e.why}</span> : null}</div>
               <div style={{ whiteSpace: 'pre-wrap' }}>{e.stem.slice(0, 200)}</div>
               {e.options.length > 0 && <div className="ewb-ana-meta">{e.options.join('　')}</div>}
               {e.answer && <div className="ewb-ana-meta">答案：{e.answer}</div>}
             </div>
           ))}
         </div>
-      ) : <span className="ewb-ana-meta">范围内没有这个知识点的题</span>) : '')
+      ) : <span className="ewb-ana-meta">没有找到足够相关的校内原题</span>) : '')
     },
     ...(t?.courseB ? [{ title: `「${t.courseB.name}」里的课`, width: W.b, render: (_: unknown, r: Row) => (r.kp ? (r.kp.bLessons.length ? r.kp.bLessons.map((b, i) => <div key={i} className="ewb-ana-meta">{b.levelName} {b.label}{b.coarse ? ' · 较粗' : ''}</div>) : <span className="ewb-ana-meta">B 里没讲</span>) : '') }] : []),
     {
@@ -257,7 +277,6 @@ export default function ResearchTable() {
   if (!cards) return <Spin style={{ margin: 40 }} />
   return (
     <div data-testid="research-table">
-      <FilterBar />
       <Panel title="教研对照表" data-testid="research-panel"
         aside={<span className="ewb-rep-row" style={{ gap: 8 }}>
           {ai.running
@@ -270,36 +289,62 @@ export default function ResearchTable() {
           <EmptyState inline title="还没有机构大纲" description="先上传机构大纲，让 AI 把知识点对应到课，再回到这里。"
             steps={['在“课程大纲”里上传机构大纲', '让 AI 匹配知识点', '回到这里选大纲、教材和试卷范围']} />
         ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div className="ewb-rep-row" style={{ gap: 12, flexWrap: 'wrap' }}>
-              <label>机构大纲 A　<Select style={{ minWidth: 200 }} value={cid} onChange={v => { setAId(v); if (v === bId) setBId('') }} data-testid="research-a" options={courses.map(c => ({ value: c.id, label: c.name }))} showSearch optionFilterProp="label" /></label>
-              <label>机构大纲 B（可选）　<Select style={{ minWidth: 200 }} allowClear placeholder="不对比" value={bid || undefined} onChange={v => setBId(v ?? '')} data-testid="research-b" options={courses.filter(c => c.id !== cid).map(c => ({ value: c.id, label: c.name }))} showSearch optionFilterProp="label" /></label>
-              <label>每个知识点例题数　<InputNumber min={1} max={10} value={perKp} onChange={v => setPerKp(Math.min(10, Math.max(1, Math.round(Number(v) || 3))))} data-testid="research-perkp" /></label>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div className="ewb-rep-row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span><b>① 我的机构大纲</b>　</span>
+              <Select style={{ minWidth: 220 }} value={cid} onChange={v => { setAId(v); if (v === bId) setBId('') }} data-testid="research-a" options={courses.map(c => ({ value: c.id, label: c.name }))} showSearch optionFilterProp="label" />
             </div>
             <div className="ewb-rep-row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span>学校教材</span>
+              <span><b>② 学校教材（版本和年级）</b>　</span>
               <Btn tone="secondary" size="small" data-testid="research-pick-books" onClick={() => setPicker(true)}>选教材（已选 {books.length} 份）</Btn>
               {books.map(id => <Tag key={id} closable onClose={() => setBookIds(books.filter(x => x !== id))} data-testid="research-book-tag">{(cards ?? []).find(c => c.id === id)?.name}</Tag>)}
               {books.length === 0 && <span className="ewb-ana-meta">不选教材也可以，只是没有“教材位置”那一列</span>}
             </div>
+            <div className="ewb-rep-row" style={{ gap: 8, alignItems: 'center' }}>
+              <span><b>③</b>　</span>
+              <Btn tone="primary" size="small" data-testid="research-generate" loading={go && isFetching} onClick={() => { setGo(true); void qc.invalidateQueries({ queryKey: ['course', 'research'] }) }}>{go ? '重新生成对照表' : '生成对照表'}</Btn>
+            </div>
+            <Collapse size="small" ghost data-testid="research-more-settings" items={[{
+              key: 'more', label: <span className="ewb-ana-meta">更多设置（第二份大纲对比、每节课例题数、试卷范围）</span>,
+              children: (
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <label>第二份机构大纲（可选，用来对比）　<Select style={{ minWidth: 200 }} allowClear placeholder="不对比" value={bid || undefined} onChange={v => setBId(v ?? '')} data-testid="research-b" options={courses.filter(c => c.id !== cid).map(c => ({ value: c.id, label: c.name }))} showSearch optionFilterProp="label" /></label>
+                  <label>每节课最多列几道例题　<InputNumber min={1} max={10} value={perKp} onChange={v => setPerKp(Math.min(10, Math.max(1, Math.round(Number(v) || 3))))} data-testid="research-perkp" /></label>
+                  <FilterBar />
+                </div>
+              )
+            }]} />
           </div>
         )}
       </Panel>
 
+      {!go && courses.length > 0 && <p className="ewb-rep-note" data-testid="research-hint">选好大纲和教材，点“生成对照表”。</p>}
       {error && <UsageNote kind="caution">{clean(error)}</UsageNote>}
-      {isFetching && !t && <Spin style={{ margin: 24 }} />}
-      {t && !t.ready && <UsageNote kind="caution" data-testid="research-reason">{t.reason}</UsageNote>}
-      {t && t.ready && (
+      {go && isFetching && !t && <Spin style={{ margin: 24 }} />}
+      {go && t && !t.ready && <UsageNote kind="caution" data-testid="research-reason">{t.reason}</UsageNote>}
+      {go && t && t.ready && (
         <>
           <h3 className="ewb-crs-headline" data-testid="research-headline">
             《{t.course!.name}》共 <b>{t.summary.lessons}</b> 节课、<b>{t.summary.kps}</b> 个知识点，其中 <b data-testid="research-with-examples">{t.summary.kpsWithExamples}</b> 个有校内例题；修订建议 <b data-testid="research-advice-count">{t.summary.adviceItems}</b> 条
             {t.textbooks.length > 0 && <>；教材里有、A 没讲的 <b data-testid="research-tb-not-in-a">{t.summary.tbNotInA}</b> 个</>}
             {t.courseB && <>；只有 A 讲 <b>{t.summary.onlyA}</b> 个、只有 B 讲 <b>{t.summary.onlyB}</b> 个</>}。
           </h3>
-          <p className="ewb-rep-note">试卷范围内共 {t.papers} 份{filter.includeReviewing ? '卷子（含待审核）' : '已审核的卷子'}{t.smallSample ? '（少于 3 份，不标“常考”）' : ''}。知识点对应是 AI 匹配的结果（内置教材来自目录），请教研核对；“较粗”表示只有更大的类别对得上。{ai.running ? ' AI 正在写修订小结……' : ''}{ai.note ? ` ${ai.note}` : ''}</p>
+          {t.papers === 0 && (
+            <div data-testid="research-no-papers"><EmptyState inline title="这个范围里还没有校内试卷" description="没有试卷就没有“校内原题”和“校内约占几分”。先去试卷库导入试卷，再回来生成。"
+              action={<Btn tone="primary" size="small" data-testid="research-goto-import" onClick={() => navigate('/')}>去导入试卷</Btn>} /></div>
+          )}
+          <p className="ewb-rep-note">试卷范围内共 {t.papers} 份{filter.includeReviewing ? '卷子（含待审核）' : '已审核的卷子'}{t.smallSample ? '（少于 3 份，不标“常考”）' : ''}。每节课只列最主要的几个知识点，“匹配把握”说的是这节课和知识点有多像；“按目录”表示教材目录只有概括，没有逐课核对。{ai.running ? ' AI 正在写修订小结……' : ''}{ai.note ? ` ${ai.note}` : ''}</p>
           <div className="ewb-rt-wrap" data-testid="research-grid-wrap">
             <Table<Row> size="small" rowKey="key" columns={columns} dataSource={rows} pagination={false} bordered loading={isFetching} tableLayout="fixed" data-testid="research-grid" className="ewb-rt-grid" />
           </div>
+          {t.weakCount > 0 && (
+            <details className="ewb-rep-note" data-testid="research-weak" style={{ margin: '8px 0' }}>
+              <summary>另有 {t.weakCount} 条把握不高，没列出</summary>
+              <div style={{ marginTop: 6, display: 'grid', gap: 2 }}>
+                {t.weak.map((w, i) => <div key={i}>{w.lesson}　{w.kp}{w.evidence ? `（${w.evidence}）` : ''}</div>)}
+              </div>
+            </details>
+          )}
           {t.lessons.length > shown && (
             <div style={{ textAlign: 'center', margin: '12px 0' }}>
               <Btn tone="secondary" size="small" data-testid="research-more" onClick={() => setShown(n => n + PREVIEW_STEP)}>再看 {Math.min(PREVIEW_STEP, t.lessons.length - shown)} 节（已显示 {shown}/{t.lessons.length} 节，导出的 Excel 是全部）</Btn>

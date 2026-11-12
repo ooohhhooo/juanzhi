@@ -201,7 +201,7 @@ const TITLES: Record<PromptId, string> = {
   p4_variant_gen: 'P4 老师版：同类变形题（出题）',
   p4_variant_check: 'P4 老师版：变形题独立解答（第二次核对）',
   p5_course_cols: 'P5 课程对照：认列（只判断哪一列是什么，不复制内容）',
-  p5_course_match: 'P5 课程对照：知识点 → 课次',
+  p5_course_match: 'P5 课程对照：以课找知识点（规则先认，AI 补充）',
   p5_course_advice: 'P5 课程对照：家长沟通话术（看板）',
   p5_course_hint: 'P5 课程对照：家长版结尾一句课程建议',
   p5_course_extract: 'P5 课程对照：从 Word / PDF / 图片的文字里整理课程表',

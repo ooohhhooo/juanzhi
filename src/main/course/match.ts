@@ -10,6 +10,10 @@ import crypto from 'node:crypto'
 import { lessonName } from './map.ts'
 import type { PointKind } from './map.ts'
 import { asSubject } from '../../shared/subject.ts'
+import { matchLessonRules, hitsToQuote } from './rules.ts'
+import { resolveBridge } from './bridge.ts'
+import { BRIDGE_TAG, MATCH_THRESHOLD, MAX_MAIN_PER_LESSON, scoreOf } from './score.ts'
+import type { CatalogEdition } from './textbook-builtin.ts'
 
 export type Confidence = 'high' | 'medium' | 'low'
 export type MapState = 'suggested' | 'confirmed' | 'rejected'
@@ -99,16 +103,68 @@ export function quoteTouchesKp(q: string, kp: Partial<KpLite> | undefined, subje
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s　]+/g, '')
 
-export interface MatchEntry { code: string; none: boolean; maps: Array<{ lessonId: number; confidence: Confidence; quote: string; reason: string; quoteOk: boolean }> }
-export interface MatchParse { entries: MatchEntry[]; problems: string[]; dropped: number }
+// ───────────────────────── 以课找知识点 ─────────────────────────
+
+export type Source = 'rule' | 'ai' | 'bridge'
+/** 一条候选：某节课 × 某个知识点，来自规则 / AI / 教材桥 */
+export interface Candidate { lessonId: number; code: string; source: Source; confidence: Confidence; quote: string; reason: string; quoteOk?: boolean }
+export interface LessonEntry { lessonId: number; maps: Candidate[] }
+export interface MatchParse { entries: LessonEntry[]; problems: string[]; dropped: number }
+
+const tierOf = (score: number): Confidence => (score >= 80 ? 'high' : score >= MATCH_THRESHOLD ? 'medium' : 'low')
+
+/** 规则命中 → 候选（程序先认；quote 存命中词，reason 说明） */
+export function ruleCandidates(lesson: LessonLite, codes: Iterable<string>): Candidate[] {
+  return matchLessonRules(lessonQuoteText(lesson), codes).map(m => {
+    const quote = hitsToQuote(m.hits)
+    return { lessonId: lesson.id, code: m.code, source: 'rule' as const, confidence: tierOf(m.score), quote, reason: `规则命中：${quote}`.slice(0, 80) }
+  })
+}
+
+/** 教材桥 → 候选：对标的教材单元的知识点（限定在要匹配的知识点里）；没对上返回空 */
+export function bridgeCandidates(lesson: LessonLite, subject: string, catalog: CatalogEdition[], codes: Set<string>): Candidate[] {
+  const hit = lesson.textbookRef ? resolveBridge(lesson.textbookRef, subject, catalog) : null
+  if (!hit) return []
+  return hit.kps.filter(c => codes.has(c)).map(code => ({ lessonId: lesson.id, code, source: 'bridge' as const, confidence: 'medium' as const, quote: '', reason: `${BRIDGE_TAG}：${hit.label}`.slice(0, 80) }))
+}
+
+/** 候选的分数（和库里存好之后算的一致） */
+export const candidateScore = (c: Candidate): number => scoreOf({ kp_code: c.code, lesson_id: c.lessonId, confidence: c.confidence, state: 'suggested', source: c.source, quote: c.quote, reason: c.reason })
+
+/** 同一 (课, 知识点) 的候选合并成一条：规则 > AI > 教材桥；教材桥只做加分 / 补依据 */
+export function mergeCandidates(list: Candidate[]): Candidate[] {
+  const by = new Map<string, Candidate[]>()
+  for (const c of list) { const k = `${c.lessonId}|${c.code}`; if (!by.has(k)) by.set(k, []); by.get(k)!.push(c) }
+  const rank: Record<Source, number> = { rule: 0, ai: 1, bridge: 2 }
+  const out: Candidate[] = []
+  for (const group of by.values()) {
+    group.sort((a, b) => rank[a.source] - rank[b.source])
+    const main = { ...group[0] }
+    const bridge = group.find(c => c.source === 'bridge')
+    if (bridge && main.source !== 'bridge') {
+      main.reason = `${main.reason}｜${bridge.reason}`.slice(0, 160)
+      main.confidence = tierOf(candidateScore(main))
+    }
+    out.push(main)
+  }
+  return out
+}
+
+/** 规则 / 教材桥已经认得够多的课，不用再问 AI：过线的候选不少于这个数 */
+export const AI_ENOUGH = 2
+export function lessonsNeedingAi(lessonIds: number[], cands: Candidate[]): number[] {
+  const n = new Map<number, number>()
+  for (const c of cands) if (candidateScore(c) >= MATCH_THRESHOLD) n.set(c.lessonId, (n.get(c.lessonId) ?? 0) + 1)
+  return lessonIds.filter(id => (n.get(id) ?? 0) < AI_ENOUGH)
+}
 
 const stripFence = (s: string) => s.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
 
 /**
- * 校验一批回答。回答格式：{"results":[{"kp":"K1","lesson":"#12","confidence":"high","quote":"…","reason":"…"}, {"kp":"K2","none":true}]}
- * 同一个 kp 出现多条 = 多个对应（最多 5 个）。批里没出现的 kp 不产生条目（保持「没检查过」）。
+ * 校验 AI 的回答（以课为单位）。格式：{"results":[{"lesson":"#12","kps":[{"kp":"K3","confidence":"high","quote":"…","reason":"…"}]}]}
+ * 防幻觉：课次必须是输入里出现过的；知识点必须是批里的 K 编号；quote 必须逐字出现在课次文字里，找不到就降为 low；每节课最多 3 个。
  */
-export function parseMatchResponse(text: string, ctx: { tokens: Map<string, string>; lessons: Map<number, { searchText: string; quoteText?: string }>; kps?: Map<string, Partial<KpLite>>; /** 学科（缺省英语）：语文、数学放宽引用的长度和关联判断 */ subject?: unknown }): MatchParse {
+export function parseLessonResponse(text: string, ctx: { tokens: Map<string, string>; lessons: Map<number, { searchText: string; quoteText?: string }>; kps?: Map<string, Partial<KpLite>>; subject?: unknown }): MatchParse {
   let j: any
   try { j = JSON.parse(stripFence(text)) } catch {
     const m = /\{[\s\S]*\}/.exec(text)
@@ -116,85 +172,62 @@ export function parseMatchResponse(text: string, ctx: { tokens: Map<string, stri
   }
   const list: any[] = Array.isArray(j) ? j : Array.isArray(j?.results) ? j.results : []
   if (!list.length && !(j && typeof j === 'object')) return { entries: [], problems: ['AI 的回答不是有效的 JSON'], dropped: 0 }
-  const byKp = new Map<string, MatchEntry>()
+  const byLesson = new Map<number, LessonEntry>()
   let dropped = 0
   const problems: string[] = []
   for (const it of list) {
-    const code = ctx.tokens.get(String(it?.kp ?? '').trim().toUpperCase())
-    if (!code) { dropped++; continue }
-    let e = byKp.get(code)
-    if (!e) { e = { code, none: false, maps: [] }; byKp.set(code, e) }
-    if (it.none === true) continue
-    const m = /^#?(\d+)$/.exec(String(it.lesson ?? '').trim())
+    const m = /^#?(\d+)$/.exec(String(it?.lesson ?? '').trim())
     const id = m ? parseInt(m[1], 10) : NaN
     const lesson = ctx.lessons.get(id)
     if (!lesson) { dropped++; continue }
-    if (e.maps.some(x => x.lessonId === id)) continue
-    if (e.maps.length >= 5) { dropped++; continue }
-    let confidence: Confidence = it.confidence === 'high' || it.confidence === 'medium' ? it.confidence : 'low'
-    const quote = typeof it.quote === 'string' ? it.quote.trim().slice(0, 120) : ''
-    const quoteOk = !!quote && quoteLongEnough(quote, ctx.subject) && norm(lesson.quoteText ?? lesson.searchText).includes(norm(quote))
-    let reason = typeof it.reason === 'string' ? it.reason.trim().slice(0, 60) : ''
-    if (!quoteOk) { confidence = 'low'; reason = reason ? `仅凭主题推测：${reason}` : '仅凭主题推测（没有找到课次里的原文依据）' }
-    else if (confidence === 'high' && !quoteTouchesKp(quote, ctx.kps?.get(code), ctx.subject)) { confidence = 'medium'; reason = reason ? `原文依据与考点关联不明显：${reason}` : '原文依据与考点关联不明显' }
-    e.maps.push({ lessonId: id, confidence, quote: quoteOk ? quote : '', reason, quoteOk })
-  }
-  for (const e of byKp.values()) e.none = e.maps.length === 0
-  if (dropped) problems.push(`有 ${dropped} 条回答对不上输入里的知识点或课次，已丢弃`)
-  return { entries: [...byKp.values()], problems, dropped }
-}
-
-export interface ExistingMap { lessonId: number; locked: boolean; state: MapState; source: 'ai' | 'manual' }
-export interface MergePlan {
-  /** 要删掉的旧的 AI 建议（没锁定的） */
-  deleteLessonIds: number[]
-  insert: Array<{ lessonId: number; confidence: Confidence; quote: string; reason: string }>
-  /** 写进 course_kp_check 的结果 */
-  result: 'matched' | 'none'
-}
-
-/** 一个知识点的新结果与库里已有的合并：锁定的不动，被否决的不再加回，旧的 AI 建议整体换成新的 */
-export function planMerge(existing: ExistingMap[], entry: MatchEntry): MergePlan {
-  const lockedIds = new Set(existing.filter(e => e.locked || e.state !== 'suggested').map(e => e.lessonId))
-  const deleteLessonIds = existing.filter(e => !lockedIds.has(e.lessonId)).map(e => e.lessonId)
-  const insert = entry.maps.filter(m => !lockedIds.has(m.lessonId)).map(m => ({ lessonId: m.lessonId, confidence: m.confidence, quote: m.quote, reason: m.reason }))
-  const keptConfirmed = existing.some(e => e.state === 'confirmed')
-  return { deleteLessonIds, insert, result: insert.length > 0 || keptConfirmed ? 'matched' : 'none' }
-}
-
-/** 是否算「主要对应」：人工确认的，或者没被否决且把握是高 / 中 */
-export const isMainMap = (m: { state: string; confidence: string }): boolean => m.state === 'confirmed' || (m.state !== 'rejected' && (m.confidence === 'high' || m.confidence === 'medium'))
-
-/** 知识点列表按批切分：先按一级大类分组（codes 的第一段），每批不超过 size */
-export function batchKps<T extends { code: string }>(kps: T[], size = 30): T[][] {
-  const groups = new Map<string, T[]>()
-  for (const k of kps) {
-    const g = k.code.split('.')[0]
-    if (!groups.has(g)) groups.set(g, [])
-    groups.get(g)!.push(k)
-  }
-  const out: T[][] = []
-  for (const list of groups.values()) for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size))
-  return out
-}
-
-/** 课程很大、分成几段分别问的时候：同一个考点在各段的结果合并（有对应的并起来取前 5，全是 none 才算 none） */
-export function mergeEntries(parts: MatchEntry[][]): MatchEntry[] {
-  const by = new Map<string, MatchEntry>()
-  const rank = { high: 0, medium: 1, low: 2 } as const
-  for (const part of parts) {
-    for (const e of part) {
-      const cur = by.get(e.code)
-      if (!cur) { by.set(e.code, { code: e.code, none: e.none, maps: [...e.maps] }); continue }
-      for (const m of e.maps) if (!cur.maps.some(x => x.lessonId === m.lessonId)) cur.maps.push(m)
+    let e = byLesson.get(id)
+    if (!e) { e = { lessonId: id, maps: [] }; byLesson.set(id, e) }
+    const items: any[] = Array.isArray(it.kps) ? it.kps : it.kp ? [it] : []
+    for (const k of items) {
+      const code = ctx.tokens.get(String(k?.kp ?? '').trim().toUpperCase())
+      if (!code) { dropped++; continue }
+      if (e.maps.some(x => x.code === code)) continue
+      if (e.maps.length >= MAX_MAIN_PER_LESSON) { dropped++; continue }
+      let confidence: Confidence
+      const quote = typeof k.quote === 'string' ? k.quote.trim().slice(0, 120) : ''
+      const quoteOk = !!quote && quoteLongEnough(quote, ctx.subject) && norm(lesson.quoteText ?? lesson.searchText).includes(norm(quote))
+      let reason = typeof k.reason === 'string' ? k.reason.trim().slice(0, 60) : ''
+      if (!quoteOk) { confidence = 'low'; reason = reason ? `仅凭主题推测：${reason}` : '仅凭主题推测（没有找到课次里的原文依据）' }
+      else if (!quoteTouchesKp(quote, ctx.kps?.get(code), ctx.subject)) { confidence = 'medium'; reason = reason ? `原文依据与考点关联不明显：${reason}` : '原文依据与考点关联不明显' }
+      else confidence = 'high'   // 核对通过并且和知识点有关：中等分（65）；再高要靠规则 / 教材桥 / 老师确认
+      e.maps.push({ lessonId: id, code, source: 'ai', confidence, quote: quoteOk ? quote : '', reason, quoteOk })
     }
   }
-  for (const e of by.values()) {
-    e.maps.sort((a, b) => rank[a.confidence] - rank[b.confidence])
-    e.maps = e.maps.slice(0, 5)
-    e.none = e.maps.length === 0
-  }
-  return [...by.values()]
+  if (dropped) problems.push(`有 ${dropped} 条回答对不上输入里的知识点或课次（或超过每课 ${MAX_MAIN_PER_LESSON} 个），已丢弃`)
+  return { entries: [...byLesson.values()], problems, dropped }
+}
+
+export interface ExistingMap { kp: string; locked: boolean; state: MapState; source: string }
+export interface LessonPlan {
+  /** 要删掉的旧的自动结果（没锁定、没被人工处理过的） */
+  deleteKps: string[]
+  insert: Candidate[]
+}
+
+/**
+ * 一节课的新候选与库里已有的合并：锁定 / 确认 / 否决过的不动；被否决的 (课, 知识点) 不会再被规则或 AI 加回；
+ * 旧的自动结果里属于本次重算范围（scopeKps）的整体换成新的。
+ */
+export function planLessonMerge(existing: ExistingMap[], cands: Candidate[], scopeKps: Set<string>): LessonPlan {
+  const fixed = new Set(existing.filter(e => e.locked || e.state !== 'suggested').map(e => e.kp))
+  const deleteKps = existing.filter(e => !fixed.has(e.kp) && scopeKps.has(e.kp)).map(e => e.kp)
+  const insert = cands.filter(c => !fixed.has(c.code) && scopeKps.has(c.code))
+  return { deleteKps, insert }
+}
+
+/** 是否算「主要对应」（单条口径：老师确认的，或没被否决且匹配分过线；每课最多 3 个主知识点的上限见 score.ts 的 classifyMaps / selectMain） */
+export { isMainMap } from './score.ts'
+
+/** 知识点列表按批切分：先按一级大类分组，每批不超过 size（课程很大、知识点很多时用） */
+export function batchKps<T extends { code: string }>(kps: T[], size = 150): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < kps.length; i += size) out.push(kps.slice(i, i + size))
+  return out.length ? out : [[]]
 }
 
 /** 把课次行切成若干段，每段不超过 maxChars（超大课程才会超过一段） */

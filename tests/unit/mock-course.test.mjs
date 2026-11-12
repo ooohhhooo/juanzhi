@@ -8,7 +8,7 @@ import { readXlsx, buildXlsx } from '../../src/main/course/table-read.ts'
 import { sampleSheets } from '../../src/main/course/template.ts'
 import { sheetPreview, parseColsResponse } from '../../src/main/course/cols-ai.ts'
 import { buildOutline } from '../../src/main/course/map.ts'
-import { outlineLine, kpBatchBlock, parseMatchResponse, lessonSearchText } from '../../src/main/course/match.ts'
+import { outlineLine, kpBatchBlock, parseLessonResponse, lessonSearchText } from '../../src/main/course/match.ts'
 import { finishAdvice } from '../../src/main/course/advice-post.ts'
 import { buildAdviceInputs } from '../../src/main/course/report-section.ts'
 import { fillTemplate } from '../../src/main/stats/p2.ts'
@@ -50,18 +50,22 @@ const blk = kpBatchBlock(kps)
 const matchUser = fillTemplate(prompt('p5_course_match', 'user'), { OUTLINE_LINES: lessons.map(outlineLine).join('\n'), KP_BATCH: blk.text })
 {
   const out = course.build('match', matchUser)
-  const p = parseMatchResponse(out, { tokens: blk.tokens, lessons: lessonMap })
-  const by = Object.fromEntries(p.entries.map(e => [e.code, e]))
+  const p = parseLessonResponse(out, { tokens: blk.tokens, lessons: lessonMap })
+  const by = Object.fromEntries(p.entries.map(e => [e.lessonId, e]))
   assert.equal(p.dropped, 0)
-  assert.deepEqual(by['GR.TENSE.PAST'].maps.map(m => [m.lessonId, m.confidence, m.quoteOk]), [[112, 'high', true]], '例词 played / watched 都在“第 3 课 Last weekend”里')
-  assert.deepEqual(by['GR.ADJ.COMP'].maps.map(m => m.lessonId), [113])
-  assert.equal(by['RD.X'].none, true)
+  assert.deepEqual(by[112].maps.map(m => [m.code, m.confidence, m.quoteOk]), [['GR.TENSE.PAST', 'high', true]], '例词 played / watched 都在“第 3 课 Last weekend”里')
+  assert.deepEqual(by[113].maps.map(m => m.code), ['GR.ADJ.COMP'])
+  assert.ok(p.entries.every(e => e.maps.every(m => m.code !== 'RD.X')), '没有例词的考点谁也不挂')
+  assert.ok(p.entries.every(e => e.maps.length <= 3), '每节课最多 3 个')
   // 故障：quote 不在课次里 → 降级；不存在的课次 → 丢弃；不是 JSON → 没有条目
-  const q = parseMatchResponse(course.build('match', matchUser, { matchBadQuote: true }), { tokens: blk.tokens, lessons: lessonMap })
-  assert.equal(q.entries.find(e => e.code === 'GR.ADJ.COMP').maps[0].confidence, 'low')
-  const l = parseMatchResponse(course.build('match', matchUser, { matchBadLesson: true }), { tokens: blk.tokens, lessons: lessonMap })
-  assert.ok(l.dropped >= 2)
-  assert.equal(parseMatchResponse(course.build('match', matchUser, { matchBadJson: true }), { tokens: blk.tokens, lessons: lessonMap }).entries.length, 0)
+  const q = parseLessonResponse(course.build('match', matchUser, { matchBadQuote: true }), { tokens: blk.tokens, lessons: lessonMap })
+  assert.equal(q.entries.find(e => e.lessonId === 113).maps[0].confidence, 'low')
+  const l = parseLessonResponse(course.build('match', matchUser, { matchBadLesson: true }), { tokens: blk.tokens, lessons: lessonMap })
+  assert.ok(l.dropped >= 1)
+  assert.equal(parseLessonResponse(course.build('match', matchUser, { matchBadJson: true }), { tokens: blk.tokens, lessons: lessonMap }).entries.length, 0)
+  // 规则已经认出的考点不重复给
+  const known = course.build('match', matchUser.replace(/(#112 [^\n]*)/, '$1 | 已认出:K1'))
+  assert.ok(!parseLessonResponse(known, { tokens: blk.tokens, lessons: lessonMap }).entries.find(e => e.lessonId === 112)?.maps.length)
 }
 
 // ── 话术 ──

@@ -171,8 +171,8 @@ function CourseDetail({ id, onClose }: { id: string | null; onClose: () => void 
                 columns={[
                   { title: '知识点', dataIndex: 'kpName', width: 140 },
                   { title: '对应的课', render: (_, r) => r.lesson ? `${r.lesson.levelName} · ${lessonText(r.lesson)}` : '（课已删除）' },
-                  { title: '把握', width: 80, render: (_, r) => CONF_LABEL[r.confidence] ?? r.confidence },
-                  { title: '依据', render: (_, r) => (r.quote ? <span className="ewb-ana-meta">“{r.quote}”</span> : <span className="ewb-ana-meta">{r.reason || '—'}</span>) },
+                  { title: '匹配把握', width: 100, render: (_, r) => (r.state === 'rejected' ? '已否决' : r.role === 'main' ? (r.score >= 80 ? '很像' : '比较像') : r.role === 'side' ? '顺带' : '把握不高') },
+                  { title: '依据', render: (_, r) => (r.evidence ? <span className="ewb-ana-meta">{r.evidence}</span> : <span className="ewb-ana-meta">{r.reason || '—'}</span>) },
                   { title: '状态', width: 90, render: (_, r) => STATE[r.state] ?? r.state },
                   {
                     title: '核对', width: 190, render: (_, r) => (

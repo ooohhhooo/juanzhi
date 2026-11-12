@@ -101,7 +101,7 @@ function summaryText(t: ResearchTable, desc: string, name: string, file: string,
     '', '各节课：'
   ]
   for (const l of t.lessons.slice(0, 30)) {
-    const kpText = l.kps.slice(0, 4).map(k => `${k.name}（${k.papers}/${k.paperTotal} 份${k.errorCount ? '，易错' : ''}）`).join('、')
+    const kpText = l.kps.slice(0, 4).map(k => `${k.name}（${k.matchLabel}${k.avgScore ? `，校内约占 ${k.avgScore} 分` : ''}，${k.papers}/${k.paperTotal} 份${k.errorCount ? '，易错' : ''}）`).join('、')
     const kinds = (['add', 'align', 'swap', 'trim'] as const).map(k => [k, l.advice.filter(x => x.kind === k).length] as const).filter(([, n]) => n).map(([k, n]) => `${ADVICE_LABEL[k]} ${n}`).join('、')
     out.push(`- ${lessonLine(l)}：${l.kps.length ? `${l.kps.length} 个知识点：${kpText}${l.kps.length > 4 ? ' 等' : ''}` : '没有对应的知识点'}${l.courseware.length ? `｜课件：${l.courseware.map(c => c.name).join('、')}` : ''}${kinds ? `｜建议：${kinds}` : ''}`)
   }
@@ -187,11 +187,11 @@ export const lessonKps: ToolDef = {
     for (const g of l.groups) {
       out.push('', `【${g.name}】`)
       for (const k of g.kps) {
-        out.push(`- ${k.name}（代码 ${k.code}）：${schoolCell(k)}`)
-        if (t.textbooks.length) out.push(`  教材：${k.locs.length ? k.locs.slice(0, 3).map(locText).join('；') : '所选教材里没有找到'}`)
+        out.push(`- ${k.name}（代码 ${k.code}）：${schoolCell(k, t.hasScores)}｜匹配把握：${k.matchLabel}${k.evidence ? `（${k.evidence}）` : ''}`)
         k.examples.forEach((e, i) => out.push(`  例题 ${exampleText(e, i).split('\n').map((x, j) => (j ? `    ${clip(x, 160)}` : x)).join('\n')}`))
       }
     }
+    if (t.textbooks.length) out.push('', `教材位置：${l.units.length ? l.units.map(u => `${locText(u)}（${u.similarity}；${u.evidence}${u.byCatalog ? '；按目录' : ''}）`).join('；') : '所选教材里没有足够像的单元'}`)
     out.push('', '修订建议（程序规则，带依据）：', adviceCell(l))
     if (l.courseware.length) out.push('', `这节挂了课件：${l.courseware.map(c => `${c.name}（${c.chars} 字）`).join('、')}；要读内容用 courseware_read。`)
     return { text: out.join('\n'), count: l.kps.length }
