@@ -14,6 +14,8 @@ export const AUTO_RULE_MIN = 60
 /** 和审核页的「低把握」线一致（validate.ts 的 LOW_CONFIDENCE） */
 export const AUTO_MIN_CONFIDENCE = 0.7
 const KP_FLAGS = new Set(['kp_uncertain', 'kp_invalid'])
+/** 题目本身可能没认对（看不清、缺字、丢了下划线、要看图、重复、题型不对、定位失败）：不管知识点对不对，都要人看一眼 */
+const CONTENT_FLAGS = new Set(['ocr_unclear', 'underline_lost', 'needs_image', 'stem_incomplete', 'qtype_invalid', 'duplicate', 'locate_failed'])
 
 export interface AutoQuestion { stem: string; options: string[]; answer: string; kpMain: string | null; kpSuggestion?: string | null; confidence: number; flags: string[] }
 export interface AutoVerdict { ok: boolean; /** 不通过的原因（测试用）；通过时写规则命中的词 */ why: string; /** 规则认出的、和 AI 一致的知识点 */ ruleCode?: string; hits?: string[] }
@@ -30,6 +32,7 @@ const isKin = (a: string, b: string, parentOf: (c: string) => string | null): bo
 export function judgeAutoApprove(q: AutoQuestion, parentOf: (code: string) => string | null): AutoVerdict {
   if (!q.kpMain) return { ok: false, why: 'AI 没给出主知识点' }
   if (q.confidence < AUTO_MIN_CONFIDENCE) return { ok: false, why: 'AI 把握低（置信度低）' }
+  if (q.flags.some(f => CONTENT_FLAGS.has(f))) return { ok: false, why: '题目内容可能没认对' }
   if ((q.kpSuggestion ?? '').trim() || q.flags.some(f => KP_FLAGS.has(f))) return { ok: false, why: 'AI 的知识点不确定' }
   const text = [q.stem, ...q.options, q.answer].filter(Boolean).join('\n')
   const hits = matchLessonRules(text).filter(m => m.score >= AUTO_RULE_MIN)
