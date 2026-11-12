@@ -132,7 +132,7 @@ export default function Report() {
   const [courseIds, setCourseIds] = useState<string[]>([])
   const [parentHint, setParentHint] = useState(true)
   const { data: outlines = [] } = useQuery({ queryKey: ['course', 'list', subject], queryFn: () => window.api.course.list(subject) })
-  const usable = (outlines as any[]).filter(o => o.status === 'active' && o.active)
+  const usable = (outlines as any[]).filter(o => o.kind === 'course' && o.status === 'active' && o.active)
   const courseSupported = reader !== 'boss'
   const courseOn = withCourse && courseSupported && usable.length > 0
   const pickedIds = courseIds.filter(id => usable.some(o => o.id === id))

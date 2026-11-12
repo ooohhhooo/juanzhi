@@ -9,10 +9,11 @@ import { chartToTable, isHighlighted, type BoardSpec, type Cell, type Column } f
 import { escXml, textWidth } from './chart-svg.ts'
 
 type NumFmt = 'pct' | 'int' | 'num' | 'score'
-interface Style { numFmt?: NumFmt; bold?: boolean; fill?: string; wrap?: boolean; border?: boolean; size?: number; color?: string }
-interface XCell { v: string | number | null; s?: Style }
-interface XRow { cells: XCell[]; ht?: number }
-interface XSheet { name: string; rows: XRow[]; widths?: number[]; merges?: string[] }
+export interface Style { numFmt?: NumFmt; bold?: boolean; fill?: string; wrap?: boolean; border?: boolean; size?: number; color?: string }
+export interface XCell { v: string | number | null; s?: Style }
+export interface XRow { cells: XCell[]; ht?: number }
+/** freeze：冻结首行 */
+export interface XSheet { name: string; rows: XRow[]; widths?: number[]; merges?: string[]; freeze?: boolean }
 
 const NUMFMT_ID: Record<NumFmt, number> = { pct: 164, int: 165, num: 166, score: 167 }
 const NUMFMT_CODE: Record<NumFmt, string> = { pct: '0.0%', int: '#,##0', num: '#,##0.00', score: '0.0' }
@@ -93,7 +94,7 @@ export async function buildXlsx(sheets: XSheet[]): Promise<Buffer> {
     }).join('')
     const cols = sh.widths?.length ? `<cols>${sh.widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` : ''
     const merges = sh.merges?.length ? `<mergeCells count="${sh.merges.length}">${sh.merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''
-    zip.file(`xl/worksheets/sheet${si + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="16"/>${cols}<sheetData>${rows}</sheetData>${merges}</worksheet>`)
+    zip.file(`xl/worksheets/sheet${si + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews>${sh.freeze ? '<sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView>' : '<sheetView workbookViewId="0"/>'}</sheetViews><sheetFormatPr defaultRowHeight="16"/>${cols}<sheetData>${rows}</sheetData>${merges}</worksheet>`)
   })
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>`)
   zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`)

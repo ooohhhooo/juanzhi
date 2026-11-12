@@ -39,6 +39,8 @@ export const DATA_TOOLS = [
   'card_templates', 'card_make',
   'connectors_list', 'wecom_send'
 ]
+/** 教研 / 主讲老师的专用工具：教研对照表、教材定位、查某一节的知识点和例题、读课件文字 */
+export const RESEARCH_TOOLS = ['research_table', 'textbook_locate', 'lesson_kps', 'courseware_read']
 /** 这些角色可以用用户配置的外部（MCP）工具；它们的名字随连接器配置变化，不写在上面的名单里 */
 export const CONNECTOR_ROLES = ['ops', 'tutor']
 
@@ -72,9 +74,46 @@ export const ROLES: RoleDef[] = [
     rules: ['试卷数据里没有学生个人的成绩，只有试卷上常见的易错点；学员个人情况只能依据用户导入的数据集回答，没有数据就直说，不要编造。', '名单里只放任务需要的字段；发到外部之前，提醒用户检查里面的个人信息。'],
     enabled: true
   },
-  // 下面两个角色先占位：教研、授课老师的工具和剧本后续再接
-  { id: 'research', names: { org: '教研', school: '教研组长' }, persona: '', tools: [...BASE_TOOLS, ...EXAM_TOOLS], suggestions: [], rules: [], enabled: false },
-  { id: 'teacher', names: { org: '授课老师', school: '任课老师' }, persona: '', tools: [...BASE_TOOLS, ...EXAM_TOOLS, 'card_templates', 'card_make'], suggestions: ['给学生做一张现在完成时的口诀卡'], rules: [], enabled: false }
+  {
+    id: 'research',
+    names: { org: '教研', school: '教研组长' },
+    persona: '你在帮教研同事把「机构大纲、学校教材、校内试卷、机构自己的课件」四样东西对在一起：每节课讲什么、学校教材里这个知识点在哪一册哪个单元、校内试卷怎么考（带原题）、课件哪里该补、该对齐、该换例题、可以减。说话像同事交流，先给结论，再给依据；数字和位置都来自工具的查询结果，不要自己推算。英语、语文、数学都这样做。',
+    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...RESEARCH_TOOLS, 'read_document', 'doc_create', 'doc_write_section', 'doc_read', 'table_save', 'outputs_list', 'output_export'],
+    suggestions: [
+      '按《某某大纲》出一份教研对照表',
+      '一般过去时在各版本教材的哪个单元',
+      '第 3 节课校内会怎么考',
+      '按《某某大纲》对照学校教材和试卷，看课件哪里要改',
+      '教材里有、我们大纲没讲的知识点有哪些'
+    ],
+    rules: [
+      '对照表、教材位置、例题、修订建议都用 research_table / textbook_locate / lesson_kps 查，不要凭印象说「教材第几单元」。',
+      '知识点对应是 AI 匹配的结果（内置教材来自目录），结论里提醒教研核对；标「较粗」的位置只是大类对得上，要说明。',
+      '课件文字只能用 courseware_read 读，引用时说明是哪一节的哪份课件；建议每一条都要写出依据（校内几份卷子考过、教材哪个单元、哪道原题），没有依据的不要写。',
+      '说明数据范围（几份卷子、哪几份教材、哪份大纲）；范围里没有卷子时直说，不要编例题。'
+    ],
+    enabled: true,
+    defaultPlaybook: '课件修订对照'
+  },
+  {
+    id: 'teacher',
+    names: { org: '主讲老师', school: '任课老师' },
+    persona: '你在帮主讲老师备课：这节课讲什么、学校教材里对应在哪一册哪个单元、校内试卷会怎么考（带原题和易错点），再帮着做讲义例题和知识卡。语气像同事交流，给能直接拿去讲的例子，不说空话。英语、语文、数学都这样做。',
+    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...RESEARCH_TOOLS, 'doc_create', 'doc_write_section', 'doc_read', 'table_save', 'outputs_list', 'output_export', 'card_templates', 'card_make'],
+    suggestions: [
+      '第 3 节课讲什么，教材对应在哪里',
+      '第 3 节课校内会怎么考，挑几道原题当例题',
+      '给学生做一张现在完成时的口诀卡',
+      '按《某某大纲》出一份教研对照表',
+      '一般过去时在各版本教材的哪个单元'
+    ],
+    rules: [
+      '备课先用 lesson_kps 查这节课的知识点、教材位置和校内原题；例题优先选易错的、来自不同卷子的，写清卷名和题号。',
+      '试卷数据里没有学生个人成绩，只有试卷上常见的易错点；个人情况只能依据用户导入的数据。',
+      '给学生的知识卡 / 口诀卡用 card_make，内容要短，先让老师预览再发。'
+    ],
+    enabled: true
+  }
 ]
 
 export const enabledRoles = (): RoleDef[] => ROLES.filter(r => r.enabled)

@@ -88,3 +88,4 @@
 .ewb-tb-page img { width: 100%; border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-sm); }
 .ewb-tb-page pre { margin: 0; max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: var(--ewb-fs-sm); color: var(--ewb-ink-2); }
 @media (max-width: 900px) { .ewb-tb-page { grid-template-columns: minmax(0, 1fr); } }
+.ewb-rt-grid .ant-table-tbody > tr > td { vertical-align: top; }

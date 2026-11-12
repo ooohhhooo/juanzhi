@@ -33,15 +33,16 @@ export default function TextbookAdd({ open, onClose }: { open: boolean; onClose:
           <label>
             <div className="ewb-rep-note" style={{ marginBottom: 4 }}>教材版本</div>
             <Select style={{ width: '100%' }} value={ed?.id} data-testid="textbook-edition" onChange={v => { setEdition(v); setBooks([]) }}
+              showSearch optionFilterProp="label" placeholder="搜版本，如 人教、外研、北师大" notFoundContent="没有找到这个版本"
               options={(catalog ?? []).map(e => ({ value: e.id, label: e.edition }))} />
           </label>
           <div>
             <div className="ewb-rep-note" style={{ marginBottom: 4 }}>年级和上下册（可以多选）</div>
             <Checkbox.Group value={books} onChange={v => setBooks(v as string[])} style={{ display: 'grid', gap: 6 }} data-testid="textbook-books">
-              {(ed?.books ?? []).map(b => <Checkbox key={b.key} value={b.key} data-testid={`textbook-book-${b.key}`}>{b.label}（{b.units} 个单元）{b.legacy ? <span className="ewb-ana-pill ewb-ana-pill--warn" style={{ marginLeft: 6 }} title={b.note} data-testid="textbook-legacy">旧版（{b.editionYear}）</span> : b.editionYear ? <span className="ewb-ana-meta" style={{ marginLeft: 6 }}>{b.editionYear} 版</span> : null}</Checkbox>)}
+              {(ed?.books ?? []).map(b => <Checkbox key={b.key} value={b.key} data-testid={`textbook-book-${b.key}`}>{b.label}（{b.units} 个单元）{b.editionYear ? <span className="ewb-ana-meta" style={{ marginLeft: 6 }}>{b.editionYear}</span> : null}</Checkbox>)}
             </Checkbox.Group>
           </div>
-          {ed && <p className="ewb-rep-note">目录整理自公开资料（核对于 {ed.checkedAt}）；每个单元考到的知识点已经对好，不需要 AI 匹配。标“旧版”的册，新版目录还没公开，公开后会更新。</p>}
+          {ed && <p className="ewb-rep-note">目录整理自公开资料（核对于 {ed.checkedAt}）；每个单元考到的知识点已经对好，不需要 AI 匹配。</p>}
         </div>
       )}
     </Modal>

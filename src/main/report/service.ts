@@ -93,9 +93,18 @@ const allCodes = (): string[] => {
 
 const hasOptions = (o: ReportOptions | undefined): boolean => !!o && Object.values(o).some(v => v !== undefined && v !== false && !(Array.isArray((v as any)?.outlineIds) && (v as any).outlineIds.length === 0))
 
+/** 报告的「加入课程对照」只对机构课程：教材（kind = 'textbook'）即使被传进来也去掉（防命令行 / 旧请求） */
+export function stripTextbookIds(options: ReportOptions): ReportOptions {
+  const ids = courseOutlineIds(options)
+  if (!ids.length) return options
+  const tb = new Set((getDb().prepare("SELECT id FROM course_outlines WHERE kind = 'textbook' AND id IN (SELECT value FROM json_each(?))").all(JSON.stringify(ids)) as Array<{ id: string }>).map(r => r.id))
+  return tb.size ? { ...options, course: { outlineIds: ids.filter(i => !tb.has(i)) } } : options
+}
+
 /** 取统计、填占位符。复用 M3 的统计函数（去重、学期对齐、主次知识点的口径都在那里），这里不重新算任何东西 */
-export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full', options: ReportOptions = {}): PreparedReport {
+export function prepareReport(filter: StatsFilter, reader: ReportReader = 'full', options0: ReportOptions = {}): PreparedReport {
   const db = getDb()
+  const options = stripTextbookIds(options0)
   const rev = currentRev()
   const src = collectP3Source(db, filter)
   const input = buildP3Input(src)
@@ -534,7 +543,8 @@ export function cancelReport(requestId: string): boolean {
 }
 
 /** @param send 把事件发给发起请求的那个窗口（调用方传 event.sender.send），不广播 */
-export async function generateReport(filter: StatsFilter, reader: ReportReader, requestId: string, send: (e: ChunkEvent) => void, senderGone: (cb: () => void) => () => void, options: ReportOptions = {}): Promise<GenerateResult & { reportId?: string }> {
+export async function generateReport(filter: StatsFilter, reader: ReportReader, requestId: string, send: (e: ChunkEvent) => void, senderGone: (cb: () => void) => () => void, options0: ReportOptions = {}): Promise<GenerateResult & { reportId?: string }> {
+  const options = stripTextbookIds(options0)
   const p = prepareReport(filter, reader, options)
   if (p.input.empty) return { ok: false, code: 'no_data', message: '当前筛选下没有计入统计的试卷，无法生成报告' }
   if (p.promptError) return { ok: false, code: 'bad_prompt', message: `报告提示词有问题：${p.promptError}（请联系管理员：设置 → 管理员设置 → 提示词，修正或恢复默认）` }

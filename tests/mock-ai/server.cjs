@@ -229,6 +229,12 @@ async function startMock(opts = {}) {
         }
 
         // 课程对照：认列 / 匹配（JSON）、话术 / 一句话（正文，流式）。故障指令沿用 p2_* 那组名字；matchDelayMs 让匹配慢一点（测进度和取消）
+        // 教研修订建议小结：只复述依据里的第一条（数字都来自提示词，不会被「编造数字」校验丢掉）
+        if (/教研老师的助手/.test(sys)) {
+          const first = (/^1\. (.+)$/m.exec(user) || [])[1] || '没有依据'
+          const c = JSON.stringify({ summary: `建议先处理第一条：${first}` })
+          return reply(res, { model: body.model, content: c, usage: usageOf(c) }, body.stream)
+        }
         if (courseKind) {
           if (state.courseDelayMs) await new Promise(r => setTimeout(r, state.courseDelayMs))
           let c = course.build(courseKind, user, { ...(state.quirks.course ?? {}) })

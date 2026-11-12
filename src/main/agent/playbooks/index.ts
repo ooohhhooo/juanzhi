@@ -11,6 +11,7 @@ import shareCards from './share-cards.md?raw'
 import satisfactionNps from './satisfaction-nps.md?raw'
 import studentFollowupList from './student-followup-list.md?raw'
 import weeklyReport from './weekly-report.md?raw'
+import coursewareRevision from './courseware-revision.md?raw'
 import { createPlaybooks } from './store.ts'
 
 export const BUILTIN_PLAYBOOK_FILES: Record<string, string> = {
@@ -21,7 +22,8 @@ export const BUILTIN_PLAYBOOK_FILES: Record<string, string> = {
   './satisfaction-nps.md': satisfactionNps,
   './share-cards.md': shareCards,
   './student-followup-list.md': studentFollowupList,
-  './weekly-report.md': weeklyReport
+  './weekly-report.md': weeklyReport,
+  './courseware-revision.md': coursewareRevision
 }
 
 const pb = createPlaybooks(BUILTIN_PLAYBOOK_FILES)
