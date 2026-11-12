@@ -42,7 +42,7 @@ async function main() {
 
   // ── 1. 进助手，运营角色，从「＋」添加数据文件 ──
   await goto('#/assistant'); await T('assistant-page').waitFor()
-  check('入口', '侧栏第一个是「助手」，第二个是「数据」', (await ctx.page.locator('.ewb-contents__link').nth(0).getAttribute('aria-label')) === '助手' && (await ctx.page.locator('.ewb-contents__link').nth(1).getAttribute('aria-label')) === '数据')
+  check('入口', '侧栏第一个是「助手」，最后一个主入口是「数据」', (await ctx.page.locator('.ewb-contents__link').nth(0).getAttribute('aria-label')) === '助手' && (await ctx.page.locator('.ewb-contents__link').nth(5).getAttribute('aria-label')) === '数据')
   const sugg = await ctx.page.locator('[data-testid^=assistant-suggest-]').allInnerTexts()
   check('推荐问题', '运营的推荐问题面向数据分析（4 条）', sugg.length === 4 && sugg[0].includes('满意度') && sugg.some(s => s.includes('到课率')) && sugg.some(s => s.includes('退费原因')) && sugg.some(s => s.includes('续费率')), sugg.join('｜'))
   await stubOpen(path.join(dir, 'survey.xlsx'))

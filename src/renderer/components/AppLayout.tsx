@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import FilterBar from '../stats/StatsFilter'
 import { useImportFlow } from '../hooks/useImportFlow'
 import { Btn, Contents, NAV_FOOTER, NAV_ITEMS } from '../design'
-import { Tooltip } from 'antd'
+import { Tooltip, Segmented } from 'antd'
+import { navKeyForPath, tabGroupForPath } from '../design/navGroups'
 import { updateNavView } from '../design/updateNav'
 import { useUpdateState } from '../hooks/useUpdate'
 import { asSubject } from '../../shared/subject'
@@ -14,7 +15,8 @@ import SubjectSwitch from './SubjectSwitch'
 
 /**
  * 应用外框（设计系统第二版）：浅灰底 + 窄图标侧栏（84px，图标 + 两字标签）+ 浮起的白色大画布。
- * 保留的测试钩子：.ewb-sider（审核页断言侧栏仍是窄栏）、data-testid=badge-queue / badge-review（只含数字）。
+ * 侧栏 6 项 + 设置；试卷 / 分析 / 课程三项里的各页用顶部标签切换（路由地址不变）。
+ * 测试钩子：.ewb-sider；标签上的数字 data-testid=badge-queue / badge-review（只含数字）；侧栏试卷角标 badge-papers。
  * 侧栏恒为窄栏，不需要像旧版那样在审核页自动收起：原卷页面直接占满画布宽度。
  */
 export default function AppLayout() {
@@ -56,11 +58,14 @@ export default function AppLayout() {
     </li>
   )
 
-  const selectedKey = location.pathname.startsWith('/paper/')
-    ? '/'
-    : location.pathname.startsWith('/review')
-      ? '/review'
-      : location.pathname
+  const selectedKey = navKeyForPath(location.pathname)
+  const tabGroup = tabGroupForPath(location.pathname)
+  // 标签上的数字（只含数字）：处理中、待审核；0 不显示
+  const tabLabel = (key: string, label: string) => {
+    const n = key === '/queue' ? active : key === '/review' ? reviewing : 0
+    const id = key === '/queue' ? 'badge-queue' : 'badge-review'
+    return n > 0 ? <span>{label} <span className="ewb-tabcount" data-testid={id}>{n}</span></span> : label
+  }
 
   const importFromOverview = async () => {
     const paths = await window.api.dialog.openFiles()
@@ -74,6 +79,12 @@ export default function AppLayout() {
         <Contents items={NAV_ITEMS(active, reviewing, courseReview)} footerItems={NAV_FOOTER} footerExtra={updateEntry} brandExtra={<SubjectSwitch />} activeKey={selectedKey} onNavigate={navigate} />
       </aside>
       <main className="ewb-main" data-testid="app-main">
+        {tabGroup && (
+          <div className="ewb-page ewb-page--filter ewb-page--tabs" data-testid="nav-tabs">
+            <Segmented value={location.pathname} onChange={v => navigate(String(v))}
+              options={tabGroup.tabs.map(t => ({ value: t.key, label: tabLabel(t.key, t.label) }))} />
+          </div>
+        )}
         {showFilter && (
           <div className="ewb-page ewb-page--filter">
             <FilterBar actions={location.pathname === '/overview' ? <Btn tone="primary" icon={Upload} data-testid="overview-import" onClick={importFromOverview}>导入试卷</Btn> : undefined} />
