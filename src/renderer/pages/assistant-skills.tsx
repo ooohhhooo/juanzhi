@@ -5,7 +5,7 @@ import { Plus, FileUp, FolderUp, FolderOpen, Copy, Pencil, Download, Trash2 } fr
 import { Btn } from '../design'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
-const ROLE_OPTIONS = [{ value: 'ops', label: '运营' }, { value: 'tutor', label: '辅导老师' }, { value: 'research', label: '教研' }, { value: 'teacher', label: '授课老师' }]
+const ROLE_OPTIONS = [{ value: 'ops', label: '运营' }, { value: 'tutor', label: '辅导老师' }, { value: 'research', label: '教研' }, { value: 'teacher', label: '主讲老师' }]
 const roleText = (roles: string[]) => (roles.length ? roles.map(r => ROLE_OPTIONS.find(o => o.value === r)?.label ?? r).join('、') : '全部角色')
 const MAX = 64 * 1024
 

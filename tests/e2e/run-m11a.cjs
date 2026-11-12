@@ -25,7 +25,7 @@ async function main() {
   await goto('#/assistant'); await T('assistant-page').waitFor()
   check('入口', '侧栏有「助手」，排在第一个，点进去是 /assistant', (await ctx.page.locator('.ewb-contents__link').first().getAttribute('aria-label')) === '助手' && (await ctx.page.evaluate(() => location.hash)) === '#/assistant')
   check('没配置', '没有设置 AI 服务：页面顶部说明并给「去设置」，输入框不可用', await waitFor(async () => (await count('assistant-noconfig')) === 1, 8000) && await T('assistant-input').isDisabled())
-  check('角色', '默认两个内置角色：运营、辅导老师（教研、授课老师先占位不显示）', (await txt('assistant-role-ops')) === '运营' && (await txt('assistant-role-tutor')) === '辅导老师' && (await count('assistant-role-research')) === 0)
+  check('角色', '默认四个内置角色：运营、辅导老师、教研、主讲老师', (await txt('assistant-role-ops')) === '运营' && (await txt('assistant-role-tutor')) === '辅导老师' && (await txt('assistant-role-research')) === '教研' && (await txt('assistant-role-teacher')) === '主讲老师')
 
   const cfg = cfgFor(mock, { auto_parse: false })
   await saveCfg(cfg, SECRET)

@@ -1,7 +1,7 @@
 import { ipcMain, dialog, clipboard } from 'electron'
 import fs from 'node:fs'
 import { z } from 'zod'
-import { getDb } from '../db'
+import { getDb, getDataDir } from '../db'
 import { getMainWindow } from '../window'
 import { allowPath } from '../allowedPaths'
 import { notifyDataChanged } from '../events'
@@ -27,6 +27,11 @@ import {
 import { promptVersionFor } from '../ai/prompts'
 import type { SuggestResult } from '../course/service'
 import { createJobQueue } from '../course/job-queue'
+import { researchTableWithCourseware, clampPerKp } from '../course/research-table'
+import { researchXlsx } from '../course/research-xlsx'
+import { polishAdvice } from '../course/research-service'
+import { addCourseware, dropCoursewareOf, listCourseware, lessonKey, removeCourseware } from '../course/courseware'
+import { readCoursewareFile } from '../course/doc-read'
 import type { AdviceScope } from '../course/service'
 
 const FilterArg = StatsFilterSchema.default({})
@@ -125,6 +130,7 @@ export function registerCourseIpc(): void {
     const oid = IdSchema.parse(id)
     if (outlineBusy(oid)) throw new Error('这个课程体系正在匹配 / 生成家长建议，请等它结束或先取消，再删除')
     const ok = removeOutline(db(), oid)
+    if (ok) dropCoursewareOf(getDataDir(), oid)
     log.info('course', '删除课程体系', { ok })
     notifyDataChanged('course')
     return ok
@@ -362,6 +368,59 @@ export function registerCourseIpc(): void {
     }
     return { saved: true, path: r.filePath, rows: r0.units.reduce((n, u) => n + Math.max(1, u.kps.length), 0) }
   })
+
+  // ───── 教研对照表：机构大纲 A（+B）× 学校教材 × 校内试卷；课件按节挂在大纲上（只在本机读文字，存在数据目录里） ─────
+  const ResearchScope = z.object({ filter: FilterArg, courseId: IdSchema, courseBId: IdSchema.optional(), textbookIds: z.array(IdSchema).max(60).default([]), perKp: z.number().int().min(1).max(10).default(3), ai: z.boolean().default(false) })
+  const buildResearch = async (raw: unknown) => {
+    const s = ResearchScope.parse(raw)
+    const table = researchTableWithCourseware(db(), getDataDir(), s.filter, { courseId: s.courseId, courseBId: s.courseBId, textbookIds: s.textbookIds, perKp: clampPerKp(s.perKp) })
+    let aiNote = ''
+    if (s.ai && table.ready) {
+      const r = await polishAdvice(table, getDataDir())
+      aiNote = r.note
+      notifyDataChanged('usage')
+    }
+    return { table, aiNote, filterDesc: describeFilter(s.filter, 0) }
+  }
+  ipcMain.handle('course:researchTable', async (_e, raw: unknown) => buildResearch(raw))
+  ipcMain.handle('course:researchExport', async (_e, raw: unknown) => {
+    const r = await buildResearch(raw)
+    if (!r.table.ready) throw new Error(r.table.reason)
+    const buf = await researchXlsx(r.table, { filterDesc: r.filterDesc, generatedAt: new Date().toLocaleString('zh-CN', { hour12: false }) })
+    const win = getMainWindow()
+    const opts: Electron.SaveDialogOptions = { title: '导出教研对照表', defaultPath: '教研对照表.xlsx', filters: [{ name: 'Excel 表格', extensions: ['xlsx'] }] }
+    const d = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (d.canceled || !d.filePath) return { saved: false }
+    try { fs.writeFileSync(d.filePath, buf) } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code
+      throw new Error(code === 'EBUSY' || code === 'EPERM' || code === 'EACCES' ? '文件正被其他程序占用（比如 Excel 里还开着它）或没有写入权限，请关闭后重试' : `保存失败：${(e as Error).message}`)
+    }
+    return { saved: true, path: d.filePath, rows: r.table.lessons.reduce((n, l) => n + Math.max(1, l.kps.length), 0), aiNote: r.aiNote }
+  })
+  ipcMain.handle('course:coursewareList', async (_e, outlineId: unknown) => listCourseware(getDataDir(), IdSchema.parse(outlineId)))
+  /** 给某一节挂课件：弹系统对话框（可多选），文字只在本机读出来 */
+  ipcMain.handle('course:coursewareAdd', async (_e, raw: unknown) => {
+    const p = z.object({ outlineId: IdSchema, levelName: z.string().min(1).max(80), seq: z.number().int().min(0).max(99999) }).parse(raw)
+    const win = getMainWindow()
+    const opts: Electron.OpenDialogOptions = { title: '选择这一节的课件', filters: [{ name: '课件（PDF、Word、PPT、文本、图片）', extensions: ['pdf', 'docx', 'pptx', 'ppt', 'doc', 'txt', 'md', 'png', 'jpg', 'jpeg', 'heic'] }, { name: '所有文件', extensions: ['*'] }], properties: ['openFile', 'multiSelections'] }
+    const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    if (r.canceled || !r.filePaths.length) return null
+    const added: Array<{ id: string; name: string; chars: number }> = []
+    const errors: string[] = []
+    for (const f of r.filePaths.slice(0, 10)) {
+      const name = f.replace(/^.*[\\/]/, '')
+      try {
+        if (fs.statSync(f).size > 200 * 1024 * 1024) throw new CourseFileError('文件太大了（超过 200MB）')
+        const text = await readCoursewareFile(f)
+        if (!text.trim()) throw new CourseFileError('没有读到文字（可能整份是图片，需要本机有文字识别）')
+        const it = addCourseware(getDataDir(), p.outlineId, lessonKey(p.levelName, p.seq), name, text)
+        added.push({ id: it.id, name: it.name, chars: it.chars })
+      } catch (e) { errors.push(`${name}：${e instanceof Error ? e.message : String(e)}`) }
+    }
+    log.info('course', '挂课件', { added: added.length, errors: errors.length })
+    return { added, errors }
+  })
+  ipcMain.handle('course:coursewareRemove', async (_e, outlineId: unknown, id: unknown) => removeCourseware(getDataDir(), IdSchema.parse(outlineId), z.string().min(1).max(40).parse(id)))
 
   // ───── 家长沟通建议（流式走 ai:chunk，取消用 ai:cancel） ─────
   ipcMain.handle('course:adviceState', async (_e, raw: unknown) => adviceState(db(), toScope(raw)))

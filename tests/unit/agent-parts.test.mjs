@@ -37,7 +37,7 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
 // ───── 注册表 ─────
 {
   const r = createRegistry()
-  assert.deepEqual(r.names().sort(), ['ask_user', 'course_coverage', 'course_for_kp', 'delegate_tasks', 'fact_check', 'history_read', 'history_search', 'kp_questions', 'load_playbook', 'papers_for_kp', 'papers_list', 'report_read', 'reports_list', 'session_state', 'stats_overview', 'update_plan'])
+  assert.deepEqual(r.names().sort(), ['ask_user', 'course_coverage', 'course_for_kp', 'courseware_read', 'delegate_tasks', 'fact_check', 'history_read', 'history_search', 'kp_questions', 'lesson_kps', 'load_playbook', 'papers_for_kp', 'papers_list', 'report_read', 'reports_list', 'research_table', 'session_state', 'stats_overview', 'textbook_locate', 'update_plan'])
   const specs = r.specs(['update_plan', 'nope'])
   assert.equal(specs.length, 1); assert.equal(specs[0].type, 'function'); assert.equal(specs[0].function.name, 'update_plan'); assert.equal(specs[0].function.parameters.type, 'object')
   assert.throws(() => r.register(r.get('update_plan')), /重名/)
@@ -106,12 +106,14 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
 
 // ───── 角色 ─────
 {
-  assert.deepEqual(enabledRoles().map(r => r.id), ['ops', 'tutor'])
+  assert.deepEqual(enabledRoles().map(r => r.id), ['ops', 'tutor', 'research', 'teacher'])
   const ops = getRole('ops'), tutor = getRole('tutor')
   assert.deepEqual([roleName(ops, 'org'), roleName(ops, 'school'), roleName(tutor, 'org'), roleName(tutor, 'school')], ['运营', '教务/年级主任', '辅导老师', '班主任'])
-  assert.deepEqual([roleName(getRole('research'), 'org'), roleName(getRole('research'), 'school'), roleName(getRole('teacher'), 'org'), roleName(getRole('teacher'), 'school')], ['教研', '教研组长', '授课老师', '任课老师'])
+  assert.deepEqual([roleName(getRole('research'), 'org'), roleName(getRole('research'), 'school'), roleName(getRole('teacher'), 'org'), roleName(getRole('teacher'), 'school')], ['教研', '教研组长', '主讲老师', '任课老师'])
   for (const r of enabledRoles()) { assert.ok(r.suggestions.length >= 3 && r.suggestions.length <= 5); assert.ok(r.persona.length > 10) }
-  assert.ok(getRole('research').enabled === false && getRole('teacher').enabled === false)
+  assert.ok(getRole('research').enabled && getRole('teacher').enabled, '教研、主讲老师已启用')
+  for (const id of ['research', 'teacher']) for (const t of ['research_table', 'textbook_locate', 'lesson_kps', 'courseware_read']) assert.ok(getRole(id).tools.includes(t), `${id} 有 ${t}`)
+  assert.ok(!getRole('ops').tools.includes('research_table'), '运营不带教研工具')
 }
 
 // ───── 剧本 ─────
@@ -139,7 +141,7 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
   assert.equal(merged.find(x => x.name === '学情周报').source, 'user', '同名用户覆盖内置')
   const opsNames = playbooksForRole(merged, 'ops').map(x => x.name)
   assert.ok(opsNames.includes('测试剧本') && opsNames.includes('renewal') && !opsNames.includes('学情周报'), '按角色过滤（用户版学情周报只给辅导老师）')
-  assert.equal(builtin.length, 8, '内置剧本一共 8 个：6 个数据分析 + 学情周报 + 分享卡片')
+  assert.equal(builtin.length, 9, '内置剧本一共 9 个：6 个数据分析 + 学情周报 + 分享卡片 + 课件修订对照')
   assert.match(playbookCatalog([weekly]), /^- 学情周报：/)
   // 系统提示：规矩 + 角色 + 剧本目录；不含机构名
   const sp = buildSystemPrompt({ role: getRole('ops'), scene: 'school', playbooks: [weekly], today: '2026-11-03' })

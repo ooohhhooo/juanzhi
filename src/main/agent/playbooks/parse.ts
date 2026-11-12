@@ -2,10 +2,10 @@
  * 剧本（playbook）文件的解析与校验：Markdown 开头是 frontmatter（--- 包起来的 key: value），正文是分析方法。
  * 纯函数，不依赖 electron；Agent 内核读取剧本文本后用它取 name / description / roles / when。
  */
-export const PLAYBOOK_ROLES = ['运营', '辅导老师', '教研', '授课老师'] as const
+export const PLAYBOOK_ROLES = ['运营', '辅导老师', '教研', '主讲老师', '授课老师'] as const
 export type PlaybookRole = (typeof PLAYBOOK_ROLES)[number]
 /** 角色可以写中文名，也可以写内核里的角色编号；解析后统一成编号（内核按编号给角色筛选剧本） */
-export const ROLE_IDS: Record<string, string> = { 运营: 'ops', 辅导老师: 'tutor', 教研: 'research', 授课老师: 'teacher', ops: 'ops', tutor: 'tutor', research: 'research', teacher: 'teacher' }
+export const ROLE_IDS: Record<string, string> = { 运营: 'ops', 辅导老师: 'tutor', 教研: 'research', 主讲老师: 'teacher', 授课老师: 'teacher', ops: 'ops', tutor: 'tutor', research: 'research', teacher: 'teacher' }
 
 /** roles 是角色编号（ops / tutor / research / teacher） */
 export interface Playbook { name: string; description: string; roles: string[]; when: string; body: string }

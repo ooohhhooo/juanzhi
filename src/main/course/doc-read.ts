@@ -31,6 +31,8 @@ export interface RichRead {
 }
 
 export interface ReadOpts {
+  /** 课件等长文档放宽 PDF 页数上限 */
+  maxPages?: number
   /** 课程表 / 教材课本；不传 = 自动（PDF 超过课程表页数上限时会请用户确认是不是教材） */
   kind?: 'course' | 'textbook'
   /** 页码范围文字，如 "1-60"；空 = 全部 */
@@ -64,15 +66,16 @@ async function pdfText(file: string, opts: ReadOpts): Promise<{ lines: string[];
   const total = await countPdfPages(file).catch(e => { throw new CourseFileError((e as Error).message) })
   const sel = pagesOf(opts.pageRange, total)
   const count = sel?.length ?? total
-  if (count > MAX_PAGES) {
+  const cap = opts.maxPages ?? MAX_PAGES
+  if (count > cap) {
     if (!opts.kind && !opts.pageRange) throw new TextbookSuggest(total, file)
-    throw new CourseFileError(tooManyPagesMessage(count, MAX_PAGES, total))
+    throw new CourseFileError(tooManyPagesMessage(count, cap, total))
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ewb-course-'))
   try {
     let pages
     // 文字够用的页不出图（不跑画布、不写 PNG）；没文字层的页才出图，后面做 OCR
-    try { pages = await renderPdfPages(file, dir, { pages: sel ?? undefined, maxPages: MAX_PAGES, needImage: t => !judgeTextLayer(t).usable }) } catch (e) {
+    try { pages = await renderPdfPages(file, dir, { pages: sel ?? undefined, maxPages: cap, needImage: t => !judgeTextLayer(t).usable }) } catch (e) {
       if (e instanceof PdfPageLimitError) throw new CourseFileError(tooManyPagesMessage(e.pages, e.max, e.total))
       throw e
     }
@@ -287,4 +290,21 @@ export async function readRichFile(file: string, buf: Buffer | null, kind: RichK
   if (n.text.length > MAX_SOURCE_CHARS) throw new CourseFileError(`${KIND_LABEL[kind]}里的文字太多了（超过 ${MAX_SOURCE_CHARS / 10000} 万字），不像一份课程表。如果这是一本教材，请选「教材课本」；否则请截取课程表的部分再上传`)
   log.info('course', '读取文档文字', { kind, lines: n.lines.length, pages })
   return { text: { numbered: n.text, lines: n.lines, pages } }
+}
+
+/** 机构课件：PDF / Word / PPT（.pptx）/ 文本 / 图片 → 一整段文字（只在本机读，不发给 AI）。旧版 .ppt / .doc 提示另存 */
+export async function readCoursewareFile(file: string): Promise<string> {
+  const ext = path.extname(file).toLowerCase()
+  if (ext === '.pdf') return (await pdfText(file, { kind: 'textbook', maxPages: 150 })).lines.join('\n')
+  if (ext === '.docx') {
+    try { return (await wordText(file)).join('\n') } catch { throw new CourseFileError('这个 Word 文档打不开，可能已损坏，或者不是 .docx') }
+  }
+  if (ext === '.pptx') {
+    const { pptxText } = await import('./courseware')
+    try { return await pptxText(fs.readFileSync(file)) } catch (e) { throw new CourseFileError((e as Error).message) }
+  }
+  if (ext === '.ppt' || ext === '.doc' || ext === '.dps' || ext === '.wps') throw new CourseFileError('旧版格式读不了，请在 PowerPoint / Word / WPS 里另存为 .pptx、.docx 或 PDF 再添加')
+  if (ext === '.txt' || ext === '.md') return fs.readFileSync(file, 'utf8')
+  if (['.png', '.jpg', '.jpeg', '.heic'].includes(ext)) return (await imageText(file, ext)).join('\n')
+  throw new CourseFileError('课件支持 PDF、Word（.docx）、PPT（.pptx）、文本和图片')
 }

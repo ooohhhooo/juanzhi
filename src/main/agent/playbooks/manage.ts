@@ -8,7 +8,7 @@ import path from 'node:path'
 import { parsePlaybook, ROLE_IDS, type Playbook } from './parse.ts'
 
 export const MAX_BODY_BYTES = 64 * 1024
-const ROLE_NAME_BY_ID: Record<string, string> = { ops: '运营', tutor: '辅导老师', research: '教研', teacher: '授课老师' }
+const ROLE_NAME_BY_ID: Record<string, string> = { ops: '运营', tutor: '辅导老师', research: '教研', teacher: '主讲老师' }
 
 export interface SkillInput { name: string; description: string; roles: string[]; when?: string; body: string; origin?: 'imported' }
 export interface SkillFile { file: string; playbook: Playbook; origin?: 'imported' }

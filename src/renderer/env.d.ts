@@ -206,6 +206,12 @@ interface ElectronAPI {
     compare(scope: CourseCompareScope): Promise<CourseCompareResult>
     compareCopy(scope: CourseCompareScope): Promise<{ text: string; chars: number }>
     compareExport(scope: CourseCompareScope): Promise<{ saved: boolean; path?: string; rows?: number }>
+    /** 教研对照表：A（+B）× 教材 × 校内试卷；ai = 让 AI 把依据写成小结 */
+    researchTable(scope: ResearchScope): Promise<{ table: import('../main/course/research-table').ResearchTable; aiNote: string; filterDesc: string }>
+    researchExport(scope: ResearchScope): Promise<{ saved: boolean; path?: string; rows?: number; aiNote?: string }>
+    coursewareList(outlineId: string): Promise<Array<{ id: string; name: string; key: string; chars: number; addedAt: string }>>
+    coursewareAdd(req: { outlineId: string; levelName: string; seq: number }): Promise<{ added: Array<{ id: string; name: string; chars: number }>; errors: string[] } | null>
+    coursewareRemove(outlineId: string, id: string): Promise<boolean>
     adviceState(scope: CourseScope): Promise<CourseAdviceState>
     adviceGenerate(scope: CourseScope, requestId: string): Promise<AnalysisResult>
     /** 「我已核对」：acknowledged = 逐句确认无误的“未核实”句子；矛盾句必须重新生成 */
@@ -741,6 +747,7 @@ type CourseOutlineCard = import('../main/course/store').OutlineCard
 type CourseCatalogEdition = import('../main/course/textbook-builtin').CatalogInfo
 type CourseCompareResult = import('../main/course/compare').CompareResult
 interface CourseCompareScope { filter: StatsFilter; courseId: string; textbookIds: string[] }
+interface ResearchScope { filter: StatsFilter; courseId: string; courseBId?: string; textbookIds: string[]; perKp: number; ai?: boolean }
 type CourseOutlineDetail = import('../main/course/store').OutlineDetail
 type CourseLessonRow = import('../main/course/store').LessonRow
 type CourseMapEdit = import('../main/course/store').MapEdit

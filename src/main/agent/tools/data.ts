@@ -25,7 +25,7 @@ const oneLine = (s: string | null | undefined, n: number) => {
 }
 
 // ───────── 公共：筛选参数 ─────────
-const FilterShape = {
+export const FilterShape = {
   grade: z.enum(['1', '2', '3', '4', '5', '6']).optional().describe('年级，1 到 6'),
   semester: z.enum(['上', '下']).optional().describe('学期'),
   school_year_start: z.number().int().min(2000).max(2100).optional().describe('学年的起始年，例如 2025 表示 2025-2026 学年'),
@@ -36,8 +36,8 @@ const FilterShape = {
 }
 type FilterArgs = { grade?: StatsFilter['grade']; semester?: StatsFilter['semester']; school_year_start?: number; exam_type?: StatsFilter['exam_type']; textbook?: string; region?: string; include_reviewing?: boolean }
 /** 筛选里的学科由会话决定，模型不能自己改：所有统计都强制带上会话的学科 */
-const subjectOf = (ctx: ToolCtx): SubjectId => sessionSubject(ctx.db, ctx.sessionId)
-const toFilter = (a: FilterArgs, subject: SubjectId = 'english'): StatsFilter => {
+export const subjectOf = (ctx: ToolCtx): SubjectId => sessionSubject(ctx.db, ctx.sessionId)
+export const toFilter = (a: FilterArgs, subject: SubjectId = 'english'): StatsFilter => {
   const f: StatsFilter = { subject }
   if (a.grade) f.grade = a.grade
   if (a.semester) f.semester = a.semester
@@ -48,7 +48,7 @@ const toFilter = (a: FilterArgs, subject: SubjectId = 'english'): StatsFilter =>
   if (a.include_reviewing) f.includeReviewing = true
   return f
 }
-const describeFilter = (a: FilterArgs): string => {
+export const describeFilter = (a: FilterArgs): string => {
   const p: string[] = []
   if (a.grade) p.push(`${a.grade} 年级`)
   if (a.semester) p.push(`${a.semester}学期`)

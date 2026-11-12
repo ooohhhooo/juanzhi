@@ -120,7 +120,7 @@ export function mayBeShort(est: Pick<CostEstimate, 'high'>, balance: number | nu
 }
 
 export const KIND_LABELS: Record<string, string> = {
-  'course-match': '课程匹配', 'course-cols': '课程整理（认列）', 'course-extract': '课程整理（文档提取）', 'course-advice': '课程话术', 'analysis-classify': '文字归类',
+  'course-match': '课程匹配', 'course-cols': '课程整理（认列）', 'course-extract': '课程整理（文档提取）', 'course-advice': '课程话术', 'research-advice': '教研修订建议小结', 'analysis-classify': '文字归类',
   p3_report: '报告（完整数据版）', p3_boss: '报告（运营版）', p3_parent: '报告（家长版）', p3_teacher: '报告（老师版）',
   p3_tricks: '报告口诀', p4_variant_gen: '报告变形题', p4_variant_check: '变形题核对', p5_course_advice: '报告课程对照', p5_course_hint: '报告课程一句话',
   p2_yoy: '同比分析', p2_kp: '考点分析', 'parse-text': '试卷解析（文字）', 'parse-vision': '试卷解析（读图）', 'test-text': '连接测试', 'test-vision': '连接测试', agent: '助手'
