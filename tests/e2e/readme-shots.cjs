@@ -1,4 +1,4 @@
-// README 截图脚本：用内置「示例数据」（英语 12 份 + 语文、数学各 8 份虚构试卷）+ mock AI 重拍 docs/screenshots/readme-v14-*.png。
+// README 截图脚本：用内置「示例数据」（英语 12 份 + 语文、数学各 8 份虚构试卷）+ mock AI 重拍 docs/screenshots/readme-v16-*.png。
 // 全部数据虚构（示例试卷、tests/fixtures/gen-ops-data.cjs 的假问卷、课程表示例），没有真实机构和学生。
 // 窗口内容区固定 1440×900，浅色主题；每张图拍之前等提示条消失、等加载完。
 // 用法：npm run docs:shots   （沙箱外运行；PATH=/usr/bin:$PATH，去掉代理变量）
@@ -23,7 +23,7 @@ async function shot(name, settleMs = 900) {
   await page.waitForFunction(() => !document.querySelector('.ant-spin-spinning, .ant-skeleton-active, [aria-busy=true]'), null, { timeout: 15000 }).catch(() => {})
   await page.mouse.move(WIDTH - 4, HEIGHT - 4)
   await sleep(settleMs)
-  const file = path.join(OUT, `readme-v14-${name}.png`)
+  const file = path.join(OUT, `readme-v16-${name}.png`)
   await page.screenshot({ path: file })
   console.log('shot', file, Math.round(fs.statSync(file).size / 1024) + ' KB')
 }

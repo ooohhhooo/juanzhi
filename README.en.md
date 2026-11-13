@@ -11,9 +11,9 @@ Turn a stack of primary-school Chinese, math and English exam papers into a "dic
 
 > **Note:** The app's interface, its AI prompts and the reports it generates are in Chinese only. It is built for Chinese primary schools (Chinese, math and English as taught in mainland China, with Chinese school years and semesters). This English README only explains how to install and use it.
 
-![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v14-overview.png)
+![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v16-overview.png)
 
-> **This is the 1.5.0 public beta (公测版).** New: Chinese and math subjects (the whole workflow works for them, as for English); files dropped into the window are sorted into the paper library or the Data page automatically, and the app checks each paper\'s subject and warns you if it looks misplaced. The assistant, data import, WeCom and MCP connectors added in 1.4 still work as before. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
+> **This is the 1.6.0 public beta (公测版).** New: a 「教研对照表」(Research table) for curriculum staff that shows, lesson by lesson, which knowledge point each lesson covers, where it sits in the school textbook (down to the page), and how school papers test it, with Excel export. Upload a whole textbook PDF and the app turns it into a searchable local text library and finds locations by exact text. Matching is now computed by the program, and anything uncertain is left out of the table. During paper review, questions where the AI and the rules agree are approved automatically. Built-in textbooks now cover 41 editions, and the sidebar is down to 6 items. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
 
 > **Download: [click here to open the download page](https://github.com/ooohhhooo/juanzhi/releases/latest)**　|　Full installation guide: [docs/安装指南.md](docs/安装指南.md) (the guide is in Chinese)
 
@@ -40,13 +40,21 @@ Turn a stack of primary-school Chinese, math and English exam papers into a "dic
 
 Juanzhi is a program you install on your computer. It is made for **primary-school Chinese, math and English tutoring teachers, teaching-research staff and operations staff**. First pick a subject at the top of the sidebar, then drag in your school's midterm and final papers (PDF, Word, or photos taken with a phone). Then it does four things:
 
-1. **Splits and labels the questions.** The AI separates every question and labels which knowledge point it tests, how hard it is, and how easy it is to get wrong. Teachers can check and edit each question on the Review page (「审核」).
+1. **Splits and labels the questions.** The AI separates every question and labels which knowledge point it tests, how hard it is, and how easy it is to get wrong. Teachers can check and edit each question on the Review page (「审核」). Questions where the AI's knowledge point agrees with the program's rules, and whose text has no problems such as unclear or missing words, are **approved automatically** (marked 「自动通过」); the review page says how many were auto-approved and how many are left to look at. You can turn this off in Settings → 「AI 服务」.
 2. **Counts the exam points.** The Overview page turns the exam points into a "dictionary". Each exam point is one entry with a plain-language explanation, an example, how many papers tested it, and screenshots from the original papers. The Analysis dashboard (「分析看板」) shows the distribution, compares with earlier years, and finds key and difficult points. It also works the other way round: in the paper library you can find papers by exam point (pick one or more points, and choose "all of them" or "any of them"); select a few papers and click 「知识点对比」(Exam-point comparison), and the dashboard puts the papers side by side against the exam points, so you can see which points every paper tests and which only one does. Click a cell to see the original questions, or export to Excel. You can also ask the assistant which papers tested a given point.
 3. **Writes reports for each reader.** The same data is written up in different versions for different people.
-4. **Maps exam points to your courses.** Upload your own course table (Excel, CSV, Word, PDF or an image; non-spreadsheet files are turned into a table by the AI for you to check before saving; course-table PDFs up to 20 pages) on the 「课程大纲」(Course outlines) page in the sidebar, and the AI maps exam points to lessons. You can also upload a whole **textbook**: choose 「教材课本」(Textbook) and the app finds the table of contents, splits the book into units, and asks the AI to pick a few knowledge points per unit from the existing knowledge-point tree (the whole book ends up as a dozen to a few dozen rows that you check unit by unit; up to 300 pages; scanned books need OCR and are slow, so you can process only some pages). The 「课程对照」(Course mapping) tab on the dashboard shows which lesson covers each error-prone point and which frequently tested points no lesson covers. Tick 「加入课程对照」(Include course mapping) when generating a report to add it to the report too.
-   - **Built-in school textbooks.** On the 「课程大纲」 page click 「添加学校教材」(Add school textbook), pick an edition (Chinese: Tongbian; Maths: PEP / Beijing Normal; English: PEP / Foreign Language Teaching and Research Press / Yilin), grades and terms. Each unit comes with its exam points already mapped, so no AI matching is needed, and 「重新从内置更新」(refresh from built-in) is always available. Each edition keeps a single current table of contents (no old/new split); the edition list is searchable.
-   - **Course vs textbook.** On the dashboard 「课程对照」 tab switch to 「机构课程 vs 学校教材」(Course vs school textbook), pick one course and one or more textbook terms: for every textbook unit you see which exam points your course covers and which it does not, which points your course teaches beyond the textbook, and, using your papers, the frequently tested points your course misses come first. Export as CSV or copy as text.
-   - **Research table (for curriculum researchers).** On the Courses page open 「教研对照表」(Research table), pick one of your course outlines (A, optionally a second one B to compare), some textbooks (searchable, grouped by edition; built-in books you have not added yet are added for you) and a paper scope. You get one row per lesson of A: the exam points the lesson maps to (grouped by top-level category), where each point sits in each textbook (volume and unit, with page range for uploaded books; "coarse" when only a broader category matches), the original questions from your papers (stem, options, answer, paper title, question number; error-prone and frequent first, N per point), and the matching lessons in B. Separate lists show points only A or only B teaches, and points the textbooks have but your outline does not. Export everything to Excel. You can also attach your own **courseware** (PDF, Word, PPT; text is read locally and stored in the data folder) to each lesson, which adds a 「修订建议」(revision advice) column: add (frequently tested or in the textbook but missing from the courseware), align (unit order differs from the textbook), swap example (use this original question), trim (taught but neither in the textbook nor tested). Every item carries its evidence (numbers and locations computed by the program); the AI may optionally summarise the evidence, and any summary containing numbers not in the evidence is discarded. The assistant roles 「教研」(Research) and 「主讲老师」(Lead teacher) can do the same, and a built-in Skill 「课件修订对照」(Courseware revision) walks through it.
+4. **Maps exam points to your courses.** Upload your own course table (Excel, CSV, Word, PDF or an image; non-spreadsheet files are turned into a table by the AI for you to check before saving; course-table PDFs up to 20 pages) on the 「课程大纲」(Course outlines) page. The 「课程对照」(Course mapping) tab on the dashboard shows which lesson covers each error-prone point and which frequently tested points no lesson covers. Tick 「加入课程对照」(Include course mapping) when generating a report to add it to the report (one outline is selected by default, up to three, searchable when you have many).
+   - **Whole textbook upload (improved in 1.6).** Choose 「教材课本」(Textbook) and upload the textbook PDF. The app builds a local **textbook text library** on your computer: it stores the text page by page, splits the book into units, reads the word lists and sentences at the back, and records printed page numbers. No AI is used for this. The textbook's lessons are the book's units, with pages and word lists, and knowledge points are computed by the program from each unit's word list, so no AI matching is needed. Up to 300 pages; scanned books (no text layer) need OCR, are slow, and their word lists cannot be read.
+   - **Built-in school textbooks.** On the 「课程大纲」 page click 「添加学校教材」(Add school textbook), pick an edition, grades and terms. Each unit comes with its knowledge points already mapped. There are 41 editions: 31 English (PEP, FLTRP, Yilin, Beijing Normal, Hebei, Xiangshao, Shanghai Oxford and more), 9 math and the Tongbian Chinese edition; the list is searchable. Each edition keeps a single current table of contents. Most English editions only have unit-level summaries and are marked 「按目录」(by table of contents).
+   - **Course vs textbook.** On the dashboard 「课程对照」 tab switch to 「机构课程 vs 学校教材」(Course vs school textbook), pick one course and one or more textbook terms: for every textbook unit you see which knowledge points your course covers and which it does not, which points your course teaches beyond the textbook, and, using your papers, the frequently tested points your course misses come first.
+   - **Research table (new in 1.6, for curriculum staff).** On the Courses page open 「教研对照表」 and follow three steps: pick your course outline → pick school textbooks → generate. You get one row per lesson:
+     - **Knowledge points**, recognised by the program from marker words (for example visited and watched mean the past simple), at most 3 main ones per lesson, with the matched words shown;
+     - **Textbook location**: for textbooks you uploaded, the lesson's words and sentence patterns are searched in the book's text, e.g. "PEP Grade 3 Vol. 1, U1 Hello! p.4 · textbook text: same words ruler, pencil · same pattern Hello, I'm…"; otherwise the built-in table of contents is used and marked 「按目录」;
+     - **Share of school papers**, e.g. "about 0.7 points · tested in 4/11 papers · frequent · 2 error-prone questions";
+     - **School example questions** that test the point, with paper, question number and evidence, error-prone ones first;
+     - **Revision advice**: attach your courseware (PDF, Word, PPT, read locally) to a lesson to get add / align / swap example / trim suggestions, each with its evidence.
+     
+     **Uncertain matches are left out.** A link enters the table only when the program finds an exact text match or two independent kinds of evidence agree; the rest is summarised in one small line under the table. The AI is used only when you click 「让 AI 写修订小结」(AI revision summary) to put the evidence into words, and any summary containing numbers not in the evidence is discarded. You can compare a second outline and export everything to Excel. The assistant roles 「教研」(Research) and 「主讲老师」(Lead teacher) and the built-in Skill 「课件修订对照」(Courseware revision) can do the same.
 
 **Three subjects (new in 1.5):**
 
@@ -56,7 +64,7 @@ Juanzhi is a program you install on your computer. It is made for **primary-scho
 | Math (数学) | 147 (numbers, calculation, quantitative relations, measures, geometry, statistics and probability, word problems, mathematical thinking) | 21 | Works across textbook editions (人教, 北师大, 苏教, 青岛 6-3 / 5-4, 冀教, 西师, 北京, 沪教). Topics removed from the new textbooks but common in older papers (such as equations) are kept and marked 【旧教材】 (old textbook) |
 | English (英语) | 145 | 22 | Same as before |
 
-![Switched to Math: the overview only counts math papers, and the categories are math's own](docs/screenshots/readme-v14-subjects.png)
+![Switched to Math: the overview only counts math papers, and the categories are math's own](docs/screenshots/readme-v16-subjects.png)
 
 The trees follow the 2022 national curriculum standards and the new textbook editions; the research notes (in Chinese) are in [docs/学科调研](docs/学科调研/). You can edit each subject's tree in Settings → 知识点树 (Knowledge-point tree). In math, a whole section of mental arithmetic, column calculation or step-by-step calculation counts as one question.
 
@@ -104,15 +112,15 @@ Below is a real generated parent version. It was generated with DeepSeek from th
 
 | Question-by-question review | Analysis dashboard | AI report |
 |---|---|---|
-| ![Review page](docs/screenshots/readme-v14-review.png) | ![Analysis dashboard](docs/screenshots/readme-v14-dashboard.png) | ![Report page](docs/screenshots/readme-v14-report.png) |
+| ![Review page](docs/screenshots/readme-v16-review.png) | ![Analysis dashboard](docs/screenshots/readme-v16-dashboard.png) | ![Report page](docs/screenshots/readme-v16-report.png) |
 
-| Course mapping: which lesson covers each error-prone point | Assistant: analyse data by asking questions |
-|---|---|
-| ![Course mapping](docs/screenshots/readme-v14-course.png) | ![Assistant](docs/screenshots/readme-v14-assistant.png) |
+| Research table: knowledge points, textbook locations and school questions per lesson | Course mapping: which lesson covers each error-prone point | Assistant: analyse data by asking questions |
+|---|---|---|
+| ![Research table](docs/screenshots/readme-v16-research.png) | ![Course mapping](docs/screenshots/readme-v16-course.png) | ![Assistant](docs/screenshots/readme-v16-assistant.png) |
 
 | Share cards | Data | Settings |
 |---|---|---|
-| ![Share cards](docs/screenshots/readme-v14-cards.png) | ![Data](docs/screenshots/readme-v14-data.png) | ![Settings](docs/screenshots/readme-v14-settings.png) |
+| ![Share cards](docs/screenshots/readme-v16-cards.png) | ![Data](docs/screenshots/readme-v16-data.png) | ![Settings](docs/screenshots/readme-v16-settings.png) |
 
 ---
 
@@ -190,12 +198,12 @@ Without an API Key you can still install the app and look at the "sample data". 
 
 | Your computer | Click this file |
 |---|---|
-| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.5.0-mac-arm64.dmg` |
-| Mac with Intel processor | `Juanzhi-1.5.0-mac-x64.dmg` |
-| Windows (recommended) | `Juanzhi-1.5.0-win-x64-setup.exe` (installer version) |
-| Windows, without permission to install | `Juanzhi-1.5.0-win-x64-portable.exe` (no-install version, double-click to use) |
+| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.6.0-mac-arm64.dmg` |
+| Mac with Intel processor | `Juanzhi-1.6.0-mac-x64.dmg` |
+| Windows (recommended) | `Juanzhi-1.6.0-win-x64-setup.exe` (installer version) |
+| Windows, without permission to install | `Juanzhi-1.6.0-win-x64-portable.exe` (no-install version, double-click to use) |
 
-- The `1.5.0` in the file name is the version number. Use the latest version shown on the page.
+- The `1.6.0` in the file name is the version number. Use the latest version shown on the page.
 - **Do not click** `Source code (zip)` or `Source code (tar.gz)`. That is source code for programmers, not an installer.
 - If you are not sure which chip your Mac has, download the Intel version (`mac-x64`). A Mac with an Apple chip can usually open it too (the system may ask you to install Rosetta. Just follow the prompt). The reverse does not work: the Apple-chip installer cannot be opened on an Intel Mac.
 - **If your browser says the file "isn't commonly downloaded" or "may be harmful"** (「此文件不常被下载」「可能有害」): in Edge, click the "…" next to the file, then "Keep", then "Keep anyway" (「保留」→「仍然保留」). In Chrome, click "Keep". The reason is the same: there is no signing certificate.
@@ -515,7 +523,7 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 - **Your data is stored on your own computer.** There is no cloud and no account. Location: on a Mac, "your Home folder / Library / Application Support / english-exam-workbench". On Windows, `%APPDATA%\english-exam-workbench`.
 - **Only when you ask the AI to analyse papers or generate reports** is paper text sent to the AI provider you chose. If you have also set up an "AI model that can read images" (a vision model), images of scanned pages that could not be read well are sent too. The author of Juanzhi receives none of your data.
 - **Assistant:** in imported tables, sensitive columns such as names and phone numbers are replaced with codes before anything is sent to the AI (the interface and exported files show the real names). Phone numbers, ID numbers and similar are removed from documents and attachments before they are sent. Conversations, imported data and outputs stay on this computer. Every outside send (WeCom, MCP tools) needs your confirmation.
-- Course outlines are stored only on this computer. When organising and matching courses, the course table is sent to the model you set in 「AI 服务」. For textbooks only each unit's title, section headings and opening lines are sent, never the whole book.
+- Course outlines are stored only on this computer. When organising and matching courses, the course table is sent to the model you set in 「AI 服务」. Uploaded textbooks are split and indexed locally and never sent to the AI; research-table matching is also computed locally. Only when you click 「让 AI 写修订小结」 are the evidence and courseware excerpts sent to the model. Data packages do not include the textbook text library; upload the textbook again on the new computer.
 - File size: a PDF for an exam paper or a course outline can be up to 500 MB (it is read in chunks, never loaded whole into memory); Word, Excel and image files up to 100 MB. Course-table PDFs up to 20 pages, textbooks up to 300 pages; when a file is over the limit the message shows its actual page count, and you can pick a page range instead.
 - The API Key is stored encrypted on your computer (on a Mac, in the system keychain). It is not shown in the interface or in the logs, and it is not included in exported data packages.
 - To change computers or make a backup, export / import under 「设置 → 管理员设置 → 数据包」 (Settings → Admin settings → Data package). For details see [section 6 of the installation guide](docs/安装指南.md#六换电脑--备份数据) (in Chinese).
@@ -535,6 +543,8 @@ Replace the sentence that starts with "Then help me: …" with what you want to 
 - Calling the command line from WorkBuddy and similar assistants: 1.2.0 fails with "Cannot find module …/cli" or "bad option" (these assistants run commands with `ELECTRON_RUN_AS_NODE=1` set). This is fixed in 1.2.1; please upgrade. If you cannot upgrade yet, see the troubleshooting section 「排错」 in [docs/命令行.md](docs/命令行.md#排错) (in Chinese).
 - The exported Word files have not yet been opened one by one in Word / WPS to check them. If the layout has problems, please report it.
 - Chinese and math are new in 1.5. Their knowledge-point trees and prompts have not yet been tested on many real papers. Please report wrong recognition or tagging (attaching the paper helps). Math papers without an image-reading model will misread fractions, column calculations and figures.
+- The research table is deliberately conservative and would rather leave a cell empty than guess: vocabulary topics that have no code in the knowledge-point tree yet (such as colours) get no knowledge point; most built-in English textbooks only have unit summaries, so without an uploaded textbook there are fewer textbook locations; the built-in tables of contents follow the 2024 editions, so if you use an older textbook, rely on the uploaded book.
+- Auto-approval only checks the main knowledge point and has not yet been measured on many real papers. Please report auto-approved questions that are wrong.
 - "Difficulty" and "error-prone" are estimated by the AI from the question itself. They are not students' real scores. When there are few papers, conclusions are only a rough direction.
 
 ---
