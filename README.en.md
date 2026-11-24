@@ -13,7 +13,7 @@ Turn a stack of primary-school Chinese, math and English exam papers into a "dic
 
 ![Juanzhi overview: each exam point is a dictionary entry with a plain-language explanation, an example sentence and a screenshot of the original paper](docs/screenshots/readme-v16-overview.png)
 
-> **This is the 1.6.0 public beta (公测版).** New: a 「教研对照表」(Research table) for curriculum staff that shows, lesson by lesson, which knowledge point each lesson covers, where it sits in the school textbook (down to the page), and how school papers test it, with Excel export. Upload a whole textbook PDF and the app turns it into a searchable local text library and finds locations by exact text. Matching is now computed by the program, and anything uncertain is left out of the table. During paper review, questions where the AI and the rules agree are approved automatically. Built-in textbooks now cover 41 editions, and the sidebar is down to 6 items. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
+> **This is the 1.6.1 public beta (公测版).** New in 1.6.1: a redesigned assistant; expand "how it got this answer" under each reply; after you have done the same kind of task a few times, save the method as a Skill (drafted from several conversations, with every step checked by the program); "allow for this conversation" for outgoing sends; and config packs to share roles and Skills with colleagues. New in 1.6.0: a 「教研对照表」(Research table) for curriculum staff that shows, lesson by lesson, which knowledge point each lesson covers, where it sits in the school textbook (down to the page), and how school papers test it, with Excel export. Upload a whole textbook PDF and the app turns it into a searchable local text library and finds locations by exact text. Matching is now computed by the program, and anything uncertain is left out of the table. During paper review, questions where the AI and the rules agree are approved automatically. Built-in textbooks now cover 41 editions, and the sidebar is down to 6 items. Please report any problems you find (see [section 11](#11-faq-known-limitations-and-feedback)).
 
 > **Download: [click here to open the download page](https://github.com/ooohhhooo/juanzhi/releases/latest)**　|　Full installation guide: [docs/安装指南.md](docs/安装指南.md) (the guide is in Chinese)
 
@@ -198,12 +198,12 @@ Without an API Key you can still install the app and look at the "sample data". 
 
 | Your computer | Click this file |
 |---|---|
-| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.6.0-mac-arm64.dmg` |
-| Mac with Intel processor | `Juanzhi-1.6.0-mac-x64.dmg` |
-| Windows (recommended) | `Juanzhi-1.6.0-win-x64-setup.exe` (installer version) |
-| Windows, without permission to install | `Juanzhi-1.6.0-win-x64-portable.exe` (no-install version, double-click to use) |
+| Mac with Apple chip (M1, M2, M3, M4…) | `Juanzhi-1.6.1-mac-arm64.dmg` |
+| Mac with Intel processor | `Juanzhi-1.6.1-mac-x64.dmg` |
+| Windows (recommended) | `Juanzhi-1.6.1-win-x64-setup.exe` (installer version) |
+| Windows, without permission to install | `Juanzhi-1.6.1-win-x64-portable.exe` (no-install version, double-click to use) |
 
-- The `1.6.0` in the file name is the version number. Use the latest version shown on the page.
+- The `1.6.1` in the file name is the version number. Use the latest version shown on the page.
 - **Do not click** `Source code (zip)` or `Source code (tar.gz)`. That is source code for programmers, not an installer.
 - If you are not sure which chip your Mac has, download the Intel version (`mac-x64`). A Mac with an Apple chip can usually open it too (the system may ask you to install Rosetta. Just follow the prompt). The reverse does not work: the Apple-chip installer cannot be opened on an Intel Mac.
 - **If your browser says the file "isn't commonly downloaded" or "may be harmful"** (「此文件不常被下载」「可能有害」): in Edge, click the "…" next to the file, then "Keep", then "Keep anyway" (「保留」→「仍然保留」). In Chrome, click "Keep". The reason is the same: there is no signing certificate.
@@ -282,9 +282,17 @@ The first item in the sidebar, 「助手」(Assistant), works like a chat. It us
 
 **Outputs:** dashboards, write-ups (Word / PDF), lists (Excel) and card images appear in the 「产出」(Outputs) panel on the right, where you can preview, export and copy them. Every number in an answer links to the query that produced it.
 
-**Connectors** (「设置 → 连接器 → 添加连接」): a WeCom group robot, common MCP tools such as Feishu / Lark, Notion, GitHub, a local folder and web fetch, or any MCP server (a local command or a URL). **Every time something is sent outside, you see the full content first, and it is sent only after you click 「发送」.** Feishu, Notion and the local-folder tool need Node.js installed on the computer; web fetch needs uv.
+**Connectors** (「设置 → 连接器 → 添加连接」): a WeCom group robot, common MCP tools such as Feishu / Lark, Notion, GitHub, a local folder and web fetch, or any MCP server (a local command or a URL). **Every time something is sent outside, you see the full content first** and choose 「仅这次」(just this once), 「本次对话都允许」(allow for this conversation: no more asking for the same destination in this conversation; asking resumes in a new conversation or after a restart; content with personal information is always asked) or 「不允许」(deny). Feishu, Notion and the local-folder tool need Node.js installed on the computer; web fetch needs uv.
 
 **Skills** (「助手设置 → Skill」): written analysis methods (renewal analysis, refund reasons, attendance…) that the assistant follows for related questions. You can write your own, import them (.md files or folders with a SKILL.md) and export them for colleagues.
+
+**How it got the answer** (1.6.1): under each reply a line such as "looked up data 3 times · used 2 tools · you confirmed once" expands into each step: what it looked up and what came back; click a step to see the raw content. If it says "I'll do it" but stops without acting, it is nudged once automatically, and if it still has not acted you get a 「点这里让它继续」(continue) button.
+
+**Save what you did as a Skill** (1.6.1): after the same kind of task (for example a learning summary) has been done 3 times, the reply asks whether to save it as a Skill; you can also click 「存成 Skill」 under any reply. The assistant drafts the method from those conversations and **the program checks every step**: each step shows "in 3 of 3" or "in 1 of 3", steps that never happened and tools that do not exist are removed, and things that differed (grade, time range) become questions asked at use time. Before saving you can 「先试一次」(try once, with nothing sent outside) and compare with the original answer. Drafts based on fewer than 3 conversations are labelled as possibly not general. Later, if you keep changing the same part, it suggests updating the Skill, and old versions can be restored. Marking a reply 「这次做得好」(this was good) makes that conversation preferred when drafting.
+
+**Config packs** (「助手设置 → 配置包」): bundle your custom roles, Skills, edited prompts and connector settings into one file for colleagues, with a preview of what will be added or replaced before import. Keys, tokens and URLs are never exported and must be filled in after import; papers, student data and conversations are not included.
+
+**Each role uses only its own tools:** for example 「教研」(Research) does not see WeCom or data-import tools; when asked for something another role does, it tells you which role to switch to.
 
 ---
 
