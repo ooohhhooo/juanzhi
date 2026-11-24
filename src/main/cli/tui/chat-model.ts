@@ -258,7 +258,7 @@ export function itemsFromSteps(steps: Array<{ kind: string; payload: any; ms?: n
     const p = s.payload ?? {}
     switch (s.kind) {
       case 'user': out.push({ kind: 'user', text: String(p.text ?? '') }); break
-      case 'assistant': if (!p.compacted && String(p.text ?? '').trim()) out.push({ kind: 'text', md: String(p.text) }); break
+      case 'assistant': if (!p.compacted && !p.nudge && String(p.text ?? '').trim()) out.push({ kind: 'text', md: String(p.text) }); break
       case 'tool_call': calls.set(String(p.id), p); break
       case 'tool_result': {
         if (p.name === 'update_plan' || p.name === 'ask_user') break

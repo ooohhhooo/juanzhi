@@ -17,6 +17,9 @@ import { getPriceMap } from '../ipc/cost'
 import { notifyDataChanged } from '../events'
 import { getMainWindow } from '../window'
 import { runAgent } from './harness'
+import { SessionGrants } from './approval-scope'
+import type { ApprovalRecord } from './approval-scope'
+import { otherRolesHint, roleToolNames } from './role-tools'
 import { asSubject } from '../../shared/subject.ts'
 import type { SubjectId } from '../../shared/subject.ts'
 import { playbooksForRole } from './playbooks'
@@ -230,8 +233,10 @@ function selectedDatasets(sid: string): Array<{ id: string; name: string }> {
 interface Run {
   ctl: AbortController
   asks: Map<string, (a: string) => void>
-  approvals: Map<string, (ok: boolean) => void>
+  approvals: Map<string, (ok: boolean | 'session') => void>
 }
+/** 「本次对话都允许」的名单：只在内存里，软件重启就作废 */
+const grants = new SessionGrants()
 const runs = new Map<string, Run>()
 export const agentBusy = (): boolean => runs.size > 0
 export const isRunning = (sessionId: string): boolean => runs.has(sessionId)
@@ -374,16 +379,17 @@ async function execute(x: ExecArgs): Promise<void> {
   const org = clipOrgContext(readOrgContext())
   const chosen = selectedDatasets(sid)
   const { registry, dynamic } = buildRegistry()
-  // 老角色文件（自建 / 导入）里没有后来加的查询：翻以前的对话所有角色都有；能查数据集的也能读文档；能看试卷统计的也能看试卷清单、课程覆盖、报告
-  const extraTools = ['history_search', 'history_read', 'delegate_tasks', ...(role.tools.includes('list_datasets') ? ['read_document'] : []), ...(role.tools.some(t => t === 'doc_create' || t === 'list_datasets' || t === 'stats_overview') ? ['card_templates', 'card_make'] : []), ...(role.tools.includes('stats_overview') ? ['papers_list', 'course_coverage', 'reports_list', 'report_read', 'report_generate', 'paper_import'] : [])]
-  const toolNames = [...new Set([...role.tools, ...extraTools, ...(CONNECTOR_ROLES.includes(role.id) ? dynamic : [])])]
-  const system = buildSystemPrompt({ subject: prior.session.subject, role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9, prior.session.subject).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), laterTools: mode === 'plan' ? toolNames.filter(n => registry.get(n) && !registry.get(n)!.planSafe).map(n => ({ name: n, label: registry.get(n)!.label ?? n })) : undefined, pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5) })
+  // 这个角色能用的工具：名单里的 +（只有自建的老角色文件）补上后来新增的查询 +（运营 / 辅导老师）外部连接的工具；见 role-tools.ts
+  const toolNames = roleToolNames(role, dynamic)
+  const system = buildSystemPrompt({ subject: prior.session.subject, role, scene, playbooks, today: new Date().toLocaleDateString('zh-CN'), mode, orgContext: org.text, datasets: chosen, recent: listSessions(db, 9, prior.session.subject).filter(r => r.id !== sid && r.title).slice(0, 8).map(r => ({ title: scrubPII(r.title).replace(/\s+/g, ' ').slice(0, 40), date: String(r.updatedAt).slice(5, 10) })), laterTools: mode === 'plan' ? toolNames.filter(n => registry.get(n) && !registry.get(n)!.planSafe).map(n => ({ name: n, label: registry.get(n)!.label ?? n })) : undefined, pickedPlaybooks: (x.playbooks ?? []).filter(n => playbooks.some(p => p.name === n)).slice(0, 5), otherRoles: otherRolesHint(role, allRoles(), scene, dynamic) })
   const prices = getPriceMap()
   const lim = effectiveMaxTokens(cfg, model)
   const st = readSetting(SETTINGS_KEY) ?? {}
   const ctxLimit = contextLimitFor(model, typeof st.contextLimit === 'number' ? st.contextLimit : null)
   let sumIn = 0, sumOut = 0, sumCached = 0, lastRounds = 0
   const askSeq = new Map<string, number>()
+  const callSeq = new Map<string, number>()
+  const turnStart = Date.now()
 
   const callModel = async (req: Parameters<Parameters<typeof runAgent>[0]['callModel']>[0]): Promise<ModelReply> => {
     const t0 = Date.now()
@@ -434,19 +440,25 @@ async function execute(x: ExecArgs): Promise<void> {
         send({ sessionId: sid, type: 'progress', rounds: e.rounds, tokensIn: sumIn, tokensOut: sumOut, money, limitTokens: DEFAULT_BUDGET.maxTokens, model, effort })
         return
       }
-      case 'approval': send({ sessionId: sid, type: 'approval', id: e.id, name: e.name, args: e.args, summary: e.summary, ...(e.preview ? { preview: e.preview } : {}) }); return
+      case 'approval': send({ sessionId: sid, type: 'approval', id: e.id, name: e.name, args: e.args, summary: e.summary, ...(e.preview ? { preview: e.preview } : {}), ...(e.canSession ? { canSession: true } : {}) }); return
       case 'tool_progress': send({ sessionId: sid, type: 'tool-progress', id: e.id, done: e.done, total: e.total }); return
       case 'asked': {
         const seq = askSeq.get(e.id)
         if (seq) { updateStepPayload(db, sid, seq, { answer: e.answer }); send({ sessionId: sid, type: 'step-update', seq, payload: { answer: e.answer } }) }
         return
       }
-      case 'approved': return
+      case 'approved': {
+        const seq = callSeq.get(e.id)
+        const rec: ApprovalRecord = !e.ok ? 'deny' : e.scope === 'auto' ? 'auto' : e.scope === 'session' ? 'session' : 'once'
+        if (seq) { updateStepPayload(db, sid, seq, { approval: rec }); send({ sessionId: sid, type: 'step-update', seq, payload: { approval: rec } }) }
+        return
+      }
       default: {
         const s = eventToStep(e)
         if (!s) return
-        if (e.type === 'answer') Object.assign(s.payload as object, { dataRev: currentDataRev(db), model, effort })
+        if (e.type === 'answer') { Object.assign(s.payload as object, { dataRev: currentDataRev(db), model, effort }); s.ms = Date.now() - turnStart }
         const seq = pushStep(s)
+        if (e.type === 'tool_call') callSeq.set(e.id, seq)
         if (e.type === 'ask') askSeq.set(e.id, seq)
       }
     }
@@ -490,7 +502,8 @@ async function execute(x: ExecArgs): Promise<void> {
         playbook: name => { const p = playbooks.find(y => y.name === name); return p ? { name: p.name, description: p.description, body: p.body } : null },
         playbookNames: () => playbooks.map(p => p.name)
       },
-      approve: req => new Promise<boolean>(resolve => { run.approvals.set(req.id, resolve) }),
+      approve: req => new Promise<boolean | 'session'>(resolve => { run.approvals.set(req.id, resolve) }),
+      sessionGrants: grants.of(sid),
       askUser: req => new Promise<string>(resolve => { run.asks.set(req.id, resolve) }),
       emit: onEvent, signal: run.ctl.signal, cite: makeCiteChecker(db)
     }, { system, history, user: text + (x.attach?.block ?? '') })
@@ -508,7 +521,7 @@ export function answerAsk(sessionId: string, id: string, answer: string): boolea
   if (!r || !f) return false
   r.asks.delete(id); f(answer); return true
 }
-export function answerApproval(sessionId: string, id: string, ok: boolean): boolean {
+export function answerApproval(sessionId: string, id: string, ok: boolean | 'session'): boolean {
   const r = runs.get(sessionId); const f = r?.approvals.get(id)
   if (!r || !f) return false
   r.approvals.delete(id); f(ok); return true

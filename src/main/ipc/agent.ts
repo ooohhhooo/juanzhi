@@ -178,5 +178,5 @@ export function registerAgentIpc(): void {
   // ── 只改内存：停止、回答提问、同意 / 拒绝 ──
   ipcMain.handle('agent:stop', async (_e, id: unknown) => stopRun(IdSchema.parse(id)))
   ipcMain.handle('agent:answer', async (_e, sid: unknown, askId: unknown, answer: unknown) => answerAsk(IdSchema.parse(sid), IdSchema.parse(askId), z.string().trim().min(1).max(500).parse(answer)))
-  ipcMain.handle('agent:approve', async (_e, sid: unknown, id: unknown, ok: unknown) => answerApproval(IdSchema.parse(sid), IdSchema.parse(id), z.boolean().parse(ok)))
+  ipcMain.handle('agent:approve', async (_e, sid: unknown, id: unknown, ok: unknown) => answerApproval(IdSchema.parse(sid), IdSchema.parse(id), z.union([z.boolean(), z.literal('session')]).parse(ok)))
 }

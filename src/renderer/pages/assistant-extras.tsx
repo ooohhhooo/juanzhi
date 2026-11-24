@@ -5,9 +5,9 @@ import { Btn } from '../design'
 import { AnalysisBoard } from '../analysis/AnalysisBoard'
 
 /** 同意弹窗要显示的内容：发到哪里 + 完整内容；含个人信息时 privacyWarning 非空，要醒目 */
-export interface ApprovalInfo { id: string; name: string; summary: string; preview?: { target: string; content: string; privacyWarning?: string } }
+export interface ApprovalInfo { id: string; name: string; summary: string; preview?: { target: string; content: string; privacyWarning?: string }; canSession?: boolean }
 
-export function ApprovalBox({ approval, onDecide }: { approval: ApprovalInfo; onDecide: (ok: boolean) => void }) {
+export function ApprovalBox({ approval, onDecide }: { approval: ApprovalInfo; onDecide: (ok: boolean | 'session') => void }) {
   const pv = approval.preview
   const external = !!pv && approval.name !== 'text_classify' && (pv.target.includes('企业微信') || pv.target.includes('MCP') || !!pv.privacyWarning)
   return (
@@ -24,9 +24,11 @@ export function ApprovalBox({ approval, onDecide }: { approval: ApprovalInfo; on
         </div>
       )}
       <div className="ewb-as-ask__opts">
-        <Btn tone="primary" data-testid="assistant-approve" onClick={() => onDecide(true)}>{external ? '发送' : '同意'}</Btn>
-        <Btn tone="secondary" data-testid="assistant-reject" onClick={() => onDecide(false)}>{external ? '取消，不发送' : '不同意'}</Btn>
+        <Btn tone="primary" data-testid="assistant-approve" onClick={() => onDecide(true)}>仅这次</Btn>
+        {approval.canSession && <Btn tone="secondary" data-testid="assistant-approve-session" title="在这个对话里，同一个工具发到同一个地方，不再询问" onClick={() => onDecide('session')}>本次对话都允许</Btn>}
+        <Btn tone="secondary" data-testid="assistant-reject" onClick={() => onDecide(false)}>不允许</Btn>
       </div>
+      {approval.canSession && <p className="ewb-lib-sub" data-testid="assistant-approve-session-hint" style={{ margin: '6px 0 0' }}>选「本次对话都允许」：这个对话里再发到同一个地方，不再询问；换个对话或重启软件后恢复询问。内容含个人信息时仍会每次询问。</p>}
     </div>
   )
 }

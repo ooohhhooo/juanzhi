@@ -480,7 +480,7 @@ type AgentEventMsg =
   | { sessionId: string; type: 'reset' }
   | { sessionId: string; type: 'status'; text: string }
   | { sessionId: string; type: 'progress'; rounds: number; tokensIn: number; tokensOut: number; money: number | null; limitTokens: number; model?: string; effort?: string }
-  | { sessionId: string; type: 'approval'; id: string; name: string; args: unknown; summary: string; preview?: { target: string; content: string; privacyWarning?: string } }
+  | { sessionId: string; type: 'approval'; id: string; name: string; args: unknown; summary: string; preview?: { target: string; content: string; privacyWarning?: string }; canSession?: boolean }
   | { sessionId: string; type: 'tool-progress'; id: string; done: number; total: number }
   | { sessionId: string; type: 'done'; status: string; rounds?: number; error?: { code: string; message: string } | null }
 
@@ -523,7 +523,7 @@ interface ElectronAPI {
     deleteSession(id: string): Promise<boolean>
     stop(sessionId: string): Promise<boolean>
     answer(sessionId: string, askId: string, answer: string): Promise<boolean>
-    approve(sessionId: string, id: string, ok: boolean): Promise<boolean>
+    approve(sessionId: string, id: string, ok: boolean | 'session'): Promise<boolean>
   }
 }
 

@@ -110,12 +110,13 @@ export type AgentEvent =
   | { type: 'plan'; items: PlanItem[] }
   | { type: 'ask'; id: string; question: string; options: string[]; allowOther: boolean; planReview?: boolean }
   | { type: 'asked'; id: string; answer: string }
-  | { type: 'approval'; id: string; name: string; args: unknown; summary: string; preview?: ToolPreviewInfo }
+  | { type: 'approval'; id: string; name: string; args: unknown; summary: string; preview?: ToolPreviewInfo; canSession?: boolean }
   | { type: 'tool_progress'; id: string; done: number; total: number }
-  | { type: 'approved'; id: string; ok: boolean }
+  | { type: 'approved'; id: string; ok: boolean; scope?: 'once' | 'session' | 'auto' }
+  | { type: 'nudge'; text: string }
   | { type: 'compacted'; by: 'ai' | 'program'; summary: string }
   | { type: 'progress'; rounds: number; tokensIn: number; tokensOut: number }
-  | { type: 'answer'; text: string; removedRefs: number; stop: StopReason }
+  | { type: 'answer'; text: string; removedRefs: number; stop: StopReason; unfinished?: boolean }
   | { type: 'error'; code: string; message: string }
 
 export interface ModelReply {
@@ -142,6 +143,8 @@ export interface RunResult {
   /** 本次新增的消息（不含 system 和旧历史） */
   newMessages: ChatMessage[]
   plan: PlanItem[]
+  /** 最后一段话承诺了要做的事，却没有调用工具（自动提醒过一次仍然没做） */
+  unfinished?: boolean
   /** 调用模型出错时的原因（stop = 'error'） */
   error?: { code: string; message: string }
 }

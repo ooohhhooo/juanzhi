@@ -3,6 +3,7 @@
 //   · 含「满意度」→ 数据分析全流程（计划 → 数据集 → 查询 → 统计 → 看板 → 汇报 → 名单 → 发企业微信 → 回答），见下面 analysis()
 //   · 含「这批问卷的满意度」→ README 截图专用的同一流程（不发企业微信、不导出，计划随进度更新，最终回答读起来像真的）
 //   · 含「发到外部」→ 调用 mcp_*_post_message 外部工具一次（测外部发送必须确认）
+//   · 含「说了不做」→ 只说「我来帮你…」不动手；含「说了再做」→ 先只说，被程序提醒后才调用工具
 //   · 含「慢慢」  → 一条很慢的流式文字回答（给「停止」按钮用）
 //   · 含「卡住」  → 一直重复同一个工具调用（测卡住检测）
 //   · 其余       → 一句普通回答
@@ -91,7 +92,7 @@ function next(body) {
   if (toolNames.includes('ping') && toolNames.length === 1) return { content: '', toolCalls: [call('ping', { word: 'ok' }, 0)] }
   let lastUser = -1
   // 程序自己插进去的 user 消息（确认计划 / 修改意见 / 整理后的摘要）不算用户提问
-  msgs.forEach((m, i) => { if (m.role === 'user' && !/^(用户确认了计划|用户想修改计划|【前面内容的摘要】)/.test(textOf(m.content))) lastUser = i })
+  msgs.forEach((m, i) => { if (m.role === 'user' && !/^(用户确认了计划|用户想修改计划|【前面内容的摘要】|你刚才说「)/.test(textOf(m.content))) lastUser = i })
   const q = textOf(msgs[lastUser]?.content)
   const after = msgs.slice(lastUser + 1)
   const revisions = after.filter(m => m.role === 'user' && /^用户想修改计划/.test(textOf(m.content)))
@@ -145,6 +146,14 @@ function next(body) {
   if (/做卡片/.test(q)) return cards(round, false)
   if (/这批问卷的满意度/.test(q)) return analysis(round, toolTexts, true)   // README 截图剧本
   if (/满意度/.test(q)) return analysis(round, toolTexts)
+  // 说了要做却没做：「说了不做」一直只说不动手（软件提醒一次后仍没做 → 显示「它没做完」）；「说了再做」第一次只说，被程序提醒后才调用工具
+  if (/说了不做/.test(q)) return { content: '好的，我来帮你生成看板。', toolCalls: [] }
+  if (/说了再做/.test(q)) {
+    const nudged = after.some(m => m.role === 'user' && /^你刚才说「/.test(textOf(m.content)))
+    if (round === 0 && !nudged) return { content: '好的，我现在开始查一下整体情况。', toolCalls: [] }
+    if (round === 0) return { content: '', toolCalls: [call('stats_overview', {}, 0)] }
+    return { content: '查完了，整体情况已经看过（模拟）。', toolCalls: [] }
+  }
   // 外部 MCP 工具：调用名字形如 mcp_<连接名>_post_message 的工具（发到外部），测「外部发送必须先确认」
   if (/发到外部/.test(q)) {
     const t = toolNames.find(n => /^mcp_.*_post_message$/.test(n))

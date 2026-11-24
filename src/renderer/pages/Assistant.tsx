@@ -15,6 +15,7 @@ import type { Chip } from './assistant-composer'
 import AiErrorExplain from '../components/AiErrorExplain'
 import { ApprovalBox, BoardPane, QueryRecordModal } from './assistant-extras'
 import type { ApprovalInfo } from './assistant-extras'
+import { ActionLog, useTurnLogs } from './assistant-actionlog'
 import { addDroppedFiles, addPickedDatasets, attachmentsLoading, clearAttachments, clearPickedDatasets, getAttachmentIds, getPickedDatasets, useAttachmentsBusy } from './assistant-data'
 import AssistantCanvas from '../assistant/canvas/AssistantCanvas'
 import AssistantSidePanel from '../assistant/side/AssistantSidePanel'
@@ -347,7 +348,7 @@ export default function Assistant() {
       case 'reset': setLive(''); break
       case 'status': setStatusText(e.text); break
       case 'progress': setProgress({ rounds: e.rounds, tokensIn: e.tokensIn, tokensOut: e.tokensOut, money: e.money, limitTokens: e.limitTokens }); break
-      case 'approval': setApproval({ id: e.id, name: e.name, summary: e.summary, preview: e.preview }); break
+      case 'approval': setApproval({ id: e.id, name: e.name, summary: e.summary, preview: e.preview, canSession: e.canSession }); break
       case 'tool-progress': setToolProg(p => ({ ...p, [e.id]: { done: e.done, total: e.total } })); break
     }
   }), [qc, loadSession])
@@ -373,7 +374,7 @@ export default function Assistant() {
 
   const stop = () => { if (active) void window.api.agent.stop(active) }
   const pick = (askId: string, answer: string) => { if (active) void window.api.agent.answer(active, askId, answer) }
-  const decide = (ok: boolean) => { if (active && approval) { void window.api.agent.approve(active, approval.id, ok); setApproval(null) } }
+  const decide = (ok: boolean | 'session') => { if (active && approval) { void window.api.agent.approve(active, approval.id, ok); setApproval(null) } }
   const removeSession = async (id: string) => {
     await window.api.agent.deleteSession(id)
     if (active === id) newChat()
@@ -407,6 +408,9 @@ export default function Assistant() {
     if (lastPlan !== null) keep.add(lastPlan)
     return keep
   }, [steps])
+  const { data: toolInfos } = useQuery({ queryKey: ['agent', 'tools'], queryFn: () => window.api.agent.tools(), staleTime: 300_000 })
+  const labelOf = useCallback((n: string) => TOOL_LABEL[n] ?? (toolInfos?.find(t => t.name === n)?.label !== n ? toolInfos?.find(t => t.name === n)?.label : undefined) ?? (/^mcp_/.test(n) ? `外部工具：${n.replace(/^mcp_[^_]+_/, '')}` : n), [toolInfos])
+  const turnLogs = useTurnLogs(steps, labelOf)
   const results = useMemo(() => new Map(steps.filter(s => s.kind === 'tool_result').map(s => [String(s.payload.id), s])), [steps])
   const lastAsk = [...steps].reverse().find(s => s.kind === 'ask')
 
@@ -559,7 +563,7 @@ export default function Assistant() {
           {steps.map(s => {
             switch (s.kind) {
               case 'user': return <div key={s.seq} className="ewb-as-user" data-testid="assistant-user">{s.payload.text}{Array.isArray(s.payload.attachments) && s.payload.attachments.length > 0 && <span className="ewb-as-user__atts" data-testid="assistant-user-attachments">{s.payload.attachments.map((a: any, i: number) => <span key={i} className="ewb-as-user__att">{a.kind === 'image' ? <ImageIcon size={12} strokeWidth={1.9} /> : <FileText size={12} strokeWidth={1.9} />}{String(a.name)}</span>)}</span>}</div>
-              case 'assistant': return s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{/[*#|\[\n-]/.test(String(s.payload.text ?? '')) ? <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} /> : s.payload.text}</div>
+              case 'assistant': return s.payload.nudge ? null : s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{/[*#|\[\n-]/.test(String(s.payload.text ?? '')) ? <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} /> : s.payload.text}</div>
               case 'plan': return keepPlan.has(s.seq) ? <PlanBox key={s.seq} items={s.payload.items} /> : null
               case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} prog={toolProg[String(s.payload.id)]} />
               case 'ask': return <AskBox key={s.seq} step={s} pending={running && lastAsk?.seq === s.seq} onPick={pick} />
@@ -568,6 +572,8 @@ export default function Assistant() {
                   {!running && <button type="button" className="ewb-as-fork" data-testid="assistant-fork" title="从这条回答往下追问，形成一个分支，不影响主线" onClick={() => { setForkFrom(s.seq); document.querySelector<HTMLTextAreaElement>('[data-testid=assistant-input]')?.focus() }}>{' '}<CornerDownRight size={12} strokeWidth={1.9} style={{ verticalAlign: '-1px' }} /> 从这里追问</button>}
                   {s.payload.stop && s.payload.stop !== 'answered' && <p className="ewb-lib-sub" data-testid="assistant-stop-note" style={{ marginTop: 0 }}>{STOP_NOTE[s.payload.stop] ?? ''}</p>}
                   <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} />
+                  {s.payload.unfinished && !running && <div className="ewb-as-unfinished" data-testid="assistant-unfinished">它没做完，刚才说要做的事没有动手。<button type="button" className="ewb-as-chiplink" data-testid="assistant-unfinished-continue" onClick={() => void send('请继续，直接调用工具把刚才说要做的事做完。')}>点这里让它继续</button></div>}
+                  {!running && turnLogs.get(s.seq) && <ActionLog log={turnLogs.get(s.seq)!} />}
                 </div>)
               case 'error': {
                 const c = String(s.payload.code)

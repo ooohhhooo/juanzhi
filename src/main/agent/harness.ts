@@ -12,6 +12,8 @@ import type { CiteChecker } from './citations.ts'
 import { COMPACT_RATIO, applyCompaction, compressOldToolResults, estimateMessages, findCompactRange, programSummary, serializeForSummary, stateIndex, truncateResult, wrapToolResult } from './context.ts'
 import type { ToolMeta } from './context.ts'
 import type { ToolRegistry } from './registry.ts'
+import { sessionScopeKey } from './approval-scope.ts'
+import { findUnfinishedPromise, nudgeText } from './unfinished.ts'
 import { DEFAULT_BUDGET, DIRECT_MAX_ROUNDS, PLAN_APPROVE } from './types.ts'
 import type { AgentEvent, AgentMode, ApprovalMode, Budget, ModelReply, ModelRequest, PlanItem, QueryRec, RunResult, SessionState, StopReason, ToolCtx, ToolOutput, ToolPreviewInfo } from './types.ts'
 
@@ -26,7 +28,9 @@ export interface RunDeps {
   /** 自动整理：对话估算超过 limitTokens × ratio（默认 70%）时，把较早的内容换成摘要；summarize 失败 / 没给就用程序生成的摘要 */
   compact?: { limitTokens: number; ratio?: number; summarize?: (text: string) => Promise<string> }
   /** 写操作：弹窗让用户同意；返回 true = 同意 */
-  approve: (req: { id: string; name: string; args: unknown; summary: string; preview?: ToolPreviewInfo }) => Promise<boolean>
+  approve: (req: { id: string; name: string; args: unknown; summary: string; preview?: ToolPreviewInfo; canSession?: boolean }) => Promise<boolean | 'session'>
+  /** 这个对话里用户已选「本次对话都允许」的范围名单（见 approval-scope.ts）；不给 = 不提供这个选项 */
+  sessionGrants?: Set<string>
   /** ask_user：把问题交给界面，返回用户的选择 */
   askUser: (req: { id: string; question: string; options: string[]; allowOther: boolean }) => Promise<string>
   emit: (e: AgentEvent) => void
@@ -112,6 +116,7 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
   let lastText = ''
   let rounds = 0, tokensIn = 0, tokensOut = 0
   let lastSig = '', repeat = 0
+  let nudged = false
 
   let currentCall = ''
   const ctx: ToolCtx = {
@@ -131,9 +136,9 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
     }
   }
 
-  const finish = (stop: StopReason, answer: string, removedRefs = 0, error?: { code: string; message: string }): RunResult => {
-    emit({ type: 'answer', text: answer, removedRefs, stop })
-    return { stop, answer, removedRefs, rounds, tokensIn, tokensOut, newMessages: messages.slice(startAt), plan, ...(error ? { error } : {}) }
+  const finish = (stop: StopReason, answer: string, removedRefs = 0, error?: { code: string; message: string }, unfinished = false): RunResult => {
+    emit({ type: 'answer', text: answer, removedRefs, stop, ...(unfinished ? { unfinished: true } : {}) })
+    return { stop, answer, removedRefs, rounds, tokensIn, tokensOut, newMessages: messages.slice(startAt), plan, ...(unfinished ? { unfinished: true } : {}), ...(error ? { error } : {}) }
   }
   const brake = (stop: StopReason, error?: { code: string; message: string }) => finish(stop, progressSummary(stop, plan, steps, lastText), 0, error)
 
@@ -177,10 +182,18 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
           preview = typeof pv === 'string' ? { target: summary, content: pv } : pv
         } catch (e) { if (isAbort(e, signal)) throw e; return done(false, `无法生成发送预览：${(e as Error).message}`) }
       }
-      emit({ type: 'approval', id: call.id, name, args: argsJson, summary, ...(preview ? { preview } : {}) })
-      const ok = await raceAbort(deps.approve({ id: call.id, name, args: argsJson, summary, ...(preview ? { preview } : {}) }), signal)
-      emit({ type: 'approved', id: call.id, ok })
-      if (!ok) return done(false, '用户没有同意这个操作，没有执行。请换一种方式，或直接问用户想怎么做。')
+      const key = sessionScopeKey(tool, name, argsJson, preview)
+      if (key && deps.sessionGrants?.has(key)) {
+        emit({ type: 'approved', id: call.id, ok: true, scope: 'auto' })   // 这个对话里已选过「都允许」：不再弹窗
+      } else {
+        const canSession = !!key && !!deps.sessionGrants
+        emit({ type: 'approval', id: call.id, name, args: argsJson, summary, ...(preview ? { preview } : {}), ...(canSession ? { canSession } : {}) })
+        const r = await raceAbort(deps.approve({ id: call.id, name, args: argsJson, summary, ...(preview ? { preview } : {}), ...(canSession ? { canSession } : {}) }), signal)
+        const ok = r === true || (r === 'session' && canSession)
+        if (ok && r === 'session' && key) deps.sessionGrants!.add(key)
+        emit({ type: 'approved', id: call.id, ok, ...(ok ? { scope: r === 'session' ? 'session' as const : 'once' as const } : {}) })
+        if (!ok) return done(false, '用户没有同意这个操作，没有执行。请换一种方式，或直接问用户想怎么做。')
+      }
     }
     try {
       return done(true, await tool.run(parsed.args, ctx))
@@ -225,9 +238,22 @@ export async function runAgent(deps: RunDeps, input: RunInput): Promise<RunResul
       tokensOut += reply.usage.completionTokens
       emit({ type: 'progress', rounds, tokensIn, tokensOut })
       if (reply.toolCalls.length === 0) {
+        // 说了要做、却没调用工具：自动提醒一次（只看规则，不再问模型）；提醒后还是没做，就在回答下面提示用户点一下继续
+        const acted = steps.some(s => !NOT_RECORDED.has(s.name))
+        const canAct = deps.toolNames.some(n => !NOT_RECORDED.has(n) && !!registry.get(n) && allowedNow(n))
+        const promised = !acted && canAct && !signal.aborted ? findUnfinishedPromise(reply.content) : null
+        if (promised && !nudged) {
+          nudged = true
+          if (reply.content.trim()) { lastText = reply.content; emit({ type: 'thought', text: reply.content }) }
+          messages.push({ role: 'assistant', content: reply.content })
+          const text = nudgeText(promised)
+          messages.push({ role: 'user', content: text })
+          emit({ type: 'nudge', text })
+          continue
+        }
         const v = validateCitations(reply.content, { ...deps.cite, query: id => state.queries.some(q => String(q.n) === id) })
         messages.push({ role: 'assistant', content: reply.content })
-        return finish('answered', v.text, v.removed)
+        return finish('answered', v.text, v.removed, undefined, !!promised)
       }
       if (reply.content.trim()) { lastText = reply.content; emit({ type: 'thought', text: reply.content }) }
       messages.push({ role: 'assistant', content: reply.content, tool_calls: reply.toolCalls, ...(reply.reasoningText ? { reasoning_content: reply.reasoningText } : {}) })

@@ -49,7 +49,8 @@ export const ROLES: RoleDef[] = [
     id: 'ops',
     names: { org: '运营', school: '教务/年级主任' },
     persona: '你在帮运营（教务）同事看整体情况：先给结论和数字，再说依据；关心整体趋势、哪些地方值得重点安排，不纠缠单个题目的细节。说话简短、直接，像同事之间汇报。',
-    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...DATA_TOOLS],
+    // 运营不核对讲解（fact_check 是备课用的）；出报告、导入试卷是运营的活
+    tools: [...BASE_TOOLS, ...EXAM_TOOLS.filter(t => t !== 'fact_check'), ...DATA_TOOLS, 'report_generate', 'paper_import'],
     suggestions: [
       '分析这份问卷的满意度，出一份看板',
       '哪些班到课率掉得最厉害',
@@ -63,7 +64,8 @@ export const ROLES: RoleDef[] = [
     id: 'tutor',
     names: { org: '辅导老师', school: '班主任' },
     persona: '你在帮辅导老师（班主任）准备跟进学生：多举具体的题和易错原因，给能直接讲给家长或学生听的大白话说明，语气温和、实用。',
-    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...DATA_TOOLS],
+    // 辅导老师可以出报告（家长版），但不导入试卷
+    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...DATA_TOOLS, 'report_generate'],
     suggestions: [
       '生成本周跟进名单',
       '哪些学员最近到课变少了',
@@ -78,7 +80,7 @@ export const ROLES: RoleDef[] = [
     id: 'research',
     names: { org: '教研', school: '教研组长' },
     persona: '你在帮教研同事把「机构大纲、学校教材、校内试卷、机构自己的课件」四样东西对在一起：每节课讲什么、学校教材里这个知识点在哪一册哪个单元、校内试卷怎么考（带原题）、课件哪里该补、该对齐、该换例题、可以减。说话像同事交流，先给结论，再给依据；数字和位置都来自工具的查询结果，不要自己推算。英语、语文、数学都这样做。',
-    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...RESEARCH_TOOLS, 'read_document', 'doc_create', 'doc_write_section', 'doc_read', 'table_save', 'outputs_list', 'output_export'],
+    tools: [...BASE_TOOLS, ...EXAM_TOOLS, ...RESEARCH_TOOLS, 'read_document', 'doc_create', 'doc_write_section', 'doc_read', 'table_save', 'outputs_list', 'output_export', 'paper_import'],
     suggestions: [
       '按《某某大纲》出一份教研对照表',
       '一般过去时在各版本教材的哪个单元',
