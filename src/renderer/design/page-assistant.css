@@ -162,6 +162,12 @@
 .ewb-as-answer { padding: 18px 22px 12px; border: 1px solid var(--ewb-line); border-radius: var(--ewb-r-lg); background: var(--ewb-page); min-width: 0; }
 .ewb-as-answer:not(:has(.ewb-as-answer__foot)) { padding-bottom: 18px; }
 .ewb-as-answer .ewb-md { max-width: none; margin: 0; line-height: 1.75; }
+/* 助手回答用正文字号（14px），比报告页小一号；标题跟着降 */
+.ewb-as-answer .ewb-md { font-size: var(--ewb-fs-md); line-height: 1.7; }
+.ewb-as-answer .ewb-md p { margin: 4px 0; }
+.ewb-as-answer .ewb-md__h1 { font-size: var(--ewb-fs-lg); margin: var(--ewb-sp-4) 0 6px; }
+.ewb-as-answer .ewb-md__h2 { font-size: 15px; margin: var(--ewb-sp-4) 0 6px; }
+.ewb-as-answer .ewb-md__h3, .ewb-as-answer .ewb-md__h4 { font-size: var(--ewb-fs-md); margin: var(--ewb-sp-3) 0 4px; }
 .ewb-as-answer .ewb-md > :first-child { margin-top: 0; }
 .ewb-as-answer .ewb-md > :last-child { margin-bottom: 0; }
 .ewb-as-answer .ewb-md__code { font-family: var(--ewb-font-mono); font-size: 12.5px; }
