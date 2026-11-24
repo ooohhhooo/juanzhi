@@ -3,6 +3,7 @@ import { App, Checkbox, Input, Modal, Tag } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, FileUp, FolderUp, FolderOpen, Copy, Pencil, Download, Trash2 } from 'lucide-react'
 import { Btn } from '../design'
+import { DraftReview, SkillMetaLine } from './assistant-skill-grow'
 
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 const ROLE_OPTIONS = [{ value: 'ops', label: '运营' }, { value: 'tutor', label: '辅导老师' }, { value: 'research', label: '教研' }, { value: 'teacher', label: '主讲老师' }]
@@ -50,7 +51,8 @@ export function SkillsPanel() {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['agent', 'playbooks'], queryFn: () => window.api.agent.playbooks(), staleTime: 0 })
   const [draft, setDraft] = useState<Draft | null>(null)
-  const refresh = () => { qc.invalidateQueries({ queryKey: ['agent', 'playbooks'] }) }
+  const [upd, setUpd] = useState<{ update: string } | null>(null)
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['agent', 'playbooks'] }); qc.invalidateQueries({ queryKey: ['skills'] }) }
   const items = data?.items ?? []
   const mine = items.filter(i => i.source === 'user')
   const builtin = items.filter(i => i.source === 'builtin' && !mine.some(m => m.name === i.name))
@@ -85,6 +87,7 @@ export function SkillsPanel() {
         {isMine && <Btn tone="danger" size="small" icon={Trash2} data-testid="skill-delete" onClick={() => del(i.name)}>删除</Btn>}
       </div>
       <span className="ewb-lib-sub">{i.description}</span>
+      {isMine && <SkillMetaLine name={i.name} onUpdate={() => setUpd({ update: i.name })} />}
       <span className="ewb-lib-sub">适用：{roleText(i.roles)}</span>
     </div>
   )
@@ -104,6 +107,7 @@ export function SkillsPanel() {
         {builtin.map(i => row(i, false))}
       </div>
       <SkillEditor draft={draft} onClose={() => setDraft(null)} onSaved={refresh} />
+      <DraftReview open={!!upd} target={upd} onClose={() => setUpd(null)} onSaved={refresh} />
     </div>
   )
 }

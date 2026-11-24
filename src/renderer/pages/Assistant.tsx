@@ -9,6 +9,7 @@ import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
 import { AssistantSettingsModal, RoleModal } from './assistant-dialogs'
 import RoleWizard from './assistant-role-wizard'
+import { SkillBar } from './assistant-skill-grow'
 import { popularTemplates } from '../../main/agent/role-templates'
 import Composer, { chipsToHint } from './assistant-composer'
 import type { Chip } from './assistant-composer'
@@ -574,6 +575,7 @@ export default function Assistant() {
                   <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} />
                   {s.payload.unfinished && !running && <div className="ewb-as-unfinished" data-testid="assistant-unfinished">它没做完，刚才说要做的事没有动手。<button type="button" className="ewb-as-chiplink" data-testid="assistant-unfinished-continue" onClick={() => void send('请继续，直接调用工具把刚才说要做的事做完。')}>点这里让它继续</button></div>}
                   {!running && turnLogs.get(s.seq) && <ActionLog log={turnLogs.get(s.seq)!} />}
+                  {(!s.payload.stop || s.payload.stop === 'answered') && <SkillBar sessionId={s.sessionId} seq={s.seq} running={running} />}
                 </div>)
               case 'error': {
                 const c = String(s.payload.code)

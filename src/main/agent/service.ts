@@ -42,6 +42,7 @@ import type { SubResult, SubTask } from './types'
 import { appendStep, listSessions, createSession, currentDataRev, deriveState, eventToStep, getSession, historyMessages, leafOf, makeCiteChecker, sessionSubject, newBranchId, pathTo, updateSession, updateStepPayload } from './store'
 import type { StepKind } from './store'
 import { createRegistry } from './tools'
+import { afterTurn } from './skills/after-turn'
 import { adaptAgentTools } from './tools/bridge'
 import { allTools } from './all-tools'
 import { createRuntimeToolContext } from '../analysis/tools-runtime'
@@ -508,6 +509,7 @@ async function execute(x: ExecArgs): Promise<void> {
       emit: onEvent, signal: run.ctl.signal, cite: makeCiteChecker(db)
     }, { system, history, user: text + (x.attach?.block ?? '') })
     updateSession(db, sid, { status: 'idle', dataRev: currentDataRev(db), addIn: result.tokensIn + subIn, addOut: result.tokensOut + subOut })
+    afterTurn(sid)   // 记指纹和用户信号，判断要不要提示「存成 Skill」
     send({ sessionId: sid, type: 'done', status: result.stop, rounds: lastRounds || result.rounds, error: result.error ?? null })
   } finally {
     run.asks.clear(); run.approvals.clear()

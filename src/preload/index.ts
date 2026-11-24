@@ -152,6 +152,28 @@ const api = {
     loadSample: (): Promise<any> => ipcRenderer.invoke('data:loadSample'),
     clearSample: (): Promise<any> => ipcRenderer.invoke('data:clearSample'),
   },
+  /** Skill 成长（回答打分、从几次对话起草、版本历史、先试一次）和定制包（导出 / 导入配置） */
+  skills: {
+    turnInfo: (sid: string, seq: number): Promise<any> => ipcRenderer.invoke('skills:turnInfo', sid, seq),
+    rate: (sid: string, seq: number, rating: 1 | -1 | null): Promise<boolean> => ipcRenderer.invoke('skills:rate', sid, seq, rating),
+    dismissCreate: (sid: string, seq: number): Promise<boolean> => ipcRenderer.invoke('skills:dismissCreate', sid, seq),
+    dismissUpdate: (name: string): Promise<boolean> => ipcRenderer.invoke('skills:dismissUpdate', name),
+    draft: (reqId: string, sid: string, seq: number): Promise<any> => ipcRenderer.invoke('skills:draft', reqId, sid, seq),
+    draftUpdate: (reqId: string, name: string): Promise<any> => ipcRenderer.invoke('skills:draftUpdate', reqId, name),
+    cancel: (reqId: string): Promise<boolean> => ipcRenderer.invoke('skills:cancel', reqId),
+    tryRun: (p: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('skills:tryRun', p),
+    save: (p: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('skills:save', p),
+    meta: (): Promise<any[]> => ipcRenderer.invoke('skills:meta'),
+    versions: (name: string): Promise<any[]> => ipcRenderer.invoke('skills:versions', name),
+    versionText: (name: string, v: number): Promise<string | null> => ipcRenderer.invoke('skills:versionText', name, v),
+    restore: (name: string, v: number): Promise<any> => ipcRenderer.invoke('skills:restore', name, v)
+  },
+  pack: {
+    list: (): Promise<any> => ipcRenderer.invoke('pack:list'),
+    export: (sel: Record<string, unknown>): Promise<any> => ipcRenderer.invoke('pack:export', sel),
+    importPick: (): Promise<any> => ipcRenderer.invoke('pack:importPick'),
+    importApply: (id: string, keys: string[]): Promise<any> => ipcRenderer.invoke('pack:importApply', id, keys)
+  },
   /** 内置助手：角色、历史会话、提问（过程走 agent:event 事件）、停止、回答提问、同意 / 拒绝写操作 */
   agent: {
     roles: (): Promise<any> => ipcRenderer.invoke('agent:roles'),

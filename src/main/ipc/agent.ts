@@ -18,6 +18,8 @@ import { deleteSession, listSessions } from '../agent/store'
 import { AGENT_MODES, APPROVAL_MODES } from '../agent/types'
 import { ATTACH_EXTENSIONS, AttachError, readAttachment, readPastedImage } from '../agent/attachments'
 import { allowPath, isPathAllowed } from '../allowedPaths'
+import { registerAgentSkillsIpc } from './agent-skills'
+import { saveSkillVersioned } from '../agent/skills/store'
 
 const IdSchema = z.string().min(1).max(80)
 const ModelSchema = z.string().trim().min(1).max(120)
@@ -31,6 +33,7 @@ const RoleInput = z.object({
 export function registerAgentIpc(): void {
   const db = () => getDb()
   initAgent()
+  registerAgentSkillsIpc()
   try { resetStaleRunning() } catch { /* 表还没建好就算了 */ }
   // ── 只读：角色、场景、状态、模型、工具、历史、引用解析、设置 ──
   ipcMain.handle('agent:roles', async () => rolesView())
@@ -153,7 +156,7 @@ export function registerAgentIpc(): void {
       name: z.string().trim().min(1).max(40), description: z.string().max(300), roles: z.array(z.enum(['ops', 'tutor', 'research', 'teacher'])).max(4).default([]),
       when: z.string().max(300).default(''), body: z.string().max(70000), originalName: z.string().max(60).optional()
     }).parse(raw)
-    return saveSkill(userPlaybookDir(), p, { originalName: p.originalName, knownTools: allToolNames() })
+    return saveSkillVersioned(userPlaybookDir(), db(), p, { originalName: p.originalName, knownTools: allToolNames() })
   })
   ipcMain.handle('agent:playbookDelete', async (_e, name: unknown) => deleteSkill(userPlaybookDir(), z.string().min(1).max(60).parse(name)))
   // 导入：file = 选一个 .md；folder = 选一个含 SKILL.md 的文件夹（只读 SKILL.md，其他文件不导入也不执行）

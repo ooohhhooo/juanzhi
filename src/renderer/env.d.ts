@@ -485,6 +485,27 @@ type AgentEventMsg =
   | { sessionId: string; type: 'done'; status: string; rounds?: number; error?: { code: string; message: string } | null }
 
 interface ElectronAPI {
+  skills: {
+    turnInfo(sid: string, seq: number): Promise<{ rating: number | null; exported: boolean; create: { kind: 'create'; count: number; label: string } | null; updates: Array<{ kind: 'update'; name: string; count: number; hint: string }>; skills: string[] }>
+    rate(sid: string, seq: number, rating: 1 | -1 | null): Promise<boolean>
+    dismissCreate(sid: string, seq: number): Promise<boolean>
+    dismissUpdate(name: string): Promise<boolean>
+    draft(reqId: string, sid: string, seq: number): Promise<any>
+    draftUpdate(reqId: string, name: string): Promise<any>
+    cancel(reqId: string): Promise<boolean>
+    tryRun(p: Record<string, unknown>): Promise<{ newAnswer: string; originalAnswer: string; request: string; toolsUsed: string[]; blocked: string[]; stop: string }>
+    save(p: Record<string, unknown>): Promise<{ name: string; warnings: string[]; version: number }>
+    meta(): Promise<Array<{ name: string; version: number; sampleCount: number; thin: boolean; update: { count: number; hint: string } | null }>>
+    versions(name: string): Promise<Array<{ version: number; at: string; current: boolean }>>
+    versionText(name: string, v: number): Promise<string | null>
+    restore(name: string, v: number): Promise<{ name: string; warnings: string[]; version: number }>
+  }
+  pack: {
+    list(): Promise<{ roles: Array<{ key: string; title: string }>; skills: Array<{ key: string; title: string }>; prompts: Array<{ key: string; title: string }>; connectors: Array<{ key: string; title: string }> }>
+    export(sel: { roles: string[]; skills: string[]; prompts: string[]; connectors: string[] }): Promise<{ saved: boolean; path?: string; count: number; warnings: string[] }>
+    importPick(): Promise<any>
+    importApply(id: string, keys: string[]): Promise<{ added: number; replaced: number; skipped: number; notes: string[]; needSecrets: string[] }>
+  }
   agent: {
     roles(): Promise<{ scene: 'org' | 'school'; prefs: { mode: AgentMode; approval: AgentApproval; byRole: Record<string, { model: string; effort: AgentEffort }> }; roles: Array<{ id: string; name: string; suggestions: string[]; custom: boolean }> }>
     status(model?: string): Promise<AgentStatus>

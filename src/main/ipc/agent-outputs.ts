@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { ipcMain, dialog, shell, BrowserWindow, clipboard, ClipboardItem } from 'electron'
 import { z } from 'zod'
-import { getDataDir } from '../db'
+import { getDataDir, getDb } from '../db'
+import { markExported } from '../agent/skills/store'
 import { getMainWindow } from '../window'
 import { allowedFormats, exportOutput } from '../agent/outputs/export'
 import { restoreDeep } from '../agent/names'
@@ -34,6 +35,7 @@ export function registerAgentOutputsIpc(): void {
     const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
     if (r.canceled || !r.filePath) return { saved: false }
     const out = await exportOutput(s, id, fmt, r.filePath)
+    try { markExported(getDb(), s.sessionId) } catch { /* 记不上不影响导出 */ }   // 导出过 = 用户认可这次的结果
     return { saved: true, ...out }
   })
   /** 图片产出：复制图片到剪贴板 / 另存为（只认索引里登记的图片） */

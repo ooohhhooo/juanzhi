@@ -29,6 +29,8 @@ export const WRITE_CHANNELS = new Set([
   // 连接器：写设置表；connectors:test 会往外部发测试消息或启动 MCP 子进程并刷新工具缓存
   'connectors:save', 'connectors:remove', 'connectors:setAllowed', 'connectors:test',
   // 助手：agent:run / agent:checkTools 会调用 AI 并写 ai_usage、会话记录；setScene 写设置；deleteSession 删记录
+  // Skill 成长 / 定制包：打分、起草（调用 AI 写用量）、保存 / 恢复 Skill、导入配置都写数据
+  'skills:rate', 'skills:dismissCreate', 'skills:dismissUpdate', 'skills:draft', 'skills:draftUpdate', 'skills:tryRun', 'skills:save', 'skills:restore', 'skills:forget', 'pack:importApply',
   'agent-outputs:rerenderCard',   // 卡片换模板：只重写这张卡片自己的图片文件
   'agent:playbookSave', 'agent:playbookDelete', 'agent:playbookImport', 'agent:run', 'agent:checkTools', 'agent:checkEffort', 'agent:setScene', 'agent:deleteSession', 'agent:saveRole', 'agent:roleDraft', 'agent:roleDraftCancel', 'agent:deleteRole', 'agent:importRole', 'agent:saveSettings'
 ])
@@ -60,6 +62,7 @@ export const READONLY_CHANNELS = new Set([
   // 助手产出：list / read 只读；export 只写用户在「另存为」里选的文件；reveal 只在文件管理器里显示（产出本身由 Agent 工具写，不走 IPC）
   'agent-outputs:list', 'agent-outputs:read', 'agent-outputs:board', 'agent-outputs:export', 'agent-outputs:reveal', 'agent-outputs:copyImage', 'agent-outputs:saveImage',
   // 助手的读取类：角色 / 状态 / 剧本 / 历史 / 引用解析；stop / answer / approve 只改内存里正在跑的那次提问
+  'skills:turnInfo', 'skills:meta', 'skills:versions', 'skills:versionText', 'skills:cancel', 'pack:list', 'pack:export', 'pack:importPick',   // 只读（pack:export 只写用户在「另存为」里选的文件，importPick 只读文件做预览）
   'agent:pickAttachments', 'agent:readAttachment', 'agent:readPastedImage',   // 附件：只读用户选 / 拖 / 粘贴的文件到内存（粘贴的截图在临时目录识别完即删）
   'agent:roles', 'agent:status', 'agent:models', 'agent:modelInfo', 'agent:tools', 'agent:customRoles', 'agent:settings', 'agent:exportRole', 'agent:playbooks', 'agent:playbookGet', 'agent:playbookExport', 'agent:playbookOpenDir', 'agent:sessions', 'agent:session', 'agent:queryRecord', 'agent:cites', 'agent:stop', 'agent:answer', 'agent:approve',
   // 分享卡片：模板列表 / 示例预览只读；setDefault / setChildName 写 <数据目录>/share-cards.json

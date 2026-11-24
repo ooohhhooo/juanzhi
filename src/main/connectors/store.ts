@@ -158,3 +158,31 @@ export function setAllowed(id: string, allowed: string[]): EntryView {
   saveEntries(list)
   return viewOf(e)
 }
+
+// ───────── 定制包：导出（只导配置，不带任何密钥值）和导入 ─────────
+/** 给定制包用：每个连接的公开配置 + 「需要对方自己填什么」（只有名字和个数，没有值） */
+export function exportableEntries(): Array<{ type: string; name: string; pub: Record<string, unknown>; envKeys: string[]; headerKeys: string[]; secretArgsCount: number; hasSecretUrl: boolean; secretFieldNames: string[] }> {
+  const sec = loadSecrets()
+  return listEntries().map(e => {
+    const s = sec[e.id] ?? {}
+    const c = getConnector(e.type)
+    const isMcp = e.type === 'mcp'
+    return {
+      type: e.type, name: e.name, pub: { ...e.pub },
+      envKeys: Object.keys((s.env as Record<string, string>) ?? {}), headerKeys: Object.keys((s.headers as Record<string, string>) ?? {}),
+      secretArgsCount: Array.isArray(s.secretArgs) ? (s.secretArgs as unknown[]).length : 0, hasSecretUrl: isMcp && typeof s.url === 'string' && s.url !== '',
+      secretFieldNames: isMcp ? [] : (c?.secretFields ?? [])
+    }
+  })
+}
+
+/** 导入一个连接：只存设置，密钥留空；同名的更新设置、保留已填的密钥。MCP 以外的类型（必须有密钥才能保存）不在这里导入 */
+export function importPackEntry(c: { type: string; name: string; pub: { transport?: 'stdio' | 'http'; command?: string; args?: string[]; preset?: string }; needs: { env: string[]; headers: string[] } }): { ok: boolean; note: string } {
+  if (c.type !== 'mcp') return { ok: false, note: '这类连接要填密钥才能保存，请到「设置」里自己新建' }
+  if (c.pub.transport === 'http') return { ok: false, note: '这是用网址连接的服务，网址是保密的，请到「设置」里自己新建' }
+  const old = listEntries().find(e => e.type === 'mcp' && e.name === c.name)
+  const oldEnv = (old ? (fullConfig(old.id)?.config?.env as Record<string, string> | undefined) : undefined) ?? {}
+  const env = Object.fromEntries([...new Set([...Object.keys(oldEnv), ...c.needs.env])].map(k => [k, oldEnv[k] ?? '']))
+  saveEntry({ id: old?.id, type: 'mcp', name: c.name, config: { transport: 'stdio', command: c.pub.command, args: c.pub.args ?? [], env, preset: c.pub.preset } })
+  return { ok: true, note: '' }
+}
