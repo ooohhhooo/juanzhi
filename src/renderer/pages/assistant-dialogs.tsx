@@ -69,28 +69,28 @@ export function RoleModal({ open, roleId, onClose, onSaved, prefill, onBack }: {
   const exp = async () => {
     try { const r = await window.api.agent.exportRole(roleId!); if (r.saved) message.success('已导出，可以把这个文件发给别人导入') } catch (e) { message.error(clean(e)) }
   }
-  const hint = (t: string) => <span className="ewb-lib-sub" style={{ display: 'block', margin: '1px 0 3px' }}>{t}</span>
+  const hint = (t: string) => <span className="ewb-as-muted" style={{ marginTop: -2 }}>{t}</span>
   return (
-    <Modal open={open} title={roleId ? '编辑角色' : onBack ? '新建角色 · 第 3 步：看一看，改一改' : '新建角色'} onCancel={onClose} width={600} destroyOnClose
-      footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+    <Modal open={open} title={roleId ? '编辑角色' : onBack ? '新建角色 · 第 3 步：看一看，改一改' : '新建角色'} onCancel={onClose} width={600} destroyOnClose rootClassName="ewb-as-modal"
+      footer={<div className="ewb-as-foot">
         {roleId && <><Btn tone="danger" data-testid="role-delete" onClick={del}>删除</Btn><Btn tone="secondary" data-testid="role-export" onClick={exp}>导出成文件</Btn></>}
         {!roleId && onBack && <Btn tone="secondary" data-testid="role-back" onClick={onBack}>上一步</Btn>}
         <span style={{ flex: 1 }} />
         <Btn tone="secondary" onClick={onClose}>取消</Btn>
         <Btn tone="primary" data-testid="role-save" disabled={!name.trim()} onClick={save}>保存</Btn>
       </div>}>
-      <div data-testid="role-modal" style={{ display: 'grid', gap: 12 }}>
-        <label>名称{hint('在角色切换里显示的名字，比如“班主任”“续费跟进”。')}<Input value={name} maxLength={20} placeholder="比如：续费跟进" data-testid="role-name" onChange={e => setName(e.target.value)} /></label>
-        <label>说明（怎么说话、关注什么）{hint('写给助手看：你是谁、想让它怎么回答、更关心什么。一两句话就够。')}<Input.TextArea value={desc} rows={3} maxLength={400} data-testid="role-desc" onChange={e => setDesc(e.target.value)} /></label>
-        <div>
-          <div>可以用哪些查询</div>
+      <div data-testid="role-modal" className="ewb-as-form">
+        <label className="ewb-as-field"><span className="ewb-as-field__k">名称</span>{hint('在角色切换里显示的名字，比如“班主任”“续费跟进”。')}<Input value={name} maxLength={20} placeholder="比如：续费跟进" data-testid="role-name" onChange={e => setName(e.target.value)} /></label>
+        <label className="ewb-as-field"><span className="ewb-as-field__k">说明（怎么说话、关注什么）</span>{hint('写给助手看：你是谁、想让它怎么回答、更关心什么。一两句话就够。')}<Input.TextArea value={desc} rows={3} maxLength={400} data-testid="role-desc" onChange={e => setDesc(e.target.value)} /></label>
+        <div className="ewb-as-field">
+          <span className="ewb-as-field__k">可以用哪些查询</span>
           {hint('勾上助手可以用的功能，没勾的它不会用。拿不准就保持默认。')}
           <ToolPicker tools={tools} picked={picked} onChange={setPicked} />
-          <span className="ewb-lib-sub">写计划、向你提问、读取分析步骤、取回进度是每个角色都有的。</span>
+          <span className="ewb-as-muted">写计划、向你提问、读取分析步骤、取回进度是每个角色都有的。</span>
         </div>
-        <label>推荐问题（一行一个，最多 4 个）{hint('进入这个角色时，页面上会出现这几个问题，点一下就能问。')}<Input.TextArea value={sugg} rows={3} data-testid="role-suggest" onChange={e => setSugg(e.target.value)} /></label>
-        <label>默认 Skill（可选）{hint('Skill 是一套现成的做事步骤。选一个，助手会优先照着做。')}<Select allowClear style={{ width: '100%' }} value={playbook} placeholder="不选" data-testid="role-playbook" onChange={v => setPlaybook(v)} options={(pbs?.items ?? []).map(p => ({ value: p.name, label: p.name }))} /></label>
-        <label>只给这个角色的额外说明（可选）{hint('这个角色要特别遵守的规矩，比如口径、提醒。没有就空着。')}<Input.TextArea value={notes} rows={2} maxLength={1500} data-testid="role-notes" onChange={e => setNotes(e.target.value)} /></label>
+        <label className="ewb-as-field"><span className="ewb-as-field__k">推荐问题（一行一个，最多 4 个）</span>{hint('进入这个角色时，页面上会出现这几个问题，点一下就能问。')}<Input.TextArea value={sugg} rows={3} data-testid="role-suggest" onChange={e => setSugg(e.target.value)} /></label>
+        <label className="ewb-as-field"><span className="ewb-as-field__k">默认 Skill（可选）</span>{hint('Skill 是一套现成的做事步骤。选一个，助手会优先照着做。')}<Select allowClear style={{ width: '100%' }} value={playbook} placeholder="不选" data-testid="role-playbook" onChange={v => setPlaybook(v)} options={(pbs?.items ?? []).map(p => ({ value: p.name, label: p.name }))} /></label>
+        <label className="ewb-as-field"><span className="ewb-as-field__k">只给这个角色的额外说明（可选）</span>{hint('这个角色要特别遵守的规矩，比如口径、提醒。没有就空着。')}<Input.TextArea value={notes} rows={2} maxLength={1500} data-testid="role-notes" onChange={e => setNotes(e.target.value)} /></label>
       </div>
     </Modal>
   )
@@ -118,19 +118,19 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
     } catch (e) { message.error(clean(e)) }
   }
   return (
-    <Modal open={open} title="助手设置" onCancel={onClose} width={640} destroyOnClose afterClose={() => setTab('general')}
-      footer={tab === 'skills' || tab === 'cards' || tab === 'pack' ? <Btn tone="secondary" onClick={onClose}>关闭</Btn> : <><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}>
+    <Modal open={open} title="助手设置" onCancel={onClose} width={640} destroyOnClose afterClose={() => setTab('general')} rootClassName="ewb-as-modal ewb-as-modal--tabs"
+      footer={<div className="ewb-as-foot">{tab === 'skills' || tab === 'cards' || tab === 'pack' ? <Btn tone="secondary" onClick={onClose}>关闭</Btn> : <><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}</div>}>
       <Tabs activeKey={tab} onChange={setTab} items={[
         { key: 'general', label: <span data-testid="assistant-settings-tab-general">通用</span> },
         { key: 'skills', label: <span data-testid="assistant-settings-tab-skills">Skill</span> },
         { key: 'cards', label: <span data-testid="assistant-settings-tab-cards">分享卡片</span> },
         { key: 'pack', label: <span data-testid="assistant-settings-tab-pack">配置包</span> }
       ]} />
-      {tab === 'skills' ? <SkillsPanel /> : tab === 'cards' ? <CardsPanel /> : tab === 'pack' ? <PackPanel /> : <div data-testid="assistant-settings" style={{ display: 'grid', gap: 16 }}>
+      {tab === 'skills' ? <SkillsPanel /> : tab === 'cards' ? <CardsPanel /> : tab === 'pack' ? <PackPanel /> : <div data-testid="assistant-settings" className="ewb-as-form" style={{ gap: 20 }}>
         {extra && (
           <div>
-            <b>你的场景</b>
-            <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>助手里的叫法（班级 / 年级、学员 / 学生）按你的场景显示。</p>
+            <p className="ewb-as-sec__h">你的场景</p>
+            <p className="ewb-as-muted" style={{ margin: '2px 0 8px' }}>助手里的叫法（班级 / 年级、学员 / 学生）按你的场景显示。</p>
             <div className="ewb-as-seg ewb-as-seg--small" role="group" aria-label="场景" style={{ display: 'inline-flex' }}>
               <button type="button" data-testid="assistant-scene-org" aria-pressed={extra.scene === 'org'} onClick={() => extra.onScene('org')}>培训机构</button>
               <button type="button" data-testid="assistant-scene-school" aria-pressed={extra.scene === 'school'} onClick={() => extra.onScene('school')}>学校</button>
@@ -139,8 +139,8 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
         )}
         {extra && (
           <div>
-            <b>角色</b>
-            <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>角色决定助手能查什么、怎么说话。可以自己建一个，或导入别人发来的角色文件。</p>
+            <p className="ewb-as-sec__h">角色</p>
+            <p className="ewb-as-muted" style={{ margin: '2px 0 8px' }}>角色决定助手能查什么、怎么说话。可以自己建一个，或导入别人发来的角色文件。</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Btn tone="secondary" size="small" icon={Plus} data-testid="assistant-role-new" onClick={() => { onClose(); extra.onNewRole() }}>新建角色</Btn>
               <Btn tone="secondary" size="small" icon={Download} data-testid="assistant-role-import" onClick={() => { onClose(); extra.onImportRole() }}>导入角色</Btn>
@@ -149,14 +149,14 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
           </div>
         )}
         <div>
-          <b>机构说明</b>
-          <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>写给助手的背景：我们怎么叫级别、续费周期、到课怎么算、常用口径……每次对话都会带上，不用每次重复说。</p>
+          <p className="ewb-as-sec__h">机构说明</p>
+          <p className="ewb-as-muted" style={{ margin: '2px 0 8px' }}>写给助手的背景：我们怎么叫级别、续费周期、到课怎么算、常用口径……每次对话都会带上，不用每次重复说。</p>
           <Input.TextArea value={ctx} rows={5} data-testid="assistant-org-context" placeholder="例如：我们把一级叫“启蒙”，续费周期按学期算……" onChange={e => setCtx(e.target.value)} />
-          <span className="ewb-lib-sub" data-testid="assistant-org-count" style={ctx.length > max ? { color: 'var(--ewb-red-ink)' } : undefined}>{ctx.length} / {max} 字{ctx.length > max ? `——超出的 ${ctx.length - max} 字不会发给助手，请精简` : ''}</span>
+          <span className="ewb-as-muted" data-testid="assistant-org-count" style={{ display: 'block', marginTop: 6, fontVariantNumeric: 'tabular-nums', ...(ctx.length > max ? { color: 'var(--ewb-red-ink)' } : {}) }}>{ctx.length} / {max} 字{ctx.length > max ? `——超出的 ${ctx.length - max} 字不会发给助手，请精简` : ''}</span>
         </div>
         <div>
-          <b>上下文上限</b>
-          <p className="ewb-lib-sub" style={{ margin: '2px 0 6px' }}>对话用到上限的约 70% 时，助手会自动把前面的内容整理成摘要再继续。不填就按模型的默认值（现在是 {data?.contextLimitEffective?.toLocaleString() ?? '…'} token）。</p>
+          <p className="ewb-as-sec__h">上下文上限</p>
+          <p className="ewb-as-muted" style={{ margin: '2px 0 8px' }}>对话用到上限的约 70% 时，助手会自动把前面的内容整理成摘要再继续。不填就按模型的默认值（现在是 {data?.contextLimitEffective?.toLocaleString() ?? '…'} token）。</p>
           <InputNumber value={limit} min={8000} max={1000000} step={8000} placeholder={String(data?.contextLimitDefault ?? 64000)} data-testid="assistant-context-limit" onChange={v => setLimit(v === null ? null : Number(v))} style={{ width: 180 }} /> token
         </div>
       </div>}

@@ -3,7 +3,7 @@ import { useSubject } from '../subject/SubjectContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Input } from 'antd'
-import { Circle, CircleCheck, CircleDot, CornerDownRight, MessageSquare, Network, PanelLeftClose, PanelLeftOpen, Settings, Square, SquarePen, Trash2, Wrench, FileSpreadsheet, GitBranch, FileText, Image as ImageIcon } from 'lucide-react'
+import { ChevronRight, Circle, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleHelp, CornerDownRight, ListChecks, LoaderCircle, MessageSquare, Network, PanelLeftClose, PanelLeftOpen, Settings, Square, SquarePen, Trash2, FileSpreadsheet, GitBranch, FileText, Image as ImageIcon } from 'lucide-react'
 import { Btn, UsageNote } from '../design'
 import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
@@ -140,18 +140,22 @@ function PlanBox({ items }: { items: AgentPlanItem[] }) {
   )
 }
 
-function ToolItem({ call, result, prog }: { call: AgentStepRow; result?: AgentStepRow; prog?: { done: number; total: number } }) {
+/** 一步查询：白话名字 + 中性的结果摘要（几条、几字、几秒都不是错误，用次要文字色）；只有失败才标玫红。内部名称只在展开后显示 */
+function ToolItem({ call, result, prog, label }: { call: AgentStepRow; result?: AgentStepRow; prog?: { done: number; total: number }; label: string }) {
   const name = String(call.payload.name)
   const ok = result ? result.payload.ok !== false : true
   const sum = result ? String(result.payload.summary ?? '') : prog && prog.total > 0 ? `归类中 ${prog.done}/${prog.total}` : '查询中……'
   return (
     <details className="ewb-as-tool" data-testid="assistant-tool" data-name={name} data-ok={String(ok)} data-done={String(!!result)}>
-      <summary>
-        <Wrench size={14} />
-        <span className="ewb-as-tool__name">{TOOL_LABEL[name] ?? name}</span>
-        <span className="ewb-as-tool__sum" data-testid="assistant-tool-summary" data-progress={prog ? `${prog.done}/${prog.total}` : undefined}>{ok ? sum : friendlyFail(sum)}{result && result.ms ? `　${(result.ms / 1000).toFixed(1)} 秒` : ''}</span>
+      <summary title={result ? '点开看查询条件和返回结果' : undefined}>
+        <span className="ewb-as-tool__ic">{!result ? <LoaderCircle size={15} strokeWidth={1.9} className="ewb-spin" aria-label="进行中" /> : ok ? <CircleCheck size={15} strokeWidth={1.9} aria-label="完成" /> : <CircleAlert size={15} strokeWidth={1.9} aria-label="没成功" />}</span>
+        <span className="ewb-as-tool__name">{label}</span>
+        <span className="ewb-as-tool__sum" data-testid="assistant-tool-summary" data-progress={prog ? `${prog.done}/${prog.total}` : undefined}>{ok ? sum : friendlyFail(sum)}</span>
+        {result && result.ms >= 100 ? <span className="ewb-as-tool__ms">{(result.ms / 1000).toFixed(1)} 秒</span> : null}
+        <ChevronRight size={14} strokeWidth={1.9} className="ewb-as-tool__chev" aria-hidden />
       </summary>
       <div className="ewb-as-tool__body">
+        {label !== name && <div className="ewb-as-tool__raw">内部名称 <code className="ewb-as-code">{name}</code></div>}
         <div><span className="ewb-as-tool__k">查询条件</span><pre className="ewb-as-pre" data-testid="assistant-tool-args">{JSON.stringify(call.payload.args ?? {}, null, 2)}</pre></div>
         {result && <div><span className="ewb-as-tool__k">返回结果{result.payload.truncated ? '（太长，已截断）' : ''}</span><pre className="ewb-as-pre" data-testid="assistant-tool-result">{String(result.payload.text ?? '')}</pre></div>}
       </div>
@@ -166,7 +170,7 @@ function AskBox({ step, pending, onPick }: { step: AgentStepRow; pending: boolea
   if (p.planReview) {
     return (
       <div className="ewb-as-ask" data-testid="assistant-plan-review" data-answered={String(answered)}>
-        <p className="ewb-as-ask__h">先看看这个计划</p>
+        <p className="ewb-as-ask__h"><ListChecks size={18} strokeWidth={1.9} aria-hidden />先看看这个计划</p>
         {answered
           ? <div className="ewb-as-ask__done" data-testid="assistant-plan-answer">{p.answer === PLAN_APPROVE ? '你确认了计划，开始执行。' : `你的修改意见：${p.answer}`}</div>
           : pending ? (
@@ -183,7 +187,7 @@ function AskBox({ step, pending, onPick }: { step: AgentStepRow; pending: boolea
   }
   return (
     <div className="ewb-as-ask" data-testid="assistant-ask" data-answered={String(answered)}>
-      <p className="ewb-as-ask__h">需要你确认</p>
+      <p className="ewb-as-ask__h"><CircleHelp size={18} strokeWidth={1.9} aria-hidden />需要你确认</p>
       <p className="ewb-as-ask__q">{p.question}</p>
       {answered
         ? <div className="ewb-as-ask__done" data-testid="assistant-ask-answer">你选了：{p.answer}</div>
@@ -437,7 +441,7 @@ export default function Assistant() {
   const openQuery = (id: string) => { if (/^\d+$/.test(id)) setQueryN(Number(id)) }
   // 画布：会话树 → 节点
   const { data: boardSpec } = useQuery({ queryKey: ['agent', 'board', active, outs.outputs.length, running], queryFn: () => (active ? window.api.agentOutputs.board(active) : null), enabled: !!active && outs.outputs.some(o => o.type === 'board') && view === 'canvas', staleTime: 0 })
-  const converted = useMemo(() => sessionToNodes(allSteps, { outputs: outs.outputs, boardFindings: (boardSpec?.findings ?? []).map((f: any) => String(f.title ?? '')), running, toolLabel: n => TOOL_LABEL[n] ?? n }), [allSteps, outs.outputs, boardSpec, running])
+  const converted = useMemo(() => sessionToNodes(allSteps, { outputs: outs.outputs, boardFindings: (boardSpec?.findings ?? []).map((f: any) => String(f.title ?? '')), running, toolLabel: labelOf }), [allSteps, outs.outputs, boardSpec, running, labelOf])
   const canvasNodes = converted.nodes
   const onCanvasAction = (id: string, action: CanvasAction) => {
     const n = canvasNodes.find(x => x.id === id); if (!n) return
@@ -468,12 +472,12 @@ export default function Assistant() {
             </div>
             <p className="ewb-as-side__title">最近</p>
             <div className="ewb-as-side__list">
-              {sessions.length === 0 && <span className="ewb-lib-sub" data-testid="assistant-history-empty">还没有对话</span>}
+              {sessions.length === 0 && <span className="ewb-as-side__empty" data-testid="assistant-history-empty">还没有对话</span>}
               {sessions.map(s => (
                 <div key={s.id} className="ewb-as-histrow">
                   <button type="button" className="ewb-as-hist" data-testid="assistant-history-item" aria-current={s.id === active} onClick={() => openSession(s.id)}>
                     <span className="ewb-as-hist__t">{s.title || '（没有标题）'}</span>
-                    <span className="ewb-as-hist__m"><span>{roleName(s.role)}</span><span>{s.updatedAt.slice(5, 16)}</span>{s.stale && <span data-testid="assistant-history-stale">数据已更新</span>}</span>
+                    <span className="ewb-as-hist__m"><span>{roleName(s.role)}</span><span>{s.updatedAt.slice(5, 16)}</span>{s.stale && <span className="ewb-as-hist__stale" data-testid="assistant-history-stale">数据已更新</span>}</span>
                   </button>
                   <button type="button" className="ewb-as-hist ewb-as-hist__del" aria-label="删除这个对话" title="删除这个对话" data-testid="assistant-history-delete" onClick={() => removeSession(s.id)}><Trash2 size={14} /></button>
                 </div>
@@ -566,16 +570,20 @@ export default function Assistant() {
               case 'user': return <div key={s.seq} className="ewb-as-user" data-testid="assistant-user">{s.payload.text}{Array.isArray(s.payload.attachments) && s.payload.attachments.length > 0 && <span className="ewb-as-user__atts" data-testid="assistant-user-attachments">{s.payload.attachments.map((a: any, i: number) => <span key={i} className="ewb-as-user__att">{a.kind === 'image' ? <ImageIcon size={12} strokeWidth={1.9} /> : <FileText size={12} strokeWidth={1.9} />}{String(a.name)}</span>)}</span>}</div>
               case 'assistant': return s.payload.nudge ? null : s.payload.compacted ? <div key={s.seq} className="ewb-as-compacted" data-testid="assistant-compacted">{s.payload.text}</div> : <div key={s.seq} className="ewb-as-thought">{/[*#|\[\n-]/.test(String(s.payload.text ?? '')) ? <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} /> : s.payload.text}</div>
               case 'plan': return keepPlan.has(s.seq) ? <PlanBox key={s.seq} items={s.payload.items} /> : null
-              case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} prog={toolProg[String(s.payload.id)]} />
+              case 'tool_call': return HIDDEN_TOOLS.has(String(s.payload.name)) ? null : <ToolItem key={s.seq} call={s} result={results.get(String(s.payload.id))} prog={toolProg[String(s.payload.id)]} label={labelOf(String(s.payload.name))} />
               case 'ask': return <AskBox key={s.seq} step={s} pending={running && lastAsk?.seq === s.seq} onPick={pick} />
               case 'answer': return (
                 <div key={s.seq} className="ewb-as-answer" data-testid="assistant-answer" data-stop={s.payload.stop} data-seq={s.seq}>
-                  {!running && <button type="button" className="ewb-as-fork" data-testid="assistant-fork" title="从这条回答往下追问，形成一个分支，不影响主线" onClick={() => { setForkFrom(s.seq); document.querySelector<HTMLTextAreaElement>('[data-testid=assistant-input]')?.focus() }}>{' '}<CornerDownRight size={12} strokeWidth={1.9} style={{ verticalAlign: '-1px' }} /> 从这里追问</button>}
-                  {s.payload.stop && s.payload.stop !== 'answered' && <p className="ewb-lib-sub" data-testid="assistant-stop-note" style={{ marginTop: 0 }}>{STOP_NOTE[s.payload.stop] ?? ''}</p>}
+                  {s.payload.stop && s.payload.stop !== 'answered' && <p className="ewb-as-stopnote" data-testid="assistant-stop-note">{STOP_NOTE[s.payload.stop] ?? ''}</p>}
                   <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} />
-                  {s.payload.unfinished && !running && <div className="ewb-as-unfinished" data-testid="assistant-unfinished">它没做完，刚才说要做的事没有动手。<button type="button" className="ewb-as-chiplink" data-testid="assistant-unfinished-continue" onClick={() => void send('请继续，直接调用工具把刚才说要做的事做完。')}>点这里让它继续</button></div>}
+                  {s.payload.unfinished && !running && <div className="ewb-as-unfinished" data-testid="assistant-unfinished"><CircleDashed size={16} strokeWidth={1.9} aria-hidden /><span>它没做完，刚才说要做的事没有动手。</span><button type="button" className="ewb-as-chiplink" data-testid="assistant-unfinished-continue" onClick={() => void send('请继续，直接调用工具把刚才说要做的事做完。')}>点这里让它继续</button></div>}
                   {!running && turnLogs.get(s.seq) && <ActionLog log={turnLogs.get(s.seq)!} />}
-                  {(!s.payload.stop || s.payload.stop === 'answered') && <SkillBar sessionId={s.sessionId} seq={s.seq} running={running} />}
+                  {!running && (() => {
+                    const fork = <button type="button" className="ewb-as-fork" data-testid="assistant-fork" title="从这条回答往下追问，形成一个分支，不影响主线" onClick={() => { setForkFrom(s.seq); document.querySelector<HTMLTextAreaElement>('[data-testid=assistant-input]')?.focus() }}><CornerDownRight size={13} strokeWidth={1.9} aria-hidden />从这里追问</button>
+                    return (!s.payload.stop || s.payload.stop === 'answered')
+                      ? <SkillBar sessionId={s.sessionId} seq={s.seq} running={running} lead={fork} />
+                      : <div className="ewb-as-answer__foot">{fork}</div>
+                  })()}
                 </div>)
               case 'error': {
                 const c = String(s.payload.code)
@@ -587,13 +595,13 @@ export default function Assistant() {
             }
           })}
           {running && live && <div className="ewb-as-answer"><div className="ewb-as-live" data-testid="assistant-live">{live}</div></div>}
-          {running && !live && <div className="ewb-lib-sub" data-testid="assistant-working">{statusText || '助手正在查数据、想答案……'}</div>}
-          {approval && <ApprovalBox approval={approval} onDecide={decide} />}
+          {running && !live && <div className="ewb-as-working" data-testid="assistant-working">{statusText || '助手正在查数据、想答案……'}</div>}
+          {approval && <ApprovalBox approval={approval} label={labelOf(approval.name)} onDecide={decide} />}
           <div ref={flowEnd} />
         </div>
 
         {view === 'chat' && forkFrom !== null && (
-          <div className="ewb-as-forkbar" data-testid="assistant-forkbar">从第 {steps.filter(x => x.kind === 'answer').length} 条回答分出一个新分支追问（不影响主线）<button type="button" className="ewb-as-chiplink" data-testid="assistant-fork-cancel" onClick={() => setForkFrom(null)}>取消</button></div>
+          <div className="ewb-as-forkbar" data-testid="assistant-forkbar"><CornerDownRight size={15} strokeWidth={1.9} aria-hidden /><span>从第 {steps.filter(x => x.kind === 'answer').length} 条回答分出一个新分支追问（不影响主线）</span><button type="button" className="ewb-as-chiplink" data-testid="assistant-fork-cancel" onClick={() => setForkFrom(null)}>取消</button></div>
         )}
         {view === 'chat' && (
           <div className="ewb-as-rolebar" role="group" aria-label="我的身份">

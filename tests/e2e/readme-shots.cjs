@@ -174,9 +174,17 @@ async function main() {
     await page.locator('[data-testid^=out-tab-]', { hasText: '看板' }).first().click().catch(() => {})
     await waitFor(async () => (await count('assistant-boardpane')) === 1, 15000)
     await sleep(2000)
-    // 对话区滚到最底：看到最后的工具步骤和最终回答
-    await page.evaluate(() => { for (const e of document.querySelectorAll('*')) { const r = e.getBoundingClientRect(); const o = getComputedStyle(e).overflowY; if ((o === 'auto' || o === 'scroll') && e.scrollHeight > e.clientHeight + 40 && r.x > 290 && r.x < 330) e.scrollTop = e.scrollHeight } })
+    // 以前这里按坐标猜滚动容器，整套跑下来时会拍到「分析」页：拍之前确认还在助手页、对话和回答都在，不在就回到这次对话
+    if (!(await page.evaluate(() => location.hash.startsWith('#/assistant')))) {
+      await goto('#/assistant'); await T('assistant-page').waitFor({ timeout: 15000 })
+      await T('assistant-history-item').first().click()
+      await unfold()
+    }
+    await T('assistant-answer').last().waitFor({ timeout: 15000 })
+    // 对话区滚到最后的回答：看到结论、引用标签和回答下面的行动记录
+    await T('assistant-answer').last().evaluate(e => e.scrollIntoView({ block: 'end' }))
     await sleep(600)
+    check('助手', '拍的是助手页：有你的提问、最终回答，右侧是产出', await page.evaluate(() => location.hash.startsWith('#/assistant')) && (await count('assistant-user')) >= 1 && (await count('assistant-answer')) >= 1 && (await count('side-panel')) === 1)
     await shot('assistant', 1500)
   }
 

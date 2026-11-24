@@ -86,7 +86,7 @@ export default function RoleWizard({ open, scene, startTemplate, onClose, onSave
 
   return (
     <>
-      <Modal open={open && step === 1} title="新建角色 · 第 1 步：你是做什么的？" onCancel={close} width={760} footer={null} destroyOnClose>
+      <Modal open={open && step === 1} title="新建角色 · 第 1 步：你是做什么的？" onCancel={close} width={760} footer={null} destroyOnClose rootClassName="ewb-as-modal">
         <div data-testid="role-wizard" style={{ display: 'grid', gap: 14 }}>
           <p className="ewb-lib-sub" style={{ margin: 0 }}>选一个最像你的，下一步可以再改。</p>
           <div className="ewb-rw-grid">
@@ -118,8 +118,8 @@ export default function RoleWizard({ open, scene, startTemplate, onClose, onSave
         </div>
       </Modal>
 
-      <Modal open={open && step === 2} title="新建角色 · 第 2 步：告诉助手你的情况" onCancel={close} width={620} destroyOnClose
-        footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+      <Modal open={open && step === 2} title="新建角色 · 第 2 步：告诉助手你的情况" onCancel={close} width={620} destroyOnClose rootClassName="ewb-as-modal"
+        footer={<div className="ewb-as-foot">
           {busy
             ? <Btn tone="secondary" data-testid="role-ai-cancel" onClick={cancelGen}>取消</Btn>
             : <><Btn tone="secondary" data-testid="role-ai-back" onClick={() => setStep(1)}>上一步</Btn><Btn tone="primary" data-testid="role-ai-generate" disabled={!job.trim()} onClick={generate}>生成</Btn></>}

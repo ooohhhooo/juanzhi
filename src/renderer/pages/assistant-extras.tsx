@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react'
 import { Modal } from 'antd'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, ShieldQuestion } from 'lucide-react'
 import { Btn } from '../design'
 import { AnalysisBoard } from '../analysis/AnalysisBoard'
 
 /** 同意弹窗要显示的内容：发到哪里 + 完整内容；含个人信息时 privacyWarning 非空，要醒目 */
 export interface ApprovalInfo { id: string; name: string; summary: string; preview?: { target: string; content: string; privacyWarning?: string }; canSession?: boolean }
 
-export function ApprovalBox({ approval, onDecide }: { approval: ApprovalInfo; onDecide: (ok: boolean | 'session') => void }) {
+/** label：这个工具的白话名字。摘要里出现的内部名称（如 mcp_xxx_post_message）换成白话，内部名称只留给行动记录的原文 */
+export function ApprovalBox({ approval, label, onDecide }: { approval: ApprovalInfo; label?: string; onDecide: (ok: boolean | 'session') => void }) {
   const pv = approval.preview
   const external = !!pv && approval.name !== 'text_classify' && (pv.target.includes('企业微信') || pv.target.includes('MCP') || !!pv.privacyWarning)
+  const nice = label && label !== approval.name ? label.replace(/^外部工具：/, '') : null
+  const summary = nice ? approval.summary.split(approval.name).join(nice) : approval.summary
   return (
     <div className="ewb-as-ask" data-testid="assistant-approval" data-name={approval.name}>
-      <p className="ewb-as-ask__h">需要你同意</p>
-      <p className="ewb-as-ask__q">助手想做这件事：{approval.summary}</p>
+      <p className="ewb-as-ask__h"><ShieldQuestion size={18} strokeWidth={1.9} aria-hidden />需要你同意</p>
+      <p className="ewb-as-ask__q">助手想做这件事：{summary}</p>
       {pv && (
         <div className="ewb-as-preview" data-testid="assistant-approval-preview">
           <div className="ewb-as-preview__to" data-testid="assistant-approval-target"><b>{external ? '发到：' : '内容：'}</b>{pv.target}</div>
@@ -28,7 +31,7 @@ export function ApprovalBox({ approval, onDecide }: { approval: ApprovalInfo; on
         {approval.canSession && <Btn tone="secondary" data-testid="assistant-approve-session" title="在这个对话里，同一个工具发到同一个地方，不再询问" onClick={() => onDecide('session')}>本次对话都允许</Btn>}
         <Btn tone="secondary" data-testid="assistant-reject" onClick={() => onDecide(false)}>不允许</Btn>
       </div>
-      {approval.canSession && <p className="ewb-lib-sub" data-testid="assistant-approve-session-hint" style={{ margin: '6px 0 0' }}>选「本次对话都允许」：这个对话里再发到同一个地方，不再询问；换个对话或重启软件后恢复询问。内容含个人信息时仍会每次询问。</p>}
+      {approval.canSession && <p className="ewb-as-ask__hint" data-testid="assistant-approve-session-hint">选「本次对话都允许」：这个对话里再发到同一个地方，不再询问；换个对话或重启软件后恢复询问。内容含个人信息时仍会每次询问。</p>}
     </div>
   )
 }
@@ -57,13 +60,13 @@ export function QueryRecordModal({ sessionId, n, onClose }: { sessionId: string 
   }, [sessionId, n])
   const table = rec ? parseResultTable(rec.text) : null
   return (
-    <Modal open={n != null} title={`查询 #${n ?? ''}`} footer={null} onCancel={onClose} width={720} destroyOnClose>
-      {rec === undefined ? <p>加载中……</p> : rec === null ? <p data-testid="query-missing">找不到这条查询记录。</p> : (
-        <div data-testid="query-record">
-          <p className="ewb-lib-sub" data-testid="query-summary">{rec.name} · {rec.ok ? rec.summary : `没成功：${rec.summary}`}</p>
-          {rec.sql && <div><b>SQL</b><pre className="ewb-as-pre" data-testid="query-sql">{rec.sql.length > 600 ? rec.sql.slice(0, 600) + '…' : rec.sql}</pre></div>}
-          {!rec.sql && <div><b>查询条件</b><pre className="ewb-as-pre">{JSON.stringify(rec.args, null, 2).slice(0, 800)}</pre></div>}
-          <b>结果</b>
+    <Modal open={n != null} title={`查询 #${n ?? ''}`} footer={null} onCancel={onClose} width={720} destroyOnClose rootClassName="ewb-as-modal">
+      {rec === undefined ? <p className="ewb-as-loading">加载中……</p> : rec === null ? <p data-testid="query-missing">找不到这条查询记录。</p> : (
+        <div data-testid="query-record" className="ewb-as-form">
+          <p className="ewb-as-muted" data-testid="query-summary" style={{ margin: 0 }}><code className="ewb-as-code">{rec.name}</code> · {rec.ok ? rec.summary : `没成功：${rec.summary}`}</p>
+          {rec.sql && <div className="ewb-as-field"><span className="ewb-as-field__k">SQL</span><pre className="ewb-as-pre" data-testid="query-sql">{rec.sql.length > 600 ? rec.sql.slice(0, 600) + '…' : rec.sql}</pre></div>}
+          {!rec.sql && <div className="ewb-as-field"><span className="ewb-as-field__k">查询条件</span><pre className="ewb-as-pre">{JSON.stringify(rec.args, null, 2).slice(0, 800)}</pre></div>}
+          <span className="ewb-as-field__k">结果</span>
           {table ? (
             <div className="ewb-md__tablewrap">
               <table className="ewb-md__table" data-testid="query-table">

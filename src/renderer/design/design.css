@@ -304,9 +304,11 @@ html.ewb-design .ant-table-wrapper .ant-table-thead > tr > th::before { display:
 .ewb-index-table .ant-table-tbody > tr > td:first-child, .ewb-index-table .ant-table-cell.ewb-title-col { font-weight: 600; }
 
 /* ───────────── 弹层、浮层 ───────────── */
-html.ewb-design .ant-modal .ant-modal-content { padding: var(--ewb-sp-5); border: 1px solid var(--ewb-line); box-shadow: var(--ewb-shadow-pop); }
+html.ewb-design .ant-modal .ant-modal-content, html.ewb-design .ant-modal .ant-modal-container { padding: var(--ewb-sp-5); border: 1px solid var(--ewb-line); box-shadow: var(--ewb-shadow-pop); }
 html.ewb-design .ant-modal .ant-modal-header { margin-bottom: var(--ewb-sp-4); }
 html.ewb-design .ant-modal .ant-modal-title { font-weight: 700; }
+/* 弹窗打开时程序把焦点放在对话框本身（tabindex=-1），不画焦点框：否则整个弹窗外面套一圈粗紫边 */
+html.ewb-design .ant-modal-wrap:focus-visible, html.ewb-design .ant-modal[role="dialog"]:focus-visible, html.ewb-design .ant-drawer-section:focus-visible { outline: none; }
 html.ewb-design .ant-modal .ant-modal-footer { margin-top: var(--ewb-sp-5); }
 html.ewb-design .ant-drawer .ant-drawer-content { box-shadow: var(--ewb-shadow-pop); border-left: 1px solid var(--ewb-line); }
 html.ewb-design .ant-drawer .ant-drawer-header { border-bottom: 1px solid var(--ewb-line); }

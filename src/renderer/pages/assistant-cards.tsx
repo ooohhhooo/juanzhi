@@ -19,13 +19,13 @@ function Thumb({ t, picked, onPick, onZoom }: { t: CardTemplateInfo; picked: boo
   return (
     <div data-testid={`card-tpl-${t.id}`} data-picked={picked ? '1' : undefined} style={{ width: 112, textAlign: 'center' }}>
       <button type="button" onClick={onPick} aria-pressed={picked} aria-label={`设为默认：${t.name}`} title={t.scene}
-        style={{ display: 'block', width: 112, height: 150, padding: 0, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: '#f3f3f6', border: picked ? `3px solid ${t.accent}` : '3px solid transparent', outline: picked ? '1px solid rgba(0,0,0,.15)' : '1px solid rgba(0,0,0,.08)', position: 'relative' }}>
-        {src ? <img src={src} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ fontSize: 12, color: '#999', lineHeight: '144px' }}>生成中…</span>}
+        style={{ display: 'block', width: 112, height: 150, padding: 0, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'var(--ewb-paper-2)', border: picked ? `3px solid ${t.accent}` : '3px solid transparent', outline: '1px solid var(--ewb-line)', position: 'relative' }}>
+        {src ? <img src={src} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <span style={{ fontSize: 13, color: 'var(--ewb-ink-2)', lineHeight: '144px' }}>生成中…</span>}
         {picked && <span style={{ position: 'absolute', right: 4, top: 4, background: t.accent, color: '#fff', borderRadius: 10, width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Check size={13} strokeWidth={3} /></span>}
       </button>
-      <div style={{ fontSize: 12, marginTop: 4, display: 'flex', justifyContent: 'center', gap: 6, alignItems: 'center' }}>
+      <div style={{ fontSize: 13, marginTop: 6, display: 'flex', justifyContent: 'center', gap: 6, alignItems: 'center' }}>
         <span style={{ fontWeight: picked ? 700 : 400 }}>{t.name}</span>
-        <button type="button" onClick={onZoom} aria-label={`预览大图：${t.name}`} data-testid={`card-zoom-${t.id}`} style={{ border: 0, background: 'none', cursor: 'pointer', padding: 0, color: '#666' }}><Eye size={13} strokeWidth={1.9} /></button>
+        <button type="button" onClick={onZoom} aria-label={`预览大图：${t.name}`} data-testid={`card-zoom-${t.id}`} style={{ border: 0, background: 'none', cursor: 'pointer', padding: 2, borderRadius: 6, color: 'var(--ewb-ink-2)' }}><Eye size={13} strokeWidth={1.9} /></button>
       </div>
     </div>
   )
@@ -52,7 +52,7 @@ export function CardsPanel() {
     </div>
   )
   return (
-    <div data-testid="assistant-cards" style={{ display: 'grid', gap: 18, maxHeight: '62vh', overflowY: 'auto', paddingRight: 4 }}>
+    <div data-testid="assistant-cards" style={{ display: 'grid', gap: 20 }}>
       {group('student', '给学生的卡片', '动漫动画风，知识点 / 口诀 / 小练习。')}
       {group('parent', '给家长的卡片', '稍正式，本周学情 / 阶段进步 / 学习简报。')}
       <div>
@@ -63,8 +63,8 @@ export function CardsPanel() {
           <button type="button" data-testid="card-name-none" aria-pressed={data?.settings.childName === 'none'} onClick={() => void setName('none')}>不写名字</button>
         </div>
       </div>
-      <Modal open={!!zoom} title={zoom ? `${zoom.t.name}（示例）` : ''} onCancel={() => setZoom(null)} footer={<Btn tone="secondary" onClick={() => setZoom(null)}>关闭</Btn>} width={460} zIndex={1100} destroyOnClose>
-        {zoom?.src ? <img src={zoom.src} alt={zoom.t.name} data-testid="card-zoom-img" style={{ width: '100%', display: 'block', borderRadius: 8 }} /> : <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>生成中…</div>}
+      <Modal open={!!zoom} title={zoom ? `${zoom.t.name}（示例）` : ''} onCancel={() => setZoom(null)} footer={<Btn tone="secondary" onClick={() => setZoom(null)}>关闭</Btn>} width={460} zIndex={1100} destroyOnClose rootClassName="ewb-as-modal">
+        {zoom?.src ? <img src={zoom.src} alt={zoom.t.name} data-testid="card-zoom-img" style={{ width: '100%', display: 'block', borderRadius: 8 }} /> : <div className="ewb-as-loading">生成中…</div>}
       </Modal>
     </div>
   )
