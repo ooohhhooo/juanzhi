@@ -190,7 +190,7 @@ const api = {
     deleteSession: (id: string): Promise<boolean> => ipcRenderer.invoke('agent:deleteSession', id),
     stop: (sessionId: string): Promise<boolean> => ipcRenderer.invoke('agent:stop', sessionId),
     answer: (sessionId: string, askId: string, answer: string): Promise<boolean> => ipcRenderer.invoke('agent:answer', sessionId, askId, answer),
-    approve: (sessionId: string, id: string, ok: boolean): Promise<boolean> => ipcRenderer.invoke('agent:approve', sessionId, id, ok),
+    approve: (sessionId: string, id: string, ok: boolean | 'session'): Promise<boolean> => ipcRenderer.invoke('agent:approve', sessionId, id, ok),
   },
   files: {
     /** 统一导入入口：表格进数据，图片进试卷库，pdf / docx 按内容分流；路径必须来自对话框或 getPathForFile */

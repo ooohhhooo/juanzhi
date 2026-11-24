@@ -33,7 +33,7 @@ const MODE_TEXT: Record<AgentMode, string> = {
   auto: '「自动完成」模式：自己决定怎么做，一口气做完；只有遇到只有用户能决定的事才提问。'
 }
 
-export function buildSystemPrompt(o: { subject?: SubjectId; role: RoleDef; scene: Scene; playbooks: Playbook[]; today: string; mode?: AgentMode; orgContext?: string; datasets?: Array<{ id: string; name: string }>; pickedPlaybooks?: string[]; recent?: Array<{ title: string; date: string }>; laterTools?: Array<{ name: string; label: string }> }): string {
+export function buildSystemPrompt(o: { subject?: SubjectId; role: RoleDef; scene: Scene; playbooks: Playbook[]; today: string; mode?: AgentMode; orgContext?: string; datasets?: Array<{ id: string; name: string }>; pickedPlaybooks?: string[]; recent?: Array<{ title: string; date: string }>; laterTools?: Array<{ name: string; label: string }>; otherRoles?: string }): string {
   const parts: string[] = []
   parts.push('# 规矩', commonRules(o.subject).map((r, i) => `${i + 1}. ${r}`).join('\n'))
   parts.push(`# 你现在的角色\n对方的身份是「${roleName(o.role, o.scene)}」。${o.role.persona}`)
@@ -43,6 +43,7 @@ export function buildSystemPrompt(o: { subject?: SubjectId; role: RoleDef; scene
   // 先出计划：确认前看不到的工具也告诉模型，免得它以为「这个功能没开放」
   if (o.mode === 'plan' && o.laterTools?.length) parts.push('# 用户确认计划后你还能用的工具（现在调用会被拒绝；把要用的写进计划步骤，用户点「按这个做」后就能用）\n' + o.laterTools.map(t => `- ${t.name}：${t.label}`).join('\n'))
   parts.push('不要对用户说某个功能「没开放」「做不了」「需要后台打开」，除非上面的工具清单（包括确认计划后能用的）里确实没有能做这件事的工具；有就照做。')
+  if (o.otherRoles) parts.push(o.otherRoles)
   if (o.role.defaultPlaybook && o.playbooks.some(p => p.name === o.role.defaultPlaybook)) parts.push(`这个角色的默认做法：遇到相关任务先用 load_playbook 读《${o.role.defaultPlaybook}》再照着做。`)
   const cat = playbookCatalog(o.playbooks)
   parts.push('# 可用 Skill（分析方法说明）\n' + (cat || '（暂时没有）'))

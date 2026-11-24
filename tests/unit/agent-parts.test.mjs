@@ -48,7 +48,9 @@ import { kpQuestions, statsOverview, courseForKp, factCheck, resolveKp } from '.
   for (const t of ['update_plan', 'ask_user', 'load_playbook', 'session_state', 'stats_overview', 'kp_questions', 'course_for_kp', 'fact_check']) assert.equal(r.get(t).level, 'read')
   // 所有角色用到的工具都已注册
   const full = createRegistry(adaptAgentTools(composeTools(['connectors_list', 'wecom_send'].map(name => ({ name, description: 'x', params: z.object({}), level: 'external', preview: async () => ({ target: 't', content: 'c' }), run: async () => ({ ok: true, message: '' }) }))), { makeCtx: () => ({}) }))
-  for (const role of ROLES) for (const t of role.tools) assert.ok(full.get(t), `${role.id} 用了未注册的工具 ${t}`)
+  // 试卷导入 / 生成报告要用数据库，由 service.buildRegistry 注册（这里的纯逻辑注册表里没有）
+  const SERVICE_ONLY = new Set(['paper_import', 'report_generate'])
+  for (const role of ROLES) for (const t of role.tools) assert.ok(full.get(t) || SERVICE_ONLY.has(t), `${role.id} 用了未注册的工具 ${t}`)
 }
 
 // ───── 客户端：工具调用（请求体 / 非流式 / 流式拼接 / 空内容但有工具调用不算 empty） ─────

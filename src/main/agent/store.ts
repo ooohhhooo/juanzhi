@@ -147,7 +147,8 @@ export function eventToStep(e: AgentEvent): { kind: StepKind; payload: unknown; 
     case 'tool_result': return { kind: 'tool_result', payload: { id: e.id, n: e.n, name: e.name, ok: e.ok, summary: e.summary, text: e.text, truncated: e.truncated }, ms: e.ms }
     case 'plan': return { kind: 'plan', payload: { items: e.items } }
     case 'ask': return { kind: 'ask', payload: { id: e.id, question: e.question, options: e.options, allowOther: e.allowOther, planReview: !!e.planReview, answer: null } }
-    case 'answer': return { kind: 'answer', payload: { text: e.text, removedRefs: e.removedRefs, stop: e.stop } }
+    case 'answer': return { kind: 'answer', payload: { text: e.text, removedRefs: e.removedRefs, stop: e.stop, ...(e.unfinished ? { unfinished: true } : {}) } }
+    case 'nudge': return { kind: 'assistant', payload: { nudge: true, text: e.text } }
     case 'compacted': return { kind: 'assistant', payload: { compacted: true, by: e.by, text: '已整理前面的内容，以便继续', summary: e.summary } }
     case 'error': return { kind: 'error', payload: { code: e.code, message: e.message } }
     default: return null
