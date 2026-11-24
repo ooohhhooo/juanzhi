@@ -74,6 +74,9 @@ interface ThemeCtx {
   echartsTheme: 'ewb-light' | 'ewb-dark'
 }
 
+/** 两个汉字的按钮不要自动插空格（「取 消」「保 存」读起来像字距没调好） */
+const BUTTON_CONFIG = { autoInsertSpace: false } as const
+
 const Ctx = createContext<ThemeCtx | null>(null)
 
 /** 在组件里读取 / 切换主题：`const { mode, pref, setPref } = useTheme()` */
@@ -108,7 +111,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={value}>
-      <ConfigProvider locale={zhCN} theme={themeConfig}>{children}</ConfigProvider>
+      <ConfigProvider locale={zhCN} theme={themeConfig} button={BUTTON_CONFIG}>{children}</ConfigProvider>
     </Ctx.Provider>
   )
 }

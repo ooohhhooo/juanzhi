@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { App, Checkbox, Input, Modal, Tag } from 'antd'
+import { App, Checkbox, Input, Modal } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, FileUp, FolderUp, FolderOpen, Copy, Pencil, Download, Trash2 } from 'lucide-react'
 import { Btn } from '../design'
@@ -27,7 +27,7 @@ function SkillEditor({ draft, onClose, onSaved }: { draft: Draft | null; onClose
   }
   const set = (p: Partial<Draft>) => setD(x => ({ ...x, ...p }))
   return (
-    <Modal open={!!draft} title={d.originalName ? '编辑 Skill' : '新建 Skill'} onCancel={onClose} width={640} destroyOnClose zIndex={1100}
+    <Modal open={!!draft} title={d.originalName ? '编辑 Skill' : '新建 Skill'} onCancel={onClose} width={640} destroyOnClose zIndex={1100} rootClassName="ewb-as-modal"
       footer={<><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="skill-save" disabled={!d.name.trim() || !d.description.trim() || !d.body.trim() || size > MAX} onClick={save}>保存</Btn></>}>
       <div data-testid="skill-editor" style={{ display: 'grid', gap: 10 }}>
         <label>名称<Input value={d.name} maxLength={40} placeholder="英文小写加连字符，或中文名" data-testid="skill-name" onChange={e => set({ name: e.target.value })} /></label>
@@ -76,10 +76,10 @@ export function SkillsPanel() {
   })
   const exp = async (name: string) => { try { const r = await window.api.agent.playbookExport(name); if (r.saved) message.success('已导出为 .md 文件') } catch (e) { message.error(clean(e)) } }
   const row = (i: (typeof items)[number], isMine: boolean) => (
-    <div key={`${i.source}:${i.name}`} data-testid="skill-item" data-name={i.name} style={{ display: 'grid', gap: 2, padding: '8px 0', borderBottom: '1px solid var(--ewb-line, #eee)' }}>
+    <div key={`${i.source}:${i.name}`} data-testid="skill-item" data-name={i.name} style={{ display: 'grid', gap: 4, padding: '12px 0', borderBottom: '1px solid var(--ewb-line)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <b data-testid="skill-item-name">{i.name}</b>
-        <Tag bordered={false} data-testid="skill-item-source">{!isMine ? '内置' : i.origin === 'imported' ? '导入' : '我的'}</Tag>
+        <span className="ewb-as-pill ewb-as-pill--soft" data-testid="skill-item-source">{!isMine ? '内置' : i.origin === 'imported' ? '导入' : '我的'}</span>
         <span style={{ flex: 1 }} />
         {!isMine && <Btn tone="secondary" size="small" icon={Copy} data-testid="skill-copy" onClick={() => open(i.name, true)}>复制为我的 Skill</Btn>}
         {isMine && <Btn tone="secondary" size="small" icon={Pencil} data-testid="skill-edit" onClick={() => open(i.name, false)}>编辑</Btn>}
@@ -100,7 +100,7 @@ export function SkillsPanel() {
         <Btn tone="secondary" size="small" icon={FolderUp} data-testid="skill-import-folder" onClick={() => imp('folder')}>导入文件夹（SKILL.md）</Btn>
         <Btn tone="secondary" size="small" icon={FolderOpen} data-testid="skill-open-dir" onClick={() => { void window.api.agent.playbookOpenDir().catch(e => message.error(clean(e))) }}>打开 Skill 文件夹</Btn>
       </div>
-      <div style={{ maxHeight: 360, overflowY: 'auto' }} data-testid="skill-list">
+      <div data-testid="skill-list">
         <b>我的 Skill</b>
         {mine.length ? mine.map(i => row(i, true)) : <p className="ewb-lib-sub" data-testid="skill-mine-empty" style={{ margin: '4px 0 8px' }}>还没有。可以新建、导入，或把内置的复制一份来改。</p>}
         <b style={{ display: 'block', marginTop: 12 }}>内置 Skill</b>

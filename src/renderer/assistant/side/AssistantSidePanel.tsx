@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { PanelRightClose, PanelRightOpen, FileText, LayoutDashboard, Sheet, Info, Download, Copy, FolderOpen, Image as ImageIcon, Send } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, FileStack, FileText, LayoutDashboard, Sheet, Info, Download, Copy, FolderOpen, Image as ImageIcon, Send } from 'lucide-react'
 import type { OutputContent, OutputEntry, OutputExportFormat } from '../../../shared/agent-outputs'
 import type { CanvasAction, CanvasNode } from '../types'
 import CardDetail from './CardDetail'
@@ -72,7 +72,9 @@ export default function AssistantSidePanel(p: SidePanelProps) {
   const key = p.storageKey ?? 'ewb-assistant-side'
   const [width, setWidth] = useState(() => { const v = Number(store()?.getItem(key + '-w')); return v >= MIN_W && v <= MAX_W ? v : DEF_W })
   const [folded, setFolded] = useState(() => { const v = store()?.getItem(key + '-fold'); if (v === '1') return true; if (v === '0') return false; return !!p.foldBelow && window.innerWidth < p.foldBelow })
-  const setFoldedByUser = (f: boolean) => { try { store()?.setItem(key + '-fold', f ? '1' : '0') } catch { /* 忽略 */ } setFolded(f) }
+  // 还没有任何产出时先收成右侧的小竖条（不占对话的宽度），第一份产出出来就自动展开；用户这次自己点开了就保持打开
+  const [emptyOpen, setEmptyOpen] = useState(false)
+  const setFoldedByUser = (f: boolean) => { try { store()?.setItem(key + '-fold', f ? '1' : '0') } catch { /* 忽略 */ } setFolded(f); setEmptyOpen(!f) }
   // 在画布上点了卡片：卡片详情要看得到，收起的话自动展开
   useEffect(() => { if (p.mode === 'card' && p.node) setFolded(false) }, [p.mode, p.node?.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const [, tick] = useState(0)
@@ -96,11 +98,17 @@ export default function AssistantSidePanel(p: SidePanelProps) {
     setWidth(w); try { store()?.setItem(key + '-w', String(w)) } catch { /* 忽略 */ }
   }
 
-  if (folded) {
+  const emptyRail = !folded && !emptyOpen && p.outputs.length === 0 && !(p.mode === 'card' && p.node)
+  if (folded || emptyRail) {
+    const n = p.outputs.length
+    const label = p.mode === 'card' && p.node ? '卡片详情' : '产出'
+    const tip = p.mode === 'card' && p.node ? '展开看卡片详情' : n ? `展开看产出（${n} 个）` : '还没有产出。让助手写汇报、出看板或生成名单后，会出现在这里'
     return (
       <aside className="ewb-side ewb-side--folded" data-testid="side-panel" data-folded="1" data-mode={p.mode} aria-label="右侧面板（已折叠）">
-        <button type="button" className="ewb-side__fold" onClick={() => setFoldedByUser(false)} aria-label="展开右侧面板" data-testid="side-unfold"><PanelRightOpen size={16} strokeWidth={1.9} /></button>
-        <span className="ewb-side__vert">{p.mode === 'card' ? '卡片详情' : `产出 ${p.outputs.length}`}</span>
+        <button type="button" className="ewb-side__rail" onClick={() => setFoldedByUser(false)} aria-label={`展开右侧面板：${label}${n ? ` ${n} 个` : ''}`} title={tip} data-testid="side-unfold">
+          <span className="ewb-side__railic">{p.mode === 'card' && p.node ? <PanelRightOpen size={18} strokeWidth={1.9} aria-hidden /> : <FileStack size={18} strokeWidth={1.9} aria-hidden />}{n > 0 && <em className="ewb-side__badge" data-testid="side-badge">{n > 99 ? '99+' : n}</em>}</span>
+          <span className="ewb-side__raillabel">{label}</span>
+        </button>
       </aside>
     )
   }

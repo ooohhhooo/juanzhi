@@ -1,20 +1,32 @@
-/* 回答下面的行动记录 + 「它没做完」提示 */
-.ewb-as-log { margin-top: 8px; font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); }
-.ewb-as-log > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; }
+/* 回答下面的行动记录（它是怎么得出这个结论的）。颜色只用 --ewb-* 变量；只有失败的那一步用玫红。「它没做完」的样式在 page-assistant.css。 */
+.ewb-as-log { margin-top: 14px; font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); }
+.ewb-as-log > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 6px; margin-left: -6px; border-radius: var(--ewb-r-pill); font-variant-numeric: tabular-nums; transition: background-color var(--ewb-t-fast) ease, color var(--ewb-t-fast) ease; }
 .ewb-as-log > summary::-webkit-details-marker { display: none; }
-.ewb-as-log > summary:hover { color: var(--ewb-ink); }
-.ewb-as-log__chev { transition: transform .15s ease; flex: none; }
+.ewb-as-log > summary:hover { color: var(--ewb-ink); background: var(--ewb-paper-2); }
+.ewb-as-log > summary:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 1px; }
+.ewb-as-log__chev { transition: transform var(--ewb-t-fast) ease; flex: none; }
 .ewb-as-log[open] .ewb-as-log__chev { transform: rotate(90deg); }
-.ewb-as-log__list { list-style: none; margin: 6px 0 0; padding: 4px 0 4px 10px; border-left: 2px solid var(--ewb-line); display: grid; gap: 2px; }
-.ewb-as-log__row { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: baseline; gap: 8px; padding: 4px 6px; border-radius: 6px; }
+.ewb-as-log[open] > summary { color: var(--ewb-ink); }
+/* 时间线：左边一条 1px 细线，每步的小图标压在线上 */
+.ewb-as-log__list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; position: relative; }
+.ewb-as-log__list::before { content: ""; position: absolute; left: 14px; top: 16px; bottom: 16px; border-left: 1px solid var(--ewb-line); }
+.ewb-as-log__item { position: relative; }
+.ewb-as-log__row { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 10px 6px 6px; border-radius: var(--ewb-r-sm); transition: background-color var(--ewb-t-fast) ease; }
 .ewb-as-log__row:disabled { cursor: default; }
-.ewb-as-log__row:not(:disabled):hover { background: var(--ewb-note); }
-.ewb-as-log__row:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: 1px; }
-.ewb-as-log__ic { flex: none; display: inline-flex; align-self: center; color: var(--ewb-ink-2); }
+.ewb-as-log__row:not(:disabled):hover, .ewb-as-log__row[aria-expanded="true"] { background: var(--ewb-paper-2); }
+.ewb-as-log__row:focus-visible { outline: 2px solid var(--ewb-primary); outline-offset: -2px; }
+.ewb-as-log__ic { position: relative; flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ewb-page); color: var(--ewb-primary); }
 .ewb-as-log__item[data-ok="false"] .ewb-as-log__ic, .ewb-as-log__item[data-ok="false"] .ewb-as-log__res { color: var(--ewb-red-ink); }
-.ewb-as-log__label { color: var(--ewb-ink); font-weight: 600; white-space: nowrap; }
+.ewb-as-log__label { color: var(--ewb-ink); font-size: var(--ewb-fs-sm); font-weight: 600; white-space: nowrap; }
 .ewb-as-log__arg { color: var(--ewb-ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ewb-as-log__res { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.ewb-as-log__appr { margin: 0 0 2px 28px; color: var(--ewb-ink-2); display: flex; align-items: center; gap: 4px; }
-.ewb-as-log__raw { margin: 4px 0 6px 28px; display: grid; gap: 6px; }
-.ewb-as-unfinished { margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--ewb-note); font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); }
+.ewb-as-log__res { margin-left: auto; flex: 0 1 auto; min-width: 0; max-width: 45%; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ewb-as-log__ms { flex: none; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.ewb-as-log__more { flex: none; color: var(--ewb-line-strong); transition: transform var(--ewb-t-fast) ease; }
+.ewb-as-log__row[aria-expanded="true"] .ewb-as-log__more { transform: rotate(90deg); }
+.ewb-as-log__appr { margin: 0 0 4px 34px; color: var(--ewb-ink-2); display: flex; align-items: center; gap: 5px; }
+.ewb-as-log__appr svg { color: var(--ewb-primary); }
+.ewb-as-log__raw { margin: 6px 0 12px 34px; display: grid; gap: 10px; }
+.ewb-as-log__rawk { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 4px; font-size: var(--ewb-fs-xs); font-weight: 600; color: var(--ewb-ink-2); }
+.ewb-as-log__rawk small { font-weight: 400; font-size: var(--ewb-fs-xs); }
+.ewb-as-log__rawfoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: var(--ewb-fs-xs); color: var(--ewb-ink-2); }
+.ewb-as-log__rawfoot .ewb-as-chiplink { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; }

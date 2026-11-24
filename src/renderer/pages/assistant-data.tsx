@@ -126,7 +126,7 @@ function DatasetPicker() {
     void window.api.datasets.list().then(l => setList(l.map((d: any) => ({ id: d.id, name: d.name, rows: (d.tables ?? []).reduce((n: number, t: any) => n + (t.rows ?? 0), 0) })))).catch(() => setList([]))
   }, [open])   // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Modal open={open} title="选择数据集" okText="确定" cancelText="取消" onCancel={() => setPickerOpen(false)}
+    <Modal open={open} title="选择数据集" okText="确定" cancelText="取消" rootClassName="ewb-as-modal" onCancel={() => setPickerOpen(false)}
       onOk={() => { picked = list.filter(d => sel.includes(d.id)).map(d => ({ id: d.id, name: d.name })); emit(); setPickerOpen(false) }} okButtonProps={{ 'data-testid': 'assistant-dataset-ok' } as any}>
       {list.length === 0 ? <p data-testid="assistant-dataset-none">还没有数据集。可以先点「添加数据文件」导入 Excel 或 CSV。</p> : (
         <Checkbox.Group value={sel} onChange={v => setSel(v as string[])} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

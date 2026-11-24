@@ -269,6 +269,8 @@ function staticVars(): string[] {
     v('card-badge', CARD_PAPER.badge), v('card-on-badge', CARD_PAPER.onBadge),
     v('card-amber-band', CARD_AMBER.light.band), v('card-amber-ink', CARD_AMBER.light.ink), v('card-amber-line', CARD_AMBER.light.line),
     v('font', fontStack),
+    // 等宽：只给原始数据（工具的输入输出、SQL、对比），用系统自带的等宽字体，离线可用
+    v('font-mono', 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'),
     ...Object.entries(fontSizes).map(([k, n]) => v(`fs-${k}`, `${n}px`)),
     ...Object.entries(spacing).map(([k, n]) => v(`sp-${k}`, `${n}px`)),
     ...Object.entries(radius).map(([k, n]) => v(`r-${k}`, `${n}px`)),
