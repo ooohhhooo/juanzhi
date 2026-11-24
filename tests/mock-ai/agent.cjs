@@ -136,6 +136,15 @@ function next(body) {
     if (round === 0) return { content: '', toolCalls: [call('paper_import', {}, 0)] }
     return { content: /已导入 1 份试卷/.test(toolTexts.join('\n')) ? '已经导入试卷库了，识别完请到「审核」页核对。' : '没能导入。', toolCalls: [] }
   }
+  // 「做一份学情小结」：连做几次的同一类事（给 Skill 成长的测试用）；系统提示里有同名 Skill 时先读它
+  if (/学情小结/.test(q)) {
+    const sys = textOf(msgs[0]?.content)
+    const steps = [call('stats_overview', { top: 3 }, 0), call('papers_list', {}, 1)]
+    const hasSkill = /- 学情小结：/.test(sys)
+    const seq = hasSkill ? [call('load_playbook', { name: '学情小结' }, 'pb'), ...steps] : steps
+    if (round < seq.length) return { content: '', toolCalls: [seq[round]] }
+    return { content: '## 学情小结\n\n整体情况：已审核的试卷都看过了。\n\n下周建议：继续练习易错的语法点。' + (hasSkill ? '\n\n（按 Skill 做的）' : ''), toolCalls: [] }
+  }
   if (/卡住/.test(q)) return { content: '', toolCalls: [call('stats_overview', {}, round)] }
   if (/做一张口诀卡/.test(q)) {
     const m = { audience: 'student', kind: 'mnemonic', content: { title: "Let's 后面跟原形", lines: [{ text: "Let's 后面跟原形", highlight: '原形' }, { text: '不加 to，不加 ing' }, { text: 'go、run 直接站中间' }], examples: [{ label: '去动物园', text: "Let's go to the zoo." }, { label: '一起跑', text: "Let's run together." }] } }

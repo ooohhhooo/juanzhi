@@ -243,6 +243,18 @@ function writeOverrides(o: Record<string, string>): void {
   getDb().prepare('INSERT OR REPLACE INTO settings (key, value_json) VALUES (?, ?)').run(SETTINGS_KEY, JSON.stringify(o))
 }
 
+/** 定制包用：用户改写过的提示词（只含和内置默认不同的）；key 形如 'p1_text.system' / 'math:p1_text.system' */
+export function customPromptOverrides(): Record<string, string> {
+  return Object.fromEntries(Object.entries(overrides()).filter(([k, v]) => v !== DEFAULTS[k]))
+}
+/** 定制包导入：按 key 写入一条改写（和界面「保存」同一套检查） */
+export function importPromptOverride(key: string, text: string): void {
+  const { subject, base } = splitPromptKey(key)
+  const m = /^(.+)\.(system|user)$/.exec(base)
+  if (!m) throw new Error('不是已知的提示词')
+  savePrompt(m[1] as PromptId, m[2] as PromptPart, text, subject)
+}
+
 function bases(): Record<string, string> {
   const row = getDb().prepare('SELECT value_json FROM settings WHERE key = ?').get(BASE_KEY) as { value_json: string } | undefined
   try {

@@ -9,6 +9,7 @@ import './assistant-data'
 import { getAssistantSlots } from './assistant-slots'
 import { AssistantSettingsModal, RoleModal } from './assistant-dialogs'
 import RoleWizard from './assistant-role-wizard'
+import { SkillBar } from './assistant-skill-grow'
 import { popularTemplates } from '../../main/agent/role-templates'
 import Composer, { chipsToHint } from './assistant-composer'
 import type { Chip } from './assistant-composer'
@@ -568,6 +569,7 @@ export default function Assistant() {
                   {!running && <button type="button" className="ewb-as-fork" data-testid="assistant-fork" title="从这条回答往下追问，形成一个分支，不影响主线" onClick={() => { setForkFrom(s.seq); document.querySelector<HTMLTextAreaElement>('[data-testid=assistant-input]')?.focus() }}>{' '}<CornerDownRight size={12} strokeWidth={1.9} style={{ verticalAlign: '-1px' }} /> 从这里追问</button>}
                   {s.payload.stop && s.payload.stop !== 'answered' && <p className="ewb-lib-sub" data-testid="assistant-stop-note" style={{ marginTop: 0 }}>{STOP_NOTE[s.payload.stop] ?? ''}</p>}
                   <AnswerMarkdown text={String(s.payload.text ?? '')} cites={cites} onGo={goCite} />
+                  {(!s.payload.stop || s.payload.stop === 'answered') && <SkillBar sessionId={s.sessionId} seq={s.seq} running={running} />}
                 </div>)
               case 'error': {
                 const c = String(s.payload.code)

@@ -6,6 +6,7 @@ import { Btn } from '../design'
 import { SkillsPanel } from './assistant-skills'
 import { TOOL_CATEGORIES, toolCategory } from '../../main/agent/role-templates'
 import { CardsPanel } from './assistant-cards'
+import { PackPanel } from './assistant-skill-grow'
 
 const NONE: never[] = []
 const clean = (e: unknown) => (e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
@@ -118,13 +119,14 @@ export function AssistantSettingsModal({ open, onClose, extra }: { open: boolean
   }
   return (
     <Modal open={open} title="助手设置" onCancel={onClose} width={640} destroyOnClose afterClose={() => setTab('general')}
-      footer={tab === 'skills' || tab === 'cards' ? <Btn tone="secondary" onClick={onClose}>关闭</Btn> : <><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}>
+      footer={tab === 'skills' || tab === 'cards' || tab === 'pack' ? <Btn tone="secondary" onClick={onClose}>关闭</Btn> : <><Btn tone="secondary" onClick={onClose}>取消</Btn><Btn tone="primary" data-testid="assistant-settings-save" onClick={save}>保存</Btn></>}>
       <Tabs activeKey={tab} onChange={setTab} items={[
         { key: 'general', label: <span data-testid="assistant-settings-tab-general">通用</span> },
         { key: 'skills', label: <span data-testid="assistant-settings-tab-skills">Skill</span> },
-        { key: 'cards', label: <span data-testid="assistant-settings-tab-cards">分享卡片</span> }
+        { key: 'cards', label: <span data-testid="assistant-settings-tab-cards">分享卡片</span> },
+        { key: 'pack', label: <span data-testid="assistant-settings-tab-pack">配置包</span> }
       ]} />
-      {tab === 'skills' ? <SkillsPanel /> : tab === 'cards' ? <CardsPanel /> : <div data-testid="assistant-settings" style={{ display: 'grid', gap: 16 }}>
+      {tab === 'skills' ? <SkillsPanel /> : tab === 'cards' ? <CardsPanel /> : tab === 'pack' ? <PackPanel /> : <div data-testid="assistant-settings" style={{ display: 'grid', gap: 16 }}>
         {extra && (
           <div>
             <b>你的场景</b>

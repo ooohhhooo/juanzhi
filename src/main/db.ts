@@ -763,6 +763,44 @@ export const MIGRATIONS: Array<(db: any) => void> = [
       PRIMARY KEY (book_id, seq)
     );
     CREATE INDEX IF NOT EXISTS idx_book_files_outline ON book_files(outline_id);`)
+  },
+  // v16 → v17（Skill 从多次对话里长出来）：只加三张表，不碰旧表。
+  //  - agent_turns：每次回答完成后记一行「这次做的是哪类事」（角色 + 用到的工具 + 去掉数字 / 班级 / 日期后的关键词），以及用户的信号（👍 / 👎、是否又要求修改、是否导出过产出）；
+  //  - skill_meta：我的 Skill 的版本号、来自几次对话、来自哪几次（给「来源」点开看）、指纹（用来判断某类事是否已有 Skill 覆盖）；
+  //  - skill_use：每次对话里助手读取了哪个 Skill（按版本记），用来判断「最近 3 次都被改」。
+  (db) => {
+    db.exec(`CREATE TABLE IF NOT EXISTS agent_turns (
+      session_id TEXT NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
+      answer_seq INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      subject TEXT NOT NULL DEFAULT 'english',
+      fp_json TEXT NOT NULL,
+      rating INTEGER,
+      revised INTEGER NOT NULL DEFAULT 0,
+      revise_text TEXT NOT NULL DEFAULT '',
+      exported INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      PRIMARY KEY (session_id, answer_seq)
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_turns_c ON agent_turns(role, created_at);
+    CREATE TABLE IF NOT EXISTS skill_meta (
+      name TEXT PRIMARY KEY,
+      version INTEGER NOT NULL DEFAULT 1,
+      sample_count INTEGER NOT NULL DEFAULT 0,
+      fp_json TEXT NOT NULL DEFAULT '{}',
+      sources_json TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS skill_use (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      skill_name TEXT NOT NULL,
+      skill_version INTEGER NOT NULL DEFAULT 1,
+      session_id TEXT NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
+      answer_seq INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      UNIQUE (session_id, answer_seq, skill_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_skill_use_n ON skill_use(skill_name, id DESC);`)
   }
 ]
 
